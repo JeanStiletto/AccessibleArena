@@ -7,6 +7,7 @@ using MelonLoader;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -31,18 +32,18 @@ namespace AccessibleArena.Core.Services
                     return;
                 if (!currentBrowser.GetType().Name.Contains("SelectGroup"))
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] SelectGroup: CurrentBrowser is {currentBrowser.GetType().Name}");
+                    Log.Msg("BrowserNavigator", $"SelectGroup: CurrentBrowser is {currentBrowser.GetType().Name}");
                     return;
                 }
 
                 _selectGroupBrowserRef = currentBrowser;
-                MelonLogger.Msg($"[BrowserNavigator] SelectGroup: Found browser {currentBrowser.GetType().Name}");
+                Log.Msg("BrowserNavigator", $"SelectGroup: Found browser {currentBrowser.GetType().Name}");
 
                 // Call GetCardGroups() → List<List<DuelScene_CDC>>
                 var getCardGroupsMethod = currentBrowser.GetType().GetMethod("GetCardGroups", ReflFlags);
                 if (getCardGroupsMethod == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] SelectGroup: GetCardGroups method not found");
+                    Log.Msg("BrowserNavigator", "SelectGroup: GetCardGroups method not found");
                     return;
                 }
 
@@ -66,16 +67,16 @@ namespace AccessibleArena.Core.Services
                             _pile2CDCs.Add(cdc);
                     }
 
-                    MelonLogger.Msg($"[BrowserNavigator] SelectGroup: Pile 1 has {_pile1CDCs.Count} cards, Pile 2 has {_pile2CDCs.Count} cards");
+                    Log.Msg("BrowserNavigator", $"SelectGroup: Pile 1 has {_pile1CDCs.Count} cards, Pile 2 has {_pile2CDCs.Count} cards");
                 }
                 else
                 {
-                    MelonLogger.Msg("[BrowserNavigator] SelectGroup: GetCardGroups returned unexpected result");
+                    Log.Msg("BrowserNavigator", "SelectGroup: GetCardGroups returned unexpected result");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] SelectGroup cache error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"SelectGroup cache error: {ex.Message}");
             }
         }
 
@@ -120,11 +121,11 @@ namespace AccessibleArena.Core.Services
                 // Include face-down cards (don't filter by IsValidCardName)
                 if (string.IsNullOrEmpty(cardName) || !BrowserDetector.IsValidCardName(cardName))
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] SelectGroup: Face-down card in {pileLabel}: {go.name}");
+                    Log.Msg("BrowserNavigator", $"SelectGroup: Face-down card in {pileLabel}: {go.name}");
                 }
                 else
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] SelectGroup: Card in {pileLabel}: {cardName}");
+                    Log.Msg("BrowserNavigator", $"SelectGroup: Card in {pileLabel}: {cardName}");
                 }
 
                 _browserCards.Add(go);
@@ -132,7 +133,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] SelectGroup: Error adding card from pile {pileNumber}: {ex.Message}");
+                Log.Error("BrowserNavigator", $"SelectGroup: Error adding card from pile {pileNumber}: {ex.Message}");
             }
         }
 

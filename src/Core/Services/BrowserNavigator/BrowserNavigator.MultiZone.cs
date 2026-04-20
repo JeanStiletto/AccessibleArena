@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -98,7 +99,7 @@ namespace AccessibleArena.Core.Services
         private void ActivateMultiZoneButton()
         {
             var button = _zoneButtons[_currentZoneButtonIndex];
-            MelonLogger.Msg($"[BrowserNavigator] Activating zone button: {button.name}");
+            Log.Msg("BrowserNavigator", $"Activating zone button: {button.name}");
             UIActivator.SimulatePointerClick(button);
 
             // Rediscover cards after game updates the holder
@@ -118,7 +119,7 @@ namespace AccessibleArena.Core.Services
             _currentCardIndex = -1;
             DiscoverCardsInHolders();
 
-            MelonLogger.Msg($"[BrowserNavigator] Multi-zone rediscovery: {_browserCards.Count} cards");
+            Log.Msg("BrowserNavigator", $"Multi-zone rediscovery: {_browserCards.Count} cards");
             AnnounceMultiZoneSelector();
         }
 
@@ -154,7 +155,7 @@ namespace AccessibleArena.Core.Services
                 var toggle = button.GetComponent<Toggle>();
                 if (toggle != null && toggle.isOn)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Zone button {i} ({button.name}) is active (Toggle.isOn)");
+                    Log.Msg("BrowserNavigator", $"Zone button {i} ({button.name}) is active (Toggle.isOn)");
                     return i;
                 }
             }

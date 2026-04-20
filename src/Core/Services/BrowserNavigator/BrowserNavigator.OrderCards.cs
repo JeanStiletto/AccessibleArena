@@ -7,6 +7,7 @@ using MelonLoader;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -42,7 +43,7 @@ namespace AccessibleArena.Core.Services
                     var id = _instanceIdProp.GetValue(cdc);
                     if ((id is uint uid && uid == 0) || (id is int iid && iid == 0))
                     {
-                        MelonLogger.Msg($"[BrowserNavigator] Filtered placeholder card at index {i}");
+                        Log.Msg("BrowserNavigator", $"Filtered placeholder card at index {i}");
                         _browserCards.RemoveAt(i);
                     }
                 }
@@ -65,7 +66,7 @@ namespace AccessibleArena.Core.Services
                 // Pick up: record current index
                 _orderGrabbedIndex = _currentCardIndex;
                 var cardName = CardDetector.GetCardName(_browserCards[_currentCardIndex]) ?? "card";
-                MelonLogger.Msg($"[BrowserNavigator] OrderCards: picked up '{cardName}' at index {_orderGrabbedIndex}");
+                Log.Msg("BrowserNavigator", $"OrderCards: picked up '{cardName}' at index {_orderGrabbedIndex}");
                 _announcer.Announce(Strings.OrderCardsPickedUp, AnnouncementPriority.Normal);
             }
             else
@@ -98,13 +99,13 @@ namespace AccessibleArena.Core.Services
             var cardName = CardDetector.GetCardName(card) ?? "card";
             var cdc = CardDetector.GetDuelSceneCDC(card);
 
-            MelonLogger.Msg($"[BrowserNavigator] OrderCards: placing '{cardName}' from {fromIndex} to {toIndex}");
+            Log.Msg("BrowserNavigator", $"OrderCards: placing '{cardName}' from {fromIndex} to {toIndex}");
 
             // Find the holder and its CardBrowserCardHolder component
             var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
             if (defaultHolder == null)
             {
-                MelonLogger.Warning("[BrowserNavigator] OrderCards: default holder not found");
+                Log.Warn("BrowserNavigator", "OrderCards: default holder not found");
                 _announcer.Announce(Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count), AnnouncementPriority.Normal);
                 return;
             }
@@ -121,7 +122,7 @@ namespace AccessibleArena.Core.Services
 
             if (holderComp == null)
             {
-                MelonLogger.Warning("[BrowserNavigator] OrderCards: CardBrowserCardHolder not found");
+                Log.Warn("BrowserNavigator", "OrderCards: CardBrowserCardHolder not found");
                 _announcer.Announce(Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count), AnnouncementPriority.Normal);
                 return;
             }
@@ -132,7 +133,7 @@ namespace AccessibleArena.Core.Services
 
             if (holderFromIndex < 0 || holderToIndex < 0)
             {
-                MelonLogger.Warning($"[BrowserNavigator] OrderCards: could not map indices (from={holderFromIndex}, to={holderToIndex})");
+                Log.Warn("BrowserNavigator", $"OrderCards: could not map indices (from={holderFromIndex}, to={holderToIndex})");
                 _announcer.Announce(Strings.OrderCardsPlaced(toIndex + 1, _browserCards.Count), AnnouncementPriority.Normal);
                 return;
             }
@@ -144,11 +145,11 @@ namespace AccessibleArena.Core.Services
             if (_shiftCardsMethod != null)
             {
                 _shiftCardsMethod.Invoke(holderComp, new object[] { holderFromIndex, holderToIndex });
-                MelonLogger.Msg($"[BrowserNavigator] OrderCards: ShiftCards({holderFromIndex}, {holderToIndex})");
+                Log.Msg("BrowserNavigator", $"OrderCards: ShiftCards({holderFromIndex}, {holderToIndex})");
             }
             else
             {
-                MelonLogger.Warning("[BrowserNavigator] OrderCards: ShiftCards method not found");
+                Log.Warn("BrowserNavigator", "OrderCards: ShiftCards method not found");
             }
 
             // Sync the browser's internal cardViews list via OnDragRelease
@@ -207,12 +208,12 @@ namespace AccessibleArena.Core.Services
                 if (onDragRelease != null)
                 {
                     onDragRelease.Invoke(currentBrowser, new object[] { cardCDC });
-                    MelonLogger.Msg("[BrowserNavigator] OrderCards: browser synced via OnDragRelease");
+                    Log.Msg("BrowserNavigator", "OrderCards: browser synced via OnDragRelease");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserNavigator] OrderCards: error syncing browser: {ex.Message}");
+                Log.Warn("BrowserNavigator", $"OrderCards: error syncing browser: {ex.Message}");
             }
         }
 

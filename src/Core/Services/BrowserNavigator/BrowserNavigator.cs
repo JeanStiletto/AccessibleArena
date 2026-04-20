@@ -10,6 +10,7 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -155,14 +156,14 @@ namespace AccessibleArena.Core.Services
                 // Re-enter if browser type changed (e.g., OpeningHand -> Mulligan)
                 else if (browserInfo.BrowserType != _browserInfo?.BrowserType)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Browser type changed: {_browserInfo?.BrowserType} -> {browserInfo.BrowserType}");
+                    Log.Msg("BrowserNavigator", $"Browser type changed: {_browserInfo?.BrowserType} -> {browserInfo.BrowserType}");
                     ExitBrowserMode();
                     EnterBrowserMode(browserInfo);
                 }
                 // Re-enter if same type but different scaffold instance
                 else if (browserInfo.BrowserGameObject != _browserInfo?.BrowserGameObject)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Browser scaffold instance changed for: {browserInfo.BrowserType}");
+                    Log.Msg("BrowserNavigator", $"Browser scaffold instance changed for: {browserInfo.BrowserType}");
                     ExitBrowserMode();
                     EnterBrowserMode(browserInfo);
                 }
@@ -172,7 +173,7 @@ namespace AccessibleArena.Core.Services
                     _pendingRescan = false;
                     // Preserve mulligan count across rescan so London phase keeps correct state
                     int savedMulliganCount = _zoneNavigator.MulliganCount;
-                    MelonLogger.Msg($"[BrowserNavigator] Re-scanning browser after confirm: {browserInfo.BrowserType}");
+                    Log.Msg("BrowserNavigator", $"Re-scanning browser after confirm: {browserInfo.BrowserType}");
                     ExitBrowserMode();
                     EnterBrowserMode(browserInfo);
                     if (savedMulliganCount > 0 && BrowserDetector.IsLondonBrowser(browserInfo.BrowserType))
@@ -207,7 +208,7 @@ namespace AccessibleArena.Core.Services
             _browserCards.Clear();
             _browserButtons.Clear();
 
-            MelonLogger.Msg($"[BrowserNavigator] Entering browser: {browserInfo.BrowserType}");
+            Log.Msg("BrowserNavigator", $"Entering browser: {browserInfo.BrowserType}");
 
             // Claim Browser zone ownership so other navigators yield Left/Right/Enter
             _duelZoneNavigator?.SetCurrentZone(ZoneType.Browser, "BrowserNavigator");
@@ -262,7 +263,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ExitBrowserMode()
         {
-            MelonLogger.Msg($"[BrowserNavigator] Exiting browser: {_browserInfo?.BrowserType}");
+            Log.Msg("BrowserNavigator", $"Exiting browser: {_browserInfo?.BrowserType}");
 
             // Deactivate zone navigator
             if (_browserInfo?.IsZoneBased == true)
@@ -331,7 +332,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void AutoDismissViewDismiss(BrowserInfo browserInfo)
         {
-            MelonLogger.Msg($"[BrowserNavigator] Auto-dismissing ViewDismiss card preview");
+            Log.Msg("BrowserNavigator", $"Auto-dismissing ViewDismiss card preview");
 
             if (browserInfo.BrowserGameObject == null) return;
 
@@ -347,14 +348,14 @@ namespace AccessibleArena.Core.Services
                     if (BrowserDetector.HasClickableComponent(child.gameObject))
                     {
                         var result = UIActivator.Activate(child.gameObject);
-                        MelonLogger.Msg($"[BrowserNavigator] Activated dismiss button '{name}': {result.Success} ({result.Type})");
+                        Log.Msg("BrowserNavigator", $"Activated dismiss button '{name}': {result.Success} ({result.Type})");
                         BrowserDetector.InvalidateCache();
                         return;
                     }
                 }
             }
 
-            MelonLogger.Msg($"[BrowserNavigator] No dismiss button found in ViewDismiss scaffold");
+            Log.Msg("BrowserNavigator", $"No dismiss button found in ViewDismiss scaffold");
         }
 
         #endregion
@@ -839,10 +840,10 @@ namespace AccessibleArena.Core.Services
                     {
                         _browserButtons.Add(button);
                         string buttonText = UITextExtractor.GetText(button);
-                        MelonLogger.Msg($"[BrowserNavigator] Workflow button: '{buttonText}'");
+                        Log.Msg("BrowserNavigator", $"Workflow button: '{buttonText}'");
                     }
                 }
-                MelonLogger.Msg($"[BrowserNavigator] Found {_browserButtons.Count} workflow action buttons");
+                Log.Msg("BrowserNavigator", $"Found {_browserButtons.Count} workflow action buttons");
                 return;
             }
 
@@ -859,7 +860,7 @@ namespace AccessibleArena.Core.Services
                 _browserButtons.RemoveAll(b =>
                     !UIElementClassifier.IsVisibleViaCanvasGroup(b) &&
                     !UITextExtractor.HasActualText(b));
-                MelonLogger.Msg($"[BrowserNavigator] SelectGroup: {_pile1CDCs.Count} pile 1, {_pile2CDCs.Count} pile 2, {_browserCards.Count} cards, {_browserButtons.Count} buttons");
+                Log.Msg("BrowserNavigator", $"SelectGroup: {_pile1CDCs.Count} pile 1, {_pile2CDCs.Count} pile 2, {_browserCards.Count} cards, {_browserButtons.Count} buttons");
                 return;
             }
 
@@ -872,7 +873,7 @@ namespace AccessibleArena.Core.Services
                 if (_browserButtons.Count == 0)
                     DiscoverPromptButtons();
                 int kwCount = GetKeywordCount();
-                MelonLogger.Msg($"[BrowserNavigator] KeywordSelection: {kwCount} keywords, {_browserButtons.Count} buttons");
+                Log.Msg("BrowserNavigator", $"KeywordSelection: {kwCount} keywords, {_browserButtons.Count} buttons");
                 return;
             }
 
@@ -964,7 +965,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _currentZoneButtonIndex = FindActiveZoneButtonIndex();
                     EnterZoneSelector();
-                    MelonLogger.Msg($"[BrowserNavigator] Multi-zone: {_zoneButtons.Count} zone buttons, {_browserCards.Count} cards, active index: {_currentZoneButtonIndex}");
+                    Log.Msg("BrowserNavigator", $"Multi-zone: {_zoneButtons.Count} zone buttons, {_browserCards.Count} cards, active index: {_currentZoneButtonIndex}");
                 }
                 else
                 {
@@ -993,7 +994,7 @@ namespace AccessibleArena.Core.Services
                 return false;
             });
 
-            MelonLogger.Msg($"[BrowserNavigator] Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
+            Log.Msg("BrowserNavigator", $"Found {_browserCards.Count} cards, {_browserButtons.Count} buttons");
         }
 
         /// <summary>
@@ -1001,7 +1002,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DiscoverMulliganCards()
         {
-            MelonLogger.Msg($"[BrowserNavigator] Searching for opening hand cards");
+            Log.Msg("BrowserNavigator", $"Searching for opening hand cards");
 
             // Search for LocalHand zone
             var localHandZones = BrowserDetector.FindActiveGameObjects(go => go.name.StartsWith(ZoneLocalHand));
@@ -1016,7 +1017,7 @@ namespace AccessibleArena.Core.Services
                 SearchForCardsInContainer(_browserInfo.BrowserGameObject, "Scaffold");
             }
 
-            MelonLogger.Msg($"[BrowserNavigator] After opening hand search: {_browserCards.Count} cards found");
+            Log.Msg("BrowserNavigator", $"After opening hand search: {_browserCards.Count} cards found");
         }
 
         /// <summary>
@@ -1040,7 +1041,7 @@ namespace AccessibleArena.Core.Services
                     if (BrowserDetector.IsDuplicateCard(child.gameObject, _browserCards)) continue;
 
                     _browserCards.Add(child.gameObject);
-                    MelonLogger.Msg($"[BrowserNavigator] Found card in {holder.name}: {child.name} -> {cardName}");
+                    Log.Msg("BrowserNavigator", $"Found card in {holder.name}: {child.name} -> {cardName}");
                 }
             }
         }
@@ -1072,7 +1073,7 @@ namespace AccessibleArena.Core.Services
                 if (!_browserButtons.Contains(button))
                 {
                     _browserButtons.Add(button);
-                    MelonLogger.Msg($"[BrowserNavigator] Added mulligan button: {button.name}");
+                    Log.Msg("BrowserNavigator", $"Added mulligan button: {button.name}");
                 }
             }
         }
@@ -1082,7 +1083,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DiscoverPromptButtons()
         {
-            MelonLogger.Msg($"[BrowserNavigator] No buttons found, searching for PromptButtons...");
+            Log.Msg("BrowserNavigator", $"No buttons found, searching for PromptButtons...");
 
             var promptButtons = BrowserDetector.FindActiveGameObjects(go =>
                 go.name.StartsWith(BrowserDetector.PromptButtonPrimaryPrefix) ||
@@ -1094,7 +1095,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _browserButtons.Add(button);
                     string buttonText = UITextExtractor.GetButtonText(button, button.name);
-                    MelonLogger.Msg($"[BrowserNavigator] Found prompt button: {button.name} -> '{buttonText}'");
+                    Log.Msg("BrowserNavigator", $"Found prompt button: {button.name} -> '{buttonText}'");
                 }
             }
         }
@@ -1112,7 +1113,7 @@ namespace AccessibleArena.Core.Services
                 if (_browserButtons.Contains(child.gameObject)) continue;
 
                 _browserButtons.Add(child.gameObject);
-                MelonLogger.Msg($"[BrowserNavigator] Found button: {child.name}");
+                Log.Msg("BrowserNavigator", $"Found button: {child.name}");
             }
         }
 
@@ -1166,7 +1167,7 @@ namespace AccessibleArena.Core.Services
                     continue;
 
                 choiceButtons.Add(child.gameObject);
-                MelonLogger.Msg($"[BrowserNavigator] Found LargeScrollList choice: '{choiceText}'");
+                Log.Msg("BrowserNavigator", $"Found LargeScrollList choice: '{choiceText}'");
             }
 
             if (choiceButtons.Count > 0)
@@ -1175,7 +1176,7 @@ namespace AccessibleArena.Core.Services
                 _browserButtons.Clear();
                 _browserButtons.AddRange(choiceButtons);
                 _isChoiceList = true;
-                MelonLogger.Msg($"[BrowserNavigator] LargeScrollList: {choiceButtons.Count} choices");
+                Log.Msg("BrowserNavigator", $"LargeScrollList: {choiceButtons.Count} choices");
             }
         }
 
@@ -1200,7 +1201,7 @@ namespace AccessibleArena.Core.Services
 
             if (foundCount > 0)
             {
-                MelonLogger.Msg($"[BrowserNavigator] Container {containerName} had {foundCount} cards");
+                Log.Msg("BrowserNavigator", $"Container {containerName} had {foundCount} cards");
             }
         }
 
@@ -1230,7 +1231,7 @@ namespace AccessibleArena.Core.Services
                 string modelZone = CardStateProvider.GetCardZoneTypeName(card);
                 if (!string.IsNullOrEmpty(modelZone) && modelZone != "Hand")
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Skipping {cardInfo.Name} - actual zone: {modelZone}");
+                    Log.Msg("BrowserNavigator", $"Skipping {cardInfo.Name} - actual zone: {modelZone}");
                     continue;
                 }
 
@@ -1252,7 +1253,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            MelonLogger.Msg($"[BrowserNavigator] LocalHand search: found {foundCards.Count} valid cards");
+            Log.Msg("BrowserNavigator", $"LocalHand search: found {foundCards.Count} valid cards");
         }
 
         #endregion
@@ -1518,7 +1519,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserNavigator] Error reading CurrentHighlight: {ex.Message}");
+                Log.Warn("BrowserNavigator", $"Error reading CurrentHighlight: {ex.Message}");
                 return -1;
             }
         }
@@ -1748,7 +1749,7 @@ namespace AccessibleArena.Core.Services
                     _browserHeaderReflectionInit = true;
                     _browserHeaderSubheaderField = browserHeader.GetType().GetField("subheader", PrivateInstance);
                     if (_browserHeaderSubheaderField == null)
-                        MelonLogger.Warning("[BrowserNavigator] BrowserHeader.subheader field not found");
+                        Log.Warn("BrowserNavigator", "BrowserHeader.subheader field not found");
                 }
 
                 if (_browserHeaderSubheaderField == null) return null;
@@ -1763,7 +1764,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserNavigator] ExtractBrowserHeaderText error: {ex.Message}");
+                Log.Warn("BrowserNavigator", $"ExtractBrowserHeaderText error: {ex.Message}");
                 return null;
             }
         }
@@ -1779,7 +1780,7 @@ namespace AccessibleArena.Core.Services
 
             if (button == null)
             {
-                MelonLogger.Warning("[BrowserNavigator] Button at index was destroyed, refreshing buttons");
+                Log.Warn("BrowserNavigator", "Button at index was destroyed, refreshing buttons");
                 RefreshBrowserButtons();
                 return;
             }
@@ -1999,7 +2000,7 @@ namespace AccessibleArena.Core.Services
             var card = _browserCards[_currentCardIndex];
             var cardName = CardDetector.GetCardName(card) ?? "card";
 
-            MelonLogger.Msg($"[BrowserNavigator] Activating card: {cardName}");
+            Log.Msg("BrowserNavigator", $"Activating card: {cardName}");
 
             // For zone-based browsers (Scry/London), use zone navigator to move card properly
             if (_browserInfo.IsZoneBased)
@@ -2113,7 +2114,7 @@ namespace AccessibleArena.Core.Services
             var button = _browserButtons[_currentButtonIndex];
             var label = UITextExtractor.GetButtonText(button, button.name);
 
-            MelonLogger.Msg($"[BrowserNavigator] Activating button: {label}");
+            Log.Msg("BrowserNavigator", $"Activating button: {label}");
 
             // Choice-list buttons are parent GOs with CustomButton whose Click()
             // must be called directly (OnPointerUp requires _mouseOver state).
@@ -2234,7 +2235,7 @@ namespace AccessibleArena.Core.Services
 
             if (gameManager == null)
             {
-                MelonLogger.Msg($"[BrowserNavigator] {logPrefix}: GameManager not found");
+                Log.Msg("BrowserNavigator", $"{logPrefix}: GameManager not found");
                 return false;
             }
 
@@ -2242,7 +2243,7 @@ namespace AccessibleArena.Core.Services
             var browserManager = bmProp?.GetValue(gameManager);
             if (browserManager == null)
             {
-                MelonLogger.Msg($"[BrowserNavigator] {logPrefix}: BrowserManager not found");
+                Log.Msg("BrowserNavigator", $"{logPrefix}: BrowserManager not found");
                 return false;
             }
 

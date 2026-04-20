@@ -7,6 +7,7 @@ using MelonLoader;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -44,7 +45,7 @@ namespace AccessibleArena.Core.Services
                 _keywordFilterType = FindType("Wotc.Mtga.DuelScene.Interactions.ChoiceFilter");
                 if (_keywordFilterType == null)
                 {
-                    MelonLogger.Warning("[BrowserNavigator] ChoiceFilter type not found");
+                    Log.Warn("BrowserNavigator", "ChoiceFilter type not found");
                     return;
                 }
 
@@ -61,13 +62,13 @@ namespace AccessibleArena.Core.Services
                     _keyword_SearchText = keywordType.GetField("SearchText", PublicInstance);
                 }
 
-                MelonLogger.Msg($"[BrowserNavigator] ChoiceFilter reflection initialized: " +
+                Log.Msg("BrowserNavigator", $"ChoiceFilter reflection initialized: " +
                     $"filtered={_kf_filteredKeywords != null}, selected={_kf_selectedKeywords != null}, " +
                     $"filterInput={_kf_filterInput != null}, displayText={_keyword_DisplayText != null}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] KeywordFilter reflection error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"KeywordFilter reflection error: {ex.Message}");
             }
         }
 
@@ -110,12 +111,12 @@ namespace AccessibleArena.Core.Services
 
                 if (_keywordFilterRef == null)
                 {
-                    MelonLogger.Warning("[BrowserNavigator] ChoiceFilter component not found");
+                    Log.Warn("BrowserNavigator", "ChoiceFilter component not found");
                     _isKeywordSelection = false;
                     return;
                 }
 
-                MelonLogger.Msg($"[BrowserNavigator] Found ChoiceFilter: {_keywordFilterRef.gameObject.name}");
+                Log.Msg("BrowserNavigator", $"Found ChoiceFilter: {_keywordFilterRef.gameObject.name}");
 
                 // Deactivate the TMP_InputField to prevent it from stealing keyboard focus
                 DeactivateKeywordInputField();
@@ -125,7 +126,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] CacheKeywordFilterState error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"CacheKeywordFilterState error: {ex.Message}");
                 _isKeywordSelection = false;
             }
         }
@@ -147,11 +148,11 @@ namespace AccessibleArena.Core.Services
                     BindingFlags.Public | BindingFlags.Instance);
                 deactivateMethod?.Invoke(filterInput, null);
 
-                MelonLogger.Msg("[BrowserNavigator] Deactivated KeywordFilter InputField");
+                Log.Msg("BrowserNavigator", "Deactivated KeywordFilter InputField");
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[BrowserNavigator] Error deactivating InputField: {ex.Message}");
+                Log.Warn("BrowserNavigator", $"Error deactivating InputField: {ex.Message}");
             }
         }
 
@@ -272,11 +273,11 @@ namespace AccessibleArena.Core.Services
                 string state = isNowSelected ? Strings.KeywordSelectionSelected : Strings.Deselected;
                 _announcer.AnnounceInterrupt(Strings.KeywordSelectionToggled(displayText ?? searchText, state));
 
-                MelonLogger.Msg($"[BrowserNavigator] KeywordSelection toggled: '{displayText}' → {state}");
+                Log.Msg("BrowserNavigator", $"KeywordSelection toggled: '{displayText}' → {state}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] ToggleCurrentKeyword error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"ToggleCurrentKeyword error: {ex.Message}");
             }
         }
 

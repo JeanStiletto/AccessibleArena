@@ -6,6 +6,7 @@ using MelonLoader;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -39,7 +40,7 @@ namespace AccessibleArena.Core.Services
 
                 if (gameManager == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: GameManager not found");
+                    Log.Msg("BrowserNavigator", $"WorkflowReflection: GameManager not found");
                     if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
                         MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                     return false;
@@ -51,7 +52,7 @@ namespace AccessibleArena.Core.Services
 
                 if (workflowController == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: WorkflowController not found");
+                    Log.Msg("BrowserNavigator", $"WorkflowReflection: WorkflowController not found");
                     if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
                         MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                     return false;
@@ -82,14 +83,14 @@ namespace AccessibleArena.Core.Services
 
                 if (currentInteraction == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: No active workflow found");
+                    Log.Msg("BrowserNavigator", $"WorkflowReflection: No active workflow found");
                     if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
                         MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                     return false;
                 }
 
                 var workflowType = currentInteraction.GetType();
-                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Found workflow: {workflowType.Name}");
+                Log.Msg("BrowserNavigator", $"WorkflowReflection: Found workflow: {workflowType.Name}");
 
                 // Try to submit via _request.SubmitSolution()
                 var requestField = workflowType.GetField("_request", flags);
@@ -115,13 +116,13 @@ namespace AccessibleArena.Core.Services
                             if (parameters.Length == 0)
                             {
                                 submitMethod.Invoke(request, null);
-                                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Called SubmitSolution()");
+                                Log.Msg("BrowserNavigator", $"WorkflowReflection: Called SubmitSolution()");
                                 return true;
                             }
                             else if (parameters.Length == 1 && solution != null)
                             {
                                 submitMethod.Invoke(request, new[] { solution });
-                                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Called SubmitSolution(solution)");
+                                Log.Msg("BrowserNavigator", $"WorkflowReflection: Called SubmitSolution(solution)");
                                 return true;
                             }
                         }
@@ -135,20 +136,20 @@ namespace AccessibleArena.Core.Services
                     if (method != null && method.GetParameters().Length == 0)
                     {
                         method.Invoke(currentInteraction, null);
-                        MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Called {methodName}()");
+                        Log.Msg("BrowserNavigator", $"WorkflowReflection: Called {methodName}()");
                         return true;
                     }
                 }
 
                 // If nothing worked, log failure
-                MelonLogger.Msg($"[BrowserNavigator] WorkflowReflection: Could not find submit method");
+                Log.Msg("BrowserNavigator", $"WorkflowReflection: Could not find submit method");
                 if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
                     MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                 return false;
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] WorkflowReflection error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"WorkflowReflection error: {ex.Message}");
                 if (BrowserDetector.IsDebugEnabled(BrowserDetector.BrowserTypeWorkflow))
                     MenuDebugHelper.DumpWorkflowSystemDebug("WorkflowDebug");
                 return false;
@@ -183,7 +184,7 @@ namespace AccessibleArena.Core.Services
                             if (cancelMethod != null)
                             {
                                 cancelMethod.Invoke(cw, null);
-                                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: Cancelled ConfirmWidget");
+                                Log.Msg("BrowserNavigator", "WorkflowCancel: Cancelled ConfirmWidget");
                                 return true;
                             }
                         }
@@ -203,7 +204,7 @@ namespace AccessibleArena.Core.Services
 
                 if (gameManager == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: GameManager not found");
+                    Log.Msg("BrowserNavigator", "WorkflowCancel: GameManager not found");
                     return false;
                 }
 
@@ -211,7 +212,7 @@ namespace AccessibleArena.Core.Services
                 var workflowController = wcProp?.GetValue(gameManager);
                 if (workflowController == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: WorkflowController not found");
+                    Log.Msg("BrowserNavigator", "WorkflowCancel: WorkflowController not found");
                     return false;
                 }
 
@@ -234,12 +235,12 @@ namespace AccessibleArena.Core.Services
 
                 if (currentInteraction == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: No active workflow found");
+                    Log.Msg("BrowserNavigator", "WorkflowCancel: No active workflow found");
                     return false;
                 }
 
                 var workflowType = currentInteraction.GetType();
-                MelonLogger.Msg($"[BrowserNavigator] WorkflowCancel: Found workflow: {workflowType.Name}");
+                Log.Msg("BrowserNavigator", $"WorkflowCancel: Found workflow: {workflowType.Name}");
 
                 // Try to find _currentVariant and invoke Cancelled
                 var variantField = workflowType.GetField("_currentVariant", flags);
@@ -255,7 +256,7 @@ namespace AccessibleArena.Core.Services
                             if (cancelled != null)
                             {
                                 cancelled.Invoke();
-                                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: Invoked Cancelled on variant");
+                                Log.Msg("BrowserNavigator", "WorkflowCancel: Invoked Cancelled on variant");
                                 return true;
                             }
                         }
@@ -276,19 +277,19 @@ namespace AccessibleArena.Core.Services
                             if (undoMethod != null && undoMethod.GetParameters().Length == 0)
                             {
                                 undoMethod.Invoke(request, null);
-                                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: Called _request.Undo()");
+                                Log.Msg("BrowserNavigator", "WorkflowCancel: Called _request.Undo()");
                                 return true;
                             }
                         }
                     }
                 }
 
-                MelonLogger.Msg("[BrowserNavigator] WorkflowCancel: No cancel mechanism found");
+                Log.Msg("BrowserNavigator", "WorkflowCancel: No cancel mechanism found");
                 return false;
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] WorkflowCancel error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"WorkflowCancel error: {ex.Message}");
                 return false;
             }
         }
@@ -298,7 +299,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ClickConfirmButton()
         {
-            MelonLogger.Msg($"[BrowserNavigator] ClickConfirmButton called. Browser: {_browserInfo?.BrowserType}");
+            Log.Msg("BrowserNavigator", $"ClickConfirmButton called. Browser: {_browserInfo?.BrowserType}");
 
             // Signal re-entry on next frame in case the scaffold is reused for a new interaction
             _pendingRescan = true;
@@ -311,14 +312,14 @@ namespace AccessibleArena.Core.Services
                 // First try the reflection approach (access WorkflowController directly)
                 if (TrySubmitWorkflowViaReflection())
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Workflow submitted via reflection");
+                    Log.Msg("BrowserNavigator", $"Workflow submitted via reflection");
                     _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
                     BrowserDetector.InvalidateCache();
                     return;
                 }
 
                 // Fallback: try clicking the button if reflection failed
-                MelonLogger.Msg($"[BrowserNavigator] Reflection approach failed, trying button click");
+                Log.Msg("BrowserNavigator", $"Reflection approach failed, trying button click");
                 if (_browserButtons.Count > 0 && _currentButtonIndex >= 0)
                 {
                     ActivateCurrentButton();
@@ -382,7 +383,7 @@ namespace AccessibleArena.Core.Services
             // The correct confirm is submitting the workflow with the current selection.
             if (_isHighlightFilteredBrowser && TrySubmitWorkflowViaReflection())
             {
-                MelonLogger.Msg("[BrowserNavigator] SelectCards workflow submitted via reflection");
+                Log.Msg("BrowserNavigator", "SelectCards workflow submitted via reflection");
                 _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache();
                 return;
@@ -400,7 +401,7 @@ namespace AccessibleArena.Core.Services
             // scaffold buttons don't match ConfirmPatterns, but the underlying workflow can submit.
             if (!(_browserInfo?.IsWorkflow == true) && TrySubmitWorkflowViaReflection())
             {
-                MelonLogger.Msg($"[BrowserNavigator] Scaffold workflow submitted via reflection");
+                Log.Msg("BrowserNavigator", $"Scaffold workflow submitted via reflection");
                 _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache();
                 return;
@@ -428,7 +429,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ClickCancelButton()
         {
-            MelonLogger.Msg($"[BrowserNavigator] ClickCancelButton called. Browser: {_browserInfo?.BrowserType}");
+            Log.Msg("BrowserNavigator", $"ClickCancelButton called. Browser: {_browserInfo?.BrowserType}");
 
             string clickedLabel;
 
@@ -479,7 +480,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Not finding cancel is OK - some browsers don't have it
-            MelonLogger.Msg("[BrowserNavigator] No cancel button found");
+            Log.Msg("BrowserNavigator", "No cancel button found");
         }
 
         /// <summary>
@@ -499,7 +500,7 @@ namespace AccessibleArena.Core.Services
                     var result = UIActivator.SimulatePointerClick(button);
                     if (result.Success)
                     {
-                        MelonLogger.Msg($"[BrowserNavigator] Clicked {buttonName}: '{clickedLabel}'");
+                        Log.Msg("BrowserNavigator", $"Clicked {buttonName}: '{clickedLabel}'");
                         return true;
                     }
                 }
@@ -513,7 +514,7 @@ namespace AccessibleArena.Core.Services
                 var result = UIActivator.SimulatePointerClick(go);
                 if (result.Success)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Clicked {buttonName} (scene): '{clickedLabel}'");
+                    Log.Msg("BrowserNavigator", $"Clicked {buttonName} (scene): '{clickedLabel}'");
                     return true;
                 }
             }
@@ -569,7 +570,7 @@ namespace AccessibleArena.Core.Services
                 var result = UIActivator.SimulatePointerClick(go);
                 if (result.Success)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] Clicked {prefix}: '{clickedLabel}'");
+                    Log.Msg("BrowserNavigator", $"Clicked {prefix}: '{clickedLabel}'");
                     return true;
                 }
             }

@@ -9,6 +9,7 @@ using MelonLoader;
 using AccessibleArena.Core.Models;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -35,12 +36,12 @@ namespace AccessibleArena.Core.Services
                     return;
                 if (!currentBrowser.GetType().Name.Contains("AssignDamage"))
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: CurrentBrowser is {currentBrowser.GetType().Name}");
+                    Log.Msg("BrowserNavigator", $"AssignDamage: CurrentBrowser is {currentBrowser.GetType().Name}");
                     return;
                 }
 
                 _assignDamageBrowserRef = currentBrowser;
-                MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Found browser {currentBrowser.GetType().Name}");
+                Log.Msg("BrowserNavigator", $"AssignDamage: Found browser {currentBrowser.GetType().Name}");
 
                 // Deactivate CardInfoNavigator to prevent Up/Down interference
                 // (it runs before BrowserNavigator in the update loop and would intercept spinner keys)
@@ -51,11 +52,11 @@ namespace AccessibleArena.Core.Services
                 if (spinnerField != null)
                 {
                     _spinnerMap = spinnerField.GetValue(currentBrowser) as System.Collections.IDictionary;
-                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Spinner map has {_spinnerMap?.Count ?? 0} entries");
+                    Log.Msg("BrowserNavigator", $"AssignDamage: Spinner map has {_spinnerMap?.Count ?? 0} entries");
                 }
                 else
                 {
-                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: _idToSpinnerMap field not found");
+                    Log.Msg("BrowserNavigator", "AssignDamage: _idToSpinnerMap field not found");
                 }
 
                 // TotalDamage is cached lazily via EnsureTotalDamageCached()
@@ -63,7 +64,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] AssignDamage cache error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"AssignDamage cache error: {ex.Message}");
             }
         }
 
@@ -136,7 +137,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (gameManager == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: GameManager not found");
+                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: GameManager not found");
                     return;
                 }
 
@@ -144,7 +145,7 @@ namespace AccessibleArena.Core.Services
                 var workflowController = wcProp?.GetValue(gameManager);
                 if (workflowController == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: WorkflowController null (prop found: {wcProp != null})");
+                    Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: WorkflowController null (prop found: {wcProp != null})");
                     return;
                 }
 
@@ -152,11 +153,11 @@ namespace AccessibleArena.Core.Services
                 var interaction = cwProp?.GetValue(workflowController);
                 if (interaction == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: CurrentWorkflow null (prop found: {cwProp != null}), WC type: {workflowController.GetType().Name}");
+                    Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: CurrentWorkflow null (prop found: {cwProp != null}), WC type: {workflowController.GetType().Name}");
                     return;
                 }
 
-                MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: Interaction type: {interaction.GetType().Name}");
+                Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: Interaction type: {interaction.GetType().Name}");
 
                 // Walk type hierarchy to find _damageAssigner (declared on AssignDamageWorkflow, not base)
                 FieldInfo daField = null;
@@ -168,18 +169,18 @@ namespace AccessibleArena.Core.Services
                 }
                 if (daField == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: _damageAssigner field not found");
+                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: _damageAssigner field not found");
                     return;
                 }
 
                 var damageAssigner = daField.GetValue(interaction);
                 if (damageAssigner == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: _damageAssigner value is null");
+                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: _damageAssigner value is null");
                     return;
                 }
 
-                MelonLogger.Msg($"[BrowserNavigator] EnsureTotalDamageCached: damageAssigner type: {damageAssigner.GetType().Name}");
+                Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: damageAssigner type: {damageAssigner.GetType().Name}");
 
                 // TotalDamage is a public readonly field on the MtgDamageAssigner struct
                 var tdField = damageAssigner.GetType().GetField("TotalDamage", PublicInstance);
@@ -187,11 +188,11 @@ namespace AccessibleArena.Core.Services
                 {
                     _totalDamage = (uint)tdField.GetValue(damageAssigner);
                     _totalDamageCached = true;
-                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: TotalDamage = {_totalDamage}");
+                    Log.Msg("BrowserNavigator", $"AssignDamage: TotalDamage = {_totalDamage}");
                 }
                 else
                 {
-                    MelonLogger.Msg("[BrowserNavigator] EnsureTotalDamageCached: TotalDamage field not found");
+                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: TotalDamage field not found");
                 }
 
                 // Read assigner queue counts: _handledAssigners (List) + _unhandledAssigners (Queue)
@@ -207,12 +208,12 @@ namespace AccessibleArena.Core.Services
                     int unhandledCount = unhandled?.Count ?? 0;
                     _assignerIndex = handledCount + 1;
                     _assignerTotal = handledCount + unhandledCount + 1;
-                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: Assigner {_assignerIndex} of {_assignerTotal}");
+                    Log.Msg("BrowserNavigator", $"AssignDamage: Assigner {_assignerIndex} of {_assignerTotal}");
                 }
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] EnsureTotalDamageCached error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"EnsureTotalDamageCached error: {ex.Message}");
             }
         }
 
@@ -227,7 +228,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_assignDamageBrowserRef == null)
             {
-                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No browser ref for submit");
+                Log.Msg("BrowserNavigator", "AssignDamage: No browser ref for submit");
                 return;
             }
 
@@ -242,7 +243,7 @@ namespace AccessibleArena.Core.Services
                     {
                         doneAction.Invoke();
                         _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
-                        MelonLogger.Msg("[BrowserNavigator] AssignDamage: Invoked DoneAction");
+                        Log.Msg("BrowserNavigator", "AssignDamage: Invoked DoneAction");
                         return;
                     }
                 }
@@ -253,15 +254,15 @@ namespace AccessibleArena.Core.Services
                 {
                     callbackMethod.Invoke(_assignDamageBrowserRef, new object[] { "DoneButton" });
                     _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
-                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: Called OnButtonCallback(DoneButton)");
+                    Log.Msg("BrowserNavigator", "AssignDamage: Called OnButtonCallback(DoneButton)");
                     return;
                 }
 
-                MelonLogger.Msg("[BrowserNavigator] AssignDamage: Could not find DoneAction or OnButtonCallback");
+                Log.Msg("BrowserNavigator", "AssignDamage: Could not find DoneAction or OnButtonCallback");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] SubmitAssignDamage error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"SubmitAssignDamage error: {ex.Message}");
             }
         }
 
@@ -272,7 +273,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_assignDamageBrowserRef == null)
             {
-                MelonLogger.Msg("[BrowserNavigator] AssignDamage: No browser ref for undo");
+                Log.Msg("BrowserNavigator", "AssignDamage: No browser ref for undo");
                 return;
             }
 
@@ -287,16 +288,16 @@ namespace AccessibleArena.Core.Services
                     {
                         undoAction.Invoke();
                         _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
-                        MelonLogger.Msg("[BrowserNavigator] AssignDamage: Invoked UndoAction");
+                        Log.Msg("BrowserNavigator", "AssignDamage: Invoked UndoAction");
                         return;
                     }
                 }
 
-                MelonLogger.Msg("[BrowserNavigator] AssignDamage: UndoAction not available");
+                Log.Msg("BrowserNavigator", "AssignDamage: UndoAction not available");
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] UndoAssignDamage error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"UndoAssignDamage error: {ex.Message}");
             }
         }
 
@@ -357,7 +358,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] GetCardInstanceId error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"GetCardInstanceId error: {ex.Message}");
             }
 
             return 0;
@@ -386,14 +387,14 @@ namespace AccessibleArena.Core.Services
                 var buttonField = spinnerType.GetField(buttonFieldName, ReflFlags);
                 if (buttonField == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: {buttonFieldName} field not found on {spinnerType.Name}");
+                    Log.Msg("BrowserNavigator", $"AssignDamage: {buttonFieldName} field not found on {spinnerType.Name}");
                     return;
                 }
 
                 var button = buttonField.GetValue(spinner) as Button;
                 if (button == null)
                 {
-                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: {buttonFieldName} is null");
+                    Log.Msg("BrowserNavigator", $"AssignDamage: {buttonFieldName} is null");
                     return;
                 }
 
@@ -420,7 +421,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] AdjustDamageSpinner error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"AdjustDamageSpinner error: {ex.Message}");
             }
         }
 
@@ -505,7 +506,7 @@ namespace AccessibleArena.Core.Services
                 var layout = layoutField?.GetValue(_assignDamageBrowserRef);
                 if (layout == null)
                 {
-                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: _layout not found");
+                    Log.Msg("BrowserNavigator", "AssignDamage: _layout not found");
                     return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
                 }
 
@@ -547,7 +548,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"[BrowserNavigator] AssignDamage entry announcement error: {ex.Message}");
+                Log.Error("BrowserNavigator", $"AssignDamage entry announcement error: {ex.Message}");
                 return Strings.DamageAssignEntry(fallbackName, (int)_totalDamage, cardCount);
             }
         }
