@@ -4,6 +4,7 @@ using AccessibleArena.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -35,7 +36,7 @@ namespace AccessibleArena.Core.Services
             // Sort by sibling index for visual order
             _items.Sort((a, b) => a.GameObject.transform.GetSiblingIndex().CompareTo(b.GameObject.transform.GetSiblingIndex()));
 
-            MelonLogger.Msg($"[Store] Discovered {_items.Count} items");
+            Log.Msg("Store", $"Discovered {_items.Count} items");
         }
 
         private ItemInfo? ExtractItemInfo(MonoBehaviour storeItemBase)
@@ -286,7 +287,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            MelonLogger.Msg($"[Store] Activating purchase: {item.Label} - {option.PriceText} {option.CurrencyName}");
+            Log.Msg("Store", $"Activating purchase: {item.Label} - {option.PriceText} {option.CurrencyName}");
 
             UIActivator.Activate(option.ButtonObject);
         }

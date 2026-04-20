@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -314,13 +315,13 @@ namespace AccessibleArena.Core.Services
 
             if (newPanel != null && IsWebBrowserPanel(newPanel))
             {
-                MelonLogger.Msg($"[Store] Web browser panel detected: {newPanel.Name}");
+                Log.Msg("Store", $"Web browser panel detected: {newPanel.Name}");
                 _isWebBrowserActive = true;
                 _webBrowser.Activate(newPanel.GameObject, _announcer);
             }
             else if (_isWebBrowserActive && newPanel == null)
             {
-                MelonLogger.Msg("[Store] Web browser closed, returning to store");
+                Log.Msg("Store", "Web browser closed, returning to store");
                 _webBrowser.Deactivate();
                 _isWebBrowserActive = false;
                 AnnounceCurrentElement();
@@ -357,7 +358,7 @@ namespace AccessibleArena.Core.Services
         {
             if (panel?.GameObject != null && HasBattlePassConfirmation(panel.GameObject))
             {
-                MelonLogger.Msg("[Store] BattlePass popup detected, waiting for content to activate");
+                Log.Msg("Store", "BattlePass popup detected, waiting for content to activate");
                 _pendingBattlePassPopup = panel.GameObject;
                 _battlePassPopupTimer = BattlePassPopupMaxWait;
                 return;
@@ -568,7 +569,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _reflectionInitialized = true;
-            MelonLogger.Msg($"[Store] Reflection cached. StoreItemBase={_storeItemBaseType != null}, Tab={_tabType != null}, PurchaseButton={_purchaseButtonType != null}, PreconDeck={_storeDisplayPreconDeckType != null}, CardViewBundle={_storeDisplayCardViewBundleType != null}");
+            Log.Msg("Store", $"Reflection cached. StoreItemBase={_storeItemBaseType != null}, Tab={_tabType != null}, PurchaseButton={_purchaseButtonType != null}, PreconDeck={_storeDisplayPreconDeckType != null}, CardViewBundle={_storeDisplayCardViewBundleType != null}");
         }
 
         #endregion
@@ -812,7 +813,7 @@ namespace AccessibleArena.Core.Services
                 var modalObj = GetConfirmationModalGameObject();
                 if (modalObj != null)
                 {
-                    MelonLogger.Msg($"[Store] Confirmation modal opened, handling with custom elements");
+                    Log.Msg("Store", $"Confirmation modal opened, handling with custom elements");
                     _isConfirmationModalActive = true;
                     _confirmationModalMb = GetConfirmationModalMb();
                     DiscoverConfirmationModalElements();
@@ -825,7 +826,7 @@ namespace AccessibleArena.Core.Services
                 _wasConfirmationModalOpen = false;
                 if (_isConfirmationModalActive)
                 {
-                    MelonLogger.Msg("[Store] Confirmation modal closed, returning to store");
+                    Log.Msg("Store", "Confirmation modal closed, returning to store");
                     _isConfirmationModalActive = false;
                     _modalElements.Clear();
                     _confirmationModalMb = null;
@@ -840,12 +841,12 @@ namespace AccessibleArena.Core.Services
                 if (_pendingBattlePassPopup == null || !_pendingBattlePassPopup.activeInHierarchy)
                 {
                     // Popup was dismissed externally
-                    MelonLogger.Msg("[Store] BattlePass popup gone while waiting");
+                    Log.Msg("Store", "BattlePass popup gone while waiting");
                     _pendingBattlePassPopup = null;
                 }
                 else if (IsBattlePassContentReady(_pendingBattlePassPopup) || _battlePassPopupTimer <= 0)
                 {
-                    MelonLogger.Msg($"[Store] BattlePass popup content ready (timeout={_battlePassPopupTimer <= 0})");
+                    Log.Msg("Store", $"BattlePass popup content ready (timeout={_battlePassPopupTimer <= 0})");
                     var popup = _pendingBattlePassPopup;
                     _pendingBattlePassPopup = null;
                     EnterPopupMode(popup);
@@ -859,7 +860,7 @@ namespace AccessibleArena.Core.Services
                 _webBrowser.Update();
                 if (!_webBrowser.IsActive)
                 {
-                    MelonLogger.Msg("[Store] Web browser became inactive, returning to store");
+                    Log.Msg("Store", "Web browser became inactive, returning to store");
                     _isWebBrowserActive = false;
                     AnnounceCurrentElement();
                 }
@@ -1028,7 +1029,7 @@ namespace AccessibleArena.Core.Services
 
         private void HandleBackFromStore()
         {
-            MelonLogger.Msg("[Store] Back from store - navigating home");
+            Log.Msg("Store", "Back from store - navigating home");
             NavigateToHome();
             Deactivate();
         }

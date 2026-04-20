@@ -4,6 +4,7 @@ using AccessibleArena.Core.Models;
 using System;
 using System.Linq;
 using System.Reflection;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -46,14 +47,14 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Store] Error reading tab {TabFieldNames[i]}: {ex.Message}");
+                    Log.Msg("Store", $"Error reading tab {TabFieldNames[i]}: {ex.Message}");
                 }
             }
 
             // Add utility elements after tabs (only if visible)
             DiscoverUtilityElements();
 
-            MelonLogger.Msg($"[Store] Discovered {_tabs.Count} entries (tabs + utility)");
+            Log.Msg("Store", $"Discovered {_tabs.Count} entries (tabs + utility)");
         }
 
         #endregion
@@ -122,7 +123,7 @@ namespace AccessibleArena.Core.Services
             // Utility entries are activated directly (not store tabs)
             if (tab.IsUtility)
             {
-                MelonLogger.Msg($"[Store] Activating utility: {tab.DisplayName}");
+                Log.Msg("Store", $"Activating utility: {tab.DisplayName}");
                 ActivateUtilityElement(tab);
                 return;
             }
@@ -164,7 +165,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Activate the tab via OnClicked()
-            MelonLogger.Msg($"[Store] Activating tab: {tab.DisplayName}");
+            Log.Msg("Store", $"Activating tab: {tab.DisplayName}");
 
             if (_tabOnClickedMethod != null)
             {
@@ -174,7 +175,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Store] Error calling OnClicked: {ex.Message}");
+                    Log.Msg("Store", $"Error calling OnClicked: {ex.Message}");
                     // Fallback: try UIActivator
                     UIActivator.Activate(tab.GameObject);
                 }
@@ -220,7 +221,7 @@ namespace AccessibleArena.Core.Services
         private void OnTabLoadComplete()
         {
             _waitingForTabLoad = false;
-            MelonLogger.Msg("[Store] Tab load complete");
+            Log.Msg("Store", "Tab load complete");
 
             // Refresh tab discovery in case tabs changed
             DiscoverTabs();

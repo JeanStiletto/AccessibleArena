@@ -2,6 +2,7 @@ using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Models;
 using System;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -45,11 +46,11 @@ namespace AccessibleArena.Core.Services
                         _currentSetFilterIndex = 0;
                 }
 
-                MelonLogger.Msg($"[Store] Discovered {_setFilterModels.Count} set filters, selected index: {_currentSetFilterIndex}");
+                Log.Msg("Store", $"Discovered {_setFilterModels.Count} set filters, selected index: {_currentSetFilterIndex}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Store] Error discovering set filters: {ex.Message}");
+                Log.Msg("Store", $"Error discovering set filters: {ex.Message}");
             }
         }
 
@@ -172,7 +173,7 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Store] Error selecting set filter: {ex.Message}");
+                    Log.Msg("Store", $"Error selecting set filter: {ex.Message}");
                     AnnounceSetFilter();
                 }
             }

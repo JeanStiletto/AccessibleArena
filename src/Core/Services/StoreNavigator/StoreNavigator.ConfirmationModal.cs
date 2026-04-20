@@ -4,6 +4,7 @@ using AccessibleArena.Core.Models;
 using System;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -68,7 +69,7 @@ namespace AccessibleArena.Core.Services
 
             if (_confirmationModalMb == null || _modalButtonFields == null) return;
 
-            MelonLogger.Msg($"[Store] Discovering confirmation modal elements");
+            Log.Msg("Store", $"Discovering confirmation modal elements");
 
             var flags = AllInstanceFlags;
 
@@ -118,7 +119,7 @@ namespace AccessibleArena.Core.Services
             // Add Cancel option
             _modalElements.Add((null, Strings.PopupCancel));
 
-            MelonLogger.Msg($"[Store] Found {_modalElements.Count} confirmation modal elements");
+            Log.Msg("Store", $"Found {_modalElements.Count} confirmation modal elements");
         }
 
         private void AnnounceConfirmationModal()
@@ -237,7 +238,7 @@ namespace AccessibleArena.Core.Services
                 if (_modalElementIndex >= 0 && _modalElementIndex < _modalElements.Count)
                 {
                     var elem = _modalElements[_modalElementIndex];
-                    MelonLogger.Msg($"[Store] Activating modal element: {elem.label}");
+                    Log.Msg("Store", $"Activating modal element: {elem.label}");
                     if (elem.obj == null)
                     {
                         // Synthetic cancel option
@@ -248,7 +249,7 @@ namespace AccessibleArena.Core.Services
                         // Warn Steam users about inaccessible payment overlay for real-money purchases
                         if (SteamOverlayBlocker.IsSteam && elem.obj.name.StartsWith("Cash"))
                         {
-                            MelonLogger.Msg("[Store] Steam real-money purchase — announcing overlay warning");
+                            Log.Msg("Store", "Steam real-money purchase — announcing overlay warning");
                             _announcer.Announce(Strings.SteamPurchaseWarning, AnnouncementPriority.Critical);
                         }
                         UIActivator.Activate(elem.obj);
@@ -293,18 +294,18 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    MelonLogger.Msg("[Store] Closing confirmation modal via Close()");
+                    Log.Msg("Store", "Closing confirmation modal via Close()");
                     _modalCloseMethod.Invoke(_confirmationModalMb, null);
                     _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Msg($"[Store] Error calling Close(): {ex.Message}");
+                    Log.Msg("Store", $"Error calling Close(): {ex.Message}");
                 }
             }
 
-            MelonLogger.Msg("[Store] Could not close confirmation modal");
+            Log.Msg("Store", "Could not close confirmation modal");
         }
 
         #endregion

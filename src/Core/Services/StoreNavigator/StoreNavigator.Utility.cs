@@ -3,6 +3,7 @@ using MelonLoader;
 using AccessibleArena.Core.Models;
 using System;
 using System.Reflection;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -90,11 +91,11 @@ namespace AccessibleArena.Core.Services
                     IsUtility = true
                 });
 
-                MelonLogger.Msg($"[Store] Found pack progress: {text}");
+                Log.Msg("Store", $"Found pack progress: {text}");
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Store] Error finding pack progress: {ex.Message}");
+                Log.Msg("Store", $"Error finding pack progress: {ex.Message}");
             }
         }
 
@@ -138,7 +139,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (SteamOverlayBlocker.IsSteam)
                 {
-                    MelonLogger.Msg("[Store] Payment setup not available on Steam");
+                    Log.Msg("Store", "Payment setup not available on Steam");
                     _announcer.AnnounceInterrupt(Strings.SteamPaymentNotAvailable);
                     return;
                 }
@@ -147,13 +148,13 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        MelonLogger.Msg("[Store] Calling OnButton_PaymentSetup() via reflection");
+                        Log.Msg("Store", "Calling OnButton_PaymentSetup() via reflection");
                         _onButtonPaymentSetupMethod.Invoke(_controller, null);
                         return;
                     }
                     catch (Exception ex)
                     {
-                        MelonLogger.Msg($"[Store] Error calling OnButton_PaymentSetup: {ex.Message}");
+                        Log.Msg("Store", $"Error calling OnButton_PaymentSetup: {ex.Message}");
                     }
                 }
             }

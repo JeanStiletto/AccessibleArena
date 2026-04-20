@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -106,7 +107,7 @@ namespace AccessibleArena.Core.Services
             }
 
             _announcer.AnnounceInterrupt(string.Join(". ", parts));
-            MelonLogger.Msg($"[Store] Opened details view: {_detailsCards.Count} cards, description={!string.IsNullOrEmpty(_detailsDescription)}");
+            Log.Msg("Store", $"Opened details view: {_detailsCards.Count} cards, description={!string.IsNullOrEmpty(_detailsDescription)}");
         }
 
         private void CloseDetailsView()
@@ -158,7 +159,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Store] Error extracting tooltip description: {ex.Message}");
+                Log.Msg("Store", $"Error extracting tooltip description: {ex.Message}");
             }
 
             return null;
@@ -194,7 +195,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[Store] Error extracting card entries: {ex.Message}");
+                Log.Msg("Store", $"Error extracting card entries: {ex.Message}");
             }
         }
 
