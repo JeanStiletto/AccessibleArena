@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -298,14 +299,14 @@ namespace AccessibleArena.Core.Services
                     {
                         string name = grpId > 0 ? CardModelProvider.GetNameFromGrpId(grpId) : null;
                         attachments.Add((instanceId, grpId, name));
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider",
+                        Log.Card("CardStateProvider",
                             $"Found attachment: {name ?? "unknown"} (InstanceId={instanceId}) attached to InstanceId={myInstanceId}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider", $"Error getting attachments: {ex.Message}");
+                Log.Card("CardStateProvider", $"Error getting attachments: {ex.Message}");
             }
 
             return attachments;
@@ -337,18 +338,18 @@ namespace AccessibleArena.Core.Services
                     if (instanceId == attachedToId)
                     {
                         string name = grpId > 0 ? CardModelProvider.GetNameFromGrpId(grpId) : null;
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider",
+                        Log.Card("CardStateProvider",
                             $"Card is attached to: {name ?? "unknown"} (InstanceId={instanceId}, GrpId={grpId})");
                         return (instanceId, grpId, name);
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider",
+                Log.Card("CardStateProvider",
                     $"AttachedToId={attachedToId} but parent card not found on battlefield");
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider", $"Error getting attached-to info: {ex.Message}");
+                Log.Card("CardStateProvider", $"Error getting attached-to info: {ex.Message}");
             }
 
             return null;
@@ -602,7 +603,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider", $"Error reading counters: {ex.Message}");
+                Log.Card("CardStateProvider", $"Error reading counters: {ex.Message}");
             }
 
             return result;
@@ -793,7 +794,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider", $"Error getting targeting text: {ex.Message}");
+                Log.Card("CardStateProvider", $"Error getting targeting text: {ex.Message}");
             }
 
             if (result.Count == 0) return "";
@@ -854,7 +855,7 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider", $"IsAbilityOnStack: hasSpellType={hasSpellType}, hasAbilityType={hasAbilityType}");
+                Log.Card("CardStateProvider", $"IsAbilityOnStack: hasSpellType={hasSpellType}, hasAbilityType={hasAbilityType}");
 
                 // If has explicit Ability type or no spell types, it's an ability
                 if (hasAbilityType || !hasSpellType)
@@ -865,7 +866,7 @@ namespace AccessibleArena.Core.Services
                     var triggerType = CardModelProvider.GetModelPropertyValue(model, modelType, "TriggerType");
                     var abilityCategory = CardModelProvider.GetModelPropertyValue(model, modelType, "AbilityCategory");
 
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider", $"Ability properties: AbilityType={abilityType}, TriggerType={triggerType}, AbilityCategory={abilityCategory}");
+                    Log.Card("CardStateProvider", $"Ability properties: AbilityType={abilityType}, TriggerType={triggerType}, AbilityCategory={abilityCategory}");
 
                     if (abilityType != null)
                     {
@@ -956,7 +957,7 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (Exception ex)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardStateProvider", $"Error in GetCardCategory: {ex.Message}");
+                        Log.Card("CardStateProvider", $"Error in GetCardCategory: {ex.Message}");
                     }
                 }
             }

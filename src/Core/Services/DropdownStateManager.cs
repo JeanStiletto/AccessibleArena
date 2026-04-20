@@ -1,5 +1,6 @@
 using System.Reflection;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
@@ -160,7 +161,7 @@ namespace AccessibleArena.Core.Services
                 // Fire if user had confirmed a selection
                 if (pendingValue >= 0 && dropdownComponent != null)
                     FireOnValueChanged(dropdownComponent, pendingValue);
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
+                Log.Focus("DropdownState",
                     "Dropdown mode exit transition detected");
             }
 
@@ -168,7 +169,7 @@ namespace AccessibleArena.Core.Services
             if (_suppressReentry && !IsDropdownExpanded)
             {
                 _suppressReentry = false;
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
+                Log.Focus("DropdownState",
                     "Suppression cleared - dropdown actually closed");
             }
 
@@ -213,7 +214,7 @@ namespace AccessibleArena.Core.Services
         {
             _blockSubmitUntilTime = UnityEngine.Time.realtimeSinceStartup + 0.5f;
             _pendingNotifyValue = selectedValue;
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
+            Log.Focus("DropdownState",
                 $"Dropdown item selected (value={selectedValue}), blocking Submit for 500ms");
         }
 
@@ -242,7 +243,7 @@ namespace AccessibleArena.Core.Services
             // Suppress onValueChanged to prevent form auto-advance while browsing items
             SuppressOnValueChanged(dropdown);
 
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
+            Log.Focus("DropdownState",
                 $"User opened dropdown: {dropdown?.name}");
         }
 
@@ -278,7 +279,7 @@ namespace AccessibleArena.Core.Services
                 newFocusName = eventSystem.currentSelectedGameObject.name;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
+            Log.Focus("DropdownState",
                 $"User closed dropdown, new focus: {newFocusName ?? "null"}");
 
             _activeDropdownObject = null;
@@ -302,7 +303,7 @@ namespace AccessibleArena.Core.Services
             _blockEnterFromGame = false;
             _pendingNotifyValue = -1;
             RestoreOnValueChanged();
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState",
+            Log.Focus("DropdownState",
                 "Suppressing dropdown re-entry (auto-opened dropdown closed)");
         }
 
@@ -318,7 +319,7 @@ namespace AccessibleArena.Core.Services
             _blockEnterFromGame = false;
             _pendingNotifyValue = -1;
             RestoreOnValueChanged();
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "DropdownState", "State reset");
+            Log.Focus("DropdownState", "State reset");
         }
 
         #endregion

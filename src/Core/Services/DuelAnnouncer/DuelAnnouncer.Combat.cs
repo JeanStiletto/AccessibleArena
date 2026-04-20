@@ -1,4 +1,5 @@
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections.Generic;
@@ -113,7 +114,7 @@ namespace AccessibleArena.Core.Services
                     string name = GetCardNameByInstanceId(instanceId);
                     if (!string.IsNullOrEmpty(name))
                     {
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Found source from {fieldName}: {name}");
+                        Log.Announce("DuelAnnouncer", $"Found source from {fieldName}: {name}");
                         return name;
                     }
                 }
@@ -128,7 +129,7 @@ namespace AccessibleArena.Core.Services
                     string name = CardModelProvider.GetNameFromGrpId(grpId);
                     if (!string.IsNullOrEmpty(name))
                     {
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Found source from {fieldName} (GrpId): {name}");
+                        Log.Announce("DuelAnnouncer", $"Found source from {fieldName} (GrpId): {name}");
                         return name;
                     }
                 }
@@ -350,7 +351,7 @@ namespace AccessibleArena.Core.Services
                             string cardName = grpId != 0 ? CardModelProvider.GetNameFromGrpId(grpId) : null;
                             if (!string.IsNullOrEmpty(cardName))
                             {
-                                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Creature damage: {cardName} now has {damage} damage (dealt: {damageDealt})");
+                                Log.Announce("DuelAnnouncer", $"Creature damage: {cardName} now has {damage} damage (dealt: {damageDealt})");
 
                                 // Try to correlate with last resolving card
                                 if (!string.IsNullOrEmpty(_lastResolvingCardName))
@@ -383,7 +384,7 @@ namespace AccessibleArena.Core.Services
 
                 // Log total damage for analysis
                 var opponentDamage = GetFieldValue<int>(uxEvent, "OpponentDamageDealt");
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"CombatFrame: OpponentDamageDealt={opponentDamage}");
+                Log.Announce("DuelAnnouncer", $"CombatFrame: OpponentDamageDealt={opponentDamage}");
 
                 // Check both branch lists - _branches and _runningBranches
                 var branches = GetFieldValue<object>(uxEvent, "_branches");
@@ -396,7 +397,7 @@ namespace AccessibleArena.Core.Services
                     foreach (var _ in bList) branchCount++;
                 if (runningBranches is System.Collections.IEnumerable rList)
                     foreach (var _ in rList) runningCount++;
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Branch counts: _branches={branchCount}, _runningBranches={runningCount}");
+                Log.Announce("DuelAnnouncer", $"Branch counts: _branches={branchCount}, _runningBranches={runningCount}");
                 if (branches != null)
                 {
                     var branchList = branches as System.Collections.IEnumerable;
@@ -413,7 +414,7 @@ namespace AccessibleArena.Core.Services
                             // Log for debugging
                             foreach (var dmg in damageChain)
                             {
-                                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Branch[{branchIndex}]: {dmg.SourceName} -> {dmg.TargetName}, Amount={dmg.Amount}");
+                                Log.Announce("DuelAnnouncer", $"Branch[{branchIndex}]: {dmg.SourceName} -> {dmg.TargetName}, Amount={dmg.Amount}");
                             }
 
                             // Build grouped announcement for this combat pair
@@ -444,7 +445,7 @@ namespace AccessibleArena.Core.Services
                             }
                             branchIndex++;
                         }
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Total branches: {branchIndex}");
+                        Log.Announce("DuelAnnouncer", $"Total branches: {branchIndex}");
                     }
                 }
 
@@ -516,7 +517,7 @@ namespace AccessibleArena.Core.Services
 
             // Log BranchDepth from first branch
             var branchDepth = GetNestedPropertyValue<int>(branch, "BranchDepth");
-            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Chain BranchDepth={branchDepth}");
+            Log.Announce("DuelAnnouncer", $"Chain BranchDepth={branchDepth}");
 
             while (currentBranch != null)
             {
@@ -532,7 +533,7 @@ namespace AccessibleArena.Core.Services
 
                 // Check what _nextBranch contains
                 var nextBranch = GetFieldValue<object>(currentBranch, "_nextBranch");
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Chain depth {depth}: _nextBranch={(nextBranch != null ? "exists" : "null")}");
+                Log.Announce("DuelAnnouncer", $"Chain depth {depth}: _nextBranch={(nextBranch != null ? "exists" : "null")}");
 
                 // Follow the chain to get blocker damage
                 currentBranch = nextBranch;
@@ -542,7 +543,7 @@ namespace AccessibleArena.Core.Services
                 if (depth > 10) break;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Chain total depth: {depth}");
+            Log.Announce("DuelAnnouncer", $"Chain total depth: {depth}");
             return chain;
         }
     }

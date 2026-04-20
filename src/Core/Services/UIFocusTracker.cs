@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
@@ -149,7 +150,7 @@ namespace AccessibleArena.Core.Services
         {
             _inputFieldEditMode = true;
             _activeInputFieldObject = inputFieldObject;
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Entered input field edit mode: {inputFieldObject?.name}");
+            Log.Focus("FocusTracker", $"Entered input field edit mode: {inputFieldObject?.name}");
         }
 
         /// <summary>
@@ -159,7 +160,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_inputFieldEditMode)
             {
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", "Exited input field edit mode");
+                Log.Focus("FocusTracker", "Exited input field edit mode");
                 _inputFieldEditMode = false;
                 _activeInputFieldObject = null;
             }
@@ -201,7 +202,7 @@ namespace AccessibleArena.Core.Services
                     string oldText = oldTmpInput.text ?? "";
                     if (oldTmpInput.onEndEdit != null)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker",
+                        Log.Focus("FocusTracker",
                             $"Tab: firing onEndEdit on old field {expectedField.name} with text: '{(oldTmpInput.inputType == TMPro.TMP_InputField.InputType.Password ? "***" : oldText)}'");
                         oldTmpInput.onEndEdit.Invoke(oldText);
                     }
@@ -215,7 +216,7 @@ namespace AccessibleArena.Core.Services
                         string oldText = oldLegacyInput.text ?? "";
                         if (oldLegacyInput.onEndEdit != null)
                         {
-                            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker",
+                            Log.Focus("FocusTracker",
                                 $"Tab: firing onEndEdit on old field {expectedField.name} with text: '{(oldLegacyInput.inputType == UnityEngine.UI.InputField.InputType.Password ? "***" : oldText)}'");
                             oldLegacyInput.onEndEdit.Invoke(oldText);
                         }
@@ -250,7 +251,7 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker",
+                Log.Focus("FocusTracker",
                     $"Tab moved focus from {expectedField.name} to {selected.name} - fired onEndEdit on old, suppressed on new");
                 return;
             }
@@ -270,7 +271,7 @@ namespace AccessibleArena.Core.Services
                 // Invoke onEndEdit event to notify listeners (e.g., search filter)
                 if (tmpInput.onEndEdit != null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
+                    Log.Focus("FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
                     tmpInput.onEndEdit.Invoke(currentText);
                 }
 
@@ -283,7 +284,7 @@ namespace AccessibleArena.Core.Services
                 // MTGA auto-activates input fields on selection, so we need to clear
                 // even if isFocused is false (caret not visible but still selected)
                 eventSystem.SetSelectedGameObject(null);
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated TMP_InputField: {selected.name} (wasFocused={wasFocused})");
+                Log.Focus("FocusTracker", $"Deactivated TMP_InputField: {selected.name} (wasFocused={wasFocused})");
                 return;
             }
 
@@ -297,7 +298,7 @@ namespace AccessibleArena.Core.Services
                 // Invoke onEndEdit event to notify listeners
                 if (legacyInput.onEndEdit != null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
+                    Log.Focus("FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
                     legacyInput.onEndEdit.Invoke(currentText);
                 }
 
@@ -306,7 +307,7 @@ namespace AccessibleArena.Core.Services
                     legacyInput.DeactivateInputField();
                 }
                 eventSystem.SetSelectedGameObject(null);
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", $"Deactivated InputField: {selected.name} (wasFocused={wasFocused})");
+                Log.Focus("FocusTracker", $"Deactivated InputField: {selected.name} (wasFocused={wasFocused})");
                 return;
             }
         }
@@ -542,7 +543,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void Update()
         {
-            if (DebugConfig.DebugEnabled && DebugConfig.LogFocusTracking)
+            if (Log.Enabled && Log.LogFocusTracking)
             {
                 DebugLogKeyPresses();
             }
@@ -570,7 +571,7 @@ namespace AccessibleArena.Core.Services
 
         private void HandleFocusChange(GameObject selected)
         {
-            Log($"Focus changed: {GetName(_lastSelected)} -> {GetName(selected)}");
+            Log.Focus("FocusTracker", $"Focus changed: {GetName(_lastSelected)} -> {GetName(selected)}");
 
             var previousSelected = _lastSelected;
             _lastSelected = selected;
@@ -582,7 +583,7 @@ namespace AccessibleArena.Core.Services
             bool anyDropdownExpanded = IsAnyDropdownExpanded();
             if (anyDropdownExpanded)
             {
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker",
+                Log.Focus("FocusTracker",
                     $"Focus changed while dropdown expanded, focus: {selected?.name ?? "null"}");
             }
 
@@ -596,7 +597,7 @@ namespace AccessibleArena.Core.Services
             // like search fields which is confusing
             if (anyDropdownExpanded && selected.name.Equals("Blocker", System.StringComparison.OrdinalIgnoreCase))
             {
-                Log($"Skipping announcement (Blocker during dropdown mode): {selected.name}");
+                Log.Focus("FocusTracker", $"Skipping announcement (Blocker during dropdown mode): {selected.name}");
                 return;
             }
 
@@ -613,7 +614,7 @@ namespace AccessibleArena.Core.Services
             if (NavigatorHandlesAnnouncements &&
                 (!DropdownStateManager.IsInDropdownMode || !IsDropdownItem(element)))
             {
-                Log($"Skipping announcement (navigator active): {element.name}");
+                Log.Focus("FocusTracker", $"Skipping announcement (navigator active): {element.name}");
                 return;
             }
 
@@ -623,16 +624,16 @@ namespace AccessibleArena.Core.Services
             if (DropdownStateManager.IsInDropdownMode && IsDropdownItem(element) &&
                 !DropdownStateManager.ShouldBlockEnterFromGame)
             {
-                Log($"Skipping transient dropdown item focus (dropdown opening): {element.name}");
+                Log.Focus("FocusTracker", $"Skipping transient dropdown item focus (dropdown opening): {element.name}");
                 return;
             }
 
             string text = UITextExtractor.GetText(element);
-            Log($"Extracted text: '{text}' from {element.name}");
+            Log.Focus("FocusTracker", $"Extracted text: '{text}' from {element.name}");
 
             if (text == _lastAnnouncedText)
             {
-                Log("Skipping duplicate announcement");
+                Log.Focus("FocusTracker", "Skipping duplicate announcement");
                 return;
             }
 
@@ -640,7 +641,7 @@ namespace AccessibleArena.Core.Services
 
             if (!string.IsNullOrWhiteSpace(text))
             {
-                Log($"Announcing: {text}");
+                Log.Focus("FocusTracker", $"Announcing: {text}");
                 // Use Immediate priority for dropdown items to interrupt any native NVDA
                 // speech from EventSystem focus events (prevents "focus changed" being
                 // spoken before the actual item text)
@@ -651,7 +652,7 @@ namespace AccessibleArena.Core.Services
             }
             else
             {
-                Log("Text was empty, not announcing");
+                Log.Focus("FocusTracker", "Text was empty, not announcing");
             }
         }
 
@@ -664,28 +665,23 @@ namespace AccessibleArena.Core.Services
 
         #region Debug Logging
 
-        private void Log(string message)
-        {
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusTracker", message);
-        }
-
         private void DebugLogKeyPresses()
         {
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
             if (Input.GetKeyDown(KeyCode.Tab))
             {
-                Log(shift ? "Shift+Tab pressed" : "Tab pressed");
+                Log.Focus("FocusTracker", shift ? "Shift+Tab pressed" : "Tab pressed");
                 DebugLogCurrentSelection();
             }
             else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
-                Log("Enter pressed");
+                Log.Focus("FocusTracker", "Enter pressed");
                 DebugLogCurrentSelection();
             }
             else if (Input.GetKeyDown(KeyCode.Space))
             {
-                Log("Space pressed");
+                Log.Focus("FocusTracker", "Space pressed");
             }
         }
 
@@ -694,18 +690,18 @@ namespace AccessibleArena.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem == null)
             {
-                Log("EventSystem is null");
+                Log.Focus("FocusTracker", "EventSystem is null");
                 return;
             }
 
             var selected = eventSystem.currentSelectedGameObject;
             if (selected != null)
             {
-                Log($"Currently selected: {MenuDebugHelper.GetGameObjectPath(selected)}");
+                Log.Focus("FocusTracker", $"Currently selected: {MenuDebugHelper.GetGameObjectPath(selected)}");
             }
             else
             {
-                Log("No object selected in EventSystem");
+                Log.Focus("FocusTracker", "No object selected in EventSystem");
                 DebugScanForFocusedElements();
             }
         }
@@ -728,7 +724,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (field.isFocused)
                 {
-                    Log($"Found focused TMP_InputField: {MenuDebugHelper.GetGameObjectPath(field.gameObject)}");
+                    Log.Focus("FocusTracker", $"Found focused TMP_InputField: {MenuDebugHelper.GetGameObjectPath(field.gameObject)}");
                     return;
                 }
             }
@@ -738,7 +734,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (field.isFocused)
                 {
-                    Log($"Found focused InputField: {MenuDebugHelper.GetGameObjectPath(field.gameObject)}");
+                    Log.Focus("FocusTracker", $"Found focused InputField: {MenuDebugHelper.GetGameObjectPath(field.gameObject)}");
                     return;
                 }
             }
@@ -747,7 +743,7 @@ namespace AccessibleArena.Core.Services
         private void DebugScanSelectables()
         {
             var selectables = GameObject.FindObjectsOfType<UnityEngine.UI.Selectable>();
-            Log($"Found {selectables.Length} Selectable components in scene");
+            Log.Focus("FocusTracker", $"Found {selectables.Length} Selectable components in scene");
 
             int activeCount = 0;
             foreach (var sel in selectables)
@@ -760,11 +756,11 @@ namespace AccessibleArena.Core.Services
                 {
                     string typeName = sel.GetType().Name;
                     string text = UITextExtractor.GetText(sel.gameObject);
-                    Log($"  Selectable: {typeName} - {sel.gameObject.name} - Text: {text}");
+                    Log.Focus("FocusTracker", $"  Selectable: {typeName} - {sel.gameObject.name} - Text: {text}");
                 }
             }
 
-            Log($"Total active/interactable: {activeCount}");
+            Log.Focus("FocusTracker", $"Total active/interactable: {activeCount}");
         }
 
         private void DebugScanEventTriggers()
@@ -773,13 +769,13 @@ namespace AccessibleArena.Core.Services
             if (eventTriggers.Length == 0)
                 return;
 
-            Log($"Found {eventTriggers.Length} EventTrigger components:");
+            Log.Focus("FocusTracker", $"Found {eventTriggers.Length} EventTrigger components:");
             foreach (var trigger in eventTriggers)
             {
                 if (trigger.isActiveAndEnabled)
                 {
                     string text = UITextExtractor.GetText(trigger.gameObject);
-                    Log($"  EventTrigger: {trigger.gameObject.name} - Text: {text}");
+                    Log.Focus("FocusTracker", $"  EventTrigger: {trigger.gameObject.name} - Text: {text}");
                 }
             }
         }

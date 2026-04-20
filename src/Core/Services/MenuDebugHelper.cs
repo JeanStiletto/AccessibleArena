@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.Events;
 using TMPro;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -28,14 +29,14 @@ namespace AccessibleArena.Core.Services
         /// <param name="getActiveCustomButtons">Function to get active CustomButton GameObjects</param>
         public static void LogAvailableUIElements(string tag, string sceneName, Func<IEnumerable<GameObject>> getActiveCustomButtons)
         {
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== UI DUMP FOR {sceneName} ===");
+            Log.Nav(tag, $"=== UI DUMP FOR {sceneName} ===");
 
             // Find all CustomButtons
             var customButtons = getActiveCustomButtons()
                 .Select(obj => (obj, text: UITextExtractor.GetText(obj) ?? "(no text)", path: GetGameObjectPath(obj)))
                 .ToList();
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {customButtons.Count} CustomButtons:");
+            Log.Nav(tag, $"Found {customButtons.Count} CustomButtons:");
             foreach (var (obj, text, path) in customButtons.OrderBy(x => x.path).Take(40))
             {
                 LogCustomButtonDetails(tag, obj, text, path);
@@ -65,7 +66,7 @@ namespace AccessibleArena.Core.Services
             // Find custom Dropdown/Selector components
             LogCustomDropdowns(tag);
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== END UI DUMP ===");
+            Log.Nav(tag, $"=== END UI DUMP ===");
         }
 
         private static void LogCustomButtonDetails(string tag, GameObject obj, string text, string path)
@@ -116,9 +117,9 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path}");
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"    Text: '{text}' | HasActualText: {hasActualText} | HasImage: {hasImage} | HasTextChild: {hasTextChild}{sizeInfo}{spriteInfo}");
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"    Components: {components}");
+            Log.Nav(tag, $"  {path}");
+            Log.Nav(tag, $"    Text: '{text}' | HasActualText: {hasActualText} | HasImage: {hasImage} | HasTextChild: {hasTextChild}{sizeInfo}{spriteInfo}");
+            Log.Nav(tag, $"    Components: {components}");
 
             // Log TooltipTrigger details if present
             foreach (var comp in obj.GetComponents<MonoBehaviour>())
@@ -141,7 +142,7 @@ namespace AccessibleArena.Core.Services
             var type = tooltipTrigger.GetType();
             var flags = AllInstanceFlags;
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"    === TooltipTrigger Details ===");
+            Log.Nav(tag, $"    === TooltipTrigger Details ===");
 
             // Log all fields
             foreach (var field in type.GetFields(flags))
@@ -150,11 +151,11 @@ namespace AccessibleArena.Core.Services
                 {
                     var val = field.GetValue(tooltipTrigger);
                     string valStr = FormatValueForLog(val);
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"      Field: {field.Name} ({field.FieldType.Name}) = {valStr}");
+                    Log.Nav(tag, $"      Field: {field.Name} ({field.FieldType.Name}) = {valStr}");
                 }
                 catch (System.Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"      Field: {field.Name} = <error: {ex.Message}>");
+                    Log.Nav(tag, $"      Field: {field.Name} = <error: {ex.Message}>");
                 }
             }
 
@@ -169,15 +170,15 @@ namespace AccessibleArena.Core.Services
                 {
                     var val = prop.GetValue(tooltipTrigger);
                     string valStr = FormatValueForLog(val);
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"      Property: {prop.Name} ({prop.PropertyType.Name}) = {valStr}");
+                    Log.Nav(tag, $"      Property: {prop.Name} ({prop.PropertyType.Name}) = {valStr}");
                 }
                 catch (System.Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"      Property: {prop.Name} = <error: {ex.Message}>");
+                    Log.Nav(tag, $"      Property: {prop.Name} = <error: {ex.Message}>");
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"    === End TooltipTrigger ===");
+            Log.Nav(tag, $"    === End TooltipTrigger ===");
         }
 
         /// <summary>
@@ -217,11 +218,11 @@ namespace AccessibleArena.Core.Services
             var eventTriggers = GameObject.FindObjectsOfType<EventTrigger>()
                 .Where(e => e.gameObject.activeInHierarchy)
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {eventTriggers.Count} EventTriggers:");
+            Log.Nav(tag, $"Found {eventTriggers.Count} EventTriggers:");
             foreach (var et in eventTriggers.Take(15))
             {
                 string text = UITextExtractor.GetText(et.gameObject);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {et.gameObject.name} - '{text ?? "(no text)"}'");
+                Log.Nav(tag, $"  {et.gameObject.name} - '{text ?? "(no text)"}'");
             }
         }
 
@@ -230,7 +231,7 @@ namespace AccessibleArena.Core.Services
             var buttons = GameObject.FindObjectsOfType<Button>()
                 .Where(b => b.gameObject.activeInHierarchy && b.interactable)
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {buttons.Count} standard Buttons:");
+            Log.Nav(tag, $"Found {buttons.Count} standard Buttons:");
             foreach (var btn in buttons.Take(20))
             {
                 string text = UITextExtractor.GetText(btn.gameObject);
@@ -257,7 +258,7 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path} - '{text ?? "(no text)"}'{parentInfo}");
+                Log.Nav(tag, $"  {path} - '{text ?? "(no text)"}'{parentInfo}");
             }
         }
 
@@ -267,14 +268,14 @@ namespace AccessibleArena.Core.Services
                 .Where(mb => mb != null && mb.gameObject.activeInHierarchy &&
                        mb.GetType().Name.Contains("CustomToggle"))
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {customToggles.Count} CustomToggle components:");
+            Log.Nav(tag, $"Found {customToggles.Count} CustomToggle components:");
             foreach (var ct in customToggles)
             {
                 string text = UITextExtractor.GetText(ct.gameObject);
                 string path = GetGameObjectPath(ct.gameObject);
                 var toggle = ct.gameObject.GetComponent<Toggle>();
                 string toggleState = toggle != null ? (toggle.isOn ? "ON" : "OFF") : "no Toggle component";
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path} - '{text ?? "(no text)"}' - {toggleState}");
+                Log.Nav(tag, $"  {path} - '{text ?? "(no text)"}' - {toggleState}");
             }
         }
 
@@ -283,11 +284,11 @@ namespace AccessibleArena.Core.Services
             var scrollbars = GameObject.FindObjectsOfType<Scrollbar>()
                 .Where(sb => sb != null && sb.gameObject.activeInHierarchy)
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {scrollbars.Count} Scrollbars:");
+            Log.Nav(tag, $"Found {scrollbars.Count} Scrollbars:");
             foreach (var sb in scrollbars)
             {
                 string path = GetGameObjectPath(sb.gameObject);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path} - value: {sb.value:F2}, size: {sb.size:F2}, interactable: {sb.interactable}");
+                Log.Nav(tag, $"  {path} - value: {sb.value:F2}, size: {sb.size:F2}, interactable: {sb.interactable}");
             }
         }
 
@@ -296,11 +297,11 @@ namespace AccessibleArena.Core.Services
             var scrollRects = GameObject.FindObjectsOfType<ScrollRect>()
                 .Where(sr => sr != null && sr.gameObject.activeInHierarchy)
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {scrollRects.Count} ScrollRect components:");
+            Log.Nav(tag, $"Found {scrollRects.Count} ScrollRect components:");
             foreach (var sr in scrollRects)
             {
                 string path = GetGameObjectPath(sr.gameObject);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path} - vertical: {sr.vertical}, horizontal: {sr.horizontal}");
+                Log.Nav(tag, $"  {path} - vertical: {sr.vertical}, horizontal: {sr.horizontal}");
             }
         }
 
@@ -309,12 +310,12 @@ namespace AccessibleArena.Core.Services
             var toggles = GameObject.FindObjectsOfType<Toggle>()
                 .Where(t => t != null && t.gameObject.activeInHierarchy)
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {toggles.Count} standard Unity Toggles:");
+            Log.Nav(tag, $"Found {toggles.Count} standard Unity Toggles:");
             foreach (var t in toggles)
             {
                 string text = UITextExtractor.GetText(t.gameObject);
                 string path = GetGameObjectPath(t.gameObject);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path} - '{text ?? "(no text)"}' - {(t.isOn ? "ON" : "OFF")} - interactable: {t.interactable}");
+                Log.Nav(tag, $"  {path} - '{text ?? "(no text)"}' - {(t.isOn ? "ON" : "OFF")} - interactable: {t.interactable}");
             }
         }
 
@@ -323,12 +324,12 @@ namespace AccessibleArena.Core.Services
             var tmpDropdowns = GameObject.FindObjectsOfType<TMP_Dropdown>()
                 .Where(d => d != null && d.gameObject.activeInHierarchy)
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {tmpDropdowns.Count} TMP_Dropdown components:");
+            Log.Nav(tag, $"Found {tmpDropdowns.Count} TMP_Dropdown components:");
             foreach (var d in tmpDropdowns)
             {
                 string path = GetGameObjectPath(d.gameObject);
                 string selectedText = d.options.Count > d.value ? d.options[d.value].text : "(no selection)";
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path} - selected: '{selectedText}' - interactable: {d.interactable}");
+                Log.Nav(tag, $"  {path} - selected: '{selectedText}' - interactable: {d.interactable}");
             }
         }
 
@@ -338,13 +339,13 @@ namespace AccessibleArena.Core.Services
                 .Where(mb => mb != null && mb.gameObject.activeInHierarchy &&
                        (mb.GetType().Name.Contains("Dropdown") || mb.GetType().Name.Contains("Selector")))
                 .ToList();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {customDropdowns.Count} Custom Dropdown/Selector components:");
+            Log.Nav(tag, $"Found {customDropdowns.Count} Custom Dropdown/Selector components:");
             foreach (var cd in customDropdowns)
             {
                 string path = GetGameObjectPath(cd.gameObject);
                 string typeName = cd.GetType().Name;
                 string text = UITextExtractor.GetText(cd.gameObject);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {path} - Type: {typeName} - '{text ?? "(no text)"}'");
+                Log.Nav(tag, $"  {path} - Type: {typeName} - '{text ?? "(no text)"}'");
             }
         }
 
@@ -355,23 +356,23 @@ namespace AccessibleArena.Core.Services
         /// <param name="announcer">Announcement service for completion message</param>
         public static void DumpUIHierarchy(string tag, IAnnouncementService announcer)
         {
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== F12 DEBUG: UI HIERARCHY DUMP ===");
+            Log.Nav(tag, $"=== F12 DEBUG: UI HIERARCHY DUMP ===");
 
             // Find all active Canvases
             var canvases = GameObject.FindObjectsOfType<Canvas>();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Found {canvases.Length} active Canvases");
+            Log.Nav(tag, $"Found {canvases.Length} active Canvases");
 
             foreach (var canvas in canvases)
             {
                 if (canvas == null || !canvas.gameObject.activeInHierarchy)
                     continue;
 
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"Canvas: {canvas.name} (sortingOrder: {canvas.sortingOrder})");
+                Log.Nav(tag, $"Canvas: {canvas.name} (sortingOrder: {canvas.sortingOrder})");
                 DumpGameObjectChildren(tag, canvas.gameObject, 1, 3);
             }
 
             // Check for any panel controllers that might be open
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== Checking Panel Controllers ===");
+            Log.Nav(tag, $"=== Checking Panel Controllers ===");
             var allMonoBehaviours = GameObject.FindObjectsOfType<MonoBehaviour>();
             foreach (var mb in allMonoBehaviours)
             {
@@ -395,11 +396,11 @@ namespace AccessibleArena.Core.Services
                         catch { /* IsOpen property may throw on some component types */ }
                     }
 
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"  {typeName} on {mb.gameObject.name}{isOpenStr}");
+                    Log.Nav(tag, $"  {typeName} on {mb.gameObject.name}{isOpenStr}");
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"=== END DEBUG DUMP ===");
+            Log.Nav(tag, $"=== END DEBUG DUMP ===");
             announcer?.Announce(Models.Strings.DebugDumpComplete, Models.AnnouncementPriority.High);
         }
 
@@ -555,7 +556,7 @@ namespace AccessibleArena.Core.Services
                 string active = child.gameObject.activeInHierarchy ? "" : " [INACTIVE]";
                 string text = UITextExtractor.GetText(child.gameObject);
                 string textInfo = string.IsNullOrEmpty(text) ? "" : $" - \"{text}\"";
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"{indent}{child.name}{active}{textInfo}");
+                Log.Nav(tag, $"{indent}{child.name}{active}{textInfo}");
                 LogHierarchy(tag, child, indent + "  ", maxDepth - 1);
             }
         }
@@ -702,7 +703,7 @@ namespace AccessibleArena.Core.Services
         {
             if (packObj == null)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, tag, $"DumpBoosterPackDetails: No pack object provided");
+                Log.Nav(tag, $"DumpBoosterPackDetails: No pack object provided");
                 announcer?.Announce(Models.Strings.NoPackToInspect, Models.AnnouncementPriority.High);
                 return;
             }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -132,7 +133,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider", $"Error getting deck list cards: {ex.Message}");
+                Log.Card("DeckCardProvider", $"Error getting deck list cards: {ex.Message}");
             }
 
             return _cachedDeckListCards;
@@ -230,7 +231,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider", $"Error getting sideboard cards: {ex.Message}");
+                Log.Card("DeckCardProvider", $"Error getting sideboard cards: {ex.Message}");
             }
 
             return _cachedSideboardCards;
@@ -380,7 +381,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                Log.Card("DeckCardProvider",
                     $"Error checking deck list card unowned: {ex.Message}");
             }
 
@@ -483,12 +484,12 @@ namespace AccessibleArena.Core.Services
 
                 if (holders.Count == 0)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                    Log.Card("DeckCardProvider",
                         "No StaticColumnMetaCardHolder components found");
                     return _cachedReadOnlyDeckCards;
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                Log.Card("DeckCardProvider",
                     $"Found {holders.Count} StaticColumnMetaCardHolder(s)");
 
                 // Extract card views from each holder
@@ -500,7 +501,7 @@ namespace AccessibleArena.Core.Services
                     var cardViewsProp = holderType.GetProperty("CardViews");
                     if (cardViewsProp == null)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                        Log.Card("DeckCardProvider",
                             $"CardViews property not found on {holderType.Name}");
                         continue;
                     }
@@ -551,12 +552,12 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                Log.Card("DeckCardProvider",
                     $"Found {_cachedReadOnlyDeckCards.Count} read-only deck card(s)");
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "DeckCardProvider",
+                Log.Card("DeckCardProvider",
                     $"Error getting read-only deck cards: {ex.Message}");
             }
 

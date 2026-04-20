@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
@@ -37,7 +38,7 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             DiscoverTimerElements();
             SubscribeLowTimeWarnings();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Activated");
+            Log.Nav("PlayerPortrait", $"Activated");
         }
 
         public void Deactivate()
@@ -52,7 +53,7 @@ namespace AccessibleArena.Core.Services
             _opponentMatchTimer = null;
             _localLowTimeWarning = null;
             _opponentLowTimeWarning = null;
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Deactivated");
+            Log.Nav("PlayerPortrait", $"Deactivated");
         }
 
         /// <summary>
@@ -73,7 +74,7 @@ namespace AccessibleArena.Core.Services
             // Check if focus is still on player zone related elements
             if (!IsPlayerZoneElement(newFocus))
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Focus changed to '{newFocus.name}', auto-exiting player info zone");
+                Log.Nav("PlayerPortrait", $"Focus changed to '{newFocus.name}', auto-exiting player info zone");
                 ExitPlayerInfoZone();
             }
         }
@@ -159,14 +160,14 @@ namespace AccessibleArena.Core.Services
 
             // Store current focus to restore on exit
             _previousFocus = EventSystem.current?.currentSelectedGameObject;
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Storing previous focus: {_previousFocus?.name ?? "null"}");
+            Log.Nav("PlayerPortrait", $"Storing previous focus: {_previousFocus?.name ?? "null"}");
 
             // Find and focus on the player zone element (local timer's HoverArea)
             _playerZoneFocusElement = FindPlayerZoneFocusElement();
             if (_playerZoneFocusElement != null)
             {
                 EventSystem.current?.SetSelectedGameObject(_playerZoneFocusElement);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Set focus to: {_playerZoneFocusElement.name}");
+                Log.Nav("PlayerPortrait", $"Set focus to: {_playerZoneFocusElement.name}");
             }
 
             _navigationState = NavigationState.PlayerNavigation;
@@ -176,7 +177,7 @@ namespace AccessibleArena.Core.Services
             var lifeValue = GetPropertyValue((PlayerProperty)_currentPropertyIndex);
             string announcement = $"{Strings.PlayerInfo}. {lifeValue}";
             _announcer.Announce(announcement, AnnouncementPriority.High);
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Entered player info zone");
+            Log.Nav("PlayerPortrait", $"Entered player info zone");
         }
 
         /// <summary>
@@ -193,12 +194,12 @@ namespace AccessibleArena.Core.Services
             if (_previousFocus != null && _previousFocus) // Check both null and Unity destroyed
             {
                 EventSystem.current?.SetSelectedGameObject(_previousFocus);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Restored focus to: {_previousFocus.name}");
+                Log.Nav("PlayerPortrait", $"Restored focus to: {_previousFocus.name}");
             }
             _previousFocus = null;
             _playerZoneFocusElement = null;
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Exited player info zone");
+            Log.Nav("PlayerPortrait", $"Exited player info zone");
         }
 
         /// <summary>
@@ -238,7 +239,7 @@ namespace AccessibleArena.Core.Services
             var currentFocus = EventSystem.current?.currentSelectedGameObject;
             if (currentFocus != null && currentFocus && !IsPlayerZoneElement(currentFocus))
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Focus moved to '{currentFocus.name}', exiting player zone");
+                Log.Nav("PlayerPortrait", $"Focus moved to '{currentFocus.name}', exiting player zone");
                 ExitPlayerInfoZone();
                 return false; // Let other handlers process the key
             }
@@ -318,7 +319,7 @@ namespace AccessibleArena.Core.Services
             // Use InputManager to consume the key so game doesn't also process it
             if (InputManager.GetEnterAndConsume())
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Enter pressed and consumed in PlayerNavigation, playerIndex={_currentPlayerIndex}");
+                Log.Nav("PlayerPortrait", $"Enter pressed and consumed in PlayerNavigation, playerIndex={_currentPlayerIndex}");
 
                 // Open emote wheel (local player only)
                 if (_currentPlayerIndex == 0)

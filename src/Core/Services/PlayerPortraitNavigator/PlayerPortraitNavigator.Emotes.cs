@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Reflection;
@@ -33,7 +34,7 @@ namespace AccessibleArena.Core.Services
             var currentFocus = EventSystem.current?.currentSelectedGameObject;
             if (currentFocus != null && currentFocus && !IsPlayerZoneElement(currentFocus))
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Focus moved to '{currentFocus.name}', exiting emote navigation");
+                Log.Nav("PlayerPortrait", $"Focus moved to '{currentFocus.name}', exiting emote navigation");
                 ExitPlayerInfoZone();
                 return false;
             }
@@ -117,7 +118,7 @@ namespace AccessibleArena.Core.Services
         private void DiscoverEmoteButtons()
         {
             _emoteButtons.Clear();
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Discovering emote buttons...");
+            Log.Nav("PlayerPortrait", $"Discovering emote buttons...");
 
             // Look for EmoteOptionsPanel which contains the emote wheel
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
@@ -127,13 +128,13 @@ namespace AccessibleArena.Core.Services
                 // Find the EmoteOptionsPanel
                 if (go.name.Contains("EmoteOptionsPanel"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found EmoteOptionsPanel: {go.name}");
+                    Log.Nav("PlayerPortrait", $"Found EmoteOptionsPanel: {go.name}");
 
                     // Look for Container child
                     var container = go.transform.Find("Container");
                     if (container != null)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Container, searching for buttons...");
+                        Log.Nav("PlayerPortrait", $"Found Container, searching for buttons...");
                         SearchForEmoteButtons(container, 0);
                     }
 
@@ -141,7 +142,7 @@ namespace AccessibleArena.Core.Services
                     var wheel = go.transform.Find("Wheel");
                     if (wheel != null)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Wheel, searching for buttons...");
+                        Log.Nav("PlayerPortrait", $"Found Wheel, searching for buttons...");
                         SearchForEmoteButtons(wheel, 0);
                     }
                 }
@@ -149,12 +150,12 @@ namespace AccessibleArena.Core.Services
                 // Also check CommunicationOptionsPanel
                 if (go.name.Contains("CommunicationOptionsPanel"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found CommunicationOptionsPanel: {go.name}");
+                    Log.Nav("PlayerPortrait", $"Found CommunicationOptionsPanel: {go.name}");
                     SearchForEmoteButtons(go.transform, 0);
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found {_emoteButtons.Count} emote buttons");
+            Log.Nav("PlayerPortrait", $"Found {_emoteButtons.Count} emote buttons");
             _emoteButtons.Sort((a, b) => string.Compare(a.name, b.name));
         }
 
@@ -171,12 +172,12 @@ namespace AccessibleArena.Core.Services
 
                 string childName = child.name;
                 string indent = new string(' ', depth * 2);
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}Child: {childName}");
+                Log.Nav("PlayerPortrait", $"{indent}Child: {childName}");
 
                 // Skip navigation arrows and utility buttons - not actual emotes
                 if (childName.Contains("NavArrow") || childName == "Mute Container")
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Skipping (navigation/utility)");
+                    Log.Nav("PlayerPortrait", $"{indent}  -> Skipping (navigation/utility)");
                     continue;
                 }
 
@@ -186,7 +187,7 @@ namespace AccessibleArena.Core.Services
                     var text = ExtractEmoteNameFromTransform(child);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"{indent}  -> Adding emote: '{text}'");
+                        Log.Nav("PlayerPortrait", $"{indent}  -> Adding emote: '{text}'");
                         _emoteButtons.Add(child.gameObject);
                     }
                     continue; // Don't recurse into EmoteView children
@@ -342,7 +343,7 @@ namespace AccessibleArena.Core.Services
             var avatarView = FindAvatarView(isLocal: !opponent);
             if (avatarView == null)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"AvatarView not found for {(opponent ? "opponent" : "local")}");
+                Log.Nav("PlayerPortrait", $"AvatarView not found for {(opponent ? "opponent" : "local")}");
                 _announcer.Announce(Strings.PortraitNotFound, AnnouncementPriority.Normal);
                 return;
             }
@@ -356,12 +357,12 @@ namespace AccessibleArena.Core.Services
             var portraitButton = _portraitButtonField.GetValue(avatarView) as MonoBehaviour;
             if (portraitButton == null)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"PortraitButton is null on {(opponent ? "opponent" : "local")} AvatarView");
+                Log.Nav("PlayerPortrait", $"PortraitButton is null on {(opponent ? "opponent" : "local")} AvatarView");
                 _announcer.Announce(Strings.PortraitButtonNotFound, AnnouncementPriority.Normal);
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Clicking PortraitButton for {(opponent ? "opponent" : "local")} avatar");
+            Log.Nav("PlayerPortrait", $"Clicking PortraitButton for {(opponent ? "opponent" : "local")} avatar");
             UIActivator.SimulatePointerClick(portraitButton.gameObject);
         }
     }

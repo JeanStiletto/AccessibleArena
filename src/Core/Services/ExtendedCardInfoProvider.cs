@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -184,7 +185,7 @@ namespace AccessibleArena.Core.Services
                 // Also query parameterized hanger provider (Cycling, Plot, etc.)
                 QueryParameterizedHangers(model, result, seen);
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                Log.Card("ExtendedCardInfoProvider",
                     $"GetKeywordDescriptions (duel): {result.Count} entries");
             }
             catch (Exception ex)
@@ -269,7 +270,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                Log.Card("ExtendedCardInfoProvider",
                     $"Error getting linked face info for GrpId {grpId}: {ex.Message}");
             }
 
@@ -296,7 +297,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                Log.Card("ExtendedCardInfoProvider",
                     $"Error getting linked tokens for GrpId {grpId}: {ex.Message}");
             }
 
@@ -339,7 +340,7 @@ namespace AccessibleArena.Core.Services
 
                 QueryParameterizedHangers(cardAdapter, result, seen);
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                Log.Card("ExtendedCardInfoProvider",
                     $"PAPA keyword descriptions: {result.Count} entries for GrpId {grpId}");
             }
             catch (Exception ex)
@@ -631,7 +632,7 @@ namespace AccessibleArena.Core.Services
             {
                 // FindObjectsOfTypeAll includes inactive GameObjects
                 instances = Resources.FindObjectsOfTypeAll(ahbType);
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                Log.Card("ExtendedCardInfoProvider",
                     $"Found {instances.Length} AbilityHangerBase instances");
             }
             else
@@ -674,7 +675,7 @@ namespace AccessibleArena.Core.Services
                 _getHangerConfigsForCardMethod = getConfigsMethod;
                 _hangerProviderCleanupMethod = cleanupMethod;
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                Log.Card("ExtendedCardInfoProvider",
                     $"Found AbilityHangerProvider: {providerType.Name} from {type.Name}");
 
                 // Also extract _parameterizedHangers (handles Cycling, Plot, etc.)
@@ -691,7 +692,7 @@ namespace AccessibleArena.Core.Services
                         {
                             _parameterizedHangerProvider = paramProvider;
                             _getParamHangerConfigsMethod = getConfigsParam;
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                            Log.Card("ExtendedCardInfoProvider",
                                 $"Found ParameterizedHangerProvider: {paramProviderType.Name}");
                         }
                     }
@@ -947,7 +948,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                Log.Card("ExtendedCardInfoProvider",
                     $"Error getting card data for GrpId {grpId} in duel scene: {ex.Message}");
             }
 
@@ -989,7 +990,7 @@ namespace AccessibleArena.Core.Services
                 {
                     _duelCardDataProvider = cdp;
                     _duelGetCardPrintingMethod = method;
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "ExtendedCardInfoProvider",
+                    Log.Card("ExtendedCardInfoProvider",
                         $"Found duel CardDataProvider: {cdpType.Name}.{method.Name}");
                 }
                 break;

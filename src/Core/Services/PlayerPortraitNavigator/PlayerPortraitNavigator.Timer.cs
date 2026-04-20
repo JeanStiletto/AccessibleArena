@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Reflection;
@@ -57,13 +58,13 @@ namespace AccessibleArena.Core.Services
                     {
                         _localTimerObj = mb.gameObject;
                         _localMatchTimer = mb;
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found local timer: {objName}");
+                        Log.Nav("PlayerPortrait", $"Found local timer: {objName}");
                     }
                     else if (objName.Contains("Opponent"))
                     {
                         _opponentTimerObj = mb.gameObject;
                         _opponentMatchTimer = mb;
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found opponent timer: {objName}");
+                        Log.Nav("PlayerPortrait", $"Found opponent timer: {objName}");
                     }
                 }
             }
@@ -73,9 +74,9 @@ namespace AccessibleArena.Core.Services
             var timerOpponent = GameObject.Find("Timer_Opponent");
 
             if (timerPlayer != null)
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Timer_Player for timeouts");
+                Log.Nav("PlayerPortrait", $"Found Timer_Player for timeouts");
             if (timerOpponent != null)
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found Timer_Opponent for timeouts");
+                Log.Nav("PlayerPortrait", $"Found Timer_Opponent for timeouts");
         }
 
         private int GetTimeoutCount(string playerType)
@@ -174,7 +175,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading MtgTimer: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error reading MtgTimer: {ex.Message}");
                 return null;
             }
         }
@@ -227,7 +228,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading rope timer: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error reading rope timer: {ex.Message}");
                 return null;
             }
         }
@@ -372,7 +373,7 @@ namespace AccessibleArena.Core.Services
                     var onVisField = mb.GetType().GetField("OnVisibilityChanged", PublicInstance);
                     if (onVisField == null)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait",
+                        Log.Nav("PlayerPortrait",
                             $"LowTimeWarning has no OnVisibilityChanged field");
                         continue;
                     }
@@ -389,7 +390,7 @@ namespace AccessibleArena.Core.Services
                                 _announcer.Announce(Strings.TimerLowTime, AnnouncementPriority.High);
                         };
                         unityEvent.AddListener(_localRopeCallback);
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait",
+                        Log.Nav("PlayerPortrait",
                             $"Subscribed to local LowTimeWarning");
                     }
                     else
@@ -401,7 +402,7 @@ namespace AccessibleArena.Core.Services
                                 _announcer.Announce(Strings.TimerOpponentLowTime, AnnouncementPriority.High);
                         };
                         unityEvent.AddListener(_opponentRopeCallback);
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait",
+                        Log.Nav("PlayerPortrait",
                             $"Subscribed to opponent LowTimeWarning");
                     }
                 }
@@ -434,7 +435,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait",
+                Log.Nav("PlayerPortrait",
                     $"Error unsubscribing from LowTimeWarning: {ex.Message}");
             }
 

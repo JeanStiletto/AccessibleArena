@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -174,13 +175,13 @@ namespace AccessibleArena.Core.Services
                 string text = result?.ToString();
                 if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.StartsWith("#") && !text.StartsWith("Ability #") && !text.Contains("Unknown"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Ability {abilityId} -> {text}");
+                    Log.Card("CardTextProvider", $"Ability {abilityId} -> {text}");
                     return text;
                 }
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Error looking up ability {abilityId}: {ex.Message}");
+                Log.Card("CardTextProvider", $"Error looking up ability {abilityId}: {ex.Message}");
             }
 
             return null;
@@ -217,7 +218,7 @@ namespace AccessibleArena.Core.Services
             string label,
             Func<object, (object, MethodInfo)?> extractor)
         {
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Searching for {label}...");
+            Log.Card("CardTextProvider", $"Searching for {label}...");
 
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
@@ -250,7 +251,7 @@ namespace AccessibleArena.Core.Services
                 catch { /* CardDatabase reflection is version-sensitive */ }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"No {label} found");
+            Log.Card("CardTextProvider", $"No {label} found");
             return null;
         }
 
@@ -273,7 +274,7 @@ namespace AccessibleArena.Core.Services
                 var m = FindStringFromUintMethod(provider.GetType(), methodFilter);
                 if (m != null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardTextProvider", $"Using {prop.Name}.{m.Name} for {logLabel} lookup");
+                    Log.Card("CardTextProvider", $"Using {prop.Name}.{m.Name} for {logLabel} lookup");
                     return (provider, m);
                 }
             }

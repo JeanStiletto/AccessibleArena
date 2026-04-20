@@ -1,5 +1,6 @@
 using HarmonyLib;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System;
 using System.Linq;
 using System.Reflection;
@@ -73,7 +74,7 @@ namespace AccessibleArena.Patches
                 PatchMailboxController(harmony);
 
                 _patchApplied = true;
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Harmony patches applied successfully");
+                Log.Patch("PanelStatePatch", $"Harmony patches applied successfully");
 
                 // Discover other potential controller types for future patching
                 DiscoverPanelTypes();
@@ -96,7 +97,7 @@ namespace AccessibleArena.Patches
             {
                 var postfix = typeof(PanelStatePatch).GetMethod(postfixName, BindingFlags.Static | BindingFlags.Public);
                 harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched {label}");
+                Log.Patch("PanelStatePatch", $"Patched {label}");
             }
             catch (Exception ex)
             {
@@ -115,7 +116,7 @@ namespace AccessibleArena.Patches
                 var prefix = typeof(PanelStatePatch).GetMethod(prefixName, BindingFlags.Static | BindingFlags.Public);
                 var postfix = typeof(PanelStatePatch).GetMethod(postfixName, BindingFlags.Static | BindingFlags.Public);
                 harmony.Patch(method, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched {label}");
+                Log.Patch("PanelStatePatch", $"Patched {label}");
             }
             catch (Exception ex)
             {
@@ -133,7 +134,7 @@ namespace AccessibleArena.Patches
             {
                 var prefix = typeof(PanelStatePatch).GetMethod(prefixName, BindingFlags.Static | BindingFlags.Public);
                 harmony.Patch(method, prefix: new HarmonyMethod(prefix));
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Patched {label}");
+                Log.Patch("PanelStatePatch", $"Patched {label}");
             }
             catch (Exception ex)
             {
@@ -149,7 +150,7 @@ namespace AccessibleArena.Patches
         {
             try
             {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"{logPrefix} (isOpen: {isOpen})");
+                Log.Patch("PanelStatePatch", $"{logPrefix} (isOpen: {isOpen})");
                 OnPanelStateChanged?.Invoke(instance, isOpen, name);
             }
             catch (Exception ex)
@@ -167,7 +168,7 @@ namespace AccessibleArena.Patches
         {
             if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
             {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked {whatWasBlocked} (Tab pressed)");
+                Log.Patch("PanelStatePatch", $"Blocked {whatWasBlocked} (Tab pressed)");
                 return true;
             }
             return false;
@@ -188,7 +189,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found NavContentController: {controllerType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found NavContentController: {controllerType.FullName}");
 
             // Log available methods/properties for debugging
             LogTypeMembers(controllerType);
@@ -218,7 +219,7 @@ namespace AccessibleArena.Patches
         /// </summary>
         public static void DiscoverPanelTypes()
         {
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"=== Discovering potential panel controller types ===");
+            Log.Patch("PanelStatePatch", $"=== Discovering potential panel controller types ===");
 
             var keywords = new[] { "Deck", "Selection", "Picker", "Panel", "Controller", "Modal", "Dialog", "Overlay", "Screen", "Blade", "PlayBlade", "Login", "Welcome", "Register", "Gate" };
 
@@ -252,7 +253,7 @@ namespace AccessibleArena.Patches
 
                         if (hasIsOpen || hasShow || hasHide)
                         {
-                            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found: {type.FullName} - IsOpen:{hasIsOpen} Show:{hasShow} Hide:{hasHide}");
+                            Log.Patch("PanelStatePatch", $"Found: {type.FullName} - IsOpen:{hasIsOpen} Show:{hasShow} Hide:{hasHide}");
                         }
                     }
                 }
@@ -262,7 +263,7 @@ namespace AccessibleArena.Patches
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"=== Discovery complete ===");
+            Log.Patch("PanelStatePatch", $"=== Discovery complete ===");
         }
 
         private static void PatchSettingsMenu(HarmonyLib.Harmony harmony)
@@ -279,7 +280,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found SettingsMenu: {settingsType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found SettingsMenu: {settingsType.FullName}");
 
             // Log all methods to discover correct signatures
             LogTypeMembers(settingsType);
@@ -313,7 +314,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found DeckSelectBlade: {deckBladeType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found DeckSelectBlade: {deckBladeType.FullName}");
 
             // Log available methods/properties for debugging
             LogTypeMembers(deckBladeType);
@@ -341,7 +342,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found PlayBladeController: {playBladeType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found PlayBladeController: {playBladeType.FullName}");
 
             // PlayBladeVisualState changes when play blade opens/closes. IsDeckSelected is get-only
             // (delegates to _activeBladeWidget.IsDeckSelected) - no patch needed, deck selection
@@ -362,7 +363,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found HomePageContentController: {homePageType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found HomePageContentController: {homePageType.FullName}");
 
             var eventSetter = homePageType.GetProperty("IsEventBladeActive", AllInstanceFlags)?.GetSetMethod(true);
             if (eventSetter == null)
@@ -422,7 +423,7 @@ namespace AccessibleArena.Patches
 
             if (bladeContentViewType != null)
             {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found BladeContentView: {bladeContentViewType.FullName}");
+                Log.Patch("PanelStatePatch", $"Found BladeContentView: {bladeContentViewType.FullName}");
                 TryPatchPostfix(harmony, bladeContentViewType.GetMethod("Show", AllInstanceFlags),
                     nameof(BladeContentViewShowPostfix), "BladeContentView.Show()");
                 TryPatchPostfix(harmony, bladeContentViewType.GetMethod("Hide", AllInstanceFlags),
@@ -437,7 +438,7 @@ namespace AccessibleArena.Patches
             var eventBladeType = FindType(T.EventBladeContentViewFQ) ?? FindType(T.EventBladeContentView);
             if (eventBladeType != null)
             {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found EventBladeContentView: {eventBladeType.FullName}");
+                Log.Patch("PanelStatePatch", $"Found EventBladeContentView: {eventBladeType.FullName}");
                 TryPatchPostfix(harmony, eventBladeType.GetMethod("Show", AllInstanceFlags),
                     nameof(EventBladeShowPostfix), "EventBladeContentView.Show()");
                 TryPatchPostfix(harmony, eventBladeType.GetMethod("Hide", AllInstanceFlags),
@@ -458,7 +459,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found SocialUI: {socialUIType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found SocialUI: {socialUIType.FullName}");
 
             // Show/close methods: prefix blocks Tab-triggered calls, postfix fires panel-state event.
             TryPatchPrefixPostfix(harmony, socialUIType.GetMethod("ShowSocialEntitiesList", AllInstanceFlags),
@@ -488,7 +489,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found NavBarController for mailbox: {navBarType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found NavBarController for mailbox: {navBarType.FullName}");
 
             var openMethod = navBarType.GetMethod("MailboxButton_OnClick", AllInstanceFlags);
             if (openMethod == null) MelonLogger.Warning("[PanelStatePatch] NavBarController.MailboxButton_OnClick not found");
@@ -511,7 +512,7 @@ namespace AccessibleArena.Patches
                 return;
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Found ContentControllerPlayerInbox: {inboxType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found ContentControllerPlayerInbox: {inboxType.FullName}");
 
             var onLetterSelectedMethod = inboxType.GetMethod("OnLetterSelected", AllInstanceFlags);
             if (onLetterSelectedMethod == null)
@@ -534,7 +535,7 @@ namespace AccessibleArena.Patches
         {
             try
             {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Mail letter selected: {selectedLetterId}, isRead: {isRead}");
+                Log.Patch("PanelStatePatch", $"Mail letter selected: {selectedLetterId}, isRead: {isRead}");
 
                 // Get the ClientLetterViewModel from the selectedLetter (PlayerInboxBladeItemDisplay)
                 // It has a _clientBladeItemViewModel property
@@ -581,7 +582,7 @@ namespace AccessibleArena.Patches
                             if (isClaimedField != null)
                                 isClaimed = (bool)isClaimedField.GetValue(viewModel);
 
-                            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Letter data - Title: {title}, Body length: {body?.Length ?? 0}, HasAttachments: {hasAttachments}, IsClaimed: {isClaimed}");
+                            Log.Patch("PanelStatePatch", $"Letter data - Title: {title}, Body length: {body?.Length ?? 0}, HasAttachments: {hasAttachments}, IsClaimed: {isClaimed}");
                         }
                         else
                         {
@@ -604,21 +605,21 @@ namespace AccessibleArena.Patches
 
         private static void LogTypeMembers(Type type)
         {
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Methods on {type.Name}:");
+            Log.Patch("PanelStatePatch", $"Methods on {type.Name}:");
             foreach (var m in type.GetMethods(AllInstanceFlags))
             {
                 if (m.Name.Contains("Show") || m.Name.Contains("Hide") || m.Name.Contains("Open") || m.Name.Contains("Close"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"  - {m.Name}({string.Join(", ", Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name))})");
+                    Log.Patch("PanelStatePatch", $"  - {m.Name}({string.Join(", ", Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name))})");
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Properties on {type.Name}:");
+            Log.Patch("PanelStatePatch", $"Properties on {type.Name}:");
             foreach (var p in type.GetProperties(AllInstanceFlags))
             {
                 if (p.Name.Contains("Open") || p.Name.Contains("Ready") || p.Name.Contains("Visible"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"  - {p.Name} ({p.PropertyType.Name})");
+                    Log.Patch("PanelStatePatch", $"  - {p.Name} ({p.PropertyType.Name})");
                 }
             }
         }
@@ -632,13 +633,13 @@ namespace AccessibleArena.Patches
             try
             {
                 var typeName = __instance?.GetType().Name ?? "Unknown";
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Panel Show: {typeName}");
+                Log.Patch("PanelStatePatch", $"Panel Show: {typeName}");
                 OnPanelStateChanged?.Invoke(__instance, true, typeName);
 
                 // Check if this is a PlayBlade controller by GameObject name
                 if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Detected PlayBlade Show via GameObject name: {mb.gameObject.name}");
+                    Log.Patch("PanelStatePatch", $"Detected PlayBlade Show via GameObject name: {mb.gameObject.name}");
                     OnPanelStateChanged?.Invoke(__instance, true, "PlayBlade:Generic");
                 }
             }
@@ -653,13 +654,13 @@ namespace AccessibleArena.Patches
             try
             {
                 var typeName = __instance?.GetType().Name ?? "Unknown";
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Panel Hide: {typeName}");
+                Log.Patch("PanelStatePatch", $"Panel Hide: {typeName}");
                 OnPanelStateChanged?.Invoke(__instance, false, typeName);
 
                 // Check if this is a PlayBlade controller by GameObject name
                 if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Detected PlayBlade Hide via GameObject name: {mb.gameObject.name}");
+                    Log.Patch("PanelStatePatch", $"Detected PlayBlade Hide via GameObject name: {mb.gameObject.name}");
                     OnPanelStateChanged?.Invoke(__instance, false, "PlayBlade:Generic");
                 }
             }
@@ -674,13 +675,13 @@ namespace AccessibleArena.Patches
             try
             {
                 var typeName = __instance?.GetType().Name ?? "Unknown";
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Panel IsOpen = {value}: {typeName}");
+                Log.Patch("PanelStatePatch", $"Panel IsOpen = {value}: {typeName}");
                 OnPanelStateChanged?.Invoke(__instance, value, typeName);
 
                 // Check if this is a PlayBlade controller by GameObject name
                 if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Detected PlayBlade IsOpen={value} via GameObject name: {mb.gameObject.name}");
+                    Log.Patch("PanelStatePatch", $"Detected PlayBlade IsOpen={value} via GameObject name: {mb.gameObject.name}");
                     OnPanelStateChanged?.Invoke(__instance, value, "PlayBlade:Generic");
                 }
             }
@@ -707,13 +708,13 @@ namespace AccessibleArena.Patches
             try
             {
                 var typeName = __instance?.GetType().Name ?? "Unknown";
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Panel BeginOpen: {typeName}");
+                Log.Patch("PanelStatePatch", $"Panel BeginOpen: {typeName}");
                 // Don't fire event yet - wait for FinishOpen when UI is ready
 
                 // But for PlayBlade, fire early so we track blade state
                 if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Detected PlayBlade BeginOpen via GameObject name: {mb.gameObject.name}");
+                    Log.Patch("PanelStatePatch", $"Detected PlayBlade BeginOpen via GameObject name: {mb.gameObject.name}");
                     OnPanelStateChanged?.Invoke(__instance, true, "PlayBlade:Generic");
                 }
             }
@@ -728,14 +729,14 @@ namespace AccessibleArena.Patches
             try
             {
                 var typeName = __instance?.GetType().Name ?? "Unknown";
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Panel BeginClose: {typeName}");
+                Log.Patch("PanelStatePatch", $"Panel BeginClose: {typeName}");
                 // Fire event early so navigator knows panel is closing
                 OnPanelStateChanged?.Invoke(__instance, false, typeName);
 
                 // Check if this is a PlayBlade controller by GameObject name
                 if (__instance is UnityEngine.MonoBehaviour mb && mb.gameObject.name.Contains("PlayBlade"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Detected PlayBlade BeginClose via GameObject name: {mb.gameObject.name}");
+                    Log.Patch("PanelStatePatch", $"Detected PlayBlade BeginClose via GameObject name: {mb.gameObject.name}");
                     OnPanelStateChanged?.Invoke(__instance, false, "PlayBlade:Generic");
                 }
             }
@@ -839,7 +840,7 @@ namespace AccessibleArena.Patches
         {
             if (curr == UnityEngine.KeyCode.Tab)
             {
-                DebugConfig.LogIf(DebugConfig.LogPatches, "PanelStatePatch", $"Blocked Tab from SocialUI.HandleKeyDown");
+                Log.Patch("PanelStatePatch", $"Blocked Tab from SocialUI.HandleKeyDown");
                 return false;
             }
             return true;

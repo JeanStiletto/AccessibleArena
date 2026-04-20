@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
@@ -559,7 +560,7 @@ namespace AccessibleArena.Core.Services
             // Showing hidden cards would be cheating.
             if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "ZoneNavigator",
+                Log.Card("ZoneNavigator",
                     $"Library zone: {zone.Cards.Count} CDCs before filter");
 
                 zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.IsDisplayedFaceUp(c));

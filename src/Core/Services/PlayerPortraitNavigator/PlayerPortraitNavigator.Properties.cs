@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections;
@@ -173,7 +174,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error checking effects content: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error checking effects content: {ex.Message}");
             }
 
             return false;
@@ -281,7 +282,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error getting rank: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error getting rank: {ex.Message}");
                 return null;
             }
         }
@@ -305,7 +306,7 @@ namespace AccessibleArena.Core.Services
         private string GetPlayerUsername(bool isOpponent)
         {
             string containerName = isOpponent ? "Opponent" : "LocalPlayer";
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Looking for username for {containerName}");
+            Log.Nav("PlayerPortrait", $"Looking for username for {containerName}");
 
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
@@ -314,19 +315,19 @@ namespace AccessibleArena.Core.Services
                 // Look for PlayerNameView objects (e.g., LocalPlayerNameView_Desktop_16x9(Clone))
                 if (go.name.Contains(containerName) && go.name.Contains("NameView"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found NameView: {go.name}");
+                    Log.Nav("PlayerPortrait", $"Found NameView: {go.name}");
 
                     // Log all children and their text
                     foreach (Transform child in go.transform)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  NameView child: {child.name}");
+                        Log.Nav("PlayerPortrait", $"  NameView child: {child.name}");
                     }
 
                     // Search for TextMeshPro components
                     var tmpComponents = go.GetComponentsInChildren<TextMeshProUGUI>(true);
                     foreach (var tmp in tmpComponents)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  TMP found: '{tmp.text}' on {tmp.gameObject.name}");
+                        Log.Nav("PlayerPortrait", $"  TMP found: '{tmp.text}' on {tmp.gameObject.name}");
                         if (!string.IsNullOrEmpty(tmp.text) && !tmp.text.Contains("Rank"))
                         {
                             return tmp.text.Trim();
@@ -337,11 +338,11 @@ namespace AccessibleArena.Core.Services
                 // Also check for NameText objects
                 if (go.name.Contains(containerName) && go.name.Contains("NameText"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Found NameText: {go.name}");
+                    Log.Nav("PlayerPortrait", $"Found NameText: {go.name}");
                     var tmp = go.GetComponent<TextMeshProUGUI>();
                     if (tmp != null && !string.IsNullOrEmpty(tmp.text))
                     {
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  NameText value: '{tmp.text}'");
+                        Log.Nav("PlayerPortrait", $"  NameText value: '{tmp.text}'");
                         return tmp.text.Trim();
                     }
                 }

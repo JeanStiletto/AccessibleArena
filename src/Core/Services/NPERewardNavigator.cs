@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
@@ -26,8 +27,6 @@ namespace AccessibleArena.Core.Services
         public override int Priority => 75; // Above GeneralMenuNavigator (15), below BoosterOpenNavigator (80)
 
         public NPERewardNavigator(IAnnouncementService announcer) : base(announcer) { }
-
-        private void Log(string message) => DebugConfig.LogIf(DebugConfig.LogNavigation, NavigatorId, message);
 
         private string GetScreenName()
         {
@@ -128,17 +127,17 @@ namespace AccessibleArena.Core.Services
 
             // Only log full details on state change to "success"
             string successState = _isDeckReward ? "success_deck" : "success";
-            if (_lastDetectState != successState && DebugConfig.LogNavigation)
+            if (_lastDetectState != successState && Log.LogNavigation)
             {
-                Log($"=== NPE REWARD SCREEN DETECTION: SUCCESS ({(_isDeckReward ? "DECK" : "CARD")} mode) ===");
-                Log($"  Path: {GetPath(npeContainer.transform)}");
-                Log($"  Card prefabs found: {cardCount}, Deck prefabs found: {deckCount}");
+                Log.Nav(NavigatorId, $"=== NPE REWARD SCREEN DETECTION: SUCCESS ({(_isDeckReward ? "DECK" : "CARD")} mode) ===");
+                Log.Nav(NavigatorId, $"  Path: {GetPath(npeContainer.transform)}");
+                Log.Nav(NavigatorId, $"  Card prefabs found: {cardCount}, Deck prefabs found: {deckCount}");
 
-                Log($"  RewardsCONTAINER children ({rewardsContainer.childCount}):");
+                Log.Nav(NavigatorId, $"  RewardsCONTAINER children ({rewardsContainer.childCount}):");
                 foreach (Transform child in rewardsContainer)
                 {
                     string components = string.Join(", ", child.GetComponents<Component>().Select(c => c?.GetType().Name ?? "null"));
-                    Log($"    - {child.name} (active={child.gameObject.activeInHierarchy}) [{components}]");
+                    Log.Nav(NavigatorId, $"    - {child.name} (active={child.gameObject.activeInHierarchy}) [{components}]");
                 }
 
                 // Check for NPEContentControllerRewards (needed for button activation)
@@ -148,13 +147,13 @@ namespace AccessibleArena.Core.Services
                     if (mb != null && mb.GetType().Name == "NPEContentControllerRewards")
                     {
                         foundController = true;
-                        Log($"  NPEContentControllerRewards: FOUND on {mb.gameObject.name}");
+                        Log.Nav(NavigatorId, $"  NPEContentControllerRewards: FOUND on {mb.gameObject.name}");
                         break;
                     }
                 }
                 if (!foundController)
                 {
-                    Log($"  NPEContentControllerRewards: NOT FOUND (button activation may fail!)");
+                    Log.Nav(NavigatorId, $"  NPEContentControllerRewards: NOT FOUND (button activation may fail!)");
                 }
             }
 
@@ -168,12 +167,12 @@ namespace AccessibleArena.Core.Services
             if (_lastDetectState == newState) return;
             _lastDetectState = newState;
             if (message != null)
-                Log(message);
+                Log.Nav(NavigatorId, message);
         }
 
         protected override void DiscoverElements()
         {
-            Log($"=== DISCOVERING ELEMENTS ({(_isDeckReward ? "DECK" : "CARD")} mode) ===");
+            Log.Nav(NavigatorId, $"=== DISCOVERING ELEMENTS ({(_isDeckReward ? "DECK" : "CARD")} mode) ===");
             _totalCards = 0;
             var addedObjects = new HashSet<GameObject>();
 
@@ -190,11 +189,11 @@ namespace AccessibleArena.Core.Services
             if (_isDeckReward)
                 _discoveredDeckBoxCount = CountDeckBoxes();
 
-            Log($"=== DISCOVERY COMPLETE: {_elements.Count} elements ===");
+            Log.Nav(NavigatorId, $"=== DISCOVERY COMPLETE: {_elements.Count} elements ===");
             for (int i = 0; i < _elements.Count; i++)
             {
                 var el = _elements[i];
-                Log($"  [{i}] {el.Label} -> {el.GameObject?.name ?? "NULL"} (ID:{el.GameObject?.GetInstanceID()})");
+                Log.Nav(NavigatorId, $"  [{i}] {el.Label} -> {el.GameObject?.name ?? "NULL"} (ID:{el.GameObject?.GetInstanceID()})");
             }
         }
 
@@ -202,7 +201,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_rewardsContainer == null)
             {
-                Log($"FindCardEntries: _rewardsContainer is NULL");
+                Log.Nav(NavigatorId, $"FindCardEntries: _rewardsContainer is NULL");
                 return;
             }
 
@@ -212,32 +211,32 @@ namespace AccessibleArena.Core.Services
             var activeContainer = _rewardsContainer.transform.Find("ActiveContainer");
             if (activeContainer == null)
             {
-                Log($"FindCardEntries: ActiveContainer not found");
+                Log.Nav(NavigatorId, $"FindCardEntries: ActiveContainer not found");
                 return;
             }
 
             var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
             if (rewardsContainer == null)
             {
-                Log($"FindCardEntries: RewardsCONTAINER not found");
+                Log.Nav(NavigatorId, $"FindCardEntries: RewardsCONTAINER not found");
                 return;
             }
 
-            Log($"Scanning RewardsCONTAINER for cards...");
+            Log.Nav(NavigatorId, $"Scanning RewardsCONTAINER for cards...");
 
             foreach (Transform child in rewardsContainer)
             {
-                Log($"  Checking: {child.name}");
+                Log.Nav(NavigatorId, $"  Checking: {child.name}");
 
                 if (!child.gameObject.activeInHierarchy)
                 {
-                    Log($"    SKIPPED: not active");
+                    Log.Nav(NavigatorId, $"    SKIPPED: not active");
                     continue;
                 }
 
                 if (!child.name.Contains("NPERewardPrefab_IndividualCard"))
                 {
-                    Log($"    SKIPPED: name doesn't contain NPERewardPrefab_IndividualCard");
+                    Log.Nav(NavigatorId, $"    SKIPPED: name doesn't contain NPERewardPrefab_IndividualCard");
                     continue;
                 }
 
@@ -245,29 +244,29 @@ namespace AccessibleArena.Core.Services
                 var cardAnchor = child.Find("CardAnchor");
                 GameObject cardObj = cardAnchor?.gameObject ?? child.gameObject;
 
-                if (DebugConfig.LogNavigation)
+                if (Log.LogNavigation)
                 {
-                    Log($"    MATCHED as card prefab");
+                    Log.Nav(NavigatorId, $"    MATCHED as card prefab");
                     foreach (Transform cardChild in child)
-                        Log($"      - {cardChild.name} (active={cardChild.gameObject.activeInHierarchy})");
-                    Log($"    Navigation target: {cardObj.name} (used CardAnchor={cardAnchor != null})");
-                    Log($"    Target path: {GetPath(cardObj.transform)}");
+                        Log.Nav(NavigatorId, $"      - {cardChild.name} (active={cardChild.gameObject.activeInHierarchy})");
+                    Log.Nav(NavigatorId, $"    Navigation target: {cardObj.name} (used CardAnchor={cardAnchor != null})");
+                    Log.Nav(NavigatorId, $"    Target path: {GetPath(cardObj.transform)}");
                     var components = cardObj.GetComponents<Component>();
-                    Log($"    Target components ({components.Length}):");
+                    Log.Nav(NavigatorId, $"    Target components ({components.Length}):");
                     foreach (var comp in components)
-                        Log($"      - {comp?.GetType().Name ?? "null"}");
+                        Log.Nav(NavigatorId, $"      - {comp?.GetType().Name ?? "null"}");
                 }
 
                 if (addedObjects.Contains(cardObj))
                 {
-                    Log($"    SKIPPED: already added");
+                    Log.Nav(NavigatorId, $"    SKIPPED: already added");
                     continue;
                 }
 
                 var cardInfo = CardDetector.ExtractCardInfo(child.gameObject);
-                if (DebugConfig.LogNavigation)
+                if (Log.LogNavigation)
                 {
-                    Log($"    CardInfo: Name={cardInfo.Name ?? "null"}, Valid={cardInfo.IsValid}, Type={cardInfo.TypeLine ?? "null"}");
+                    Log.Nav(NavigatorId, $"    CardInfo: Name={cardInfo.Name ?? "null"}, Valid={cardInfo.IsValid}, Type={cardInfo.TypeLine ?? "null"}");
                 }
 
                 string cardName = cardInfo.IsValid ? cardInfo.Name : Strings.NPE_UnknownCard;
@@ -278,14 +277,14 @@ namespace AccessibleArena.Core.Services
                 cardEntries.Add((cardObj, sortOrder, cardName, typeLine));
                 addedObjects.Add(cardObj);
 
-                Log($"    ADDED: {cardName} at x={sortOrder:F2}");
+                Log.Nav(NavigatorId, $"    ADDED: {cardName} at x={sortOrder:F2}");
             }
 
             // Sort cards by position (left to right)
             cardEntries = cardEntries.OrderBy(x => x.sortOrder).ToList();
 
             _totalCards = cardEntries.Count;
-            Log($"Total cards found: {_totalCards}");
+            Log.Nav(NavigatorId, $"Total cards found: {_totalCards}");
 
             // Add cards to navigation
             int cardNum = 1;
@@ -300,7 +299,7 @@ namespace AccessibleArena.Core.Services
                     label += $", {typeLine}";
                 }
 
-                Log($"Adding element: '{label}' -> {cardObj.name}");
+                Log.Nav(NavigatorId, $"Adding element: '{label}' -> {cardObj.name}");
                 AddElement(cardObj, label);
                 cardNum++;
             }
@@ -310,35 +309,35 @@ namespace AccessibleArena.Core.Services
         {
             if (_rewardsContainer == null)
             {
-                Log($"FindDeckEntries: _rewardsContainer is NULL");
+                Log.Nav(NavigatorId, $"FindDeckEntries: _rewardsContainer is NULL");
                 return;
             }
 
             var activeContainer = _rewardsContainer.transform.Find("ActiveContainer");
             if (activeContainer == null)
             {
-                Log($"FindDeckEntries: ActiveContainer not found");
+                Log.Nav(NavigatorId, $"FindDeckEntries: ActiveContainer not found");
                 return;
             }
 
             var rewardsContainer = activeContainer.Find("RewardsCONTAINER");
             if (rewardsContainer == null)
             {
-                Log($"FindDeckEntries: RewardsCONTAINER not found");
+                Log.Nav(NavigatorId, $"FindDeckEntries: RewardsCONTAINER not found");
                 return;
             }
 
-            Log($"Scanning RewardsCONTAINER for deck prefabs...");
+            Log.Nav(NavigatorId, $"Scanning RewardsCONTAINER for deck prefabs...");
 
             var deckEntries = new List<(GameObject hitbox, float sortOrder, string name)>();
 
             foreach (Transform child in rewardsContainer)
             {
-                Log($"  Checking: {child.name} (active={child.gameObject.activeInHierarchy})");
+                Log.Nav(NavigatorId, $"  Checking: {child.name} (active={child.gameObject.activeInHierarchy})");
 
                 if (!child.gameObject.activeInHierarchy)
                 {
-                    Log($"    SKIPPED: not active");
+                    Log.Nav(NavigatorId, $"    SKIPPED: not active");
                     continue;
                 }
 
@@ -346,20 +345,20 @@ namespace AccessibleArena.Core.Services
                 var hitboxObj = FindChildByName(child, "Hitbox_LidOpen");
                 if (hitboxObj == null)
                 {
-                    Log($"    SKIPPED: no Hitbox_LidOpen found");
+                    Log.Nav(NavigatorId, $"    SKIPPED: no Hitbox_LidOpen found");
                     continue;
                 }
 
-                if (DebugConfig.LogNavigation)
+                if (Log.LogNavigation)
                 {
-                    Log($"    MATCHED as deck prefab (Hitbox_LidOpen found)");
+                    Log.Nav(NavigatorId, $"    MATCHED as deck prefab (Hitbox_LidOpen found)");
                     foreach (Transform deckChild in child)
-                        Log($"      - {deckChild.name} (active={deckChild.gameObject.activeInHierarchy})");
+                        Log.Nav(NavigatorId, $"      - {deckChild.name} (active={deckChild.gameObject.activeInHierarchy})");
                 }
 
                 if (addedObjects.Contains(hitboxObj))
                 {
-                    Log($"    SKIPPED: already added");
+                    Log.Nav(NavigatorId, $"    SKIPPED: already added");
                     continue;
                 }
 
@@ -381,14 +380,14 @@ namespace AccessibleArena.Core.Services
                 deckEntries.Add((hitboxObj, sortOrder, deckName));
                 addedObjects.Add(hitboxObj);
 
-                Log($"    ADDED: {deckName} at x={sortOrder:F2}");
+                Log.Nav(NavigatorId, $"    ADDED: {deckName} at x={sortOrder:F2}");
             }
 
             // Sort decks by position (left to right)
             deckEntries = deckEntries.OrderBy(x => x.sortOrder).ToList();
 
             _totalCards = deckEntries.Count;
-            Log($"Total decks found: {_totalCards}");
+            Log.Nav(NavigatorId, $"Total decks found: {_totalCards}");
 
             // Add decks to navigation (re-number after sorting)
             int deckNum = 1;
@@ -406,7 +405,7 @@ namespace AccessibleArena.Core.Services
                     label = Strings.DeckNumber(deckNum);
                 }
 
-                Log($"Adding element: '{label}' -> {hitbox.name}");
+                Log.Nav(NavigatorId, $"Adding element: '{label}' -> {hitbox.name}");
                 AddElement(hitbox, label);
                 deckNum++;
             }
@@ -416,11 +415,11 @@ namespace AccessibleArena.Core.Services
         {
             if (_rewardsContainer == null)
             {
-                Log($"FindTakeRewardButton: _rewardsContainer is NULL");
+                Log.Nav(NavigatorId, $"FindTakeRewardButton: _rewardsContainer is NULL");
                 return;
             }
 
-            Log($"Searching for NullClaimButton...");
+            Log.Nav(NavigatorId, $"Searching for NullClaimButton...");
 
             // Find NullClaimButton - the "take reward" button
             GameObject foundButton = null;
@@ -432,21 +431,21 @@ namespace AccessibleArena.Core.Services
                 {
                     if (!transform.gameObject.activeInHierarchy)
                     {
-                        Log($"  NullClaimButton: SKIPPED (not active)");
+                        Log.Nav(NavigatorId, $"  NullClaimButton: SKIPPED (not active)");
                         continue;
                     }
 
                     if (addedObjects.Contains(transform.gameObject))
                     {
-                        Log($"  NullClaimButton: SKIPPED (already added)");
+                        Log.Nav(NavigatorId, $"  NullClaimButton: SKIPPED (already added)");
                         continue;
                     }
 
-                    if (DebugConfig.LogNavigation)
+                    if (Log.LogNavigation)
                     {
-                        Log($"  Found NullClaimButton: {GetPath(transform)}");
+                        Log.Nav(NavigatorId, $"  Found NullClaimButton: {GetPath(transform)}");
                         foreach (var comp in transform.GetComponents<Component>())
-                            Log($"    - {comp?.GetType().Name ?? "null"}");
+                            Log.Nav(NavigatorId, $"    - {comp?.GetType().Name ?? "null"}");
                         LogCustomButtonDetails(transform);
                     }
 
@@ -462,17 +461,17 @@ namespace AccessibleArena.Core.Services
                     : BuildLabel(Strings.NPE_TakeReward, Strings.RoleButton, UIElementClassifier.ElementRole.Button);
                 AddElement(foundButton, buttonLabel);
                 addedObjects.Add(foundButton);
-                Log($"{buttonLabel} ADDED");
+                Log.Nav(NavigatorId, $"{buttonLabel} ADDED");
             }
             else
             {
-                Log($"NullClaimButton NOT FOUND in hierarchy!");
+                Log.Nav(NavigatorId, $"NullClaimButton NOT FOUND in hierarchy!");
             }
         }
 
         /// <summary>
         /// Logs interesting CustomButton fields on a transform (debug only).
-        /// Caller must gate with DebugConfig.LogNavigation.
+        /// Caller must gate with Log.LogNavigation.
         /// </summary>
         private void LogCustomButtonDetails(Transform buttonTransform)
         {
@@ -504,7 +503,7 @@ namespace AccessibleArena.Core.Services
                         : val is UnityEngine.Events.UnityEventBase ue ? $"<UnityEvent, listeners={ue.GetPersistentEventCount()}>"
                         : val is string || val is bool || val is int || val is float || val is System.Enum ? val.ToString()
                         : $"<{val.GetType().Name}>";
-                    Log($"    CustomButton.{field.Name}: {valStr}");
+                    Log.Nav(NavigatorId, $"    CustomButton.{field.Name}: {valStr}");
                 }
                 catch { /* Some fields may throw when read via reflection */ }
             }
@@ -526,19 +525,19 @@ namespace AccessibleArena.Core.Services
 
             // Left/Right arrows for navigation between cards (hold-to-repeat)
             if (_holdRepeater.Check(KeyCode.LeftArrow, () => {
-                Log($"Input: Left - MovePrevious (current={_currentIndex}, total={_elements.Count})");
+                Log.Nav(NavigatorId, $"Input: Left - MovePrevious (current={_currentIndex}, total={_elements.Count})");
                 MovePrevious(); LogCurrentState(); return true;
             })) return;
 
             if (_holdRepeater.Check(KeyCode.RightArrow, () => {
-                Log($"Input: Right - MoveNext (current={_currentIndex}, total={_elements.Count})");
+                Log.Nav(NavigatorId, $"Input: Right - MoveNext (current={_currentIndex}, total={_elements.Count})");
                 MoveNext(); LogCurrentState(); return true;
             })) return;
 
             // Home/End for quick jump to first/last
             if (Input.GetKeyDown(KeyCode.Home))
             {
-                Log($"Input: Home - MoveFirst");
+                Log.Nav(NavigatorId, $"Input: Home - MoveFirst");
                 MoveFirst();
                 LogCurrentState();
                 return;
@@ -546,7 +545,7 @@ namespace AccessibleArena.Core.Services
 
             if (Input.GetKeyDown(KeyCode.End))
             {
-                Log($"Input: End - MoveLast");
+                Log.Nav(NavigatorId, $"Input: End - MoveLast");
                 MoveLast();
                 LogCurrentState();
                 return;
@@ -556,7 +555,7 @@ namespace AccessibleArena.Core.Services
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                Log($"Input: Tab (shift={shiftTab})");
+                Log.Nav(NavigatorId, $"Input: Tab (shift={shiftTab})");
                 if (shiftTab)
                     MovePrevious();
                 else
@@ -568,12 +567,12 @@ namespace AccessibleArena.Core.Services
             // Enter activates (take reward or view card)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
-                Log($"Input: Enter - ActivateCurrentElement");
+                Log.Nav(NavigatorId, $"Input: Enter - ActivateCurrentElement");
                 LogCurrentState();
                 if (IsClaimButton(_currentIndex))
                 {
                     ActivateCurrentElement();
-                    Log($"Claim button activated - deactivating navigator");
+                    Log.Nav(NavigatorId, $"Claim button activated - deactivating navigator");
                     Deactivate();
                 }
                 else
@@ -586,21 +585,21 @@ namespace AccessibleArena.Core.Services
             // Backspace dismisses (activates take reward / continue button)
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
-                Log($"Input: Backspace - Finding dismiss button");
+                Log.Nav(NavigatorId, $"Input: Backspace - Finding dismiss button");
                 // Find and activate the take reward / continue button
                 for (int i = 0; i < _elements.Count; i++)
                 {
                     var element = _elements[i];
                     if (IsClaimButton(i))
                     {
-                        Log($"  Activating: {element.Label} -> {GetSafeName(element.GameObject)}");
+                        Log.Nav(NavigatorId, $"  Activating: {element.Label} -> {GetSafeName(element.GameObject)}");
                         UIActivator.Activate(element.GameObject);
-                        Log($"Claim button activated via Backspace - deactivating navigator");
+                        Log.Nav(NavigatorId, $"Claim button activated via Backspace - deactivating navigator");
                         Deactivate();
                         return;
                     }
                 }
-                Log($"  Take reward button not found in elements!");
+                Log.Nav(NavigatorId, $"  Take reward button not found in elements!");
                 return;
             }
         }
@@ -629,26 +628,26 @@ namespace AccessibleArena.Core.Services
             if (_currentIndex >= 0 && _currentIndex < _elements.Count)
             {
                 var current = _elements[_currentIndex];
-                Log($"  Current: [{_currentIndex}] {current.Label}");
-                Log($"    GameObject: {GetSafeName(current.GameObject)} (active={current.GameObject?.activeInHierarchy})");
+                Log.Nav(NavigatorId, $"  Current: [{_currentIndex}] {current.Label}");
+                Log.Nav(NavigatorId, $"    GameObject: {GetSafeName(current.GameObject)} (active={current.GameObject?.activeInHierarchy})");
 
                 // Check if this is a card and if CardInfoNavigator should be prepared
                 if (current.GameObject != null)
                 {
                     bool isCard = CardDetector.IsCard(current.GameObject);
-                    Log($"    IsCard: {isCard}");
+                    Log.Nav(NavigatorId, $"    IsCard: {isCard}");
 
                     var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
                     if (cardNav != null)
                     {
-                        Log($"    CardInfoNavigator.IsActive: {cardNav.IsActive}");
-                        Log($"    CardInfoNavigator.CurrentCard: {GetSafeName(cardNav.CurrentCard)}");
+                        Log.Nav(NavigatorId, $"    CardInfoNavigator.IsActive: {cardNav.IsActive}");
+                        Log.Nav(NavigatorId, $"    CardInfoNavigator.CurrentCard: {GetSafeName(cardNav.CurrentCard)}");
                     }
                 }
             }
             else
             {
-                Log($"  Current: INVALID INDEX {_currentIndex} (count={_elements.Count})");
+                Log.Nav(NavigatorId, $"  Current: INVALID INDEX {_currentIndex} (count={_elements.Count})");
             }
         }
 
@@ -657,7 +656,7 @@ namespace AccessibleArena.Core.Services
             // Check if rewards container is still active
             if (_rewardsContainer == null || !_rewardsContainer.activeInHierarchy)
             {
-                Log($"ValidateElements: Rewards container no longer active");
+                Log.Nav(NavigatorId, $"ValidateElements: Rewards container no longer active");
                 return false;
             }
 
@@ -675,7 +674,7 @@ namespace AccessibleArena.Core.Services
             }
             if (!anyAlive)
             {
-                Log($"ValidateElements: No active elements remaining (reward dismissed)");
+                Log.Nav(NavigatorId, $"ValidateElements: No active elements remaining (reward dismissed)");
                 return false;
             }
 
@@ -686,7 +685,7 @@ namespace AccessibleArena.Core.Services
                 int currentCount = CountDeckBoxes();
                 if (currentCount != _discoveredDeckBoxCount)
                 {
-                    Log($"ValidateElements: Deck box count changed {_discoveredDeckBoxCount} -> {currentCount}, forcing re-detection");
+                    Log.Nav(NavigatorId, $"ValidateElements: Deck box count changed {_discoveredDeckBoxCount} -> {currentCount}, forcing re-detection");
                     return false;
                 }
             }
@@ -719,7 +718,7 @@ namespace AccessibleArena.Core.Services
 
         public override void OnSceneChanged(string sceneName)
         {
-            Log($"OnSceneChanged: {sceneName}");
+            Log.Nav(NavigatorId, $"OnSceneChanged: {sceneName}");
             if (_isActive)
             {
                 Deactivate();

@@ -1,4 +1,5 @@
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections;
@@ -51,7 +52,7 @@ namespace AccessibleArena.Core.Services
                 var affected = GetFieldValue<object>(uxEvent, "Affected");
 
                 string effectName = abilityCategory?.ToString() ?? "unknown";
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"MultistepEffect: AbilityCategory={effectName}, Affector={affector}, Affected={affected}");
+                Log.Announce("DuelAnnouncer", $"MultistepEffect: AbilityCategory={effectName}, Affector={affector}, Affected={affected}");
 
                 // Determine effect type and description
                 string effectDescription;
@@ -134,11 +135,11 @@ namespace AccessibleArena.Core.Services
 
                 if (!string.IsNullOrEmpty(cardName))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Library browser active: {effectDescription} from {cardName}");
+                    Log.Announce("DuelAnnouncer", $"Library browser active: {effectDescription} from {cardName}");
                 }
                 else
                 {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Library browser active: {effectDescription}");
+                    Log.Announce("DuelAnnouncer", $"Library browser active: {effectDescription}");
                 }
 
                 return announcement;
@@ -196,7 +197,7 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(cardName))
                 {
                     _lastResolvingCardName = cardName;
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Resolution started: {cardName} (InstanceId: {instigatorInstanceId}, isAbility: {isAbility})");
+                    Log.Announce("DuelAnnouncer", $"Resolution started: {cardName} (InstanceId: {instigatorInstanceId}, isAbility: {isAbility})");
                 }
 
                 return null; // Don't announce resolution start, just track it
@@ -298,7 +299,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Error extracting counter source: {ex.Message}");
+                Log.Announce("DuelAnnouncer", $"Error extracting counter source: {ex.Message}");
             }
 
             if (isAbility)

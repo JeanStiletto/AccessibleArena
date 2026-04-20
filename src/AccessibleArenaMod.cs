@@ -1,5 +1,6 @@
 using System.IO;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using UnityEngine;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
@@ -155,7 +156,7 @@ namespace AccessibleArena
             // Use safe name access - Unity destroyed objects are not null but throw on property access
             string oldName = GetSafeGameObjectName(oldElement);
             string newName = GetSafeGameObjectName(newElement);
-            DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", $"Old: {oldName}, New: {newName}");
+            Log.Focus("FocusChanged", $"Old: {oldName}, New: {newName}");
 
             // If focus moved to a DIFFERENT element, deactivate card navigation.
             // Skip when CurrentCard is null (blocks-only mode, e.g. packet info) - owner manages lifecycle.
@@ -164,7 +165,7 @@ namespace AccessibleArena
             if (_cardInfoNavigator.IsActive && _cardInfoNavigator.CurrentCard != null
                 && newElement != null && _cardInfoNavigator.CurrentCard != newElement)
             {
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "FocusChanged", "Deactivating card navigator");
+                Log.Focus("FocusChanged", "Deactivating card navigator");
                 _cardInfoNavigator.Deactivate();
             }
 
@@ -275,7 +276,7 @@ namespace AccessibleArena
 
         private void SpeakDebugLog()
         {
-            var entries = DebugConfig.GetRecentEntries(5);
+            var entries = Log.GetRecentEntries(5);
             if (entries.Length == 0)
             {
                 _announcer.AnnounceInterrupt(Strings.DebugLogEmpty);
@@ -385,7 +386,7 @@ namespace AccessibleArena
             {
                 if (_cardInfoNavigator != null && _cardInfoNavigator.IsActive)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogFocusTracking, "NavigatorChange", $"Deactivating card navigator (navigator changed: {_lastActiveNavigatorId} -> {currentNavId})");
+                    Log.Focus("NavigatorChange", $"Deactivating card navigator (navigator changed: {_lastActiveNavigatorId} -> {currentNavId})");
                     _cardInfoNavigator.Deactivate();
                 }
                 _lastActiveNavigatorId = currentNavId;
@@ -405,7 +406,7 @@ namespace AccessibleArena
                      (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.UpArrow) ||
                       UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.DownArrow)))
             {
-                DebugConfig.LogIf(DebugConfig.LogFocusTracking, "CardInfo",
+                Log.Focus("CardInfo",
                     $"Up/Down pressed but CardInfoNavigator.IsActive=False, CurrentCard={_cardInfoNavigator.CurrentCard.name}");
             }
 

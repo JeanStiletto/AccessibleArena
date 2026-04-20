@@ -3,6 +3,7 @@ using System.Linq;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 
+using AccessibleArena.Core.Utils;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
@@ -118,7 +119,7 @@ namespace AccessibleArena.Core.Services
                     var cardFilterTypeEnum = FindType("Core.Shared.Code.CardFilters.CardFilterType");
                     if (pantryType == null || filterProviderType == null || cardFilterTypeEnum == null)
                     {
-                        Log($"Filter reflection init failed: pantry={pantryType != null}, provider={filterProviderType != null}, enum={cardFilterTypeEnum != null}");
+                        Log.Activation("CardTileActivator", $"Filter reflection init failed: pantry={pantryType != null}, provider={filterProviderType != null}, enum={cardFilterTypeEnum != null}");
                         return null;
                     }
                     var getMethod = pantryType.GetMethod("Get", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
@@ -133,7 +134,7 @@ namespace AccessibleArena.Core.Services
                     }
                     // Get the Commanders enum value
                     _commandersEnumValue = System.Enum.Parse(cardFilterTypeEnum, "Commanders");
-                    Log($"Filter reflection init: getMethod={_pantryGetFilterProviderMethod != null}, filter={_filterProperty != null}, isSet={_isSetMethod != null}, commanders={_commandersEnumValue}");
+                    Log.Activation("CardTileActivator", $"Filter reflection init: getMethod={_pantryGetFilterProviderMethod != null}, filter={_filterProperty != null}, isSet={_isSetMethod != null}, commanders={_commandersEnumValue}");
                 }
                 if (_pantryGetFilterProviderMethod == null || _filterProperty == null || _isSetMethod == null || _commandersEnumValue == null)
                     return null;
@@ -146,7 +147,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                Log($"IsCommandersFilterActive failed: {ex.Message}");
+                Log.Activation("CardTileActivator", $"IsCommandersFilterActive failed: {ex.Message}");
                 return null;
             }
         }
@@ -210,7 +211,7 @@ namespace AccessibleArena.Core.Services
             if (cardElement == null)
                 return new ActivationResult(false, "Card element is null");
 
-            Log($"Attempting collection card activation for: {cardElement.name}");
+            Log.Activation("CardTileActivator", $"Attempting collection card activation for: {cardElement.name}");
 
             // Block the Enter KeyUp from reaching PopupManager, which would call
             // CardViewerController.OnEnter() and auto-trigger OnCraftClicked()
@@ -234,7 +235,7 @@ namespace AccessibleArena.Core.Services
         {
             if (deckElement == null) return false;
 
-            Log($"Attempting deck selection for: {deckElement.name}");
+            Log.Activation("CardTileActivator", $"Attempting deck selection for: {deckElement.name}");
 
             // Find the DeckView component in parent hierarchy
             // Structure: DeckView_Base(Clone)/UI <- we click this
@@ -242,11 +243,11 @@ namespace AccessibleArena.Core.Services
             var deckView = FindDeckViewInParents(deckElement);
             if (deckView == null)
             {
-                Log("No DeckView component found in parents");
+                Log.Activation("CardTileActivator", "No DeckView component found in parents");
                 return false;
             }
 
-            Log($"Found DeckView on: {deckView.gameObject.name}");
+            Log.Activation("CardTileActivator", $"Found DeckView on: {deckView.gameObject.name}");
 
             // Invoke OnDeckClick() on the DeckView component
             var deckViewType = deckView.GetType();
@@ -257,18 +258,18 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    Log($"Invoking {deckViewType.Name}.OnDeckClick()");
+                    Log.Activation("CardTileActivator", $"Invoking {deckViewType.Name}.OnDeckClick()");
                     onDeckClickMethod.Invoke(deckView, null);
                     return true;
                 }
                 catch (System.Exception ex)
                 {
-                    Log($"Error invoking OnDeckClick: {ex.Message}");
+                    Log.Activation("CardTileActivator", $"Error invoking OnDeckClick: {ex.Message}");
                 }
             }
             else
             {
-                Log("OnDeckClick method not found on DeckView");
+                Log.Activation("CardTileActivator", "OnDeckClick method not found on DeckView");
             }
 
             return false;
@@ -468,19 +469,10 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                Log($"Error getting selected deck: {ex.Message}");
+                Log.Activation("CardTileActivator", $"Error getting selected deck: {ex.Message}");
             }
 
             return null;
-        }
-
-        #endregion
-
-        #region Logging
-
-        private static void Log(string message)
-        {
-            DebugConfig.LogIf(DebugConfig.LogActivation, "CardTileActivator", message);
         }
 
         #endregion

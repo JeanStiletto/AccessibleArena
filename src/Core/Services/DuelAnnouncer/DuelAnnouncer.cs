@@ -1,4 +1,5 @@
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
@@ -227,7 +228,7 @@ namespace AccessibleArena.Core.Services
                 if (!_loggedEventTypes.Contains(typeName))
                 {
                     _loggedEventTypes.Add(typeName);
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"NEW EVENT TYPE SEEN: {typeName}");
+                    Log.Announce("DuelAnnouncer", $"NEW EVENT TYPE SEEN: {typeName}");
                 }
 
                 var eventType = ClassifyEvent(uxEvent);
@@ -328,7 +329,7 @@ namespace AccessibleArena.Core.Services
             if (uxEvent == null) return;
 
             var type = uxEvent.GetType();
-            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== {label} TYPE: {type.FullName} ===");
+            Log.Announce("DuelAnnouncer", $"=== {label} TYPE: {type.FullName} ===");
 
             // Log all fields
             var fields = type.GetFields(AllInstanceFlags);
@@ -339,11 +340,11 @@ namespace AccessibleArena.Core.Services
                     var value = field.GetValue(uxEvent);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
+                    Log.Announce("DuelAnnouncer", $"Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Field: {field.Name} = [Error: {ex.Message}]");
+                    Log.Announce("DuelAnnouncer", $"Field: {field.Name} = [Error: {ex.Message}]");
                 }
             }
 
@@ -356,15 +357,15 @@ namespace AccessibleArena.Core.Services
                     var value = prop.GetValue(uxEvent);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                    Log.Announce("DuelAnnouncer", $"Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Property: {prop.Name} = [Error: {ex.Message}]");
+                    Log.Announce("DuelAnnouncer", $"Property: {prop.Name} = [Error: {ex.Message}]");
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"=== END {label} FIELDS ===");
+            Log.Announce("DuelAnnouncer", $"=== END {label} FIELDS ===");
         }
 
         // LogDamageEventFields removed - use LogEventFieldsOnce
@@ -505,7 +506,7 @@ namespace AccessibleArena.Core.Services
 
                     if (!string.IsNullOrEmpty(manaPoolString))
                     {
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Mana pool: {manaPoolString}");
+                        Log.Announce("DuelAnnouncer", $"Mana pool: {manaPoolString}");
                         return Strings.ManaAmount(manaPoolString);
                     }
                 }
@@ -637,7 +638,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (detectedId != _localPlayerId && detectedId > 0)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Updating local player ID: {_localPlayerId} -> {detectedId} (detected from zone string)");
+                    Log.Announce("DuelAnnouncer", $"Updating local player ID: {_localPlayerId} -> {detectedId} (detected from zone string)");
                     _localPlayerId = detectedId;
                 }
             }

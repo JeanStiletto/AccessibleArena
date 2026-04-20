@@ -1,4 +1,5 @@
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections.Generic;
@@ -242,7 +243,7 @@ namespace AccessibleArena.Core.Services
                     }
 
                     if (grpId != 0)
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
+                        Log.Announce("DuelAnnouncer", $"ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
                     isOpponent = controllerId != 0 && controllerId != _localPlayerId;
                 }
 
@@ -258,7 +259,7 @@ namespace AccessibleArena.Core.Services
 
                 // Log zone strings for debugging ownership detection (skip for GrpId=0 library shuffles)
                 if (grpId != 0)
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
+                    Log.Announce("DuelAnnouncer", $"Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
 
                 // Try to auto-correct local player ID from zone strings containing "(LocalPlayer)"
                 TryUpdateLocalPlayerIdFromZoneString(fromZoneStr);
@@ -276,7 +277,7 @@ namespace AccessibleArena.Core.Services
 
                 // Log for debugging (skip for GrpId=0 library shuffles)
                 if (grpId != 0)
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");
+                    Log.Announce("DuelAnnouncer", $"ZoneTransfer: {fromZoneTypeStr} -> {toZoneTypeStr}, Reason={reasonStr}, GrpId={grpId}, isOpponent={isOpponent}");
 
                 // Skip if no card data
                 if (grpId == 0)
@@ -331,7 +332,7 @@ namespace AccessibleArena.Core.Services
 
                 if (!string.IsNullOrEmpty(announcement))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Zone transfer announcement: {announcement}");
+                    Log.Announce("DuelAnnouncer", $"Zone transfer announcement: {announcement}");
                 }
 
                 return announcement;
@@ -435,7 +436,7 @@ namespace AccessibleArena.Core.Services
                 uint attachedToId = GetNestedPropertyValue<uint>(cardInstance, "AttachedToId");
                 if (attachedToId == 0) return null;
 
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card has AttachedToId={attachedToId}, scanning battlefield for parent");
+                Log.Announce("DuelAnnouncer", $"Card has AttachedToId={attachedToId}, scanning battlefield for parent");
 
                 var holder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
                 if (holder == null) return null;
@@ -459,17 +460,17 @@ namespace AccessibleArena.Core.Services
                         string parentName = CardModelProvider.GetNameFromGrpId(grpId);
                         if (!string.IsNullOrEmpty(parentName))
                         {
-                            DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Card is attached to: {parentName} (InstanceId={attachedToId})");
+                            Log.Announce("DuelAnnouncer", $"Card is attached to: {parentName} (InstanceId={attachedToId})");
                             return parentName;
                         }
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"AttachedToId={attachedToId} but parent not found on battlefield");
+                Log.Announce("DuelAnnouncer", $"AttachedToId={attachedToId} but parent not found on battlefield");
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Error getting attached-to name: {ex.Message}");
+                Log.Announce("DuelAnnouncer", $"Error getting attached-to name: {ex.Message}");
             }
 
             return null;

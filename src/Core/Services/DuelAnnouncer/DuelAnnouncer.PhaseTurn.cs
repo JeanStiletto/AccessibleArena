@@ -1,4 +1,5 @@
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections.Generic;
@@ -97,7 +98,7 @@ namespace AccessibleArena.Core.Services
                 var affectedId = GetFieldValue<uint>(uxEvent, "AffectedId");
                 var change = GetNestedPropertyValue<int>(uxEvent, "Change");
 
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Life event: affectedId={affectedId}, change={change}, localPlayer={_localPlayerId}");
+                Log.Announce("DuelAnnouncer", $"Life event: affectedId={affectedId}, change={change}, localPlayer={_localPlayerId}");
 
                 if (change == 0) return null;
 
@@ -111,7 +112,7 @@ namespace AccessibleArena.Core.Services
                 if (avatar != null)
                 {
                     var avatarStr = avatar.ToString();
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Life event avatar: {avatarStr}");
+                    Log.Announce("DuelAnnouncer", $"Life event avatar: {avatarStr}");
 
                     if (avatarStr.Contains("LocalPlayer"))
                     {
@@ -184,7 +185,7 @@ namespace AccessibleArena.Core.Services
                         parts.Add(Strings.Duel_Attackers(attackers.Count));
                         parts.AddRange(attackers);
                         attackerAnnouncement = string.Join(". ", parts);
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Leaving declare attackers: {attackerAnnouncement}");
+                        Log.Announce("DuelAnnouncer", $"Leaving declare attackers: {attackerAnnouncement}");
                     }
                 }
 
@@ -194,7 +195,7 @@ namespace AccessibleArena.Core.Services
                 _lastPhaseChangeTime = UnityEngine.Time.time;
                 if (_isNPETutorial && step == "DeclareBlock")
                     _shownBlockingReminderThisStep = false;
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Phase change: {phase}/{step}");
+                Log.Announce("DuelAnnouncer", $"Phase change: {phase}/{step}");
 
                 string phaseAnnouncement = null;
                 if (phase == "Main1") phaseAnnouncement = Strings.Duel_Phase_FirstMain;

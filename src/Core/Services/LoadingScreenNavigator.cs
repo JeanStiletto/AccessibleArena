@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using TMPro;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.PanelDetection;
@@ -69,8 +70,6 @@ namespace AccessibleArena.Core.Services
         private bool _dumpedHierarchy;
 
         public LoadingScreenNavigator(IAnnouncementService announcer) : base(announcer) { }
-
-        private void Log(string message) => DebugConfig.LogIf(DebugConfig.LogNavigation, NavigatorId, message);
 
         #region Screen Name
 
@@ -165,7 +164,7 @@ namespace AccessibleArena.Core.Services
             var findMatchObj = GameObject.Find("FindMatchWaiting");
             if (findMatchObj != null && findMatchObj.activeInHierarchy)
             {
-                Log("DetectMatchmaking: FindMatchWaiting found and active");
+                Log.Nav(NavigatorId, "DetectMatchmaking: FindMatchWaiting found and active");
                 return true;
             }
             return false;
@@ -198,18 +197,18 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverMatchEndElements()
         {
-            Log("=== Discovering MatchEnd elements ===");
+            Log.Nav(NavigatorId, "=== Discovering MatchEnd elements ===");
 
             // Get MatchEndScene root objects - only search within this scene
             var matchEndScene = SceneManager.GetSceneByName(SceneNames.MatchEndScene);
             if (!matchEndScene.IsValid() || !matchEndScene.isLoaded)
             {
-                Log("MatchEndScene not valid/loaded");
+                Log.Nav(NavigatorId, "MatchEndScene not valid/loaded");
                 return;
             }
 
             var rootObjects = matchEndScene.GetRootGameObjects();
-            Log($"MatchEndScene root objects: {rootObjects.Length}");
+            Log.Nav(NavigatorId, $"MatchEndScene root objects: {rootObjects.Length}");
 
             // Filter out CanvasPopup - it hosts survey/overlay popups, not MatchEnd content.
             // Without this, survey buttons can leak into MatchEnd elements during race conditions.
@@ -227,7 +226,7 @@ namespace AccessibleArena.Core.Services
 
             // Extract match result text from TMP_Text in MatchEndScene
             _matchResultText = ExtractMatchResultText(filteredRoots);
-            Log($"Match result: {_matchResultText}");
+            Log.Nav(NavigatorId, $"Match result: {_matchResultText}");
 
             // MatchEndScene uses EventTrigger (not Button/CustomButton) for its click targets.
             // ExitMatchOverlayButton starts INACTIVE and becomes active after animations.
@@ -243,11 +242,11 @@ namespace AccessibleArena.Core.Services
                     {
                         _continueButton = exitButton;
                         AddElement(exitButton, BuildLabel("Continue", Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button), default, null, null, UIElementClassifier.ElementRole.Button);
-                        Log($"  ADDED: ExitMatchOverlayButton (active)");
+                        Log.Nav(NavigatorId, $"  ADDED: ExitMatchOverlayButton (active)");
                     }
                     else
                     {
-                        Log($"  ExitMatchOverlayButton found but INACTIVE (waiting)");
+                        Log.Nav(NavigatorId, $"  ExitMatchOverlayButton found but INACTIVE (waiting)");
                     }
                 }
             }
@@ -272,7 +271,7 @@ namespace AccessibleArena.Core.Services
                         label = go.name;
 
                     AddElement(go, BuildLabel(label, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button), default, null, null, UIElementClassifier.ElementRole.Button);
-                    Log($"  ADDED (EventTrigger): {go.name} -> '{label}'");
+                    Log.Nav(NavigatorId, $"  ADDED (EventTrigger): {go.name} -> '{label}'");
                 }
 
                 // Search for CustomButton / Selectable as well
@@ -293,7 +292,7 @@ namespace AccessibleArena.Core.Services
                         label = go.name;
 
                     AddElement(go, BuildLabel(label, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button), default, null, null, UIElementClassifier.ElementRole.Button);
-                    Log($"  ADDED (CustomButton): {go.name} -> '{label}'");
+                    Log.Nav(NavigatorId, $"  ADDED (CustomButton): {go.name} -> '{label}'");
                 }
             }
 
@@ -320,7 +319,7 @@ namespace AccessibleArena.Core.Services
                     if (rankObj != null)
                     {
                         AddElement(rankObj, rankLabel);
-                        Log($"  ADDED (info): Rank -> '{rankLabel}'");
+                        Log.Nav(NavigatorId, $"  ADDED (info): Rank -> '{rankLabel}'");
                     }
                 }
             }
@@ -330,26 +329,26 @@ namespace AccessibleArena.Core.Services
             if (_viewLogElement == null)
                 _viewLogElement = new GameObject("ViewLog_Virtual");
             AddElement(_viewLogElement, BuildLabel(Models.Strings.ViewGameLog, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button), default, null, null, UIElementClassifier.ElementRole.Button);
-            Log($"  ADDED (virtual): ViewLog_Virtual -> '{Models.Strings.ViewGameLog}'");
+            Log.Nav(NavigatorId, $"  ADDED (virtual): ViewLog_Virtual -> '{Models.Strings.ViewGameLog}'");
 
             // Settings button not added - accessible via Escape shortcut
 
-            Log($"=== MatchEnd discovery complete: {_elements.Count} elements ===");
+            Log.Nav(NavigatorId, $"=== MatchEnd discovery complete: {_elements.Count} elements ===");
         }
 
         private void DiscoverPreGameElements()
         {
-            Log("=== Discovering PreGame elements ===");
+            Log.Nav(NavigatorId, "=== Discovering PreGame elements ===");
 
             var preGameScene = SceneManager.GetSceneByName(SceneNames.PreGameScene);
             if (!preGameScene.IsValid() || !preGameScene.isLoaded)
             {
-                Log("PreGameScene not valid/loaded");
+                Log.Nav(NavigatorId, "PreGameScene not valid/loaded");
                 return;
             }
 
             var rootObjects = preGameScene.GetRootGameObjects();
-            Log($"PreGameScene root objects: {rootObjects.Length}");
+            Log.Nav(NavigatorId, $"PreGameScene root objects: {rootObjects.Length}");
 
             // Diagnostic dump (first poll only)
             if (!_dumpedHierarchy)
@@ -422,7 +421,7 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(tipContent) && !tipContent.StartsWith("Description"))
                 {
                     AddElement(tipsLabel.gameObject, tipContent);
-                    Log($"  ADDED (tip): {tipsLabel.gameObject.name} -> '{tipContent.Substring(0, System.Math.Min(50, tipContent.Length))}...'");
+                    Log.Nav(NavigatorId, $"  ADDED (tip): {tipsLabel.gameObject.name} -> '{tipContent.Substring(0, System.Math.Min(50, tipContent.Length))}...'");
                 }
             }
 
@@ -439,7 +438,7 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(combined))
                 {
                     AddElement(queueDetailText.gameObject, combined);
-                    Log($"  ADDED (timer): {combined}");
+                    Log.Nav(NavigatorId, $"  ADDED (timer): {combined}");
                 }
             }
             else if (timerText != null && timerText.gameObject.activeInHierarchy)
@@ -449,7 +448,7 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(timerValue))
                 {
                     AddElement(timerText.gameObject, timerValue);
-                    Log($"  ADDED (timer only): {timerValue}");
+                    Log.Nav(NavigatorId, $"  ADDED (timer only): {timerValue}");
                 }
             }
 
@@ -460,7 +459,7 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(matchText))
                 {
                     AddElement(matchFoundText.gameObject, matchText);
-                    Log($"  ADDED (match found): {matchText}");
+                    Log.Nav(NavigatorId, $"  ADDED (match found): {matchText}");
                 }
             }
 
@@ -468,12 +467,12 @@ namespace AccessibleArena.Core.Services
             _cancelButton = cancelButtonObj;
             // Settings button not added - accessible via Escape shortcut
 
-            Log($"=== PreGame discovery complete: {_elements.Count} elements ===");
+            Log.Nav(NavigatorId, $"=== PreGame discovery complete: {_elements.Count} elements ===");
         }
 
         private void DiscoverMatchmakingElements()
         {
-            Log("=== Discovering Matchmaking elements ===");
+            Log.Nav(NavigatorId, "=== Discovering Matchmaking elements ===");
 
             var waitingObj = GameObject.Find("FindMatchWaiting");
             if (waitingObj == null) return;
@@ -486,15 +485,15 @@ namespace AccessibleArena.Core.Services
             if (cancelButton != null && cancelButton.activeInHierarchy)
             {
                 _cancelButton = cancelButton;
-                Log($"  Found cancel button: {cancelButton.name} (Backspace shortcut only)");
+                Log.Nav(NavigatorId, $"  Found cancel button: {cancelButton.name} (Backspace shortcut only)");
             }
 
-            Log($"=== Matchmaking discovery complete: {_elements.Count} elements ===");
+            Log.Nav(NavigatorId, $"=== Matchmaking discovery complete: {_elements.Count} elements ===");
         }
 
         private void DiscoverGameLoadingElements()
         {
-            Log("=== Discovering GameLoading elements ===");
+            Log.Nav(NavigatorId, "=== Discovering GameLoading elements ===");
 
             // Find InfoText from AssetPrepScreen component (cache reference)
             if (_loadingInfoText == null)
@@ -517,11 +516,11 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(status))
                 {
                     AddElement(_loadingInfoText.gameObject, status);
-                    Log($"  ADDED (status): {status}");
+                    Log.Nav(NavigatorId, $"  ADDED (status): {status}");
                 }
             }
 
-            Log($"=== GameLoading discovery complete: {_elements.Count} elements ===");
+            Log.Nav(NavigatorId, $"=== GameLoading discovery complete: {_elements.Count} elements ===");
         }
 
         #endregion
@@ -543,7 +542,7 @@ namespace AccessibleArena.Core.Services
                     if (content.Length < 3) continue;
 
                     // Log all text found in scene for diagnostics
-                    Log($"  Text in scene: '{content}' on {text.gameObject.name}");
+                    Log.Nav(NavigatorId, $"  Text in scene: '{content}' on {text.gameObject.name}");
 
                     // Look for victory/defeat keywords (supports multiple languages)
                     string lower = content.ToLowerInvariant();
@@ -554,7 +553,7 @@ namespace AccessibleArena.Core.Services
                         // German
                         lower.Contains("sieg") || lower.Contains("niederlage"))
                     {
-                        Log($"  Result text candidate: '{content}'");
+                        Log.Nav(NavigatorId, $"  Result text candidate: '{content}'");
                         if (string.IsNullOrEmpty(resultText) || content.Length < resultText.Length)
                             resultText = content;
                     }
@@ -653,13 +652,13 @@ namespace AccessibleArena.Core.Services
                         // Activate Continue (back to menu)
                         if (_continueButton != null && _continueButton.activeInHierarchy)
                         {
-                            Log("Backspace -> activating Continue button");
+                            Log.Nav(NavigatorId, "Backspace -> activating Continue button");
                             UIActivator.SimulatePointerClick(_continueButton);
                         }
                         else
                         {
                             // "Click anywhere to continue" - simulate screen center click
-                            Log("Backspace -> simulating screen center click (click to continue)");
+                            Log.Nav(NavigatorId, "Backspace -> simulating screen center click (click to continue)");
                             UIActivator.SimulateScreenCenterClick();
                         }
                         return true;
@@ -669,7 +668,7 @@ namespace AccessibleArena.Core.Services
                         // Activate Cancel
                         if (_cancelButton != null && _cancelButton.activeInHierarchy)
                         {
-                            Log("Backspace -> activating Cancel button");
+                            Log.Nav(NavigatorId, "Backspace -> activating Cancel button");
                             UIActivator.SimulatePointerClick(_cancelButton);
                             return true;
                         }
@@ -688,7 +687,7 @@ namespace AccessibleArena.Core.Services
             // Virtual "View Game Log" element — open log navigator instead of clicking
             if (element == _viewLogElement)
             {
-                Log("Activating View Game Log");
+                Log.Nav(NavigatorId, "Activating View Game Log");
                 var logNav = AccessibleArenaMod.Instance?.GameLogNavigator;
                 if (logNav != null)
                     logNav.Open();
@@ -698,7 +697,7 @@ namespace AccessibleArena.Core.Services
             // Use SimulatePointerClick for MatchEnd buttons (StyledButton/PromptButton)
             if (_currentMode == ScreenMode.MatchEnd)
             {
-                Log($"Activating MatchEnd button: {element.name}");
+                Log.Nav(NavigatorId, $"Activating MatchEnd button: {element.name}");
                 UIActivator.SimulatePointerClick(element);
                 return true;
             }
@@ -708,7 +707,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (_elements[index].Role == UIElementClassifier.ElementRole.Button)
                 {
-                    Log($"Activating PreGame button: {element.name}");
+                    Log.Nav(NavigatorId, $"Activating PreGame button: {element.name}");
                     UIActivator.Activate(element);
                     return true;
                 }
@@ -726,7 +725,7 @@ namespace AccessibleArena.Core.Services
             // UI elements start INACTIVE (animator intro), so we poll for activation.
             if (panel.Name.Contains("Survey"))
             {
-                Log($"Survey popup detected: {panel.Name} — entering survey popup mode");
+                Log.Nav(NavigatorId, $"Survey popup detected: {panel.Name} — entering survey popup mode");
                 _isSurveyPopup = true;
                 EnterPopupMode(panel.GameObject);
                 return;
@@ -777,7 +776,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            Log($"Survey: UI container {(_surveyUIContainer != null ? "found" : "NOT found")}, " +
+            Log.Nav(NavigatorId, $"Survey: UI container {(_surveyUIContainer != null ? "found" : "NOT found")}, " +
                 $"active={_surveyUIContainer?.activeInHierarchy}, title='{titleText}'");
 
             if (_surveyUIContainer != null && _surveyUIContainer.activeInHierarchy)
@@ -797,7 +796,7 @@ namespace AccessibleArena.Core.Services
                 });
 
                 _surveyPollTimer = 0.3f;
-                Log("Survey: UI inactive, polling for activation");
+                Log.Nav(NavigatorId, "Survey: UI inactive, polling for activation");
             }
         }
 
@@ -828,7 +827,7 @@ namespace AccessibleArena.Core.Services
                     Label = BuildLabel(Strings.SurveyGood, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
                     Role = UIElementClassifier.ElementRole.Button
                 });
-                Log($"Survey: ADDED Button_Good -> '{Strings.SurveyGood}'");
+                Log.Nav(NavigatorId, $"Survey: ADDED Button_Good -> '{Strings.SurveyGood}'");
             }
 
             // 3. Bad button (emoji face only — use our localized label)
@@ -841,7 +840,7 @@ namespace AccessibleArena.Core.Services
                     Label = BuildLabel(Strings.SurveyBad, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
                     Role = UIElementClassifier.ElementRole.Button
                 });
-                Log($"Survey: ADDED Button_Bad -> '{Strings.SurveyBad}'");
+                Log.Nav(NavigatorId, $"Survey: ADDED Button_Bad -> '{Strings.SurveyBad}'");
             }
 
             // 4. Skip button — read label from child Text TMP_Text (game-localized "Skip")
@@ -864,11 +863,11 @@ namespace AccessibleArena.Core.Services
                     Label = BuildLabel(skipLabel, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
                     Role = UIElementClassifier.ElementRole.Button
                 });
-                Log($"Survey: ADDED Button_Secondary -> '{skipLabel}'");
+                Log.Nav(NavigatorId, $"Survey: ADDED Button_Secondary -> '{skipLabel}'");
             }
 
             _surveyElementsDiscovered = true;
-            Log($"Survey: {_elements.Count} elements discovered (UI active)");
+            Log.Nav(NavigatorId, $"Survey: {_elements.Count} elements discovered (UI active)");
         }
 
         protected override void OnPopupClosed()
@@ -878,7 +877,7 @@ namespace AccessibleArena.Core.Services
             _surveyElementsDiscovered = false;
             if (_currentMode != ScreenMode.MatchEnd) return;
 
-            Log("Survey popup closed, re-discovering elements");
+            Log.Nav(NavigatorId, "Survey popup closed, re-discovering elements");
             _elements.Clear();
             _currentIndex = -1;
             DiscoverElements();
@@ -919,7 +918,7 @@ namespace AccessibleArena.Core.Services
             _pollTimer = PollInterval;
             _pollElapsed = 0f;
             _lastElementCount = _elements.Count;
-            Log($"Polling started, initial elements: {_lastElementCount}");
+            Log.Nav(NavigatorId, $"Polling started, initial elements: {_lastElementCount}");
         }
 
         /// <summary>
@@ -949,7 +948,7 @@ namespace AccessibleArena.Core.Services
                         _lastLoadingStatusText = _elements[0].Label;
 
                     _announcer.AnnounceInterrupt(GetActivationAnnouncement());
-                    Log($"Activated with {_elements.Count} elements");
+                    Log.Nav(NavigatorId, $"Activated with {_elements.Count} elements");
                 }
                 return;
             }
@@ -966,7 +965,7 @@ namespace AccessibleArena.Core.Services
                     _surveyPollTimer = 0.3f;
                     if (_surveyUIContainer != null && _surveyUIContainer.activeInHierarchy)
                     {
-                        Log("Survey: UI became active, rediscovering elements");
+                        Log.Nav(NavigatorId, "Survey: UI became active, rediscovering elements");
 
                         // Read title from TMP_Text
                         string titleText = null;
@@ -1024,7 +1023,7 @@ namespace AccessibleArena.Core.Services
 
                 if (_elements.Count != _lastElementCount)
                 {
-                    Log($"Poll: element count changed {_lastElementCount} -> {_elements.Count}");
+                    Log.Nav(NavigatorId, $"Poll: element count changed {_lastElementCount} -> {_elements.Count}");
                     _lastElementCount = _elements.Count;
 
                     if (_elements.Count > 0)
@@ -1041,7 +1040,7 @@ namespace AccessibleArena.Core.Services
                         if (_elements.Count > 0)
                         {
                             _lastLoadingStatusText = _elements.Count > 0 ? _elements[0].Label : "";
-                            Log($"Status update (silent): {_lastLoadingStatusText}");
+                            Log.Nav(NavigatorId, $"Status update (silent): {_lastLoadingStatusText}");
                         }
                     }
                     else
@@ -1056,14 +1055,14 @@ namespace AccessibleArena.Core.Services
                     if (currentLabel != _lastLoadingStatusText)
                     {
                         _lastLoadingStatusText = currentLabel;
-                        Log($"Loading status changed (silent): {currentLabel}");
+                        Log.Nav(NavigatorId, $"Loading status changed (silent): {currentLabel}");
                     }
                 }
 
                 // Stop polling after timeout (PreGame and GameLoading keep polling)
                 if (_currentMode != ScreenMode.PreGame && _currentMode != ScreenMode.GameLoading && _pollElapsed >= MaxPollDuration)
                 {
-                    Log($"Polling timeout reached ({MaxPollDuration}s), stopping");
+                    Log.Nav(NavigatorId, $"Polling timeout reached ({MaxPollDuration}s), stopping");
                     _polling = false;
                 }
             }
@@ -1078,7 +1077,7 @@ namespace AccessibleArena.Core.Services
             // Yield to settings menu
             if (PanelStateManager.Instance?.IsSettingsMenuOpen == true)
             {
-                Log("Settings menu detected - deactivating");
+                Log.Nav(NavigatorId, "Settings menu detected - deactivating");
                 return false;
             }
 
@@ -1111,7 +1110,7 @@ namespace AccessibleArena.Core.Services
 
         public override void OnSceneChanged(string sceneName)
         {
-            Log($"OnSceneChanged: {sceneName}");
+            Log.Nav(NavigatorId, $"OnSceneChanged: {sceneName}");
 
             // If active, check whether the current mode is still valid before deactivating.
             // Multiple scenes load in rapid succession during matchmaking (MatchScene, PreGameScene,
@@ -1131,14 +1130,14 @@ namespace AccessibleArena.Core.Services
 
                 if (modeStillValid)
                 {
-                    Log($"Mode {_currentMode} still valid after scene change to {sceneName}, staying active");
+                    Log.Nav(NavigatorId, $"Mode {_currentMode} still valid after scene change to {sceneName}, staying active");
                     return;
                 }
 
                 // Leaving MatchEnd: clear duel log history so it doesn't go stale
                 if (_currentMode == ScreenMode.MatchEnd)
                 {
-                    Log("Leaving MatchEnd — clearing duel log history");
+                    Log.Nav(NavigatorId, "Leaving MatchEnd — clearing duel log history");
                     _announcer.ClearHistory();
 
                     // Close game log navigator if still open
@@ -1232,7 +1231,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (rankDisplay == null)
                 {
-                    Log("  RankProgress: No RankDisplay found");
+                    Log.Nav(NavigatorId, "  RankProgress: No RankDisplay found");
                     return null;
                 }
 
@@ -1253,7 +1252,7 @@ namespace AccessibleArena.Core.Services
                 int oldStep = GetIntField(rdType, rankDisplay, "oldStep");
                 int newStep = GetIntField(rdType, rankDisplay, "newStep");
 
-                Log($"  RankProgress: rankUp={rankUp}, oldStep={oldStep}, newStep={newStep}, maxPips={maxPips}");
+                Log.Nav(NavigatorId, $"  RankProgress: rankUp={rankUp}, oldStep={oldStep}, newStep={newStep}, maxPips={maxPips}");
 
                 if (rankProgress != null)
                 {
@@ -1264,7 +1263,7 @@ namespace AccessibleArena.Core.Services
                     int newLevel = GetIntField(progressType, rankProgress, "newLevel");
                     int seasonOrdinal = GetIntField(progressType, rankProgress, "seasonOrdinal");
 
-                    Log($"  RankProgress: oldClass={oldClass} lvl={oldLevel}, newClass={newClass} lvl={newLevel}, season={seasonOrdinal}");
+                    Log.Nav(NavigatorId, $"  RankProgress: oldClass={oldClass} lvl={oldLevel}, newClass={newClass} lvl={newLevel}, season={seasonOrdinal}");
 
                     // No ranked data (unranked/casual match)
                     if (seasonOrdinal == 0) return null;
@@ -1302,7 +1301,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                Log($"  RankProgress error: {ex.Message}");
+                Log.Nav(NavigatorId, $"  RankProgress error: {ex.Message}");
                 return null;
             }
         }
@@ -1325,7 +1324,7 @@ namespace AccessibleArena.Core.Services
                         string text = tmpText?.text?.Trim();
                         if (!string.IsNullOrEmpty(text))
                         {
-                            Log($"  RankProgress: NewRankText = '{text}'");
+                            Log.Nav(NavigatorId, $"  RankProgress: NewRankText = '{text}'");
                             return text;
                         }
                     }
@@ -1341,7 +1340,7 @@ namespace AccessibleArena.Core.Services
                 string text = tmpText?.text?.Trim();
                 if (!string.IsNullOrEmpty(text))
                 {
-                    Log($"  RankProgress: _rankTierText = '{text}'");
+                    Log.Nav(NavigatorId, $"  RankProgress: _rankTierText = '{text}'");
                     return text;
                 }
             }
@@ -1366,7 +1365,7 @@ namespace AccessibleArena.Core.Services
                         string text = tmpText?.text?.Trim();
                         if (!string.IsNullOrEmpty(text))
                         {
-                            Log($"  RankProgress: MythicText = '{text}'");
+                            Log.Nav(NavigatorId, $"  RankProgress: MythicText = '{text}'");
                             return text; // Already formatted as "#1234" or "95%"
                         }
                     }
@@ -1409,7 +1408,7 @@ namespace AccessibleArena.Core.Services
 
             string compStr = compNames.Count > 0 ? $" [{string.Join(", ", compNames)}]" : "";
             string activeStr = t.gameObject.activeInHierarchy ? "" : " (INACTIVE)";
-            Log($"  HIERARCHY: {indent}{t.name}{compStr}{activeStr}");
+            Log.Nav(NavigatorId, $"  HIERARCHY: {indent}{t.name}{compStr}{activeStr}");
 
             foreach (Transform child in t)
             {

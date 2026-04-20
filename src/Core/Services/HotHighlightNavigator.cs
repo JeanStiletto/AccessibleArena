@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System;
@@ -444,7 +445,7 @@ namespace AccessibleArena.Core.Services
         {
             _items.Clear();
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", "Discovering highlights (full rebuild)...");
+            Log.Nav("HotHighlightNavigator", "Discovering highlights (full rebuild)...");
 
             bool selectionMode = IsSelectionModeActive();
             CheckSelectionModeTransition(selectionMode);
@@ -458,7 +459,7 @@ namespace AccessibleArena.Core.Services
             if (handHighlights != _lastDiagHandHighlighted ||
                 battlefieldHighlights != _lastDiagBattlefieldHighlighted)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Highlight state: hand={handHighlights}, battlefield={battlefieldHighlights}");
+                Log.Nav("HotHighlightNavigator", $"Highlight state: hand={handHighlights}, battlefield={battlefieldHighlights}");
                 _lastDiagHandHighlighted = handHighlights;
                 _lastDiagBattlefieldHighlighted = battlefieldHighlights;
             }
@@ -475,7 +476,7 @@ namespace AccessibleArena.Core.Services
                 .ThenBy(i => i.GameObject?.transform.position.x ?? 0)
                 .ToList();
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Found {_items.Count} highlighted items");
+            Log.Nav("HotHighlightNavigator", $"Found {_items.Count} highlighted items");
 
             // Reset indices if out of range
             if (_currentIndex >= _items.Count)
@@ -494,7 +495,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void RefreshHighlightsStable()
         {
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", "Refreshing highlights (stable snapshot)...");
+            Log.Nav("HotHighlightNavigator", "Refreshing highlights (stable snapshot)...");
 
             bool selectionMode = IsSelectionModeActive();
             CheckSelectionModeTransition(selectionMode);
@@ -529,7 +530,7 @@ namespace AccessibleArena.Core.Services
             if (_items.Count == 0)
                 DiscoverPromptButtons();
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Stable refresh: {_items.Count} items ({survivingIds.Count} kept, {newCount} new)");
+            Log.Nav("HotHighlightNavigator", $"Stable refresh: {_items.Count} items ({survivingIds.Count} kept, {newCount} new)");
 
             // Fix index bounds
             if (_currentIndex >= _items.Count)
@@ -607,12 +608,12 @@ namespace AccessibleArena.Core.Services
             var portraitButton = _portraitButtonField?.GetValue(avatarView) as MonoBehaviour;
             if (portraitButton == null)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"AvatarView has highlight={highlightValue} but no PortraitButton");
+                Log.Nav("HotHighlightNavigator", $"AvatarView has highlight={highlightValue} but no PortraitButton");
                 return null;
             }
 
             string name = isLocal ? Strings.You : Strings.Opponent;
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "HotHighlightNavigator", $"Added {(isLocal ? "local" : "opponent")} player as target (highlight={highlightValue})");
+            Log.Nav("HotHighlightNavigator", $"Added {(isLocal ? "local" : "opponent")} player as target (highlight={highlightValue})");
             return new HighlightedItem
             {
                 GameObject = portraitButton.gameObject,

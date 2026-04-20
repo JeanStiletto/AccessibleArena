@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -125,7 +126,7 @@ namespace AccessibleArena.Core.Services
                     if (!_metaCardViewComponentsLogged)
                     {
                         _metaCardViewComponentsLogged = true;
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== FOUND MetaCardView: {typeName} on '{card.name}' ===");
+                        Log.Card("CardModelProvider", $"=== FOUND MetaCardView: {typeName} on '{card.name}' ===");
                     }
                     return component;
                 }
@@ -158,7 +159,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting Model: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error getting Model: {ex.Message}");
                 return null;
             }
         }
@@ -211,7 +212,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting MetaCardView Model: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error getting MetaCardView Model: {ex.Message}");
                 return null;
             }
         }
@@ -229,7 +230,7 @@ namespace AccessibleArena.Core.Services
             _metaCardViewPropertiesLogged = true;
 
             var viewType = metaCardView.GetType();
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== METACARDVIEW TYPE: {viewType.FullName} ===");
+            Log.Card("CardModelProvider", $"=== METACARDVIEW TYPE: {viewType.FullName} ===");
 
             // Log properties
             var properties = viewType.GetProperties(PublicInstance);
@@ -240,14 +241,14 @@ namespace AccessibleArena.Core.Services
                     var value = prop.GetValue(metaCardView);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"MetaCardView Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                    Log.Card("CardModelProvider", $"MetaCardView Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"MetaCardView Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
+                    Log.Card("CardModelProvider", $"MetaCardView Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
                 }
             }
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== END METACARDVIEW PROPERTIES ===");
+            Log.Card("CardModelProvider", $"=== END METACARDVIEW PROPERTIES ===");
         }
 
         /// <summary>
@@ -256,12 +257,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static void LogListMetaCardHolderProperties(MonoBehaviour holder, Type holderType)
         {
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== LISTMETACARDHOLDER TYPE: {holderType.FullName} ===");
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GameObject: {holder.gameObject.name}");
+            Log.Card("CardModelProvider", $"=== LISTMETACARDHOLDER TYPE: {holderType.FullName} ===");
+            Log.Card("CardModelProvider", $"GameObject: {holder.gameObject.name}");
 
             // Log all properties
             var properties = holderType.GetProperties(AllInstanceFlags);
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"--- Properties ({properties.Length}) ---");
+            Log.Card("CardModelProvider", $"--- Properties ({properties.Length}) ---");
             foreach (var prop in properties)
             {
                 try
@@ -288,7 +289,7 @@ namespace AccessibleArena.Core.Services
                     }
 
                     if (valueStr.Length > 150) valueStr = valueStr.Substring(0, 150) + "...";
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"  Property: {prop.Name} = {valueStr} ({typeName})");
+                    Log.Card("CardModelProvider", $"  Property: {prop.Name} = {valueStr} ({typeName})");
 
                     // If property name suggests cards, log more details
                     if (prop.Name.ToLower().Contains("card") || prop.Name.ToLower().Contains("item") ||
@@ -300,13 +301,13 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"  Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
+                    Log.Card("CardModelProvider", $"  Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
                 }
             }
 
             // Log interesting methods that might return card data
             var methods = holderType.GetMethods(PublicInstance);
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"--- Methods (filtered) ---");
+            Log.Card("CardModelProvider", $"--- Methods (filtered) ---");
             foreach (var method in methods)
             {
                 if (method.DeclaringType == typeof(object) || method.DeclaringType == typeof(MonoBehaviour) ||
@@ -319,13 +320,13 @@ namespace AccessibleArena.Core.Services
                 {
                     var parameters = method.GetParameters();
                     string paramStr = string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"  Method: {method.Name}({paramStr}) -> {method.ReturnType.Name}");
+                    Log.Card("CardModelProvider", $"  Method: {method.Name}({paramStr}) -> {method.ReturnType.Name}");
                 }
             }
 
             // Log fields as well (sometimes data is stored in fields)
             var fields = holderType.GetFields(AllInstanceFlags);
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"--- Fields (filtered) ---");
+            Log.Card("CardModelProvider", $"--- Fields (filtered) ---");
             foreach (var field in fields)
             {
                 string fieldName = field.Name.ToLower();
@@ -353,7 +354,7 @@ namespace AccessibleArena.Core.Services
                         }
 
                         if (valueStr.Length > 150) valueStr = valueStr.Substring(0, 150) + "...";
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"  Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
+                        Log.Card("CardModelProvider", $"  Field: {field.Name} = {valueStr} ({field.FieldType.Name})");
 
                         // Log collection contents for card-related fields
                         if (fieldName.Contains("card") || fieldName.Contains("item") || fieldName.Contains("data"))
@@ -363,12 +364,12 @@ namespace AccessibleArena.Core.Services
                     }
                     catch (Exception ex)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"  Field: {field.Name} = [Error: {ex.Message}] ({field.FieldType.Name})");
+                        Log.Card("CardModelProvider", $"  Field: {field.Name} = [Error: {ex.Message}] ({field.FieldType.Name})");
                     }
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== END LISTMETACARDHOLDER ===");
+            Log.Card("CardModelProvider", $"=== END LISTMETACARDHOLDER ===");
         }
 
         /// <summary>
@@ -388,21 +389,21 @@ namespace AccessibleArena.Core.Services
                     {
                         if (index >= 3) // Only log first 3 items
                         {
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"    ... (more items)");
+                            Log.Card("CardModelProvider", $"    ... (more items)");
                             break;
                         }
 
                         if (item != null)
                         {
                             var itemType = item.GetType();
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"    [{index}] Type: {itemType.Name}");
+                            Log.Card("CardModelProvider", $"    [{index}] Type: {itemType.Name}");
 
                             // Try to get GrpId or similar properties
                             var grpIdProp = itemType.GetProperty("GrpId") ?? itemType.GetProperty("grpId") ?? itemType.GetProperty("CardGrpId");
                             if (grpIdProp != null)
                             {
                                 var grpId = grpIdProp.GetValue(item);
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"    [{index}] GrpId: {grpId}");
+                                Log.Card("CardModelProvider", $"    [{index}] GrpId: {grpId}");
                             }
 
                             // Try to get Quantity/Count
@@ -410,13 +411,13 @@ namespace AccessibleArena.Core.Services
                             if (qtyProp != null)
                             {
                                 var qty = qtyProp.GetValue(item);
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"    [{index}] Quantity: {qty}");
+                                Log.Card("CardModelProvider", $"    [{index}] Quantity: {qty}");
                             }
 
                             // Log all properties of the first item only
                             if (index == 0)
                             {
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"    [{index}] Item properties:");
+                                Log.Card("CardModelProvider", $"    [{index}] Item properties:");
                                 foreach (var prop in itemType.GetProperties(PublicInstance))
                                 {
                                     try
@@ -424,7 +425,7 @@ namespace AccessibleArena.Core.Services
                                         var val = prop.GetValue(item);
                                         string valStr = val?.ToString() ?? "null";
                                         if (valStr.Length > 80) valStr = valStr.Substring(0, 80) + "...";
-                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"      {prop.Name} = {valStr} ({prop.PropertyType.Name})");
+                                        Log.Card("CardModelProvider", $"      {prop.Name} = {valStr} ({prop.PropertyType.Name})");
                                     }
                                     catch { /* Some properties throw on access; skip for debug dump */ }
                                 }
@@ -436,7 +437,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"    Error enumerating {collectionName}: {ex.Message}");
+                Log.Card("CardModelProvider", $"    Error enumerating {collectionName}: {ex.Message}");
             }
         }
 
@@ -463,7 +464,7 @@ namespace AccessibleArena.Core.Services
                     var type = mb.GetType();
                     if (type.Name == "GameManager")
                     {
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found GameManager, checking for name lookup methods...");
+                        Log.Card("CardModelProvider", $"Found GameManager, checking for name lookup methods...");
 
                         // Try CardDatabase property - get CardTitleProvider or CardNameTextProvider
                         var cardDbProp = type.GetProperty("CardDatabase");
@@ -473,7 +474,7 @@ namespace AccessibleArena.Core.Services
                             if (cardDb != null)
                             {
                                 var cardDbType = cardDb.GetType();
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"CardDatabase type: {cardDbType.FullName}");
+                                Log.Card("CardModelProvider", $"CardDatabase type: {cardDbType.FullName}");
 
                                 // Try CardTitleProvider
                                 var titleProviderProp = cardDbType.GetProperty("CardTitleProvider");
@@ -483,13 +484,13 @@ namespace AccessibleArena.Core.Services
                                     if (titleProvider != null)
                                     {
                                         var providerType = titleProvider.GetType();
-                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"CardTitleProvider type: {providerType.FullName}");
+                                        Log.Card("CardModelProvider", $"CardTitleProvider type: {providerType.FullName}");
 
                                         // List methods on the provider
                                         foreach (var m in providerType.GetMethods(PublicInstance))
                                         {
                                             if (m.DeclaringType == typeof(object)) continue;
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"CardTitleProvider.{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))}) -> {m.ReturnType.Name}");
+                                            Log.Card("CardModelProvider", $"CardTitleProvider.{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))}) -> {m.ReturnType.Name}");
                                         }
 
                                         // Use GetCardTitle(UInt32, Boolean, String) method
@@ -499,7 +500,7 @@ namespace AccessibleArena.Core.Services
                                         {
                                             _idNameProvider = titleProvider;
                                             _getNameMethod = getMethod;
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Using CardTitleProvider.GetCardTitle for name lookup");
+                                            Log.Card("CardModelProvider", $"Using CardTitleProvider.GetCardTitle for name lookup");
                                             return;
                                         }
                                     }
@@ -513,13 +514,13 @@ namespace AccessibleArena.Core.Services
                                     if (nameProvider != null)
                                     {
                                         var providerType = nameProvider.GetType();
-                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"CardNameTextProvider type: {providerType.FullName}");
+                                        Log.Card("CardModelProvider", $"CardNameTextProvider type: {providerType.FullName}");
 
                                         // List methods on the provider
                                         foreach (var m in providerType.GetMethods(PublicInstance))
                                         {
                                             if (m.DeclaringType == typeof(object)) continue;
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"CardNameTextProvider.{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))}) -> {m.ReturnType.Name}");
+                                            Log.Card("CardModelProvider", $"CardNameTextProvider.{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))}) -> {m.ReturnType.Name}");
                                         }
 
                                         // Try common method names
@@ -531,7 +532,7 @@ namespace AccessibleArena.Core.Services
                                         {
                                             _idNameProvider = nameProvider;
                                             _getNameMethod = getMethod;
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Using CardNameTextProvider.{getMethod.Name} for name lookup");
+                                            Log.Card("CardModelProvider", $"Using CardNameTextProvider.{getMethod.Name} for name lookup");
                                             return;
                                         }
                                     }
@@ -547,7 +548,7 @@ namespace AccessibleArena.Core.Services
                             if (locMgr != null)
                             {
                                 var locType = locMgr.GetType();
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"LocManager type: {locType.FullName}");
+                                Log.Card("CardModelProvider", $"LocManager type: {locType.FullName}");
 
                                 // Try GetLocalizedText with just string parameter
                                 var getTextMethod = locType.GetMethod("GetLocalizedText", new[] { typeof(string) });
@@ -560,7 +561,7 @@ namespace AccessibleArena.Core.Services
                                         if (m.Name == "GetLocalizedText" && m.GetParameters().Length >= 1)
                                         {
                                             getTextMethod = m;
-                                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found GetLocalizedText: {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
+                                            Log.Card("CardModelProvider", $"Found GetLocalizedText: {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
                                             break;
                                         }
                                     }
@@ -570,7 +571,7 @@ namespace AccessibleArena.Core.Services
                                 {
                                     _idNameProvider = locMgr;
                                     _getNameMethod = getTextMethod;
-                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Using LocManager.GetLocalizedText for name lookup");
+                                    Log.Card("CardModelProvider", $"Using LocManager.GetLocalizedText for name lookup");
                                     return;
                                 }
                             }
@@ -591,7 +592,7 @@ namespace AccessibleArena.Core.Services
                         {
                             _idNameProvider = mb;
                             _getNameMethod = getNameMethod;
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found {type.Name} for name lookup");
+                            Log.Card("CardModelProvider", $"Found {type.Name} for name lookup");
                             return;
                         }
                     }
@@ -619,7 +620,7 @@ namespace AccessibleArena.Core.Services
                                     {
                                         _idNameProvider = cardDb;
                                         _getNameMethod = getNameMethod;
-                                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found WrapperController.CardDatabase for name lookup");
+                                        Log.Card("CardModelProvider", $"Found WrapperController.CardDatabase for name lookup");
                                         return;
                                     }
                                 }
@@ -629,7 +630,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Approach 4: Search for any component with CardDatabase or Title/Name provider
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Searching for Meta scene localization providers...");
+                Log.Card("CardModelProvider", $"Searching for Meta scene localization providers...");
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
                     if (mb == null) continue;
@@ -642,7 +643,7 @@ namespace AccessibleArena.Core.Services
                         typeName.Contains("Database") || typeName.Contains("Provider") ||
                         typeName.Contains("MetaCardHolder"))
                     {
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Found potential provider: {typeName}");
+                        Log.Card("CardModelProvider", $"Found potential provider: {typeName}");
 
                         // Log all properties on ListMetaCardHolder types (for deck list card discovery)
                         if (typeName.Contains("ListMetaCardHolder") && !_listMetaCardHolderLogged)
@@ -655,14 +656,14 @@ namespace AccessibleArena.Core.Services
                         var cardDbProp = type.GetProperty("CardDatabase");
                         if (cardDbProp != null)
                         {
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"{typeName} has CardDatabase property");
+                            Log.Card("CardModelProvider", $"{typeName} has CardDatabase property");
                             try
                             {
                                 var cardDb = cardDbProp.GetValue(mb);
                                 if (cardDb != null)
                                 {
                                     var cardDbType = cardDb.GetType();
-                                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"CardDatabase type: {cardDbType.FullName}");
+                                    Log.Card("CardModelProvider", $"CardDatabase type: {cardDbType.FullName}");
 
                                     // Try CardTitleProvider
                                     var titleProviderProp = cardDbType.GetProperty("CardTitleProvider");
@@ -677,7 +678,7 @@ namespace AccessibleArena.Core.Services
                                             {
                                                 _idNameProvider = titleProvider;
                                                 _getNameMethod = getMethod;
-                                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Using {typeName}.CardDatabase.CardTitleProvider for name lookup");
+                                                Log.Card("CardModelProvider", $"Using {typeName}.CardDatabase.CardTitleProvider for name lookup");
                                                 return;
                                             }
                                         }
@@ -686,17 +687,17 @@ namespace AccessibleArena.Core.Services
                             }
                             catch (Exception ex)
                             {
-                                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error accessing {typeName}.CardDatabase: {ex.Message}");
+                                Log.Card("CardModelProvider", $"Error accessing {typeName}.CardDatabase: {ex.Message}");
                             }
                         }
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"IdNameProvider not found - will use UI fallback for names");
+                Log.Card("CardModelProvider", $"IdNameProvider not found - will use UI fallback for names");
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error finding IdNameProvider: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error finding IdNameProvider: {ex.Message}");
             }
         }
 
@@ -708,7 +709,7 @@ namespace AccessibleArena.Core.Services
         {
             if (grpId == 0)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GrpId is 0, cannot lookup name");
+                Log.Card("CardModelProvider", $"GrpId is 0, cannot lookup name");
                 return null;
             }
 
@@ -716,7 +717,7 @@ namespace AccessibleArena.Core.Services
 
             if (_getNameMethod == null)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"No localization method found for GrpId {grpId}");
+                Log.Card("CardModelProvider", $"No localization method found for GrpId {grpId}");
                 return null;
             }
 
@@ -748,16 +749,16 @@ namespace AccessibleArena.Core.Services
                 // Check if we got a valid result (not null, not empty, not "Unknown Card Title X")
                 if (!string.IsNullOrEmpty(name) && !name.StartsWith("$") && !name.StartsWith("Unknown Card Title"))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GrpId {grpId} -> Name: {name}");
+                    Log.Card("CardModelProvider", $"GrpId {grpId} -> Name: {name}");
                     return name;
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GrpId {grpId}: No valid name found (result: {name ?? "null"})");
+                Log.Card("CardModelProvider", $"GrpId {grpId}: No valid name found (result: {name ?? "null"})");
                 return null;
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting name from GrpId {grpId}: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error getting name from GrpId {grpId}: {ex.Message}");
                 return null;
             }
         }
@@ -776,7 +777,7 @@ namespace AccessibleArena.Core.Services
             _modelPropertiesLogged = true;
 
             var modelType = model.GetType();
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== MODEL TYPE: {modelType.FullName} ===");
+            Log.Card("CardModelProvider", $"=== MODEL TYPE: {modelType.FullName} ===");
 
             var properties = modelType.GetProperties(PublicInstance);
             foreach (var prop in properties)
@@ -786,14 +787,14 @@ namespace AccessibleArena.Core.Services
                     var value = prop.GetValue(model);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                    Log.Card("CardModelProvider", $"Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
+                    Log.Card("CardModelProvider", $"Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
                 }
             }
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== END MODEL PROPERTIES ===");
+            Log.Card("CardModelProvider", $"=== END MODEL PROPERTIES ===");
         }
 
         /// <summary>
@@ -806,7 +807,7 @@ namespace AccessibleArena.Core.Services
             _abilityPropertiesLogged = true;
 
             var abilityType = ability.GetType();
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== ABILITY TYPE: {abilityType.FullName} ===");
+            Log.Card("CardModelProvider", $"=== ABILITY TYPE: {abilityType.FullName} ===");
 
             // Log properties
             var properties = abilityType.GetProperties(PublicInstance);
@@ -817,11 +818,11 @@ namespace AccessibleArena.Core.Services
                     var value = prop.GetValue(ability);
                     string valueStr = value?.ToString() ?? "null";
                     if (valueStr.Length > 100) valueStr = valueStr.Substring(0, 100) + "...";
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Ability Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
+                    Log.Card("CardModelProvider", $"Ability Property: {prop.Name} = {valueStr} ({prop.PropertyType.Name})");
                 }
                 catch (Exception ex)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Ability Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
+                    Log.Card("CardModelProvider", $"Ability Property: {prop.Name} = [Error: {ex.Message}] ({prop.PropertyType.Name})");
                 }
             }
 
@@ -837,16 +838,16 @@ namespace AccessibleArena.Core.Services
                         var result = method.Invoke(ability, null);
                         string resultStr = result?.ToString() ?? "null";
                         if (resultStr.Length > 100) resultStr = resultStr.Substring(0, 100) + "...";
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Ability Method: {method.Name}() = {resultStr}");
+                        Log.Card("CardModelProvider", $"Ability Method: {method.Name}() = {resultStr}");
                     }
                     catch (Exception ex)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Ability Method: {method.Name}() = [Error: {ex.Message}]");
+                        Log.Card("CardModelProvider", $"Ability Method: {method.Name}() = [Error: {ex.Message}]");
                     }
                 }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"=== END ABILITY PROPERTIES ===");
+            Log.Card("CardModelProvider", $"=== END ABILITY PROPERTIES ===");
         }
 
         #endregion
@@ -963,7 +964,7 @@ namespace AccessibleArena.Core.Services
 
                 if (rulesLines.Count > 0)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                    Log.Card("CardModelProvider",
                         $"RulesTextOverride resolved: {rulesLines.Count} abilities for GrpId {cardGrpId}");
                     return string.Join(" ", rulesLines);
                 }
@@ -1084,7 +1085,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider",
+                Log.Card("CardModelProvider",
                     $"Error extracting collection quantity: {ex.Message}");
             }
         }
@@ -1106,7 +1107,7 @@ namespace AccessibleArena.Core.Services
             if (!_cardObjNameLogged)
             {
                 _cardObjNameLogged = true;
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"ExtractCardInfoFromModel called with: '{cardObj.name}'");
+                Log.Card("CardModelProvider", $"ExtractCardInfoFromModel called with: '{cardObj.name}'");
             }
 
             object model = null;
@@ -1145,7 +1146,7 @@ namespace AccessibleArena.Core.Services
                     // Log result once
                     if (!_metaCardViewPropertiesLogged)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetMetaCardModel returned: {(model != null ? model.GetType().Name : "null")}");
+                        Log.Card("CardModelProvider", $"GetMetaCardModel returned: {(model != null ? model.GetType().Name : "null")}");
                     }
 
                     // Log the model properties if we found one
@@ -1628,7 +1629,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error extracting card data: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error extracting card data: {ex.Message}");
                 return new CardInfo();
             }
         }
@@ -1692,7 +1693,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting card info for GrpId {grpId}: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error getting card info for GrpId {grpId}: {ex.Message}");
             }
 
             return null;
@@ -1711,7 +1712,7 @@ namespace AccessibleArena.Core.Services
 
                 if (DeckCardProvider.CachedDeckHolder == null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetCardDataFromGrpId: DeckCardProvider.CachedDeckHolder is null");
+                    Log.Card("CardModelProvider", $"GetCardDataFromGrpId: DeckCardProvider.CachedDeckHolder is null");
                     return null;
                 }
 
@@ -1727,7 +1728,7 @@ namespace AccessibleArena.Core.Services
 
                 if (holderComponent == null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetCardDataFromGrpId: holderComponent not found");
+                    Log.Card("CardModelProvider", $"GetCardDataFromGrpId: holderComponent not found");
                     return null;
                 }
 
@@ -1735,14 +1736,14 @@ namespace AccessibleArena.Core.Services
                 var cardDbProp = holderType.GetProperty("CardDatabase");
                 if (cardDbProp == null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetCardDataFromGrpId: CardDatabase property not found");
+                    Log.Card("CardModelProvider", $"GetCardDataFromGrpId: CardDatabase property not found");
                     return null;
                 }
 
                 var cardDb = cardDbProp.GetValue(holderComponent);
                 if (cardDb == null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"GetCardDataFromGrpId: CardDatabase value is null");
+                    Log.Card("CardModelProvider", $"GetCardDataFromGrpId: CardDatabase value is null");
                     return null;
                 }
 
@@ -1786,7 +1787,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error getting card data for GrpId {grpId}: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error getting card data for GrpId {grpId}: {ex.Message}");
                 return null;
             }
         }
@@ -2015,7 +2016,7 @@ namespace AccessibleArena.Core.Services
                     if (artistValue is string artistStr && !string.IsNullOrEmpty(artistStr))
                     {
                         info.Artist = artistStr;
-                        DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Extracted artist from CardData: {info.Artist}");
+                        Log.Card("CardModelProvider", $"Extracted artist from CardData: {info.Artist}");
                     }
                     else if (artistValue is uint artistId && artistId > 0)
                     {
@@ -2023,7 +2024,7 @@ namespace AccessibleArena.Core.Services
                         if (!string.IsNullOrEmpty(artistName))
                         {
                             info.Artist = artistName;
-                            DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Extracted artist by ID: {info.Artist}");
+                            Log.Card("CardModelProvider", $"Extracted artist by ID: {info.Artist}");
                         }
                     }
                 }
@@ -2039,7 +2040,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogCardInfo, "CardModelProvider", $"Error extracting card info from data: {ex.Message}");
+                Log.Card("CardModelProvider", $"Error extracting card info from data: {ex.Message}");
             }
 
             return info;

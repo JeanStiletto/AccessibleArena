@@ -1,4 +1,5 @@
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections;
@@ -111,7 +112,7 @@ namespace AccessibleArena.Core.Services
                 if (_localizedStringKeyField != null)
                     locKey = _localizedStringKeyField.GetValue(lineObj) as string;
 
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"NPE Dialog: {text} (key: {locKey})");
+                Log.Announce("DuelAnnouncer", $"NPE Dialog: {text} (key: {locKey})");
 
                 // Check if we have a supplementary keyboard hint for this dialog line
                 string hint = NPETutorialTextProvider.GetDialogHint(locKey);
@@ -121,7 +122,7 @@ namespace AccessibleArena.Core.Services
                 // These must be read aloud so blind players understand why their action was rejected
                 if (NPETutorialTextProvider.ShouldReadAloud(locKey))
                 {
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"Reading AlwaysReminder aloud: {text}");
+                    Log.Announce("DuelAnnouncer", $"Reading AlwaysReminder aloud: {text}");
                     return text;
                 }
 
@@ -184,14 +185,14 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"NPE Reminder: {text} (key: {locKey})" + (cardHint != null ? $" (cards: {cardHint})" : ""));
+                Log.Announce("DuelAnnouncer", $"NPE Reminder: {text} (key: {locKey})" + (cardHint != null ? $" (cards: {cardHint})" : ""));
 
                 // Suppress duplicate BlockingReminder in same blockers phase
                 if (locKey != null && locKey.Contains("/BlockingReminder"))
                 {
                     if (_shownBlockingReminderThisStep)
                     {
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", "Suppressing duplicate BlockingReminder");
+                        Log.Announce("DuelAnnouncer", "Suppressing duplicate BlockingReminder");
                         return null;
                     }
                     _shownBlockingReminderThisStep = true;
@@ -201,7 +202,7 @@ namespace AccessibleArena.Core.Services
                 if (_suppressNextActionReminder && locKey != null && locKey.Contains("/ActionReminder"))
                 {
                     _suppressNextActionReminder = false;
-                    DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", "Suppressing ActionReminder after tooltip hint");
+                    Log.Announce("DuelAnnouncer", "Suppressing ActionReminder after tooltip hint");
                     return null;
                 }
                 _suppressNextActionReminder = false;
@@ -233,7 +234,7 @@ namespace AccessibleArena.Core.Services
                 if (typeObj == null) return null;
 
                 string tooltipType = typeObj.ToString();
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"NPE Tooltip: {tooltipType}");
+                Log.Announce("DuelAnnouncer", $"NPE Tooltip: {tooltipType}");
 
                 // DominariaFall fires at the very start of the first tutorial duel,
                 // overlapping with NPC intro dialogs and matchup info — suppress it.
@@ -273,7 +274,7 @@ namespace AccessibleArena.Core.Services
                 string text = textObj.ToString();
                 if (string.IsNullOrEmpty(text)) return null;
 
-                DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer", $"NPE Warning: {text}");
+                Log.Announce("DuelAnnouncer", $"NPE Warning: {text}");
                 return text;
             }
             catch (Exception ex)
@@ -421,13 +422,13 @@ namespace AccessibleArena.Core.Services
                     if (cdc != null)
                     {
                         currentDelegate.DynamicInvoke(cdc);
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer",
+                        Log.Announce("DuelAnnouncer",
                             $"NPE hover simulated on: {((MonoBehaviour)cdc).gameObject.name}");
                     }
                     else
                     {
                         currentDelegate.DynamicInvoke(new object[] { null });
-                        DebugConfig.LogIf(DebugConfig.LogAnnouncements, "DuelAnnouncer",
+                        Log.Announce("DuelAnnouncer",
                             "NPE hover cleared (null) to unpause NPE director");
                     }
                 }

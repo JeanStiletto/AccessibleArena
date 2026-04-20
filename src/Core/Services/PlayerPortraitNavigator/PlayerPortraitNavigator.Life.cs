@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
 using System.Collections;
@@ -95,7 +96,7 @@ namespace AccessibleArena.Core.Services
 
                 if (gameManager == null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"GameManager not found");
+                    Log.Nav("PlayerPortrait", $"GameManager not found");
                     return (-1, -1);
                 }
 
@@ -120,7 +121,7 @@ namespace AccessibleArena.Core.Services
 
                 if (gameState == null)
                 {
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"GameState not available");
+                    Log.Nav("PlayerPortrait", $"GameState not available");
                     return (-1, -1);
                 }
 
@@ -135,7 +136,7 @@ namespace AccessibleArena.Core.Services
                     if (localPlayer != null)
                     {
                         localLife = GetPlayerLife(localPlayer);
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Local player life: {localLife}");
+                        Log.Nav("PlayerPortrait", $"Local player life: {localLife}");
                     }
                 }
 
@@ -147,7 +148,7 @@ namespace AccessibleArena.Core.Services
                     if (opponent != null)
                     {
                         opponentLife = GetPlayerLife(opponent);
-                        DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Opponent life: {opponentLife}");
+                        Log.Nav("PlayerPortrait", $"Opponent life: {opponentLife}");
                     }
                 }
             }
@@ -211,18 +212,18 @@ namespace AccessibleArena.Core.Services
             }
 
             // Log all properties and fields for debugging
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"MtgPlayer properties:");
+            Log.Nav("PlayerPortrait", $"MtgPlayer properties:");
             foreach (var prop in playerType.GetProperties(bindingFlags))
             {
                 try
                 {
                     var val = prop.GetValue(player);
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Prop {prop.Name}: {val}");
+                    Log.Nav("PlayerPortrait", $"  Prop {prop.Name}: {val}");
                 }
                 catch { /* Some properties throw on access; skip for debug dump */ }
             }
 
-            DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"MtgPlayer fields:");
+            Log.Nav("PlayerPortrait", $"MtgPlayer fields:");
             foreach (var field in playerType.GetFields(bindingFlags))
             {
                 try
@@ -230,7 +231,7 @@ namespace AccessibleArena.Core.Services
                     var val = field.GetValue(player);
                     var valStr = val?.ToString() ?? "null";
                     if (valStr.Length > 50) valStr = valStr.Substring(0, 50) + "...";
-                    DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"  Field {field.Name}: {valStr}");
+                    Log.Nav("PlayerPortrait", $"  Field {field.Name}: {valStr}");
                 }
                 catch { /* Some fields throw on access; skip for debug dump */ }
             }
@@ -269,7 +270,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error getting MtgPlayer: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error getting MtgPlayer: {ex.Message}");
                 return null;
             }
         }
@@ -301,7 +302,7 @@ namespace AccessibleArena.Core.Services
                 _dungeonStateField = playerType.GetField("DungeonState", PublicInstance);
 
                 _entityReflectionInitialized = true;
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait",
+                Log.Nav("PlayerPortrait",
                     $"Entity reflection initialized: Counters={_countersField != null}, " +
                     $"Designations={_designationsField != null}, Abilities={_abilitiesField != null}, " +
                     $"DungeonState={_dungeonStateField != null}");
@@ -352,7 +353,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading player counters: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error reading player counters: {ex.Message}");
             }
 
             return result;
@@ -411,7 +412,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading designations: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error reading designations: {ex.Message}");
             }
 
             // Read abilities
@@ -453,7 +454,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading abilities: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error reading abilities: {ex.Message}");
             }
 
             // Read dungeon state
@@ -499,7 +500,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                DebugConfig.LogIf(DebugConfig.LogNavigation, "PlayerPortrait", $"Error reading dungeon state: {ex.Message}");
+                Log.Nav("PlayerPortrait", $"Error reading dungeon state: {ex.Message}");
             }
 
             if (parts.Count == 0)

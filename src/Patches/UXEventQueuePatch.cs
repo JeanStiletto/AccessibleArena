@@ -1,5 +1,6 @@
 using HarmonyLib;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -195,8 +196,7 @@ namespace AccessibleArena.Patches
                 _eventCount++;
                 if (_eventCount % 100 == 1)
                 {
-                    Core.Services.DebugConfig.LogIf(
-                        Core.Services.DebugConfig.LogPatches,
+                    Core.Utils.Log.Patch(
                         "UXEventQueuePatch",
                         $"Single event #{_eventCount}: {__0.GetType().Name}");
                 }
@@ -235,8 +235,7 @@ namespace AccessibleArena.Patches
                     _eventCount++;
                     if (_eventCount % 100 == 1)
                     {
-                        Core.Services.DebugConfig.LogIf(
-                            Core.Services.DebugConfig.LogPatches,
+                        Core.Utils.Log.Patch(
                             "UXEventQueuePatch",
                             $"Multi event #{_eventCount}: {evt.GetType().Name}");
                     }

@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using TMPro;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using System.Collections;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -70,11 +71,11 @@ namespace AccessibleArena.Core.Services
             // These are card display views - the actual click handler is on a child element
             if (CardTileActivator.IsCollectionCard(element))
             {
-                Log($"Detected collection card: {element.name}");
+                Log.Activation("UIActivator", $"Detected collection card: {element.name}");
                 var result = CardTileActivator.TryActivateCollectionCard(element);
                 if (result.Success)
                     return result;
-                Log($"Collection card activation failed, trying fallback");
+                Log.Activation("UIActivator", $"Collection card activation failed, trying fallback");
             }
 
             // Deck list cards (cards in your deck) may open the card viewer popup when
@@ -102,13 +103,13 @@ namespace AccessibleArena.Core.Services
                         var onClick = onClickProp.GetValue(cb, null) as UnityEngine.Events.UnityEvent;
                         if (onClick != null)
                         {
-                            Log($"Commander slot card: invoking OnClick directly on '{element.name}'");
+                            Log.Activation("UIActivator", $"Commander slot card: invoking OnClick directly on '{element.name}'");
                             onClick.Invoke();
                             return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                         }
                     }
                 }
-                Log($"Commander slot card: OnClick not found, falling back to SimulatePointerClick");
+                Log.Activation("UIActivator", $"Commander slot card: OnClick not found, falling back to SimulatePointerClick");
                 return SimulatePointerClick(element);
             }
 
@@ -116,13 +117,13 @@ namespace AccessibleArena.Core.Services
             // because MTGA's CustomButton onClick on decks doesn't reliably trigger selection
             if (CardTileActivator.IsDeckEntry(element))
             {
-                Log($"Detected deck entry, trying specialized deck selection");
+                Log.Activation("UIActivator", $"Detected deck entry, trying specialized deck selection");
                 if (CardTileActivator.TrySelectDeck(element))
                 {
                     return new ActivationResult(true, "Deck Selected", ActivationType.Button);
                 }
                 // Fall through to standard activation if specialized selection fails
-                Log($"Specialized deck selection failed, falling back to standard activation");
+                Log.Activation("UIActivator", $"Specialized deck selection failed, falling back to standard activation");
             }
 
             // Try TMP_InputField
@@ -155,7 +156,7 @@ namespace AccessibleArena.Core.Services
                     // 1. Toggle.OnPointerClick - changes state
                     // 2. CustomButton onClick - triggers game filtering logic
                     bool oldState = toggle.isOn;
-                    Log($"Toggle with CustomButton: current state {oldState}");
+                    Log.Activation("UIActivator", $"Toggle with CustomButton: current state {oldState}");
 
                     // Step 1: Toggle the checkbox state
                     var pointer = CreatePointerEventData(element);
@@ -163,7 +164,7 @@ namespace AccessibleArena.Core.Services
 
                     bool newState = toggle.isOn;
                     string state = newState ? "Checked" : "Unchecked";
-                    Log($"Toggle state after click: {oldState} -> {newState} ({state})");
+                    Log.Activation("UIActivator", $"Toggle state after click: {oldState} -> {newState} ({state})");
 
                     // Step 2: Trigger CustomButton to run game filtering logic
                     TryInvokeCustomButtonOnClick(element);
@@ -177,7 +178,7 @@ namespace AccessibleArena.Core.Services
                     // so we always handle toggling directly here.
                     toggle.isOn = !toggle.isOn;
                     string state = toggle.isOn ? "Checked" : "Unchecked";
-                    Log($"Toggled {element.name} to {state}");
+                    Log.Activation("UIActivator", $"Toggled {element.name} to {state}");
                     return new ActivationResult(true, state, ActivationType.Toggle);
                 }
             }
@@ -215,7 +216,7 @@ namespace AccessibleArena.Core.Services
                 var systemMsgButton = FindComponentByName(element, "SystemMessageButtonView");
                 if (systemMsgButton != null)
                 {
-                    Log($"SystemMessageButtonView detected on: {element.name}");
+                    Log.Activation("UIActivator", $"SystemMessageButtonView detected on: {element.name}");
                     TryInvokeMethod(systemMsgButton, "Click");
                     return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
@@ -233,7 +234,7 @@ namespace AccessibleArena.Core.Services
                         bool isInteractable = (bool)interactableProp.GetValue(customButtonComp);
                         if (!isInteractable)
                         {
-                            Log($"CustomButton '{element.name}' is NOT interactable - click blocked");
+                            Log.Activation("UIActivator", $"CustomButton '{element.name}' is NOT interactable - click blocked");
                             // Diagnostic: check registration form validation state
                             DiagnoseRegistrationState(element);
                             return new ActivationResult(false, Models.Strings.ItemDisabled);
@@ -254,11 +255,11 @@ namespace AccessibleArena.Core.Services
                     bool? filterState = CardTileActivator.IsCommandersFilterActive();
                     if (filterState == true)
                     {
-                        Log($"Empty slot: Commanders filter already active, skipping click to avoid toggle-off");
+                        Log.Activation("UIActivator", $"Empty slot: Commanders filter already active, skipping click to avoid toggle-off");
                         return new ActivationResult(true, Models.Strings.Activated(Models.Strings.DeckBuilderCommander), ActivationType.Button);
                     }
                     // Filter is OFF or unknown — click to toggle ON
-                    Log($"Empty slot: Commanders filter is {(filterState == false ? "OFF" : "unknown")}, clicking to activate");
+                    Log.Activation("UIActivator", $"Empty slot: Commanders filter is {(filterState == false ? "OFF" : "unknown")}, clicking to activate");
                     SimulatePointerClick(element);
                     return new ActivationResult(true, Models.Strings.Activated(Models.Strings.DeckBuilderCommander), ActivationType.Button);
                 }
@@ -271,13 +272,13 @@ namespace AccessibleArena.Core.Services
                     var deckBuilderController = FindDeckBuilderController();
                     if (deckBuilderController != null)
                     {
-                        Log($"Found deck builder controller: {deckBuilderController.GetType().Name}");
+                        Log.Activation("UIActivator", $"Found deck builder controller: {deckBuilderController.GetType().Name}");
                         if (TryInvokeMethod(deckBuilderController, "OnDeckbuilderDoneButtonClicked"))
                         {
-                            Log($"WrapperDeckBuilder.OnDeckbuilderDoneButtonClicked() invoked successfully");
+                            Log.Activation("UIActivator", $"WrapperDeckBuilder.OnDeckbuilderDoneButtonClicked() invoked successfully");
                             return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                         }
-                        Log($"Could not invoke OnDeckbuilderDoneButtonClicked, falling back to pointer click");
+                        Log.Activation("UIActivator", $"Could not invoke OnDeckbuilderDoneButtonClicked, falling back to pointer click");
                     }
                 }
 
@@ -296,7 +297,7 @@ namespace AccessibleArena.Core.Services
             var childButton = element.GetComponentInChildren<Button>();
             if (childButton != null)
             {
-                Log($"Using child Button: {childButton.gameObject.name}");
+                Log.Activation("UIActivator", $"Using child Button: {childButton.gameObject.name}");
                 childButton.onClick.Invoke();
                 return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
             }
@@ -306,7 +307,7 @@ namespace AccessibleArena.Core.Services
             var clickableTarget = FindClickableInHierarchy(element);
             if (clickableTarget != null && clickableTarget != element)
             {
-                Log($"Found clickable child: {clickableTarget.name}, sending pointer events there");
+                Log.Activation("UIActivator", $"Found clickable child: {clickableTarget.name}, sending pointer events there");
                 return SimulatePointerClick(clickableTarget);
             }
 
@@ -315,7 +316,7 @@ namespace AccessibleArena.Core.Services
             var systemMessageButton = FindComponentByName(element, "SystemMessageButtonView");
             if (systemMessageButton != null)
             {
-                Log($"SystemMessageButtonView detected, trying Click method");
+                Log.Activation("UIActivator", $"SystemMessageButtonView detected, trying Click method");
                 if (TryInvokeMethod(systemMessageButton, "Click"))
                 {
                     return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
@@ -354,7 +355,7 @@ namespace AccessibleArena.Core.Services
             var customButton = FindComponentByName(element, CustomButtonTypeName);
             if (customButton != null)
             {
-                Log($"Invoking CustomButton.Click() on: {element.name}");
+                Log.Activation("UIActivator", $"Invoking CustomButton.Click() on: {element.name}");
                 if (TryInvokeMethod(customButton, "Click"))
                     return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
             }
@@ -381,14 +382,14 @@ namespace AccessibleArena.Core.Services
 
             var pointer = CreatePointerEventData(element);
 
-            Log($"Simulating pointer events on: {element.name}");
+            Log.Activation("UIActivator", $"Simulating pointer events on: {element.name}");
 
             // Set as selected object in EventSystem - some UI elements require this
             var eventSystem = EventSystem.current;
             if (eventSystem != null)
             {
                 eventSystem.SetSelectedGameObject(element);
-                Log($"Set EventSystem selected object to: {element.name}");
+                Log.Activation("UIActivator", $"Set EventSystem selected object to: {element.name}");
             }
 
             // Full click sequence - mimics a real mouse click
@@ -412,13 +413,13 @@ namespace AccessibleArena.Core.Services
 
             var pointer = CreatePointerEventData(element, screenPosition);
 
-            Log($"Simulating pointer events on: {element.name} at position ({screenPosition.x:F0}, {screenPosition.y:F0})");
+            Log.Activation("UIActivator", $"Simulating pointer events on: {element.name} at position ({screenPosition.x:F0}, {screenPosition.y:F0})");
 
             var eventSystem = EventSystem.current;
             if (eventSystem != null)
             {
                 eventSystem.SetSelectedGameObject(element);
-                Log($"Set EventSystem selected object to: {element.name}");
+                Log.Activation("UIActivator", $"Set EventSystem selected object to: {element.name}");
             }
 
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerEnterHandler);
@@ -439,7 +440,7 @@ namespace AccessibleArena.Core.Services
 
             var pointer = CreatePointerEventData(element);
             ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerExitHandler);
-            Log($"Sent PointerExit to: {element.name}");
+            Log.Activation("UIActivator", $"Sent PointerExit to: {element.name}");
         }
 
         /// <summary>
@@ -455,7 +456,7 @@ namespace AccessibleArena.Core.Services
             Transform popoutParent = hoverControl.transform.parent;
             if (popoutParent == null)
             {
-                Log($"No parent found for {hoverControl.name}");
+                Log.Activation("UIActivator", $"No parent found for {hoverControl.name}");
                 return;
             }
 
@@ -464,7 +465,7 @@ namespace AccessibleArena.Core.Services
 
             if (spinner == null)
             {
-                Log($"No Spinner_OptionSelector found on {popoutParent.name}");
+                Log.Activation("UIActivator", $"No Spinner_OptionSelector found on {popoutParent.name}");
                 return;
             }
 
@@ -475,11 +476,11 @@ namespace AccessibleArena.Core.Services
             if (method != null)
             {
                 method.Invoke(spinner, null);
-                Log($"Invoked {methodName} on {popoutParent.name}");
+                Log.Activation("UIActivator", $"Invoked {methodName} on {popoutParent.name}");
             }
             else
             {
-                Log($"Method {methodName} not found on Spinner_OptionSelector");
+                Log.Activation("UIActivator", $"Method {methodName} not found on Spinner_OptionSelector");
             }
         }
 
@@ -493,7 +494,7 @@ namespace AccessibleArena.Core.Services
             var eventSystem = EventSystem.current;
             if (eventSystem == null)
             {
-                Log("No EventSystem found");
+                Log.Activation("UIActivator", "No EventSystem found");
                 return new ActivationResult(false, "No EventSystem");
             }
 
@@ -514,7 +515,7 @@ namespace AccessibleArena.Core.Services
                 pointer.pointerPress = target;
                 pointer.pointerEnter = target;
 
-                Log($"Clicking at position {screenPosition}: {target.name}");
+                Log.Activation("UIActivator", $"Clicking at position {screenPosition}: {target.name}");
 
                 ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerEnterHandler);
                 ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerDownHandler);
@@ -529,7 +530,7 @@ namespace AccessibleArena.Core.Services
             // them as "pass priority" during combat phases, leading to unwanted phase auto-skip.
             // The game processes card drops based on Input.mousePosition (real cursor),
             // which DuelNavigator centers when the duel starts. No additional click needed.
-            Log($"No raycast hit at {screenPosition}, skipping global click");
+            Log.Activation("UIActivator", $"No raycast hit at {screenPosition}, skipping global click");
 
             return new ActivationResult(true, "No UI target at position", ActivationType.Unknown);
         }
@@ -545,7 +546,7 @@ namespace AccessibleArena.Core.Services
             // Fallback: try clicking CustomButtons if raycast failed
             if (!result.Success)
             {
-                Log("No raycast hits, trying CustomButton fallback...");
+                Log.Activation("UIActivator", "No raycast hits, trying CustomButton fallback...");
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
                     if (!IsCustomButton(mb) || !mb.gameObject.activeInHierarchy) continue;
@@ -562,7 +563,7 @@ namespace AccessibleArena.Core.Services
                             var invokeMethod = onClick.GetType().GetMethod("Invoke", System.Type.EmptyTypes);
                             if (invokeMethod != null)
                             {
-                                Log($"Invoking onClick on CustomButton: {mb.gameObject.name}");
+                                Log.Activation("UIActivator", $"Invoking onClick on CustomButton: {mb.gameObject.name}");
                                 invokeMethod.Invoke(onClick, null);
                                 return new ActivationResult(true, $"Invoked {mb.gameObject.name}", ActivationType.Button);
                             }
@@ -595,7 +596,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            Log($"=== PLAYING CARD: {card.name} ===");
+            Log.Activation("UIActivator", $"=== PLAYING CARD: {card.name} ===");
             MelonCoroutines.Start(PlayCardCoroutine(card, callback));
         }
 
@@ -605,11 +606,11 @@ namespace AccessibleArena.Core.Services
             bool isLand = CardStateProvider.IsLandCard(card);
 
             // Step 1: First click (select)
-            Log("Step 1: First click (select)");
+            Log.Activation("UIActivator", "Step 1: First click (select)");
             var click1 = SimulatePointerClick(card);
             if (!click1.Success)
             {
-                Log("Failed at step 1");
+                Log.Activation("UIActivator", "Failed at step 1");
                 callback?.Invoke(false, "First click failed");
                 yield break;
             }
@@ -622,18 +623,18 @@ namespace AccessibleArena.Core.Services
             // Second click would break the discard state, so abort here
             if (IsTargetingModeActive())
             {
-                Log("Submit button detected - in discard/selection mode, not playing card");
-                Log("First click selected card for discard. Use Submit button to confirm.");
+                Log.Activation("UIActivator", "Submit button detected - in discard/selection mode, not playing card");
+                Log.Activation("UIActivator", "First click selected card for discard. Use Submit button to confirm.");
                 callback?.Invoke(false, "Discard mode - card selected for discard");
                 yield break;
             }
 
             // Step 2: Second click (pick up for spells, or play for lands)
-            Log("Step 2: Second click (pick up/play)");
+            Log.Activation("UIActivator", "Step 2: Second click (pick up/play)");
             var click2 = SimulatePointerClick(card);
             if (!click2.Success)
             {
-                Log("Failed at step 2");
+                Log.Activation("UIActivator", "Failed at step 2");
                 callback?.Invoke(false, "Second click failed");
                 yield break;
             }
@@ -642,8 +643,8 @@ namespace AccessibleArena.Core.Services
             // Exit immediately to avoid unnecessary clicks
             if (isLand)
             {
-                Log("Land played via double-click");
-                Log("=== CARD PLAY COMPLETE ===");
+                Log.Activation("UIActivator", "Land played via double-click");
+                Log.Activation("UIActivator", "=== CARD PLAY COMPLETE ===");
                 callback?.Invoke(true, "Land played");
                 yield break;
             }
@@ -652,7 +653,7 @@ namespace AccessibleArena.Core.Services
             yield return new WaitForSeconds(CardPickupDelay);
 
             // Step 3: Click screen center via Unity events (confirm play)
-            Log("Step 3: Click screen center via Unity events (confirm play)");
+            Log.Activation("UIActivator", "Step 3: Click screen center via Unity events (confirm play)");
 
             Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
             SimulateClickAtPosition(center);
@@ -665,7 +666,7 @@ namespace AccessibleArena.Core.Services
             // which checks for spell on stack + HotHighlight targets.
             // This avoids false positives from activated abilities that don't target.
 
-            Log("=== CARD PLAY COMPLETE ===");
+            Log.Activation("UIActivator", "=== CARD PLAY COMPLETE ===");
             callback?.Invoke(true, "Card played");
         }
 
@@ -703,11 +704,11 @@ namespace AccessibleArena.Core.Services
 
             if (navBarController == null)
             {
-                Log("Nav_Mail: NavBarController not found in parent hierarchy");
+                Log.Activation("UIActivator", "Nav_Mail: NavBarController not found in parent hierarchy");
                 return false;
             }
 
-            Log($"Nav_Mail: Found NavBarController on {navBarController.gameObject.name}");
+            Log.Activation("UIActivator", $"Nav_Mail: Found NavBarController on {navBarController.gameObject.name}");
 
             // Invoke MailboxButton_OnClick()
             var type = navBarController.GetType();
@@ -718,19 +719,19 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    Log("Nav_Mail: Invoking NavBarController.MailboxButton_OnClick()");
+                    Log.Activation("UIActivator", "Nav_Mail: Invoking NavBarController.MailboxButton_OnClick()");
                     method.Invoke(navBarController, null);
                     result = new ActivationResult(true, "Mailbox opened", ActivationType.Button);
                     return true;
                 }
                 catch (System.Exception ex)
                 {
-                    Log($"Nav_Mail: MailboxButton_OnClick() error: {ex.InnerException?.Message ?? ex.Message}");
+                    Log.Activation("UIActivator", $"Nav_Mail: MailboxButton_OnClick() error: {ex.InnerException?.Message ?? ex.Message}");
                 }
             }
             else
             {
-                Log("Nav_Mail: MailboxButton_OnClick method not found on NavBarController");
+                Log.Activation("UIActivator", "Nav_Mail: MailboxButton_OnClick method not found on NavBarController");
             }
 
             return false;
@@ -766,7 +767,7 @@ namespace AccessibleArena.Core.Services
             if (!insideNPE)
                 return false;
 
-            Log($"NullClaimButton detected in NPE rewards, looking for NPEContentControllerRewards");
+            Log.Activation("UIActivator", $"NullClaimButton detected in NPE rewards, looking for NPEContentControllerRewards");
 
             // Find NPEContentControllerRewards component
             foreach (var behaviour in GameObject.FindObjectsOfType<MonoBehaviour>())
@@ -774,7 +775,7 @@ namespace AccessibleArena.Core.Services
                 if (behaviour == null) continue;
                 if (behaviour.GetType().Name != "NPEContentControllerRewards") continue;
 
-                Log($"Found NPEContentControllerRewards on: {behaviour.gameObject.name}");
+                Log.Activation("UIActivator", $"Found NPEContentControllerRewards on: {behaviour.gameObject.name}");
 
                 var type = behaviour.GetType();
 
@@ -785,14 +786,14 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        Log($"Invoking NPEContentControllerRewards.PutAwayRewards()");
+                        Log.Activation("UIActivator", $"Invoking NPEContentControllerRewards.PutAwayRewards()");
                         putAwayMethod.Invoke(behaviour, null);
                         result = new ActivationResult(true, Models.Strings.NPE_RewardClaimed, ActivationType.Button);
                         return true;
                     }
                     catch (System.Exception ex)
                     {
-                        Log($"PutAwayRewards error: {ex.InnerException?.Message ?? ex.Message}");
+                        Log.Activation("UIActivator", $"PutAwayRewards error: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
 
@@ -802,23 +803,23 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        Log($"Invoking OnClaimClicked_Unity() (fallback)");
+                        Log.Activation("UIActivator", $"Invoking OnClaimClicked_Unity() (fallback)");
                         claimMethod.Invoke(behaviour, null);
                         result = new ActivationResult(true, Models.Strings.NPE_RewardClaimed, ActivationType.Button);
                         return true;
                     }
                     catch (System.Exception ex)
                     {
-                        Log($"OnClaimClicked_Unity error: {ex.InnerException?.Message ?? ex.Message}");
+                        Log.Activation("UIActivator", $"OnClaimClicked_Unity error: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
                 else
                 {
-                    Log($"Neither PutAwayRewards nor OnClaimClicked_Unity found");
+                    Log.Activation("UIActivator", $"Neither PutAwayRewards nor OnClaimClicked_Unity found");
                 }
             }
 
-            Log($"NPEContentControllerRewards not found, falling back to standard activation");
+            Log.Activation("UIActivator", $"NPEContentControllerRewards not found, falling back to standard activation");
             return false;
         }
 
@@ -855,14 +856,14 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        Log($"Invoking UpdatePoliciesPanel.OnAccept directly");
+                        Log.Activation("UIActivator", $"Invoking UpdatePoliciesPanel.OnAccept directly");
                         onAcceptMethod.Invoke(comp, null);
                         result = new ActivationResult(true, "Accepted", ActivationType.PointerClick);
                         return true;
                     }
                     catch (System.Exception ex)
                     {
-                        Log($"UpdatePoliciesPanel.OnAccept threw: {ex.InnerException?.Message ?? ex.Message}");
+                        Log.Activation("UIActivator", $"UpdatePoliciesPanel.OnAccept threw: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
             }
@@ -895,7 +896,7 @@ namespace AccessibleArena.Core.Services
                         var invokeMethod = onClick.GetType().GetMethod("Invoke", System.Type.EmptyTypes);
                         if (invokeMethod != null)
                         {
-                            Log($"Invoking CustomButton.onClick via reflection on: {element.name}");
+                            Log.Activation("UIActivator", $"Invoking CustomButton.onClick via reflection on: {element.name}");
                             try
                             {
                                 invokeMethod.Invoke(onClick, null);
@@ -905,23 +906,23 @@ namespace AccessibleArena.Core.Services
                             {
                                 // Game's event handler may throw (e.g., HomePageBillboard not initialized)
                                 // Fall back to pointer simulation
-                                Log($"CustomButton.onClick threw exception, falling back to pointer: {ex.InnerException?.Message ?? ex.Message}");
+                                Log.Activation("UIActivator", $"CustomButton.onClick threw exception, falling back to pointer: {ex.InnerException?.Message ?? ex.Message}");
                                 return SimulatePointerClick(element);
                             }
                         }
                         else
                         {
-                            Log($"CustomButton.onClick has no Invoke() method on: {element.name}");
+                            Log.Activation("UIActivator", $"CustomButton.onClick has no Invoke() method on: {element.name}");
                         }
                     }
                     else
                     {
-                        Log($"CustomButton.onClick is null on: {element.name}");
+                        Log.Activation("UIActivator", $"CustomButton.onClick is null on: {element.name}");
                     }
                 }
                 else
                 {
-                    Log($"CustomButton has no _onClick field on: {element.name}");
+                    Log.Activation("UIActivator", $"CustomButton has no _onClick field on: {element.name}");
                 }
             }
 
@@ -1093,7 +1094,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb != null && mb.GetType().Name == "SystemMessageView" && mb.gameObject.activeInHierarchy)
                 {
-                    Log($"Found SystemMessageView via scene search: {mb.gameObject.name}");
+                    Log.Activation("UIActivator", $"Found SystemMessageView via scene search: {mb.gameObject.name}");
                     return mb;
                 }
             }
@@ -1128,7 +1129,7 @@ namespace AccessibleArena.Core.Services
                     callbackObj = field.GetValue(systemMsgButton);
                     if (callbackObj != null)
                     {
-                        Log($"Found callback in field '{fieldName}': {callbackObj.GetType().Name}");
+                        Log.Activation("UIActivator", $"Found callback in field '{fieldName}': {callbackObj.GetType().Name}");
                         break;
                     }
                 }
@@ -1143,18 +1144,18 @@ namespace AccessibleArena.Core.Services
                     buttonDataObj = field.GetValue(systemMsgButton);
                     if (buttonDataObj != null)
                     {
-                        Log($"Found buttonData in field '{fieldName}': {buttonDataObj.GetType().Name}");
+                        Log.Activation("UIActivator", $"Found buttonData in field '{fieldName}': {buttonDataObj.GetType().Name}");
                         break;
                     }
                 }
             }
 
             // Log all fields for debugging
-            Log($"Listing all fields on {type.Name}:");
+            Log.Activation("UIActivator", $"Listing all fields on {type.Name}:");
             foreach (var field in type.GetFields(flags | System.Reflection.BindingFlags.Public))
             {
                 var val = field.GetValue(systemMsgButton);
-                Log($"  Field: {field.Name} ({field.FieldType.Name}) = {(val != null ? val.ToString() : "null")}");
+                Log.Activation("UIActivator", $"  Field: {field.Name} ({field.FieldType.Name}) = {(val != null ? val.ToString() : "null")}");
             }
 
             // Try to invoke the callback if found
@@ -1168,26 +1169,26 @@ namespace AccessibleArena.Core.Services
                         var parameters = invokeMethod.GetParameters();
                         if (parameters.Length == 0)
                         {
-                            Log($"Invoking callback with no parameters");
+                            Log.Activation("UIActivator", $"Invoking callback with no parameters");
                             invokeMethod.Invoke(callbackObj, null);
                             return true;
                         }
                         else if (parameters.Length == 1 && buttonDataObj != null)
                         {
-                            Log($"Invoking callback with buttonData");
+                            Log.Activation("UIActivator", $"Invoking callback with buttonData");
                             invokeMethod.Invoke(callbackObj, new object[] { buttonDataObj });
                             return true;
                         }
                         else if (parameters.Length == 1)
                         {
-                            Log($"Invoking callback with null parameter");
+                            Log.Activation("UIActivator", $"Invoking callback with null parameter");
                             invokeMethod.Invoke(callbackObj, new object[] { null });
                             return true;
                         }
                     }
                     catch (System.Exception ex)
                     {
-                        Log($"Error invoking callback: {ex.InnerException?.Message ?? ex.Message}");
+                        Log.Activation("UIActivator", $"Error invoking callback: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
             }
@@ -1219,7 +1220,7 @@ namespace AccessibleArena.Core.Services
                     var actionObj = field.GetValue(mb);
                     if (actionObj != null)
                     {
-                        Log($"Found OnClickedReturnSource: {actionObj.GetType().Name}");
+                        Log.Activation("UIActivator", $"Found OnClickedReturnSource: {actionObj.GetType().Name}");
                         var invokeMethod = actionObj.GetType().GetMethod("Invoke");
                         if (invokeMethod != null)
                         {
@@ -1240,18 +1241,18 @@ namespace AccessibleArena.Core.Services
                             }
                             catch (System.Exception ex)
                             {
-                                Log($"Error invoking OnClickedReturnSource: {ex.InnerException?.Message ?? ex.Message}");
+                                Log.Activation("UIActivator", $"Error invoking OnClickedReturnSource: {ex.InnerException?.Message ?? ex.Message}");
                             }
                         }
                     }
                     else
                     {
-                        Log($"OnClickedReturnSource field found but value is null");
+                        Log.Activation("UIActivator", $"OnClickedReturnSource field found but value is null");
                     }
                 }
 
                 // Log all fields on CustomButton for debugging
-                Log($"Listing all fields on CustomButton:");
+                Log.Activation("UIActivator", $"Listing all fields on CustomButton:");
                 foreach (var f in type.GetFields(flags))
                 {
                     try
@@ -1259,11 +1260,11 @@ namespace AccessibleArena.Core.Services
                         var val = f.GetValue(mb);
                         string valStr = val?.ToString() ?? "null";
                         if (valStr.Length > 50) valStr = valStr.Substring(0, 50) + "...";
-                        Log($"  Field: {f.Name} ({f.FieldType.Name}) = {valStr}");
+                        Log.Activation("UIActivator", $"  Field: {f.Name} ({f.FieldType.Name}) = {valStr}");
                     }
                     catch
                     {
-                        Log($"  Field: {f.Name} ({f.FieldType.Name}) = <error reading>");
+                        Log.Activation("UIActivator", $"  Field: {f.Name} ({f.FieldType.Name}) = <error reading>");
                     }
                 }
             }
@@ -1297,12 +1298,12 @@ namespace AccessibleArena.Core.Services
                 try
                 {
                     clearMethod.Invoke(instance, null);
-                    Log($"SystemMessageManager.ClearMessageQueue() succeeded");
+                    Log.Activation("UIActivator", $"SystemMessageManager.ClearMessageQueue() succeeded");
                     return true;
                 }
                 catch (System.Exception ex)
                 {
-                    Log($"ClearMessageQueue() failed: {ex.InnerException?.Message ?? ex.Message}");
+                    Log.Activation("UIActivator", $"ClearMessageQueue() failed: {ex.InnerException?.Message ?? ex.Message}");
                 }
             }
 
@@ -1320,7 +1321,7 @@ namespace AccessibleArena.Core.Services
 
             if (popupManagerType == null)
             {
-                Log($"PopupManager type not found");
+                Log.Activation("UIActivator", $"PopupManager type not found");
                 return false;
             }
 
@@ -1329,18 +1330,18 @@ namespace AccessibleArena.Core.Services
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
             if (instanceProp == null)
             {
-                Log($"PopupManager.Instance property not found");
+                Log.Activation("UIActivator", $"PopupManager.Instance property not found");
                 return false;
             }
 
             var instance = instanceProp.GetValue(null);
             if (instance == null)
             {
-                Log($"PopupManager.Instance is null");
+                Log.Activation("UIActivator", $"PopupManager.Instance is null");
                 return false;
             }
 
-            Log($"Found PopupManager instance: {instance}");
+            Log.Activation("UIActivator", $"Found PopupManager instance: {instance}");
 
             // Try to find close/dismiss methods
             var flags = AllInstanceFlags;
@@ -1353,13 +1354,13 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        Log($"Trying PopupManager.{methodName}()");
+                        Log.Activation("UIActivator", $"Trying PopupManager.{methodName}()");
                         method.Invoke(instance, null);
                         return true;
                     }
                     catch (System.Exception ex)
                     {
-                        Log($"PopupManager.{methodName}() failed: {ex.InnerException?.Message ?? ex.Message}");
+                        Log.Activation("UIActivator", $"PopupManager.{methodName}() failed: {ex.InnerException?.Message ?? ex.Message}");
                     }
                 }
             }
@@ -1370,21 +1371,21 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    Log($"Trying PopupManager.OnBack(null)");
+                    Log.Activation("UIActivator", $"Trying PopupManager.OnBack(null)");
                     onBackMethod.Invoke(instance, new object[] { null });
                     return true;
                 }
                 catch (System.Exception ex)
                 {
-                    Log($"PopupManager.OnBack() failed: {ex.InnerException?.Message ?? ex.Message}");
+                    Log.Activation("UIActivator", $"PopupManager.OnBack() failed: {ex.InnerException?.Message ?? ex.Message}");
                 }
             }
 
             // Log available methods
-            Log($"Available methods on PopupManager:");
+            Log.Activation("UIActivator", $"Available methods on PopupManager:");
             foreach (var m in popupManagerType.GetMethods(flags))
             {
-                Log($"  {m.Name}({string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name))})");
+                Log.Activation("UIActivator", $"  {m.Name}({string.Join(", ", System.Array.ConvertAll(m.GetParameters(), p => p.ParameterType.Name))})");
             }
 
             return false;
@@ -1411,7 +1412,7 @@ namespace AccessibleArena.Core.Services
                     {
                         try
                         {
-                            Log($"Found HandleKeyDown with {parameters.Length} params, invoking with {keyCode}");
+                            Log.Activation("UIActivator", $"Found HandleKeyDown with {parameters.Length} params, invoking with {keyCode}");
 
                             if (parameters.Length == 1)
                             {
@@ -1440,20 +1441,20 @@ namespace AccessibleArena.Core.Services
                                     modifiersValue = null;
                                 }
 
-                                Log($"Modifiers type: {modifiersType.Name}, IsEnum: {modifiersType.IsEnum}, IsValueType: {modifiersType.IsValueType}");
+                                Log.Activation("UIActivator", $"Modifiers type: {modifiersType.Name}, IsEnum: {modifiersType.IsEnum}, IsValueType: {modifiersType.IsValueType}");
                                 method.Invoke(component, new object[] { keyCode, modifiersValue });
                                 return true;
                             }
                         }
                         catch (System.Exception ex)
                         {
-                            Log($"HandleKeyDown error: {ex.InnerException?.Message ?? ex.Message}");
+                            Log.Activation("UIActivator", $"HandleKeyDown error: {ex.InnerException?.Message ?? ex.Message}");
                         }
                     }
                 }
             }
 
-            Log($"HandleKeyDown method not found on {type.Name}");
+            Log.Activation("UIActivator", $"HandleKeyDown method not found on {type.Name}");
             return false;
         }
 
@@ -1495,18 +1496,18 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    Log($"Invoking {type.Name}.OnBack(null)");
+                    Log.Activation("UIActivator", $"Invoking {type.Name}.OnBack(null)");
                     onBackMethod.Invoke(component, new object[] { null });
                     return true;
                 }
                 catch (System.Exception ex)
                 {
-                    Log($"Error invoking OnBack: {ex.InnerException?.Message ?? ex.Message}");
+                    Log.Activation("UIActivator", $"Error invoking OnBack: {ex.InnerException?.Message ?? ex.Message}");
                 }
             }
             else
             {
-                Log($"OnBack method not found on {type.Name}");
+                Log.Activation("UIActivator", $"OnBack method not found on {type.Name}");
             }
 
             return false;
@@ -1573,13 +1574,13 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    Log($"Invoking {type.Name}.{methodName}()");
+                    Log.Activation("UIActivator", $"Invoking {type.Name}.{methodName}()");
                     method.Invoke(component, null);
                     return true;
                 }
                 catch (System.Exception ex)
                 {
-                    Log($"Error invoking {methodName}: {ex.InnerException?.Message ?? ex.Message}");
+                    Log.Activation("UIActivator", $"Error invoking {methodName}: {ex.InnerException?.Message ?? ex.Message}");
                 }
             }
             return false;
@@ -1608,7 +1609,7 @@ namespace AccessibleArena.Core.Services
                 if (validDnField != null)
                 {
                     bool validDn = (bool)validDnField.GetValue(panel);
-                    Log($"  _validDisplayName = {validDn}");
+                    Log.Activation("UIActivator", $"  _validDisplayName = {validDn}");
                 }
 
                 // Check _submitting
@@ -1616,7 +1617,7 @@ namespace AccessibleArena.Core.Services
                 if (submittingField != null)
                 {
                     bool submitting = (bool)submittingField.GetValue(panel);
-                    Log($"  _submitting = {submitting}");
+                    Log.Activation("UIActivator", $"  _submitting = {submitting}");
                 }
 
                 // Check input field texts via the UIWidget fields
@@ -1637,7 +1638,7 @@ namespace AccessibleArena.Core.Services
                                 {
                                     bool isPassword = fn.Contains("password");
                                     string text = isPassword ? $"(len={inputField.text?.Length ?? 0})" : $"'{inputField.text}'";
-                                    Log($"  {fn}: {text}, enabled={inputField.enabled}");
+                                    Log.Activation("UIActivator", $"  {fn}: {text}, enabled={inputField.enabled}");
                                 }
                             }
                         }
@@ -1654,14 +1655,14 @@ namespace AccessibleArena.Core.Services
                         var toggle = toggleField.GetValue(panel) as Toggle;
                         if (toggle != null)
                         {
-                            Log($"  {tn}: isOn={toggle.isOn}");
+                            Log.Activation("UIActivator", $"  {tn}: isOn={toggle.isOn}");
                         }
                     }
                 }
             }
             catch (System.Exception ex)
             {
-                Log($"  DiagnoseRegistrationState error: {ex.Message}");
+                Log.Activation("UIActivator", $"  DiagnoseRegistrationState error: {ex.Message}");
             }
         }
 
@@ -1719,11 +1720,6 @@ namespace AccessibleArena.Core.Services
             }
 
             return new Vector2(Screen.width / 2, Screen.height / 2);
-        }
-
-        private static void Log(string message)
-        {
-            DebugConfig.LogIf(DebugConfig.LogActivation, "UIActivator", message);
         }
 
         /// <summary>
@@ -1798,7 +1794,7 @@ namespace AccessibleArena.Core.Services
                 string parentName = parent.name.ToLower();
                 if (parentName.Contains("button") || parentName.Contains("prompt"))
                 {
-                    Log($"Found Submit button: '{trimmed}' on {parent.name}");
+                    Log.Activation("UIActivator", $"Found Submit button: '{trimmed}' on {parent.name}");
                     return true;
                 }
                 parent = parent.parent;
