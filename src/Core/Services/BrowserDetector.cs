@@ -5,6 +5,7 @@ using UnityEngine;
 using MelonLoader;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -95,7 +96,7 @@ namespace AccessibleArena.Core.Services
         public static void EnableDebugForBrowser(string browserType)
         {
             _debugEnabledBrowsers.Add(browserType);
-            MelonLogger.Msg($"[BrowserDetector] Debug ENABLED for browser type: {browserType}");
+            Log.Msg("BrowserDetector", $"Debug ENABLED for browser type: {browserType}");
         }
 
         /// <summary>
@@ -104,7 +105,7 @@ namespace AccessibleArena.Core.Services
         public static void DisableDebugForBrowser(string browserType)
         {
             _debugEnabledBrowsers.Remove(browserType);
-            MelonLogger.Msg($"[BrowserDetector] Debug DISABLED for browser type: {browserType}");
+            Log.Msg("BrowserDetector", $"Debug DISABLED for browser type: {browserType}");
         }
 
         /// <summary>
@@ -121,7 +122,7 @@ namespace AccessibleArena.Core.Services
         public static void DisableAllDebug()
         {
             _debugEnabledBrowsers.Clear();
-            MelonLogger.Msg($"[BrowserDetector] All browser debug DISABLED");
+            Log.Msg("BrowserDetector", $"All browser debug DISABLED");
         }
 
         #endregion
@@ -378,7 +379,7 @@ namespace AccessibleArena.Core.Services
                     if (!_loggedBrowserTypes.Contains(T.CardBrowserCardHolder))
                     {
                         _loggedBrowserTypes.Add(T.CardBrowserCardHolder);
-                        MelonLogger.Msg($"[BrowserDetector] Found T.CardBrowserCardHolder: {cardHolderCandidate.name} with {cardHolderCardCount} cards");
+                        Log.Msg("BrowserDetector", $"Found T.CardBrowserCardHolder: {cardHolderCandidate.name} with {cardHolderCardCount} cards");
                     }
                     return new BrowserInfo
                     {
@@ -408,7 +409,7 @@ namespace AccessibleArena.Core.Services
                     {
                         string text = UITextExtractor.GetText(wb);
                         actionButtons.Add(confirmButton);
-                        MelonLogger.Msg($"[BrowserDetector] Found WorkflowBrowser with ConfirmWidgetButton: '{text}'");
+                        Log.Msg("BrowserDetector", $"Found WorkflowBrowser with ConfirmWidgetButton: '{text}'");
 
                         // Debug dump if enabled
                         if (IsDebugEnabled(BrowserTypeWorkflow) && !_loggedBrowserTypes.Contains("WorkflowBrowserDump"))
@@ -424,7 +425,7 @@ namespace AccessibleArena.Core.Services
                     if (!_loggedBrowserTypes.Contains(BrowserTypeWorkflow))
                     {
                         _loggedBrowserTypes.Add(BrowserTypeWorkflow);
-                        MelonLogger.Msg($"[BrowserDetector] Found WorkflowBrowser with {actionButtons.Count} action buttons");
+                        Log.Msg("BrowserDetector", $"Found WorkflowBrowser with {actionButtons.Count} action buttons");
                     }
                     return new BrowserInfo
                     {
@@ -506,7 +507,7 @@ namespace AccessibleArena.Core.Services
             if (!_loggedBrowserTypes.Contains(scaffoldName))
             {
                 _loggedBrowserTypes.Add(scaffoldName);
-                MelonLogger.Msg($"[BrowserDetector] Found browser scaffold: {scaffoldName}, type: {scaffoldType}");
+                Log.Msg("BrowserDetector", $"Found browser scaffold: {scaffoldName}, type: {scaffoldType}");
             }
         }
 
@@ -599,27 +600,27 @@ namespace AccessibleArena.Core.Services
         {
             var flags = AllInstanceFlags;
 
-            MelonLogger.Msg($"[BrowserDetector] ========== WorkflowBrowser FULL DEBUG ==========");
-            MelonLogger.Msg($"[BrowserDetector] GameObject: {wb.name}");
-            MelonLogger.Msg($"[BrowserDetector] Action text: '{actionText}'");
-            MelonLogger.Msg($"[BrowserDetector] Full path: {MenuDebugHelper.GetGameObjectPath(wb)}");
-            MelonLogger.Msg($"[BrowserDetector] Active: {wb.activeInHierarchy}");
+            Log.Msg("BrowserDetector", $"========== WorkflowBrowser FULL DEBUG ==========");
+            Log.Msg("BrowserDetector", $"GameObject: {wb.name}");
+            Log.Msg("BrowserDetector", $"Action text: '{actionText}'");
+            Log.Msg("BrowserDetector", $"Full path: {MenuDebugHelper.GetGameObjectPath(wb)}");
+            Log.Msg("BrowserDetector", $"Active: {wb.activeInHierarchy}");
 
             // Components on WorkflowBrowser itself
-            MelonLogger.Msg($"[BrowserDetector] --- Components on WorkflowBrowser ---");
+            Log.Msg("BrowserDetector", $"--- Components on WorkflowBrowser ---");
             foreach (var comp in wb.GetComponents<Component>())
             {
                 if (comp == null) continue;
                 var compType = comp.GetType();
-                MelonLogger.Msg($"[BrowserDetector]   Component: {compType.FullName}");
+                Log.Msg("BrowserDetector", $"  Component: {compType.FullName}");
 
                 // Check for click-related interfaces
                 if (comp is UnityEngine.EventSystems.IPointerClickHandler)
-                    MelonLogger.Msg($"[BrowserDetector]     ^ Has IPointerClickHandler!");
+                    Log.Msg("BrowserDetector", $"    ^ Has IPointerClickHandler!");
                 if (comp is UnityEngine.EventSystems.IPointerDownHandler)
-                    MelonLogger.Msg($"[BrowserDetector]     ^ Has IPointerDownHandler!");
+                    Log.Msg("BrowserDetector", $"    ^ Has IPointerDownHandler!");
                 if (comp is UnityEngine.EventSystems.ISubmitHandler)
-                    MelonLogger.Msg($"[BrowserDetector]     ^ Has ISubmitHandler!");
+                    Log.Msg("BrowserDetector", $"    ^ Has ISubmitHandler!");
 
                 // For MonoBehaviours, log interesting methods
                 if (comp is MonoBehaviour mb)
@@ -633,7 +634,7 @@ namespace AccessibleArena.Core.Services
                             methodName.Contains("select") || methodName.Contains("execute") ||
                             methodName.Contains("invoke") || methodName.Contains("action"))
                         {
-                            MelonLogger.Msg($"[BrowserDetector]     Method: {method.Name}({string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name))})");
+                            Log.Msg("BrowserDetector", $"    Method: {method.Name}({string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name))})");
                         }
                     }
 
@@ -643,7 +644,7 @@ namespace AccessibleArena.Core.Services
                     {
                         if (field.FieldType.Name.Contains("UnityEvent") || field.FieldType.Name.Contains("Action"))
                         {
-                            MelonLogger.Msg($"[BrowserDetector]     Event field: {field.Name} ({field.FieldType.Name})");
+                            Log.Msg("BrowserDetector", $"    Event field: {field.Name} ({field.FieldType.Name})");
                         }
                     }
                 }
@@ -651,7 +652,7 @@ namespace AccessibleArena.Core.Services
                 // Check for Graphic raycast target
                 if (comp is UnityEngine.UI.Graphic graphic)
                 {
-                    MelonLogger.Msg($"[BrowserDetector]     Raycast target: {graphic.raycastTarget}");
+                    Log.Msg("BrowserDetector", $"    Raycast target: {graphic.raycastTarget}");
                 }
             }
 
@@ -659,15 +660,15 @@ namespace AccessibleArena.Core.Services
             var eventTrigger = wb.GetComponent<UnityEngine.EventSystems.EventTrigger>();
             if (eventTrigger != null)
             {
-                MelonLogger.Msg($"[BrowserDetector]   EventTrigger entries: {eventTrigger.triggers.Count}");
+                Log.Msg("BrowserDetector", $"  EventTrigger entries: {eventTrigger.triggers.Count}");
                 foreach (var trigger in eventTrigger.triggers)
                 {
-                    MelonLogger.Msg($"[BrowserDetector]     - {trigger.eventID}: {trigger.callback.GetPersistentEventCount()} listeners");
+                    Log.Msg("BrowserDetector", $"    - {trigger.eventID}: {trigger.callback.GetPersistentEventCount()} listeners");
                 }
             }
 
             // All children with details
-            MelonLogger.Msg($"[BrowserDetector] --- Children ---");
+            Log.Msg("BrowserDetector", $"--- Children ---");
             foreach (Transform child in wb.GetComponentsInChildren<Transform>(true))
             {
                 if (child == null || child.gameObject == wb) continue;
@@ -698,11 +699,11 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(childText) && childText.Length > 50)
                     childText = childText.Substring(0, 50) + "...";
 
-                MelonLogger.Msg($"[BrowserDetector]   {child.name}{activeStr}{flags_str}: [{string.Join(", ", compNames)}] text='{childText}'");
+                Log.Msg("BrowserDetector", $"  {child.name}{activeStr}{flags_str}: [{string.Join(", ", compNames)}] text='{childText}'");
             }
 
             // Check parent for workflow controller
-            MelonLogger.Msg($"[BrowserDetector] --- Parent hierarchy (looking for controllers) ---");
+            Log.Msg("BrowserDetector", $"--- Parent hierarchy (looking for controllers) ---");
             Transform parent = wb.transform.parent;
             int level = 0;
             while (parent != null && level < 5)
@@ -715,7 +716,7 @@ namespace AccessibleArena.Core.Services
                     if (typeName.Contains("Workflow") || typeName.Contains("Controller") ||
                         typeName.Contains("Browser") || typeName.Contains("Action"))
                     {
-                        MelonLogger.Msg($"[BrowserDetector]   Parent[{level}] {parent.name}: {typeName}");
+                        Log.Msg("BrowserDetector", $"  Parent[{level}] {parent.name}: {typeName}");
 
                         // Log submit/confirm methods
                         var methods = mb.GetType().GetMethods(flags);
@@ -725,7 +726,7 @@ namespace AccessibleArena.Core.Services
                             if (methodName.Contains("submit") || methodName.Contains("confirm") ||
                                 methodName.Contains("execute") || methodName.Contains("complete"))
                             {
-                                MelonLogger.Msg($"[BrowserDetector]     -> Method: {method.Name}");
+                                Log.Msg("BrowserDetector", $"    -> Method: {method.Name}");
                             }
                         }
                     }
@@ -735,7 +736,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Look for any workflow-related objects in scene
-            MelonLogger.Msg($"[BrowserDetector] --- Scene workflow objects ---");
+            Log.Msg("BrowserDetector", $"--- Scene workflow objects ---");
             foreach (var go in GameObject.FindObjectsOfType<GameObject>())
             {
                 if (go == null || !go.activeInHierarchy) continue;
@@ -746,12 +747,12 @@ namespace AccessibleArena.Core.Services
                     foreach (var mb in mbs)
                     {
                         if (mb == null) continue;
-                        MelonLogger.Msg($"[BrowserDetector]   {go.name}: {mb.GetType().FullName}");
+                        Log.Msg("BrowserDetector", $"  {go.name}: {mb.GetType().FullName}");
                     }
                 }
             }
 
-            MelonLogger.Msg($"[BrowserDetector] ========== END WorkflowBrowser DEBUG ==========");
+            Log.Msg("BrowserDetector", $"========== END WorkflowBrowser DEBUG ==========");
         }
 
         /// <summary>
