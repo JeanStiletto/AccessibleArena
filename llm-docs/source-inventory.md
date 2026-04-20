@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 141 (excluding obj/ and bin/)
+Total src files: 144 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 94,700
+Total src LOC: 94,797
 Total test LOC: 1,303
-Combined LOC: 96,003
-Large files (over 2000 lines): 6 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed), CardModelProvider (2374→2051 + 339 new ManaTextFormatter.cs — real class extraction of pure mana-text helpers), and WebBrowserAccessibility (2236→1758 + 488 new WebBrowserScripts.cs — real class extraction of JS source constants + script builders, drops out of LARGE).
+Combined LOC: 96,100
+Large files (over 2000 lines): 5 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed), CardModelProvider (2374→2051 + 339 new ManaTextFormatter.cs — real class extraction of pure mana-text helpers), WebBrowserAccessibility (2236→1758 + 488 new WebBrowserScripts.cs — real class extraction of JS source constants + script builders, drops out of LARGE), and MasteryNavigator (2174→322 core + 1080 Levels + 543 PrizeWall + 326 ConfirmationModal — 3 new partials in `MasteryNavigator/` subfolder, drops out of LARGE).
 
 ---
 
@@ -128,7 +128,10 @@ Large files (over 2000 lines): 6 after splits of GeneralMenuNavigator (6148→34
 - **LocaleManager.cs** (402 lines) — Singleton that loads and resolves localized strings from JSON files with fallback chain.
 - **ManaColorPickerNavigator.cs** (595 lines) — Detects and navigates the ManaColorSelector popup for any-color mana sources.
 - **ManaTextFormatter.cs** (339 lines) — Pure-function helpers for parsing MTGA internal mana notation ({oX}, bare oX sequences, standard {X}) and ManaQuantity arrays into readable text. Extracted from CardModelProvider (split 8/12).
-- **MasteryNavigator.cs** (2174 lines) [LARGE] — Navigator for the Mastery/Rewards (RewardTrack) screen with level and tier navigation.
+- **MasteryNavigator/MasteryNavigator.cs** (322 lines) — Core partial: mode routing, lifecycle, Update loop with modal polling, Input routing, Screen detection orchestration.
+- **MasteryNavigator/MasteryNavigator.Levels.cs** (1080 lines) — Levels mode: reflection into Core.MainNavigation.RewardTrack types, BuildLevelData/ExtractLevelData/BuildActionButtons, localization helpers, announcements, page sync, HandleLevelInput.
+- **MasteryNavigator/MasteryNavigator.PrizeWall.cs** (543 lines) — PrizeWall mode: StoreItemBase discovery under the layout group, cost/owned extraction from purchase buttons, HandlePrizeWallInput, ActivatePrizeWallItem.
+- **MasteryNavigator/MasteryNavigator.ConfirmationModal.cs** (326 lines) — StoreConfirmationModal handling: state + reflection + discovery + announcement + input (polled in core Update loop).
 - **MenuDebugHelper.cs** (1474 lines) — Debug/logging utilities for GeneralMenuNavigator; extracted to reduce file size.
 - **MenuScreenDetector.cs** (469 lines) — Detects active content controllers and screen names in the MTGA menu system.
 - **ModSettings.cs** (209 lines) — Mod settings with JSON file persistence (verbose, hints, language, etc.).

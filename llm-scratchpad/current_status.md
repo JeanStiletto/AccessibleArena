@@ -202,10 +202,41 @@ hand-rolled timer state machine). Those are high-level-cleanup.md
 territory, not large-file-handling. The JS extraction is orthogonal
 and survives any later restructuring.
 
+Split 10/12: **MasteryNavigator.cs** (2174 → 322 core + 1080 Levels + 543
+PrizeWall + 326 ConfirmationModal lines) via partial split into a
+`src/Core/Services/MasteryNavigator/` subfolder (same convention used for
+DuelAnnouncer / BaseNavigator / BrowserNavigator):
+- **MasteryNavigator.cs** (322, core) — mode routing, lifecycle
+  (OnActivated/OnDeactivating/OnSceneChanged), Update loop with
+  confirmation-modal polling, mode-aware announcements, HandleMasteryInput
+  router (→ HandleLevelInput / HandlePrizeWallInput).
+- **MasteryNavigator.Levels.cs** (1080) — Levels mode. Owns
+  ProgressionTracksContentController + RewardTrackView reflection
+  (~60 FieldInfo/PropertyInfo/MethodInfo handles), LevelData/TierReward/
+  ActionButton nested types, BuildLevelData / ExtractLevelData /
+  BuildActionButtons / InsertStatusItem, localization helpers
+  (ResolveLocString / GetLocalizedText / ResolveTrackTitle), all level +
+  tier announcements, page sync, HandleLevelInput.
+- **MasteryNavigator.PrizeWall.cs** (543) — PrizeWall mode. PrizeWallItemData
+  struct, ContentController_PrizeWall + StoreItemBase reflection,
+  FindPrizeWallController / IsPrizeWallOpen, DiscoverPrizeWallItems /
+  ExtractPrizeWallItemData, HandlePrizeWallInput, AnnouncePrizeWallItem,
+  ActivatePrizeWallItem.
+- **MasteryNavigator.ConfirmationModal.cs** (326) — StoreConfirmationModal.
+  Modal state + reflection (4 purchase-button field names, close method,
+  label/item/product-list containers), discovery of text blocks + purchase
+  buttons + synthetic cancel option, AnnounceConfirmationModal,
+  HandleConfirmationModalInput, MoveModalElement, DismissConfirmationModal.
+  `_confirmationModalGameObject` set by PrizeWall partial in
+  DiscoverPrizeWallItems, polled by core Update loop.
+Partials share private state by virtue of being one class (no visibility
+changes needed). Localization helpers stay in Levels (only consumer).
+Mechanical split — no behavior changes. Build: 0/0, tests: 105/105.
+MasteryNavigator now out of [LARGE] (largest partial 1080 < 1500).
+
 Remaining candidates (still >2000 lines):
 - [ ] CardModelProvider.cs (2051) — above 2000 but now coherent; may be "leave alone"
 - [ ] BrowserNavigator.cs (2220) — already split in round 2, core partial stayed [LARGE]
-- [ ] MasteryNavigator.cs (2174)
 - [ ] GroupedNavigator.cs (2167)
 - [ ] PlayerPortraitNavigator.cs (2151)
 
