@@ -15,10 +15,8 @@ namespace AccessibleArena.Core.Services
     /// <summary>
     /// Navigator for the actual duel/gameplay in DuelScene.
     /// Handles UI element discovery and Tab navigation.
-    /// Delegates zone navigation to ZoneNavigator.
-    /// Delegates target selection to TargetNavigator.
-    /// Delegates playable card cycling to HighlightNavigator.
-    /// Activates DuelAnnouncer for game event announcements.
+    /// Delegates zone navigation to ZoneNavigator, Tab highlights / target cycling / selection
+    /// mode to HotHighlightNavigator, and game-event announcements to DuelAnnouncer.
     /// </summary>
     public class DuelNavigator : BaseNavigator
     {

@@ -176,9 +176,9 @@ namespace AccessibleArena
             }
 
             // Note: We no longer call PrepareForCard here because navigators
-            // (ZoneNavigator, BattlefieldNavigator, HighlightNavigator) now set EventSystem focus
-            // and call PrepareForCard with the correct zone. Calling it here would overwrite
-            // the correct zone with the default (Hand).
+            // (ZoneNavigator, BattlefieldNavigator, HotHighlightNavigator) now set EventSystem
+            // focus and call PrepareForCard with the correct zone. Calling it here would
+            // overwrite the correct zone with the default (Hand).
         }
 
         /// <summary>

@@ -20,7 +20,6 @@ namespace AccessibleArena.Core.Services
         ZoneNavigator,
         BattlefieldNavigator,
         HighlightNavigator,      // Used by HotHighlightNavigator
-        // DEPRECATED: TargetNavigator - was separate, now unified into HotHighlightNavigator
     }
 
     /// <summary>
@@ -150,7 +149,7 @@ namespace AccessibleArena.Core.Services
         public static void ClearFocus(string caller) => SetFocusedGameObject(null, caller);
 
         /// <summary>
-        /// Sets the current zone without full navigation (used by BattlefieldNavigator, TargetNavigator, etc).
+        /// Sets the current zone without full navigation (used by BattlefieldNavigator, HotHighlightNavigator, etc).
         /// Tracks which navigator set the zone for debugging race conditions.
         /// </summary>
         /// <param name="zone">The zone to set</param>
@@ -200,7 +199,6 @@ namespace AccessibleArena.Core.Services
             // HotHighlightNavigator uses HighlightNavigator owner for zone ownership
             if (caller.Contains("HotHighlightNavigator")) return ZoneOwner.HighlightNavigator;
             if (caller.Contains("HighlightNavigator")) return ZoneOwner.HighlightNavigator;
-            // DEPRECATED: if (caller.Contains("TargetNavigator")) return ZoneOwner.TargetNavigator;
             if (caller.Contains("BattlefieldNavigator")) return ZoneOwner.BattlefieldNavigator;
             if (caller.Contains("ZoneNavigator") || caller.Contains("NavigateToZone")) return ZoneOwner.ZoneNavigator;
 
@@ -218,14 +216,6 @@ namespace AccessibleArena.Core.Services
                 _zoneOwner = ZoneOwner.ZoneNavigator;
         }
 
-        // DEPRECATED: TargetNavigator was used to enter targeting mode after playing cards
-        // Now HotHighlightNavigator handles targeting via game's HotHighlight system
-        // private TargetNavigator _targetNavigator;
-
-        // Reference to DiscardNavigator for selection state announcements
-        // private DiscardNavigator _discardNavigator;  // DEPRECATED
-
-        // Reference to CombatNavigator for attacker state announcements
         private CombatNavigator _combatNavigator;
 
         // Reference to HotHighlightNavigator for clearing state on zone navigation
@@ -809,8 +799,6 @@ namespace AccessibleArena.Core.Services
                 MelonLogger.Msg($"[ZoneNavigator] Playing {cardName} from {_currentZone} via two-click");
 
                 // Two-click is async, result comes via callback
-                // DEPRECATED: TargetNavigator was passed to enter targeting after card play
-                // Now HotHighlightNavigator discovers targets via game's HotHighlight system
                 UIActivator.PlayCardViaTwoClick(card, (success, message) =>
                 {
                     if (success)
