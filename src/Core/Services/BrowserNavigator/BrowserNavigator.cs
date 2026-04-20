@@ -1488,6 +1488,8 @@ namespace AccessibleArena.Core.Services
         // CDC HighlightType enum values
         private const int HighlightTypeHot = 3;      // selectable target
         private const int HighlightTypeSelected = 5;  // already toggled/selected
+        // Reflection cache: MethodInfo bound to the CDC type, not an instance, so it survives
+        // scene changes. Intentionally not reset in any OnSceneChanged hook.
         private static MethodInfo _currentHighlightMethod;
         private static bool _currentHighlightSearched;
 
