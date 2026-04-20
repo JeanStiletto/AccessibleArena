@@ -369,7 +369,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLogger.Warning($"[FocusTracker] Error getting IsExpanded: {ex.Message}");
+                Log.Warn("FocusTracker", "Error getting IsExpanded", ex);
             }
 
             return false;

@@ -156,7 +156,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Warning($"[DuelAnnouncer] Life announcement error: {ex.Message}");
+                Log.Warn("DuelAnnouncer", "Life announcement error", ex);
                 return null;
             }
         }

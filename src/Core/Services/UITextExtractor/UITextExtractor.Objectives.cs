@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -537,7 +538,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (System.Exception ex)
             {
-                MelonLoader.MelonLogger.Msg($"[UITextExtractor] Error reading ObjectiveBubble popup: {ex.Message}");
+                Log.Msg("UITextExtractor", $"Error reading ObjectiveBubble popup: {ex.Message}");
             }
 
             return null;

@@ -1,6 +1,7 @@
 using UnityEngine;
 using MelonLoader;
 using AccessibleArena.Core.Services.PanelDetection;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
 {
@@ -352,7 +353,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (result != _lastRewardsPopupState)
             {
                 _lastRewardsPopupState = result;
-                MelonLogger.Msg($"[OverlayDetector] IsRewardsPopupOpen changed to: {result}");
+                Log.Msg("OverlayDetector", $"IsRewardsPopupOpen changed to: {result}");
             }
 
             return result;

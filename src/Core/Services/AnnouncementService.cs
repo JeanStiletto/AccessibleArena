@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -47,7 +48,7 @@ namespace AccessibleArena.Core.Services
             _lastAnnouncement = message;
 
             // Log what we're speaking
-            MelonLogger.Msg($"[Announce] {priority}: {message}");
+            Log.Msg("Announce", $"{priority}: {message}");
 
             bool isCriticalActive = DateTime.UtcNow < _criticalActiveUntil;
 

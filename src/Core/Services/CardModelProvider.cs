@@ -971,7 +971,7 @@ namespace AccessibleArena.Core.Services
             }
             catch (Exception ex)
             {
-                MelonLogger.Msg($"[CardModelProvider] RulesTextOverride extraction failed: {ex.Message}");
+                Log.Msg("CardModelProvider", $"RulesTextOverride extraction failed: {ex.Message}");
             }
 
             return null;

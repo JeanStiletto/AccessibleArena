@@ -1,5 +1,6 @@
 using UnityEngine;
 using MelonLoader;
+using AccessibleArena.Core.Utils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services.ElementGrouping
@@ -551,7 +552,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (tileName == T.IncomingChallengeRequestTile || tileName == T.CurrentChallengeTile)
                     return ElementGroup.FriendSectionChallenges;
 
-                MelonLogger.Msg($"[ElementGroupAssigner] Social tile fallback matched {tileName} but no section determined, path={tilePath}");
+                Log.Msg("ElementGroupAssigner", $"Social tile fallback matched {tileName} but no section determined, path={tilePath}");
             }
 
             // Not a recognized friend panel element (headers, dismiss buttons, tab bar, etc.)
