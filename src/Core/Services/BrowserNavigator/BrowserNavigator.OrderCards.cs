@@ -200,37 +200,8 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                MonoBehaviour gameManager = null;
-                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-                {
-                    if (mb != null && mb.GetType().Name == "GameManager")
-                    {
-                        gameManager = mb;
-                        break;
-                    }
-                }
-
-                if (gameManager == null)
-                {
-                    MelonLogger.Warning("[BrowserNavigator] OrderCards: GameManager not found");
+                if (!TryGetCurrentBrowser("OrderCards", out var currentBrowser))
                     return;
-                }
-
-                var bmProp = gameManager.GetType().GetProperty("BrowserManager", PublicInstance);
-                var browserManager = bmProp?.GetValue(gameManager);
-                if (browserManager == null)
-                {
-                    MelonLogger.Warning("[BrowserNavigator] OrderCards: BrowserManager not found");
-                    return;
-                }
-
-                var currentBrowserProp = browserManager.GetType().GetProperty("CurrentBrowser", PublicInstance);
-                var currentBrowser = currentBrowserProp?.GetValue(browserManager);
-                if (currentBrowser == null)
-                {
-                    MelonLogger.Warning("[BrowserNavigator] OrderCards: CurrentBrowser not found");
-                    return;
-                }
 
                 var onDragRelease = currentBrowser.GetType().GetMethod("OnDragRelease", PublicInstance);
                 if (onDragRelease != null)

@@ -31,36 +31,11 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                // Find GameManager → BrowserManager → CurrentBrowser
-                MonoBehaviour gameManager = null;
-                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-                {
-                    if (mb != null && mb.GetType().Name == "GameManager")
-                    {
-                        gameManager = mb;
-                        break;
-                    }
-                }
-
-                if (gameManager == null)
-                {
-                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: GameManager not found");
+                if (!TryGetCurrentBrowser("AssignDamage", out var currentBrowser))
                     return;
-                }
-
-                var bmProp = gameManager.GetType().GetProperty("BrowserManager", ReflFlags);
-                var browserManager = bmProp?.GetValue(gameManager);
-                if (browserManager == null)
+                if (!currentBrowser.GetType().Name.Contains("AssignDamage"))
                 {
-                    MelonLogger.Msg("[BrowserNavigator] AssignDamage: BrowserManager not found");
-                    return;
-                }
-
-                var cbProp = browserManager.GetType().GetProperty("CurrentBrowser", ReflFlags);
-                var currentBrowser = cbProp?.GetValue(browserManager);
-                if (currentBrowser == null || !currentBrowser.GetType().Name.Contains("AssignDamage"))
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: CurrentBrowser is {currentBrowser?.GetType().Name ?? "null"}");
+                    MelonLogger.Msg($"[BrowserNavigator] AssignDamage: CurrentBrowser is {currentBrowser.GetType().Name}");
                     return;
                 }
 

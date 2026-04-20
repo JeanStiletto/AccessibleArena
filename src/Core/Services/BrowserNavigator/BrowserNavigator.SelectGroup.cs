@@ -27,36 +27,11 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                // Find GameManager → BrowserManager → CurrentBrowser
-                MonoBehaviour gameManager = null;
-                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-                {
-                    if (mb != null && mb.GetType().Name == "GameManager")
-                    {
-                        gameManager = mb;
-                        break;
-                    }
-                }
-
-                if (gameManager == null)
-                {
-                    MelonLogger.Msg("[BrowserNavigator] SelectGroup: GameManager not found");
+                if (!TryGetCurrentBrowser("SelectGroup", out var currentBrowser))
                     return;
-                }
-
-                var bmProp = gameManager.GetType().GetProperty("BrowserManager", ReflFlags);
-                var browserManager = bmProp?.GetValue(gameManager);
-                if (browserManager == null)
+                if (!currentBrowser.GetType().Name.Contains("SelectGroup"))
                 {
-                    MelonLogger.Msg("[BrowserNavigator] SelectGroup: BrowserManager not found");
-                    return;
-                }
-
-                var cbProp = browserManager.GetType().GetProperty("CurrentBrowser", ReflFlags);
-                var currentBrowser = cbProp?.GetValue(browserManager);
-                if (currentBrowser == null || !currentBrowser.GetType().Name.Contains("SelectGroup"))
-                {
-                    MelonLogger.Msg($"[BrowserNavigator] SelectGroup: CurrentBrowser is {currentBrowser?.GetType().Name ?? "null"}");
+                    MelonLogger.Msg($"[BrowserNavigator] SelectGroup: CurrentBrowser is {currentBrowser.GetType().Name}");
                     return;
                 }
 
