@@ -137,7 +137,7 @@ namespace AccessibleArena.Core.Services
                     if (parentName.StartsWith("Color_"))
                     {
                         string colorKey = parentName.Substring(6); // "White", "Blue", "MultiColor", etc.
-                        item.Label = CardModelProvider.ConvertManaColorToName(colorKey);
+                        item.Label = ManaTextFormatter.ConvertManaColorToName(colorKey);
                     }
                     colorsRow.Items.Add(item);
                 }

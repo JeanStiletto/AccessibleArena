@@ -230,7 +230,7 @@ namespace AccessibleArena.Core.Services
                         GrpId = grpId,
                         Quantity = quantity,
                         Name = name,
-                        ManaCost = !string.IsNullOrEmpty(manaCost) ? CardModelProvider.ParseManaSymbolsInText(manaCost) : null,
+                        ManaCost = !string.IsNullOrEmpty(manaCost) ? ManaTextFormatter.ParseManaSymbolsInText(manaCost) : null,
                         CardDataObj = cardData
                     });
                 }
@@ -275,7 +275,7 @@ namespace AccessibleArena.Core.Services
                         GrpId = grpId,
                         Quantity = 1,
                         Name = name,
-                        ManaCost = !string.IsNullOrEmpty(manaCost) ? CardModelProvider.ParseManaSymbolsInText(manaCost) : null,
+                        ManaCost = !string.IsNullOrEmpty(manaCost) ? ManaTextFormatter.ParseManaSymbolsInText(manaCost) : null,
                         CardDataObj = cardData
                     });
                 }

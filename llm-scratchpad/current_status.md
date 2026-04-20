@@ -81,7 +81,7 @@ False alarms verified:
   Inventory labels the directory "(archived, not compiled)".
 
 ## Prompts Remaining
-- [ ] large-file-handling.md  (in progress — 7/12 done)
+- [ ] large-file-handling.md  (in progress — 8/12 done)
 - [ ] input-handling.md          (pre-marked; just read "Up Next" and move on)
 - [ ] string-builder.md          (pre-marked; just read "Up Next" and move on)
 - [ ] high-level-cleanup.md
@@ -158,12 +158,36 @@ partials, group all of them in a `src/Core/Services/<ClassName>/` subfolder.
 Namespace stays `AccessibleArena.Core.Services` (not updated to match path,
 to avoid ripple changes at consumer sites).
 
+Split 8/12: **CardModelProvider.cs** (2374 → 2051 lines, -14%) via REAL class
+extraction (not partial) of mana-text formatting helpers:
+- Extracted **ManaTextFormatter.cs** (339 lines, new standalone
+  `public static class` at `src/Core/Services/ManaTextFormatter.cs`, sits
+  flat next to the other providers) — handles MTGA mana notation parsing
+  (ParseManaSymbolsInText, ParseBareManaSequence, ConvertManaSymbolToText,
+  ConvertSingleManaSymbol, ParseManaQuantityArray, ConvertManaColorToName,
+  MergeClassLevelLines). Pure string processing — no reflection state,
+  no caches, no fields. Depends only on Strings.Mana* + ModSettings.
+- `ParseManaQuantityArray` bumped private → internal; `MergeClassLevelLines`
+  bumped private → internal (CardModelProvider still calls them).
+- Side effect: the deletion of the misplaced MergeClassLevelLines method
+  (which sat inside the Power/Toughness region with a corrupted `<summary>`
+  block) fixed the broken FormatRarityName/GetStringBackedIntValue summary.
+- Call sites updated: 10 internal in CardModelProvider + 7 external
+  (AdvancedFiltersNavigator, ExtendedCardInfoProvider×2, DuelAnnouncer,
+  UIElementClassifier, StoreNavigator.Details×2).
+- `System.Text.RegularExpressions` using removed from CardModelProvider
+  (no longer references Regex).
+- CardModelProvider stays [LARGE] (2051 > 2000) but is now focused on
+  reflection + card-info extraction as one coherent unit.
+Build: 0/0, tests: 105/105.
+
 Remaining candidates (still >2000 lines):
-- [ ] CardModelProvider.cs (2374)
+- [ ] CardModelProvider.cs (2051) — above 2000 but now coherent; may be "leave alone"
 - [ ] WebBrowserAccessibility.cs (2236)
 - [ ] MasteryNavigator.cs  (2174)
 - [ ] GroupedNavigator.cs  (2167)
 - [ ] PlayerPortraitNavigator.cs (2151)
+- [ ] BrowserNavigator.cs (2220) — already split in round, core partial stayed [LARGE]
 
 ## Scratchpad Files
 - `current_status.md` — this file

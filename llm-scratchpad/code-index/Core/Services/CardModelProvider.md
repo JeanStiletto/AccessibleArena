@@ -1,9 +1,9 @@
 # CardModelProvider.cs
 Path: src/Core/Services/CardModelProvider.cs
-Lines: 2374
+Lines: 2052
 
 ## Top-level comments
-- Provides access to card Model data via reflection: property access, name lookups, mana parsing, and card info extraction. Use CardDetector for card detection; related providers include CardTextProvider, CardStateProvider, DeckCardProvider, ExtendedCardInfoProvider.
+- Provides access to card Model data via reflection: property access, name lookups, and card info extraction. Use CardDetector for card detection; related providers include CardTextProvider, CardStateProvider, DeckCardProvider, ExtendedCardInfoProvider. Mana/text formatting helpers live in `ManaTextFormatter` (split out 2026-04-20, split 8/12).
 
 ## public static class CardModelProvider (line 21)
 ### Fields
@@ -20,13 +20,13 @@ Lines: 2374
 - private static PropertyInfo _cdcModelProp (line 143)
 - private static Type _cdcModelPropType (line 144)
 - private static bool _metaCardViewPropertiesLogged (line 221)
-- private static FieldInfo _lastDisplayInfoField (line 1360)
-- private static bool _lastDisplayInfoFieldSearched (line 1361)
-- private static FieldInfo _availableTitleCountField (line 1362)
-- private static FieldInfo _usedTitleCountField (line 1363)
-- private static bool _cardObjNameLogged (line 1422)
-- private static PropertyInfo _instancePropCached (line 1964)
-- private static bool _instancePropSearched (line 1965)
+- private static FieldInfo _lastDisplayInfoField (line 1037)
+- private static bool _lastDisplayInfoFieldSearched (line 1038)
+- private static FieldInfo _availableTitleCountField (line 1039)
+- private static FieldInfo _usedTitleCountField (line 1040)
+- private static bool _cardObjNameLogged (line 1099)
+- private static PropertyInfo _instancePropCached (line 1641)
+- private static bool _instancePropSearched (line 1642)
 
 ### Methods
 - public static void ClearCache() (line 43) — Note: also clears caches on CardTextProvider, CardStateProvider, DeckCardProvider, ExtendedCardInfoProvider sub-providers
@@ -45,19 +45,12 @@ Lines: 2374
 - internal static object GetModelPropertyValue(object model, Type modelType, params string[] propertyNames) (line 880)
 - private static string GetModelStringProperty(object model, Type modelType, params string[] propertyNames) (line 902)
 - private static string TryExtractRulesTextOverride(object dataObj, Type objType, uint cardGrpId, uint cardTitleId) (line 913) — Note: handles modal-spell RulesTextOverride; iterates sourceGrpIds to find resolving context
-- public static string ParseManaSymbolsInText(string text) (line 989) — Note: runs 4 regex passes including {oX}, bare "2oW:" costs, inline sequences, and standard {X} notation
-- private static string ParseBareManaSequence(string sequence) (line 1036)
-- private static string ConvertManaSymbolToText(string symbol) (line 1066)
-- private static string ConvertSingleManaSymbol(string symbol) (line 1103)
-- private static string ParseManaQuantityArray(IEnumerable manaQuantities) (line 1142) — Note: respects ManaColorlessLabel and ManaGroupColors settings; groups simple colors, keeps hybrid/phyrexian individually
-- internal static string ConvertManaColorToName(string colorEnum) (line 1260)
-- private static void MergeClassLevelLines(List<string> lines) (line 1291) — Note: merges class level-up cost lines with following effect lines based on mana/colon heuristic
-- private static string FormatRarityName(string rawRarity) (line 1310) — Note: returns null for "None"/"0"; expands "MythicRare" to "Mythic Rare"
-- internal static string GetStringBackedIntValue(object stringBackedInt) (line 1319) — Note: prefers RawText (handles "*"), falls back to Value
-- public static void ExtractCollectionQuantity(GameObject cardObj, ref CardInfo info) (line 1369) — Note: only applies to PagesMetaCardView; sets OwnedCount and UsedInDeckCount via reflection on _lastDisplayInfo
-- public static CardInfo? ExtractCardInfoFromModel(GameObject cardObj) (line 1424) — Note: tries DuelScene_CDC first, then MetaCardView (walks up parents up to 5 levels)
-- public static CardInfo ExtractCardInfoFromObject(object dataObj) (line 1496) — Note: shared extraction logic; also populates _abilityParentCache and applies RulesTextOverride fallback
-- internal static object GetModelInstance(object model) (line 1970) — Note: caches PropertyInfo, falls back to per-type lookup if the cached type doesn't match
-- public static CardInfo? GetCardInfoFromGrpId(uint grpId) (line 2000) — Note: cascades menu-scene lookup, duel-scene lookup, then PAPA fallback
-- internal static object GetCardDataFromGrpId(uint grpId) (line 2027) — Note: relies on DeckCardProvider.CachedDeckHolder (populates it on demand); tries GetCardPrintingById then GetCardRecordById
-- public static CardInfo ExtractCardInfoFromCardData(object cardData, uint grpId) (line 2120) — Note: guards P/T by creature/vehicle check; handles planeswalker loyalty; logs artist extraction
+- private static string FormatRarityName(string rawRarity) (line 987) — Note: returns null for "None"/"0"; expands "MythicRare" to "Mythic Rare"
+- internal static string GetStringBackedIntValue(object stringBackedInt) (line 996) — Note: prefers RawText (handles "*"), falls back to Value
+- public static void ExtractCollectionQuantity(GameObject cardObj, ref CardInfo info) (line 1046) — Note: only applies to PagesMetaCardView; sets OwnedCount and UsedInDeckCount via reflection on _lastDisplayInfo
+- public static CardInfo? ExtractCardInfoFromModel(GameObject cardObj) (line 1101) — Note: tries DuelScene_CDC first, then MetaCardView (walks up parents up to 5 levels)
+- public static CardInfo ExtractCardInfoFromObject(object dataObj) (line 1173) — Note: shared extraction logic; also populates _abilityParentCache and applies RulesTextOverride fallback; calls ManaTextFormatter.ParseManaQuantityArray/ParseManaSymbolsInText/MergeClassLevelLines
+- internal static object GetModelInstance(object model) (line 1647) — Note: caches PropertyInfo, falls back to per-type lookup if the cached type doesn't match
+- public static CardInfo? GetCardInfoFromGrpId(uint grpId) (line 1677) — Note: cascades menu-scene lookup, duel-scene lookup, then PAPA fallback
+- internal static object GetCardDataFromGrpId(uint grpId) (line 1704) — Note: relies on DeckCardProvider.CachedDeckHolder (populates it on demand); tries GetCardPrintingById then GetCardRecordById
+- public static CardInfo ExtractCardInfoFromCardData(object cardData, uint grpId) (line 1797) — Note: guards P/T by creature/vehicle check; handles planeswalker loyalty; logs artist extraction; calls ManaTextFormatter.ParseManaQuantityArray/ParseManaSymbolsInText/MergeClassLevelLines

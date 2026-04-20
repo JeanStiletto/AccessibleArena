@@ -601,7 +601,7 @@ namespace AccessibleArena.Core.Services
                     var abilityText = CardTextProvider.GetAbilityTextFromProvider(grpId, abilityId, null, 0);
                     if (!string.IsNullOrEmpty(abilityText))
                     {
-                        abilityText = CardModelProvider.ParseManaSymbolsInText(abilityText);
+                        abilityText = ManaTextFormatter.ParseManaSymbolsInText(abilityText);
                         if (seen.Add(abilityText))
                             result.Add(abilityText);
                     }
@@ -775,7 +775,7 @@ namespace AccessibleArena.Core.Services
                 else
                     text = details;
 
-                text = CardModelProvider.ParseManaSymbolsInText(text);
+                text = ManaTextFormatter.ParseManaSymbolsInText(text);
 
                 if (seen.Add(text))
                     result.Add(text);

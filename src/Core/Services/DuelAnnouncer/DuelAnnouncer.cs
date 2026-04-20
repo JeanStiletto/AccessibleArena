@@ -563,7 +563,7 @@ namespace AccessibleArena.Core.Services
                         string colorName = colorValue?.ToString() ?? "Unknown";
 
                         // Convert enum name to readable name using existing function
-                        string readableName = CardModelProvider.ConvertManaColorToName(colorName);
+                        string readableName = ManaTextFormatter.ConvertManaColorToName(colorName);
 
                         if (manaByColor.ContainsKey(readableName))
                             manaByColor[readableName]++;

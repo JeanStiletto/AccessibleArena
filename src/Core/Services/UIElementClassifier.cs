@@ -1664,7 +1664,7 @@ namespace AccessibleArena.Core.Services
             if (name.StartsWith("CardFilterView Color_", System.StringComparison.OrdinalIgnoreCase))
             {
                 string color = name.Substring(21); // After "CardFilterView Color_"
-                return CardModelProvider.ConvertManaColorToName(color);
+                return ManaTextFormatter.ConvertManaColorToName(color);
             }
 
             // Special handling for multicolor filter: "CardFilterView Multicolor" -> "Multicolor"

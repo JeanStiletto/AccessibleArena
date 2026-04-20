@@ -1,12 +1,12 @@
 # Source File Inventory
 
 Generated: 2026-04-20 (updated after large-file-handling split round 2)
-Total src files: 139 (excluding obj/ and bin/)
+Total src files: 140 (excluding obj/ and bin/)
 Total test files: 11 (8 test files + 3 stubs, excluding obj/)
-Total src LOC: 94,674
+Total src LOC: 94,690
 Total test LOC: 1,303
-Combined LOC: 95,977
-Large files (over 2000 lines): 5 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), and UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed)
+Combined LOC: 95,993
+Large files (over 2000 lines): 7 after splits of GeneralMenuNavigator (6148→3427, 6 new partials), BrowserNavigator (4528→2220, 6 new partials), BaseNavigator (4085→1600, 6 new partials), DuelAnnouncer (3245→788, 6 new partials), StoreNavigator (2773→1062, 6 new partials), UITextExtractor (2760→548, 5 new partials), UIActivator (2745→1834 + 483 new CardTileActivator.cs — real class extraction, plus 468 lines of dead diagnostic methods removed), and CardModelProvider (2374→2051 + 339 new ManaTextFormatter.cs — real class extraction of pure mana-text helpers).
 
 ---
 
@@ -79,7 +79,7 @@ Large files (over 2000 lines): 5 after splits of GeneralMenuNavigator (6148→34
 - **BrowserZoneNavigator.cs** (1385 lines) — Zone-based card navigation inside Scry, Surveil, and London Mulligan browsers.
 - **CardDetector.cs** (816 lines) — Static utilities: IsCard, GetCardRoot, HasValidTargetsOnBattlefield.
 - **CardInfoNavigator.cs** (287 lines) — Lazy vertical navigation through card info blocks (name, cost, type, rules, etc.).
-- **CardModelProvider.cs** (2374 lines) [LARGE] — Reflection-based access to card model data, name lookups, and mana parsing.
+- **CardModelProvider.cs** (2051 lines) [LARGE] — Reflection-based access to card model data, name lookups, and CardInfo extraction. Mana/text formatting helpers were extracted to ManaTextFormatter (split 8/12, 2026-04-20).
 - **CardPoolAccessor.cs** (379 lines) — Reflection wrapper for CardPoolHolder (collection page navigation in deck builder).
 - **CardStateProvider.cs** (1088 lines) — Attachment, combat state, targeting, and card categorization helpers.
 - **CardTextProvider.cs** (614 lines) — Localized ability text, flavor text, and artist name lookups via game providers.
@@ -127,6 +127,7 @@ Large files (over 2000 lines): 5 after splits of GeneralMenuNavigator (6148→34
 - **LoadingScreenNavigator.cs** (1422 lines) — Navigator for transitional screens (loading, match end, splash) with few buttons.
 - **LocaleManager.cs** (402 lines) — Singleton that loads and resolves localized strings from JSON files with fallback chain.
 - **ManaColorPickerNavigator.cs** (595 lines) — Detects and navigates the ManaColorSelector popup for any-color mana sources.
+- **ManaTextFormatter.cs** (339 lines) — Pure-function helpers for parsing MTGA internal mana notation ({oX}, bare oX sequences, standard {X}) and ManaQuantity arrays into readable text. Extracted from CardModelProvider (split 8/12).
 - **MasteryNavigator.cs** (2174 lines) [LARGE] — Navigator for the Mastery/Rewards (RewardTrack) screen with level and tier navigation.
 - **MenuDebugHelper.cs** (1474 lines) — Debug/logging utilities for GeneralMenuNavigator; extracted to reduce file size.
 - **MenuScreenDetector.cs** (469 lines) — Detects active content controllers and screen names in the MTGA menu system.
