@@ -90,59 +90,41 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets a bool value from a cached field/property on model.Instance.
-        /// Used for IsAttacking, IsBlocking, IsTapped, HasSummoningSickness.
+        /// Gets a scalar value of type T from a cached field/property on model.Instance.
+        /// Returns <paramref name="defaultValue"/> if the instance, member, or cast is unavailable.
+        /// Used for IsAttacking/IsBlocking/IsTapped/HasSummoningSickness (bool) and
+        /// AttackTargetId/AttachedToId (uint).
         /// </summary>
-        private static bool GetBoolFromInstance(object model, string memberName, BindingFlags flags)
+        private static T GetValueFromInstance<T>(object model, string memberName, BindingFlags flags, T defaultValue = default)
         {
             var instance = CardModelProvider.GetModelInstance(model);
-            if (instance == null) return false;
+            if (instance == null) return defaultValue;
             try
             {
                 var member = GetCachedInstanceMember(instance, memberName, flags);
-                if (member == null) return false;
+                if (member == null) return defaultValue;
                 var val = member is PropertyInfo p ? p.GetValue(instance) : ((FieldInfo)member).GetValue(instance);
-                return val is bool b && b;
+                return val is T t ? t : defaultValue;
             }
-            catch { return false; }
+            catch { return defaultValue; }
         }
 
         /// <summary>
-        /// Gets a uint value from a cached field/property on model.Instance.
-        /// Used for AttackTargetId, AttachedToId.
-        /// </summary>
-        private static uint GetUintFromInstance(object model, string memberName, BindingFlags flags)
-        {
-            var instance = CardModelProvider.GetModelInstance(model);
-            if (instance == null) return 0;
-            try
-            {
-                var member = GetCachedInstanceMember(instance, memberName, flags);
-                if (member == null) return 0;
-                var val = member is PropertyInfo p ? p.GetValue(instance) : ((FieldInfo)member).GetValue(instance);
-                return val is uint id ? id : 0;
-            }
-            catch { return 0; }
-        }
-
-        /// <summary>
-        /// Gets a List&lt;uint&gt; from a cached field on model.Instance.
+        /// Gets a List&lt;T&gt; from a cached field on model.Instance. Only fields are
+        /// inspected — these members are fields on the game's MtgCardInstance.
         /// Used for BlockingIds, BlockedByIds, TargetIds, TargetedByIds.
         /// </summary>
-        private static List<uint> GetUintListFromInstance(object model, string fieldName, BindingFlags flags)
+        private static List<T> GetListFromInstance<T>(object model, string fieldName, BindingFlags flags)
         {
-            var result = new List<uint>();
+            var result = new List<T>();
             var instance = CardModelProvider.GetModelInstance(model);
             if (instance == null) return result;
             try
             {
                 var member = GetCachedInstanceMember(instance, fieldName, flags);
-                if (member is FieldInfo fi)
-                {
-                    if (fi.GetValue(instance) is IList list)
-                        foreach (var item in list)
-                            if (item is uint id) result.Add(id);
-                }
+                if (member is FieldInfo fi && fi.GetValue(instance) is IList list)
+                    foreach (var item in list)
+                        if (item is T typed) result.Add(typed);
             }
             catch { }
             return result;
@@ -413,11 +395,11 @@ namespace AccessibleArena.Core.Services
 
         #region Combat State
 
-        public static bool GetIsAttacking(object model) => GetBoolFromInstance(model, "IsAttacking", PublicInstance);
-        public static bool GetIsBlocking(object model) => GetBoolFromInstance(model, "IsBlocking", PublicInstance);
-        public static List<uint> GetBlockingIds(object model) => GetUintListFromInstance(model, "BlockingIds", AllInstanceFlags);
-        public static List<uint> GetBlockedByIds(object model) => GetUintListFromInstance(model, "BlockedByIds", AllInstanceFlags);
-        public static uint GetAttackTargetId(object model) => GetUintFromInstance(model, "AttackTargetId", PublicInstance);
+        public static bool GetIsAttacking(object model) => GetValueFromInstance<bool>(model, "IsAttacking", PublicInstance);
+        public static bool GetIsBlocking(object model) => GetValueFromInstance<bool>(model, "IsBlocking", PublicInstance);
+        public static List<uint> GetBlockingIds(object model) => GetListFromInstance<uint>(model, "BlockingIds", AllInstanceFlags);
+        public static List<uint> GetBlockedByIds(object model) => GetListFromInstance<uint>(model, "BlockedByIds", AllInstanceFlags);
+        public static uint GetAttackTargetId(object model) => GetValueFromInstance<uint>(model, "AttackTargetId", PublicInstance);
 
         /// <summary>
         /// Resolves an InstanceId to a card name by scanning all battlefield cards.
@@ -503,8 +485,8 @@ namespace AccessibleArena.Core.Services
         }
 
         // IsTapped and HasSummoningSickness are public FIELDS on MtgCardInstance, not properties
-        public static bool GetIsTapped(object model) => GetBoolFromInstance(model, "IsTapped", PublicInstance);
-        public static bool GetHasSummoningSickness(object model) => GetBoolFromInstance(model, "HasSummoningSickness", PublicInstance);
+        public static bool GetIsTapped(object model) => GetValueFromInstance<bool>(model, "IsTapped", PublicInstance);
+        public static bool GetHasSummoningSickness(object model) => GetValueFromInstance<bool>(model, "HasSummoningSickness", PublicInstance);
 
         // Card GameObject wrappers: chain GetDuelSceneCDC → GetCardModel → accessor
         public static bool GetIsTappedFromCard(GameObject card) => GetBoolFromCard(card, GetIsTapped);
@@ -674,8 +656,8 @@ namespace AccessibleArena.Core.Services
 
         #region Targeting
 
-        public static List<uint> GetTargetIds(object model) => GetUintListFromInstance(model, "TargetIds", AllInstanceFlags);
-        public static List<uint> GetTargetedByIds(object model) => GetUintListFromInstance(model, "TargetedByIds", AllInstanceFlags);
+        public static List<uint> GetTargetIds(object model) => GetListFromInstance<uint>(model, "TargetIds", AllInstanceFlags);
+        public static List<uint> GetTargetedByIds(object model) => GetListFromInstance<uint>(model, "TargetedByIds", AllInstanceFlags);
 
         private static List<(object model, uint instanceId, uint grpId)> GetAllStackCardModels()
             => GetAllCardModelsInHolder("StackCardHolder");
