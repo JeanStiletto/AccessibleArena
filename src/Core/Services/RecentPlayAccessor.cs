@@ -1,5 +1,4 @@
 using UnityEngine;
-using MelonLoader;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -28,14 +27,33 @@ namespace AccessibleArena.Core.Services
         private static MonoBehaviour _cachedContentView;
         private static MonoBehaviour _cachedBladeView;
 
-        // Cached reflection members (ContentView)
-        private static FieldInfo _tilesField;       // _tiles (List<LastGamePlayedTile>)
-        private static FieldInfo _modelsField;      // _models (List<RecentlyPlayedInfo>)
+        private sealed class ContentViewHandles
+        {
+            public FieldInfo Tiles;   // _tiles (List<LastGamePlayedTile>)
+        }
 
-        // Cached reflection members (BladeView)
-        private static FieldInfo _bladeViewTileField; // _lastPlayedTile (LastGamePlayedTile)
+        private sealed class BladeViewHandles
+        {
+            public FieldInfo LastPlayedTile;   // _lastPlayedTile (LastGamePlayedTile)
+        }
 
-        private static bool _reflectionInitialized;
+        private static readonly ReflectionCache<ContentViewHandles> _contentViewCache = new ReflectionCache<ContentViewHandles>(
+            builder: t => new ContentViewHandles
+            {
+                Tiles = t.GetField("_tiles", PrivateInstance),
+            },
+            validator: h => h.Tiles != null,
+            logTag: "RecentPlayAccessor",
+            logSubject: "ContentView");
+
+        private static readonly ReflectionCache<BladeViewHandles> _bladeViewCache = new ReflectionCache<BladeViewHandles>(
+            builder: t => new BladeViewHandles
+            {
+                LastPlayedTile = t.GetField("_lastPlayedTile", PrivateInstance),
+            },
+            validator: h => h.LastPlayedTile != null,
+            logTag: "RecentPlayAccessor",
+            logSubject: "BladeView");
 
         /// <summary>
         /// Whether the Recent tab content view is currently active and valid.
@@ -93,14 +111,12 @@ namespace AccessibleArena.Core.Services
                 if (typeName == "LastPlayedBladeContentView" && _cachedContentView == null)
                 {
                     _cachedContentView = mb;
-                    if (!_reflectionInitialized)
-                        InitializeReflection(mb.GetType());
+                    _contentViewCache.EnsureInitialized(mb.GetType());
                 }
                 else if (typeName == "LastPlayedBladeView" && _cachedBladeView == null)
                 {
                     _cachedBladeView = mb;
-                    if (_bladeViewTileField == null)
-                        _bladeViewTileField = mb.GetType().GetField("_lastPlayedTile", PrivateInstance);
+                    _bladeViewCache.EnsureInitialized(mb.GetType());
                 }
             }
 
@@ -129,8 +145,7 @@ namespace AccessibleArena.Core.Services
                 if (mb.GetType().Name == "LastPlayedBladeView")
                 {
                     _cachedBladeView = mb;
-                    if (_bladeViewTileField == null)
-                        _bladeViewTileField = mb.GetType().GetField("_lastPlayedTile", PrivateInstance);
+                    _bladeViewCache.EnsureInitialized(mb.GetType());
                     return;
                 }
             }
@@ -141,12 +156,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static MonoBehaviour GetBladeViewTile()
         {
-            if (_cachedBladeView == null || _bladeViewTileField == null)
+            if (_cachedBladeView == null || !_bladeViewCache.IsInitialized)
                 return null;
 
             try
             {
-                return _bladeViewTileField.GetValue(_cachedBladeView) as MonoBehaviour;
+                return _bladeViewCache.Handles.LastPlayedTile.GetValue(_cachedBladeView) as MonoBehaviour;
             }
             catch
             {
@@ -213,39 +228,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Initialize reflection members from the LastPlayedBladeContentView type.
-        /// </summary>
-        private static void InitializeReflection(Type type)
-        {
-            if (_reflectionInitialized) return;
-
-            try
-            {
-                _tilesField = type.GetField("_tiles", PrivateInstance);
-                _modelsField = type.GetField("_models", PrivateInstance);
-
-                _reflectionInitialized = true;
-
-                Log.Msg("RecentPlayAccessor", $"Reflection init: " +
-                    $"_tiles={_tilesField != null}, _models={_modelsField != null}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("RecentPlayAccessor", $"Reflection init failed: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Get the number of tiles (recently played entries).
         /// </summary>
         public static int GetTileCount()
         {
-            if (_cachedContentView == null || _tilesField == null)
+            if (_cachedContentView == null || !_contentViewCache.IsInitialized)
                 return 0;
 
             try
             {
-                var tiles = _tilesField.GetValue(_cachedContentView) as IList;
+                var tiles = _contentViewCache.Handles.Tiles.GetValue(_cachedContentView) as IList;
                 return tiles?.Count ?? 0;
             }
             catch
@@ -266,12 +258,12 @@ namespace AccessibleArena.Core.Services
             if (index == BLADE_VIEW_INDEX)
                 return ReadEventTitleFromTile(GetBladeViewTile());
 
-            if (_cachedContentView == null || _tilesField == null)
+            if (_cachedContentView == null || !_contentViewCache.IsInitialized)
                 return null;
 
             try
             {
-                var tiles = _tilesField.GetValue(_cachedContentView) as IList;
+                var tiles = _contentViewCache.Handles.Tiles.GetValue(_cachedContentView) as IList;
                 if (tiles == null || index < 0 || index >= tiles.Count)
                     return null;
 
@@ -295,11 +287,11 @@ namespace AccessibleArena.Core.Services
                 return -1;
 
             // Check ContentView tiles first
-            if (_cachedContentView != null && _tilesField != null)
+            if (_cachedContentView != null && _contentViewCache.IsInitialized)
             {
                 try
                 {
-                    var tiles = _tilesField.GetValue(_cachedContentView) as IList;
+                    var tiles = _contentViewCache.Handles.Tiles.GetValue(_cachedContentView) as IList;
                     if (tiles != null)
                     {
                         for (int i = 0; i < tiles.Count; i++)
@@ -416,12 +408,12 @@ namespace AccessibleArena.Core.Services
             if (index == BLADE_VIEW_INDEX)
                 return GetBladeViewTile();
 
-            if (_cachedContentView == null || _tilesField == null)
+            if (_cachedContentView == null || !_contentViewCache.IsInitialized)
                 return null;
 
             try
             {
-                var tiles = _tilesField.GetValue(_cachedContentView) as IList;
+                var tiles = _contentViewCache.Handles.Tiles.GetValue(_cachedContentView) as IList;
                 if (tiles == null || index < 0 || index >= tiles.Count)
                     return null;
                 return tiles[index] as MonoBehaviour;
