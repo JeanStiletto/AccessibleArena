@@ -2,18 +2,38 @@ using System;
 using System.Reflection;
 using UnityEngine;
 using TMPro;
+using AccessibleArena.Core.Utils;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
 {
     public static partial class UITextExtractor
     {
-        // Cached reflection for Localize component text extraction
+        // Cached reflection for Localize component text extraction. The Localize type itself
+        // is needed at match sites (component type check), so it's tracked alongside the cache.
+        private sealed class LocalizeHandles
+        {
+            public FieldInfo TextTarget;
+            public FieldInfo SerializedCmp;
+            public FieldInfo LocKey;
+        }
+
         private static Type _localizeType;
-        private static FieldInfo _textTargetField;
-        private static FieldInfo _serializedCmpField;
-        private static FieldInfo _locKeyField;
-        private static bool _localizeReflectionResolved;
+        private static readonly ReflectionCache<LocalizeHandles> _localizeCache = new ReflectionCache<LocalizeHandles>(
+            builder: t =>
+            {
+                var h = new LocalizeHandles { TextTarget = t.GetField("TextTarget", PublicInstance) };
+                if (h.TextTarget != null)
+                {
+                    var targetType = h.TextTarget.FieldType;
+                    h.SerializedCmp = targetType.GetField("serializedCmp", PublicInstance);
+                    h.LocKey = targetType.GetField("locKey", PublicInstance);
+                }
+                return h;
+            },
+            validator: h => h.TextTarget != null,
+            logTag: "UITextExtractor",
+            logSubject: "Localize");
 
         /// <summary>
         /// Tries to read localized text from Localize components (Wotc.Mtga.Loc.Localize).
@@ -24,24 +44,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static string TryGetLocalizeText(GameObject gameObject)
         {
-            if (!_localizeReflectionResolved)
-            {
-                _localizeReflectionResolved = true;
+            if (_localizeType == null)
                 _localizeType = FindType("Wotc.Mtga.Loc.Localize");
-                if (_localizeType != null)
-                {
-                    _textTargetField = _localizeType.GetField("TextTarget", PublicInstance);
-                    if (_textTargetField != null)
-                    {
-                        var targetType = _textTargetField.FieldType;
-                        _serializedCmpField = targetType.GetField("serializedCmp", PublicInstance);
-                        _locKeyField = targetType.GetField("locKey", PublicInstance);
-                    }
-                }
-            }
+            if (_localizeType == null) return null;
 
-            if (_localizeType == null || _textTargetField == null)
-                return null;
+            if (!_localizeCache.EnsureInitialized(_localizeType)) return null;
+            var h = _localizeCache.Handles;
 
             // Search element and children (including inactive) for Localize components
             var behaviours = gameObject.GetComponentsInChildren<MonoBehaviour>(true);
@@ -50,14 +58,14 @@ namespace AccessibleArena.Core.Services
                 if (mb == null || mb.GetType() != _localizeType)
                     continue;
 
-                var textTarget = _textTargetField.GetValue(mb);
+                var textTarget = h.TextTarget.GetValue(mb);
                 if (textTarget == null)
                     continue;
 
                 // Strategy 1: read TMP_Text.text directly (works when Localize has already run)
-                if (_serializedCmpField != null)
+                if (h.SerializedCmp != null)
                 {
-                    var cmp = _serializedCmpField.GetValue(textTarget) as TMP_Text;
+                    var cmp = h.SerializedCmp.GetValue(textTarget) as TMP_Text;
                     if (cmp != null)
                     {
                         string text = CleanText(cmp.text);
@@ -68,9 +76,9 @@ namespace AccessibleArena.Core.Services
 
                 // Strategy 2: resolve locKey via ActiveLocProvider (works even if TMP_Text
                 // is inactive/empty or DoLocalize hasn't fired yet)
-                if (_locKeyField != null)
+                if (h.LocKey != null)
                 {
-                    string locKey = _locKeyField.GetValue(textTarget) as string;
+                    string locKey = h.LocKey.GetValue(textTarget) as string;
                     if (!string.IsNullOrEmpty(locKey))
                     {
                         string resolved = ResolveLocKey(locKey);
@@ -83,22 +91,55 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        // Cached reflection for Languages.ActiveLocProvider.GetLocalizedText(string, params (string,string)[])
+        private sealed class LanguagesHandles
+        {
+            public FieldInfo ActiveLocProvider;    // public static field on Languages
+            public MethodInfo GetLocalizedText;    // instance method on provider's field type
+        }
+
+        private static Type _languagesType;
+        private static bool _languagesTypeSearched;
+
+        private static readonly ReflectionCache<LanguagesHandles> _languagesCache = new ReflectionCache<LanguagesHandles>(
+            builder: t =>
+            {
+                var h = new LanguagesHandles
+                {
+                    ActiveLocProvider = t.GetField("ActiveLocProvider", BindingFlags.Public | BindingFlags.Static),
+                };
+                if (h.ActiveLocProvider != null)
+                {
+                    h.GetLocalizedText = h.ActiveLocProvider.FieldType.GetMethod("GetLocalizedText",
+                        new[] { typeof(string), typeof(ValueTuple<string, string>[]) });
+                }
+                return h;
+            },
+            validator: h => h.ActiveLocProvider != null && h.GetLocalizedText != null,
+            logTag: "UITextExtractor",
+            logSubject: "Languages");
+
         /// <summary>
         /// Resolves a localization key via Languages.ActiveLocProvider.GetLocalizedText().
         /// Returns null if the key can't be resolved or resolves to itself.
         /// </summary>
         public static string ResolveLocKey(string locKey)
         {
-            EnsureLocReflectionCached();
-            if (_activeLocProviderField == null || _getLocalizedTextMethod == null)
-                return null;
+            if (!_languagesTypeSearched)
+            {
+                _languagesTypeSearched = true;
+                _languagesType = FindType("Wotc.Mtga.Loc.Languages");
+            }
+            if (_languagesType == null) return null;
+            if (!_languagesCache.EnsureInitialized(_languagesType)) return null;
+            var h = _languagesCache.Handles;
 
             try
             {
-                var locProvider = _activeLocProviderField.GetValue(null);
+                var locProvider = h.ActiveLocProvider.GetValue(null);
                 if (locProvider == null) return null;
 
-                string result = _getLocalizedTextMethod.Invoke(locProvider,
+                string result = h.GetLocalizedText.Invoke(locProvider,
                     new object[] { locKey, Array.Empty<ValueTuple<string, string>>() }) as string;
 
                 // Localization returns the key itself if not found
@@ -111,35 +152,6 @@ namespace AccessibleArena.Core.Services
             {
                 return null;
             }
-        }
-
-        // Cached reflection for Languages.ActiveLocProvider.GetLocalizedText(string, params (string,string)[])
-        private static FieldInfo _activeLocProviderField;
-        private static MethodInfo _getLocalizedTextMethod;
-        private static bool _locReflectionInitialized;
-
-        private static void EnsureLocReflectionCached()
-        {
-            if (_locReflectionInitialized) return;
-            _locReflectionInitialized = true;
-
-            try
-            {
-                var languagesType = FindType("Wotc.Mtga.Loc.Languages");
-                if (languagesType == null) return;
-
-                // ActiveLocProvider is a public static FIELD, not a property
-                _activeLocProviderField = languagesType.GetField("ActiveLocProvider",
-                    BindingFlags.Public | BindingFlags.Static);
-                if (_activeLocProviderField != null)
-                {
-                    var locProviderType = _activeLocProviderField.FieldType;
-                    // Method signature: GetLocalizedText(string, params (string,string)[])
-                    _getLocalizedTextMethod = locProviderType.GetMethod("GetLocalizedText",
-                        new[] { typeof(string), typeof(ValueTuple<string, string>[]) });
-                }
-            }
-            catch { /* Reflection may fail on different game versions */ }
         }
 
         /// <summary>

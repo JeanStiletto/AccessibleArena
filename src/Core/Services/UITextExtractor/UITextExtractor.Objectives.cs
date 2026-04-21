@@ -339,27 +339,39 @@ namespace AccessibleArena.Core.Services
         /// Uses the NPEObjective component's Animator to reliably detect state
         /// (completed vs unlocked vs locked) and returns fully localized text.
         /// </summary>
+        private sealed class NpeObjectiveHandles
+        {
+            public FieldInfo CircleText;
+            public FieldInfo Animator;
+        }
+
         private static Type _npeObjectiveType;
-        private static FieldInfo _npeCircleTextField;
-        private static FieldInfo _npeAnimatorField;
-        private static bool _npeFieldsCached;
+        private static bool _npeObjectiveTypeSearched;
+
+        private static readonly ReflectionCache<NpeObjectiveHandles> _npeObjectiveCache = new ReflectionCache<NpeObjectiveHandles>(
+            builder: t => new NpeObjectiveHandles
+            {
+                CircleText = t.GetField("_circleText", PrivateInstance),
+                Animator = t.GetField("_animator", PrivateInstance),
+            },
+            validator: _ => true,
+            logTag: "UITextExtractor",
+            logSubject: "NPEObjective");
 
         private static string TryGetNPEObjectiveText(GameObject gameObject)
         {
             if (gameObject == null || !gameObject.name.StartsWith("Objective_NPE"))
                 return null;
 
-            // Cache reflection lookups
-            if (!_npeFieldsCached)
+            if (!_npeObjectiveTypeSearched)
             {
+                _npeObjectiveTypeSearched = true;
                 _npeObjectiveType = FindType("NPEObjective");
-                if (_npeObjectiveType != null)
-                {
-                    _npeCircleTextField = _npeObjectiveType.GetField("_circleText", PrivateInstance);
-                    _npeAnimatorField = _npeObjectiveType.GetField("_animator", PrivateInstance);
-                }
-                _npeFieldsCached = true;
             }
+
+            NpeObjectiveHandles h = null;
+            if (_npeObjectiveType != null && _npeObjectiveCache.EnsureInitialized(_npeObjectiveType))
+                h = _npeObjectiveCache.Handles;
 
             // Get NPEObjective component
             Component npeObjective = null;
@@ -368,9 +380,9 @@ namespace AccessibleArena.Core.Services
 
             // Read roman numeral from _circleText (works even when inactive)
             string roman = null;
-            if (npeObjective != null && _npeCircleTextField != null)
+            if (npeObjective != null && h?.CircleText != null)
             {
-                var tmp = _npeCircleTextField.GetValue(npeObjective) as TMP_Text;
+                var tmp = h.CircleText.GetValue(npeObjective) as TMP_Text;
                 if (tmp != null)
                 {
                     string content = tmp.text?.Trim();
@@ -398,9 +410,9 @@ namespace AccessibleArena.Core.Services
 
             // Determine state from Animator (pure reflection, same pattern as EventAccessor)
             string status = null;
-            if (npeObjective != null && _npeAnimatorField != null)
+            if (npeObjective != null && h?.Animator != null)
             {
-                var animator = _npeAnimatorField.GetValue(npeObjective);
+                var animator = h.Animator.GetValue(npeObjective);
                 if (animator != null)
                     status = GetNPEObjectiveStatus(animator);
             }
@@ -419,67 +431,87 @@ namespace AccessibleArena.Core.Services
         /// Determines the NPE objective status from its Animator via reflection.
         /// NPEObjective uses SetTrigger (not SetBool), so we check state names first,
         /// then fall back to GetBool parameters.
+        ///
+        /// Two-type chain: Animator.GetCurrentAnimatorStateInfo → AnimatorStateInfo.IsName.
+        /// Each type seeded from a live instance at point of use.
         /// </summary>
-        private static MethodInfo _animGetStateInfo;
-        private static MethodInfo _stateInfoIsName;
+        private sealed class AnimatorHandles
+        {
+            public MethodInfo GetStateInfo;   // GetCurrentAnimatorStateInfo(int)
+            public MethodInfo GetBool;        // GetBool(string)
+        }
+
+        private sealed class AnimStateInfoHandles
+        {
+            public MethodInfo IsName;         // AnimatorStateInfo.IsName(string)
+        }
+
+        private static readonly ReflectionCache<AnimatorHandles> _animatorCache = new ReflectionCache<AnimatorHandles>(
+            builder: t => new AnimatorHandles
+            {
+                GetStateInfo = t.GetMethod("GetCurrentAnimatorStateInfo", new[] { typeof(int) }),
+                GetBool = t.GetMethod("GetBool", new[] { typeof(string) }),
+            },
+            validator: _ => true,
+            logTag: "UITextExtractor",
+            logSubject: "Animator");
+
+        private static readonly ReflectionCache<AnimStateInfoHandles> _animStateInfoCache = new ReflectionCache<AnimStateInfoHandles>(
+            builder: t => new AnimStateInfoHandles { IsName = t.GetMethod("IsName", new[] { typeof(string) }) },
+            validator: h => h.IsName != null,
+            logTag: "UITextExtractor",
+            logSubject: "AnimatorStateInfo");
 
         private static string GetNPEObjectiveStatus(object animator)
         {
-            var animType = animator.GetType();
+            _animatorCache.EnsureInitialized(animator.GetType());
+            var a = _animatorCache.Handles;
 
             // Try checking animator state name via GetCurrentAnimatorStateInfo(0).IsName(...)
-            if (_animGetStateInfo == null)
-                _animGetStateInfo = animType.GetMethod("GetCurrentAnimatorStateInfo", new[] { typeof(int) });
-
-            if (_animGetStateInfo != null)
+            if (a?.GetStateInfo != null)
             {
-                var stateInfo = _animGetStateInfo.Invoke(animator, new object[] { 0 });
-                if (stateInfo != null)
+                var stateInfo = a.GetStateInfo.Invoke(animator, new object[] { 0 });
+                if (stateInfo != null && _animStateInfoCache.EnsureInitialized(stateInfo.GetType()))
                 {
-                    if (_stateInfoIsName == null)
-                        _stateInfoIsName = stateInfo.GetType().GetMethod("IsName", new[] { typeof(string) });
+                    var isName = _animStateInfoCache.Handles.IsName;
 
-                    if (_stateInfoIsName != null)
-                    {
-                        // Check completed state (trigger "toComplete")
-                        if ((bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Complete" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Completed" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "toComplete" }))
-                            return Strings.ColorChallengeNodeCompleted;
+                    // Check completed state (trigger "toComplete")
+                    if ((bool)isName.Invoke(stateInfo, new object[] { "Complete" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "Completed" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "toComplete" }))
+                        return Strings.ColorChallengeNodeCompleted;
 
-                        // Check locked state (trigger "toLock")
-                        if ((bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Lock" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Locked" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "toLock" }))
-                            return Strings.ColorChallengeNodeLocked;
+                    // Check locked state (trigger "toLock")
+                    if ((bool)isName.Invoke(stateInfo, new object[] { "Lock" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "Locked" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "toLock" }))
+                        return Strings.ColorChallengeNodeLocked;
 
-                        // Check unlocked/normal state (trigger "toNormal" / "Unlock")
-                        if ((bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Normal" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Unlock" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Unlocked" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "toNormal" })
-                            || (bool)_stateInfoIsName.Invoke(stateInfo, new object[] { "Idle" }))
-                            return Strings.ColorChallengeNodeAvailable;
-                    }
+                    // Check unlocked/normal state (trigger "toNormal" / "Unlock")
+                    if ((bool)isName.Invoke(stateInfo, new object[] { "Normal" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "Unlock" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "Unlocked" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "toNormal" })
+                        || (bool)isName.Invoke(stateInfo, new object[] { "Idle" }))
+                        return Strings.ColorChallengeNodeAvailable;
                 }
             }
 
             // Fallback: try GetBool parameters (like CampaignGraphObjectiveBubble uses)
-            try
+            if (a?.GetBool != null)
             {
-                var getBool = animType.GetMethod("GetBool", new[] { typeof(string) });
-                if (getBool != null)
+                try
                 {
-                    bool completed = (bool)getBool.Invoke(animator, new object[] { "Completed" });
+                    bool completed = (bool)a.GetBool.Invoke(animator, new object[] { "Completed" });
                     if (completed) return Strings.ColorChallengeNodeCompleted;
 
-                    bool locked = (bool)getBool.Invoke(animator, new object[] { "Locked" });
+                    bool locked = (bool)a.GetBool.Invoke(animator, new object[] { "Locked" });
                     if (locked) return Strings.ColorChallengeNodeLocked;
 
                     return Strings.ColorChallengeNodeAvailable;
                 }
+                catch { /* Parameter doesn't exist */ }
             }
-            catch { /* Parameter doesn't exist */ }
 
             return null;
         }
