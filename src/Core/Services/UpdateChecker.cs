@@ -343,13 +343,7 @@ namespace AccessibleArena.Core.Services
             int build = parts.Length > 2 && int.TryParse(parts[2], out int b) ? b : 0;
             int revision = parts.Length > 3 && int.TryParse(parts[3], out int r) ? r : 0;
 
-            var result = new Version(major, minor, build, revision);
-
-            // 1.0.0.0 is the .NET default — treat as 0.0.0.0
-            if (result == new Version(1, 0, 0, 0))
-                return new Version(0, 0, 0, 0);
-
-            return result;
+            return new Version(major, minor, build, revision);
         }
     }
 }

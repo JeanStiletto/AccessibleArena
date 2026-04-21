@@ -481,8 +481,6 @@ namespace AccessibleArenaInstaller
         /// <summary>
         /// Normalizes a version string to a 4-component Version object.
         /// Strips 'v' prefix, pre-release suffixes, and pads missing components with 0.
-        /// Treats 1.0.0.0 (the .NET default when no Version is set) as 0.0.0.0
-        /// so that any real release version is considered newer.
         /// </summary>
         internal static Version NormalizeVersion(string version)
         {
@@ -507,18 +505,7 @@ namespace AccessibleArenaInstaller
             int build = parts.Length > 2 && int.TryParse(parts[2], out int b) ? b : 0;
             int revision = parts.Length > 3 && int.TryParse(parts[3], out int r) ? r : 0;
 
-            var result = new Version(major, minor, build, revision);
-
-            // 1.0.0.0 is the .NET default when no <Version> is set in the csproj.
-            // Pre-v0.5 mod DLLs have this, making them appear "newer" than any 0.x release.
-            // Treat as 0.0.0.0 so any real version is considered an update.
-            if (result == new Version(1, 0, 0, 0))
-            {
-                Logger.Info("Detected legacy 1.0.0.0 assembly version (pre-v0.5 DLL), treating as 0.0.0.0");
-                return new Version(0, 0, 0, 0);
-            }
-
-            return result;
+            return new Version(major, minor, build, revision);
         }
     }
 }

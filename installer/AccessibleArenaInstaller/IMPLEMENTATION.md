@@ -343,7 +343,7 @@ For **local dev builds**, just edit the one line in `Directory.Build.props`. Aft
 **Pitfall 1: Missing `<Version>` in csproj**
 If you don't set `<Version>`, .NET defaults the assembly version to `1.0.0.0`. If your GitHub tags are `v0.x`, the installer sees the installed DLL as version `1.0.0.0` which is numerically *higher* than any `0.x` release. Result: updates are never detected, even though the installed DLL is ancient.
 
-The installer now treats `1.0.0.0` as `0.0.0.0` as a safety net (see `NormalizeVersion`), but don't rely on this. `Directory.Build.props` ensures a real version is always set.
+`Directory.Build.props` ensures a real version is always set — don't remove it.
 
 **Pitfall 2: Version sources out of sync**
 Before `Directory.Build.props`, the csproj `<Version>` and MelonInfo string were independent and frequently drifted apart (e.g., csproj at 0.6.7, MelonInfo at 0.6.6, changelog at 0.6.9). CI masked this for releases but local builds showed wrong versions. Now both derive from `<ModVersion>` so they can't drift.
@@ -356,7 +356,6 @@ If your installer shows an "Update Available" dialog and the user clicks "Update
 The installer normalizes versions to 4 components before comparing:
 - `v0.5` becomes `0.5.0.0`
 - `0.5.0.0` stays `0.5.0.0`
-- `1.0.0.0` (the .NET default) is treated as `0.0.0.0`
 - Pre-release suffixes stripped: `0.5.0-beta` becomes `0.5.0.0`
 
 This means `v0.5` and `0.5.0.0` compare as equal, which is the desired behavior.
