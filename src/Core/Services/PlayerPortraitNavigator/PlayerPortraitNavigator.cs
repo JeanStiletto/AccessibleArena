@@ -212,9 +212,9 @@ namespace AccessibleArena.Core.Services
         private GameObject FindPlayerZoneFocusElement()
         {
             var avatarView = FindAvatarView(isLocal: true);
-            if (avatarView != null && _avatarReflectionInitialized)
+            if (avatarView != null && _avatarCache.IsInitialized)
             {
-                var portraitButton = _portraitButtonField.GetValue(avatarView) as MonoBehaviour;
+                var portraitButton = _avatarCache.Handles.PortraitButton.GetValue(avatarView) as MonoBehaviour;
                 if (portraitButton != null)
                     return portraitButton.gameObject;
             }

@@ -124,14 +124,14 @@ namespace AccessibleArena.Core.Services
             var player = GetMtgPlayer(isOpponent);
             if (player == null) return false;
 
-            if (!_entityReflectionInitialized)
-                InitializeEntityReflection(player);
+            if (!_entityCache.EnsureInitialized(player.GetType())) return false;
+            var h = _entityCache.Handles;
 
             try
             {
-                if (_designationsField != null)
+                if (h.Designations != null)
                 {
-                    var designations = _designationsField.GetValue(player) as IList;
+                    var designations = h.Designations.GetValue(player) as IList;
                     if (designations != null)
                     {
                         foreach (var desig in designations)
@@ -145,16 +145,16 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                if (_abilitiesField != null)
+                if (h.Abilities != null)
                 {
-                    var abilities = _abilitiesField.GetValue(player) as IList;
+                    var abilities = h.Abilities.GetValue(player) as IList;
                     if (abilities != null && abilities.Count > 0)
                         return true;
                 }
 
-                if (_dungeonStateField != null)
+                if (h.DungeonState != null)
                 {
-                    var dungeonState = _dungeonStateField.GetValue(player);
+                    var dungeonState = h.DungeonState.GetValue(player);
                     if (dungeonState != null)
                     {
                         var dungeonGrpIdField = dungeonState.GetType().GetField("DungeonGrpId");

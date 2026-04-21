@@ -21,9 +21,21 @@ namespace AccessibleArena.Core.Services
         private int _currentEmoteIndex = 0;
 
         // Avatar reflection cache (for emote wheel via PortraitButton)
-        private static PropertyInfo _isLocalPlayerProp;
-        private static FieldInfo _portraitButtonField;
-        private static bool _avatarReflectionInitialized;
+        private sealed class AvatarHandles
+        {
+            public PropertyInfo IsLocalPlayer;   // DuelScene_AvatarView.IsLocalPlayer
+            public FieldInfo PortraitButton;     // DuelScene_AvatarView.PortraitButton (private)
+        }
+
+        private static readonly ReflectionCache<AvatarHandles> _avatarCache = new ReflectionCache<AvatarHandles>(
+            builder: t => new AvatarHandles
+            {
+                IsLocalPlayer = t.GetProperty("IsLocalPlayer", PublicInstance),
+                PortraitButton = t.GetField("PortraitButton", PrivateInstance),
+            },
+            validator: h => h.IsLocalPlayer != null && h.PortraitButton != null,
+            logTag: "PlayerPortrait",
+            logSubject: "Avatar");
 
         /// <summary>
         /// Handles input while in emote navigation state.
@@ -285,36 +297,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Initializes reflection cache for DuelScene_AvatarView fields.
-        /// </summary>
-        private static void InitializeAvatarReflection(System.Type avatarType)
-        {
-            try
-            {
-                _isLocalPlayerProp = avatarType.GetProperty("IsLocalPlayer", PublicInstance);
-                if (_isLocalPlayerProp == null)
-                {
-                    Log.Warn("PlayerPortrait", "Could not find IsLocalPlayer property on DuelScene_AvatarView");
-                    return;
-                }
-
-                _portraitButtonField = avatarType.GetField("PortraitButton", PrivateInstance);
-                if (_portraitButtonField == null)
-                {
-                    Log.Warn("PlayerPortrait", "Could not find PortraitButton field on DuelScene_AvatarView");
-                    return;
-                }
-
-                _avatarReflectionInitialized = true;
-                Log.Msg("PlayerPortrait", $"Avatar reflection initialized: PortraitButton={_portraitButtonField.FieldType.Name}");
-            }
-            catch (System.Exception ex)
-            {
-                Log.Error("PlayerPortrait", $"Failed to initialize avatar reflection: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Finds the DuelScene_AvatarView MonoBehaviour for the local or opponent player.
         /// </summary>
         private MonoBehaviour FindAvatarView(bool isLocal)
@@ -325,11 +307,9 @@ namespace AccessibleArena.Core.Services
                 string typeName = mb.GetType().Name;
                 if (typeName != "DuelScene_AvatarView") continue;
 
-                if (!_avatarReflectionInitialized)
-                    InitializeAvatarReflection(mb.GetType());
-                if (!_avatarReflectionInitialized) return null;
+                if (!_avatarCache.EnsureInitialized(mb.GetType())) return null;
 
-                bool mbIsLocal = (bool)_isLocalPlayerProp.GetValue(mb);
+                bool mbIsLocal = (bool)_avatarCache.Handles.IsLocalPlayer.GetValue(mb);
                 if (mbIsLocal == isLocal) return mb;
             }
             return null;
@@ -348,13 +328,13 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (!_avatarReflectionInitialized)
+            if (!_avatarCache.IsInitialized)
             {
                 _announcer.Announce(Strings.PortraitNotAvailable, AnnouncementPriority.Normal);
                 return;
             }
 
-            var portraitButton = _portraitButtonField.GetValue(avatarView) as MonoBehaviour;
+            var portraitButton = _avatarCache.Handles.PortraitButton.GetValue(avatarView) as MonoBehaviour;
             if (portraitButton == null)
             {
                 Log.Nav("PlayerPortrait", $"PortraitButton is null on {(opponent ? "opponent" : "local")} AvatarView");

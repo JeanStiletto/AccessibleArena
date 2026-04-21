@@ -18,11 +18,28 @@ namespace AccessibleArena.Core.Services
     public partial class PlayerPortraitNavigator
     {
         // MtgEntity/MtgPlayer reflection cache (counters, designations, abilities, dungeon)
-        private static FieldInfo _countersField; // MtgEntity.Counters (Dictionary<CounterType, int>)
-        private static FieldInfo _designationsField; // MtgEntity.Designations (List<DesignationData>)
-        private static FieldInfo _abilitiesField; // MtgEntity.Abilities (List<AbilityPrintingData>)
-        private static FieldInfo _dungeonStateField; // MtgPlayer.DungeonState (DungeonData)
-        private static bool _entityReflectionInitialized;
+        private sealed class EntityHandles
+        {
+            public FieldInfo Counters;       // MtgEntity.Counters (Dictionary<CounterType, int>)
+            public FieldInfo Designations;   // MtgEntity.Designations (List<DesignationData>)
+            public FieldInfo Abilities;      // MtgEntity.Abilities (List<AbilityPrintingData>)
+            public FieldInfo DungeonState;   // MtgPlayer.DungeonState (DungeonData)
+        }
+
+        // Counters/Designations/Abilities live on MtgEntity (base); DungeonState on MtgPlayer (derived).
+        // ReflectionWalk handles both — public fields on a base class are reachable from the derived type,
+        // and the walk is uniform across all four handles.
+        private static readonly ReflectionCache<EntityHandles> _entityCache = new ReflectionCache<EntityHandles>(
+            builder: t => new EntityHandles
+            {
+                Counters = ReflectionWalk.FindField(t, "Counters", PublicInstance),
+                Designations = ReflectionWalk.FindField(t, "Designations", PublicInstance),
+                Abilities = ReflectionWalk.FindField(t, "Abilities", PublicInstance),
+                DungeonState = ReflectionWalk.FindField(t, "DungeonState", PublicInstance),
+            },
+            validator: _ => true,
+            logTag: "PlayerPortrait",
+            logSubject: "Entity");
 
         private void AnnounceLifeTotals()
         {
@@ -276,44 +293,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Initializes reflection cache for MtgEntity/MtgPlayer fields (counters, designations, abilities, dungeon).
-        /// </summary>
-        private static void InitializeEntityReflection(object player)
-        {
-            try
-            {
-                var playerType = player.GetType();
-
-                // Counters, Designations, Abilities are on MtgEntity (base class)
-                // Walk up type hierarchy to find them
-                var type = playerType;
-                while (type != null)
-                {
-                    if (_countersField == null)
-                        _countersField = type.GetField("Counters", PublicInstance);
-                    if (_designationsField == null)
-                        _designationsField = type.GetField("Designations", PublicInstance);
-                    if (_abilitiesField == null)
-                        _abilitiesField = type.GetField("Abilities", PublicInstance);
-                    type = type.BaseType;
-                }
-
-                // DungeonState is on MtgPlayer directly
-                _dungeonStateField = playerType.GetField("DungeonState", PublicInstance);
-
-                _entityReflectionInitialized = true;
-                Log.Nav("PlayerPortrait",
-                    $"Entity reflection initialized: Counters={_countersField != null}, " +
-                    $"Designations={_designationsField != null}, Abilities={_abilitiesField != null}, " +
-                    $"DungeonState={_dungeonStateField != null}");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("PlayerPortrait", $"Failed to initialize entity reflection: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Gets player counters (poison, energy, experience, etc.) from MtgEntity.Counters.
         /// Returns list of (typeName, count) tuples with count > 0.
         /// </summary>
@@ -322,13 +301,13 @@ namespace AccessibleArena.Core.Services
             var result = new List<(string, int)>();
             if (player == null) return result;
 
-            if (!_entityReflectionInitialized)
-                InitializeEntityReflection(player);
-            if (_countersField == null) return result;
+            if (!_entityCache.EnsureInitialized(player.GetType())) return result;
+            var h = _entityCache.Handles;
+            if (h.Counters == null) return result;
 
             try
             {
-                var countersObj = _countersField.GetValue(player);
+                var countersObj = h.Counters.GetValue(player);
                 if (countersObj == null) return result;
 
                 // Iterate via IEnumerable (Dictionary<CounterType, int>)
@@ -383,17 +362,17 @@ namespace AccessibleArena.Core.Services
             var player = GetMtgPlayer(isOpponent);
             if (player == null) return Strings.NoActiveEffects;
 
-            if (!_entityReflectionInitialized)
-                InitializeEntityReflection(player);
+            if (!_entityCache.EnsureInitialized(player.GetType())) return Strings.NoActiveEffects;
+            var h = _entityCache.Handles;
 
             var parts = new List<string>();
 
             // Read designations
             try
             {
-                if (_designationsField != null)
+                if (h.Designations != null)
                 {
-                    var designations = _designationsField.GetValue(player) as IList;
+                    var designations = h.Designations.GetValue(player) as IList;
                     if (designations != null && designations.Count > 0)
                     {
                         foreach (var desig in designations)
@@ -418,9 +397,9 @@ namespace AccessibleArena.Core.Services
             // Read abilities
             try
             {
-                if (_abilitiesField != null)
+                if (h.Abilities != null)
                 {
-                    var abilities = _abilitiesField.GetValue(player) as IList;
+                    var abilities = h.Abilities.GetValue(player) as IList;
                     if (abilities != null && abilities.Count > 0)
                     {
                         int abilityCount = 0;
@@ -460,9 +439,9 @@ namespace AccessibleArena.Core.Services
             // Read dungeon state
             try
             {
-                if (_dungeonStateField != null)
+                if (h.DungeonState != null)
                 {
-                    var dungeonState = _dungeonStateField.GetValue(player);
+                    var dungeonState = h.DungeonState.GetValue(player);
                     if (dungeonState != null)
                     {
                         var dsType = dungeonState.GetType();
