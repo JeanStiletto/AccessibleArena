@@ -419,8 +419,26 @@ CardTileActivator, DraftNavigator, PreBattleNavigator,
 ExtendedInfoNavigator, OverlayNavigator, SideboardNavigator,
 DeckInfoProvider, SettingsMenuNavigator.
 
+## Reflection Cache Migration (2026-04-21) — Phase 1 done
+
+Executing `llm-mod-refactoring-prompts/prompts/reflection-cache.md` in multi-phase
+form. Progress + all Phase-1 design decisions are in
+`llm-scratchpad/reflection-cache-progress.md`.
+
+Phase 1 (API design + user approval) landed 2026-04-21. Five decisions frozen:
+strongly-typed `ReflectionCache<THandles>` API; one cache per file unless
+already-multi-init; two-cache split for PPN.Timer's multi-source MtgTimer;
+`ReflectionWalk` companion for base-type walking; log shape preserves the
+`[Tag] <Subject> reflection initialized` line AND enumerates null handle
+names on validator failure. Grep gap flagged: survivor audit needs both
+`Initialize.*Reflection` AND `Ensure.*(Reflect|Cached)` patterns.
+
+Fresh session resumes at Phase 2 (implement helper + tests + pilot-migrate
+`PlayerPortraitNavigator.Timer.cs`).
+
 ## Scratchpad Files
 - `current_status.md` — this file
+- `reflection-cache-progress.md` — reflection-cache migration progress + design decisions
 - `code-index/` — one markdown-per-source-file index built 2026-04-19.
   Covers all 115 src/ and 11 tests/ .cs files + 7 `src/Core/Services/old/`
   archived files. Commit 633bee0. Downstream prompts (`large-file-handling`,
