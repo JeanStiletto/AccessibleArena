@@ -97,31 +97,69 @@ namespace AccessibleArena.Core.Services
         private MonoBehaviour _controller;
         private GameObject _controllerGameObject;
 
-        // Reflection: LearnToPlayControllerV2
-        private Type _controllerType;
-        private PropertyInfo _isOpenProp;
-        private FieldInfo _learnToPlayRootField;     // GameObject
-        private FieldInfo _tableOfContentsField;      // GameObject (depth 0 bubbles)
-        private FieldInfo _tableOfContentsTopicsField; // GameObject (depth 2 topics)
-        private FieldInfo _contentViewField;           // GameObject
-        private FieldInfo _replayTutorialButtonField;  // CustomButton
-        private FieldInfo _creditsButtonField;         // CustomButton
-        private FieldInfo _creditsDisplayField;        // CreditsDisplay
+        private sealed class CodexHandles
+        {
+            // LearnToPlayControllerV2
+            public PropertyInfo IsOpen;
+            public FieldInfo LearnToPlayRoot;
+            public FieldInfo TableOfContents;
+            public FieldInfo TableOfContentsTopics;
+            public FieldInfo ContentView;
+            public FieldInfo ReplayTutorialButton;
+            public FieldInfo CreditsButton;
+            public FieldInfo CreditsDisplay;
 
-        // Reflection: TableOfContentsSection
-        private Type _tocSectionType;
-        private FieldInfo _tocButtonField;        // CustomButton button
-        private FieldInfo _tocIntentField;        // LearnToPlayClickIntent buttonClickIntent
-        private FieldInfo _tocChildAnchorField;   // GameObject childAnchor
-        private FieldInfo _tocSectionField;       // LearnMoreSection section
+            // TableOfContentsSection
+            public Type TocSectionType;
+            public FieldInfo TocButton;
+            public FieldInfo TocIntent;
+            public FieldInfo TocChildAnchor;
+            public FieldInfo TocSection;
 
-        // Reflection: LearnMoreSection
-        private Type _learnMoreSectionType;
-        private FieldInfo _sectionTitleField;     // string _title (loc key)
-        private FieldInfo _sectionIdField;        // string Id
-        private FieldInfo _childSectionsField;    // List<LearnMoreSection> _childSections
+            // LearnMoreSection
+            public Type LearnMoreSectionType;
+            public FieldInfo SectionTitle;
+            public FieldInfo SectionId;
+            public FieldInfo ChildSections;
+        }
 
-        private bool _reflectionInitialized;
+        private static readonly ReflectionCache<CodexHandles> _codexCache = new ReflectionCache<CodexHandles>(
+            builder: t =>
+            {
+                var h = new CodexHandles
+                {
+                    IsOpen = t.GetProperty("IsOpen", AllInstanceFlags | BindingFlags.FlattenHierarchy),
+                    LearnToPlayRoot = t.GetField("learnToPlayRoot", AllInstanceFlags),
+                    TableOfContents = t.GetField("tableOfContents", AllInstanceFlags),
+                    TableOfContentsTopics = t.GetField("tableOfContentsTopics", AllInstanceFlags),
+                    ContentView = t.GetField("contentView", AllInstanceFlags),
+                    ReplayTutorialButton = t.GetField("_replayTutorialButton", AllInstanceFlags),
+                    CreditsButton = t.GetField("_creditsButton", AllInstanceFlags),
+                    CreditsDisplay = t.GetField("_creditsDisplay", AllInstanceFlags),
+                };
+
+                h.TocSectionType = FindType("Core.MainNavigation.LearnToPlay.TableOfContentsSection");
+                if (h.TocSectionType != null)
+                {
+                    h.TocButton = h.TocSectionType.GetField("button", AllInstanceFlags);
+                    h.TocIntent = h.TocSectionType.GetField("buttonClickIntent", AllInstanceFlags);
+                    h.TocChildAnchor = h.TocSectionType.GetField("childAnchor", AllInstanceFlags);
+                    h.TocSection = h.TocSectionType.GetField("section", AllInstanceFlags);
+                }
+
+                h.LearnMoreSectionType = FindType("Core.MainNavigation.LearnToPlay.LearnMoreSection");
+                if (h.LearnMoreSectionType != null)
+                {
+                    h.SectionTitle = h.LearnMoreSectionType.GetField("_title", AllInstanceFlags);
+                    h.SectionId = h.LearnMoreSectionType.GetField("Id", PublicInstance);
+                    h.ChildSections = ReflectionWalk.FindField(h.LearnMoreSectionType, "_childSections", AllInstanceFlags);
+                }
+
+                return h;
+            },
+            validator: h => h.LearnToPlayRoot != null && h.TableOfContents != null,
+            logTag: "Codex",
+            logSubject: "LearnToPlayControllerV2");
 
         #endregion
 
@@ -170,11 +208,11 @@ namespace AccessibleArena.Core.Services
             var type = controller.GetType();
             EnsureReflectionCached(type);
 
-            if (_isOpenProp != null)
+            if (_codexCache.Handles.IsOpen != null)
             {
                 try
                 {
-                    return (bool)_isOpenProp.GetValue(controller);
+                    return (bool)_codexCache.Handles.IsOpen.GetValue(controller);
                 }
                 catch { return false; }
             }
@@ -188,50 +226,7 @@ namespace AccessibleArena.Core.Services
 
         private void EnsureReflectionCached(Type controllerType)
         {
-            if (_reflectionInitialized && _controllerType == controllerType) return;
-
-            _controllerType = controllerType;
-            var flags = AllInstanceFlags;
-
-            // NavContentController base: IsOpen
-            _isOpenProp = controllerType.GetProperty("IsOpen", flags | BindingFlags.FlattenHierarchy);
-
-            // LearnToPlayControllerV2 private serialized fields
-            _learnToPlayRootField = controllerType.GetField("learnToPlayRoot", flags);
-            _tableOfContentsField = controllerType.GetField("tableOfContents", flags);
-            _tableOfContentsTopicsField = controllerType.GetField("tableOfContentsTopics", flags);
-            _contentViewField = controllerType.GetField("contentView", flags);
-            _replayTutorialButtonField = controllerType.GetField("_replayTutorialButton", flags);
-            _creditsButtonField = controllerType.GetField("_creditsButton", flags);
-            _creditsDisplayField = controllerType.GetField("_creditsDisplay", flags);
-
-            // Find TableOfContentsSection type by scanning assemblies
-            _tocSectionType = FindType("Core.MainNavigation.LearnToPlay.TableOfContentsSection");
-            _learnMoreSectionType = FindType("Core.MainNavigation.LearnToPlay.LearnMoreSection");
-
-            // TableOfContentsSection fields
-            if (_tocSectionType != null)
-            {
-                _tocButtonField = _tocSectionType.GetField("button", flags);
-                _tocIntentField = _tocSectionType.GetField("buttonClickIntent", flags);
-                _tocChildAnchorField = _tocSectionType.GetField("childAnchor", flags);
-                _tocSectionField = _tocSectionType.GetField("section", flags);
-            }
-
-            // LearnMoreSection fields
-            if (_learnMoreSectionType != null)
-            {
-                _sectionTitleField = _learnMoreSectionType.GetField("_title", flags);
-                _sectionIdField = _learnMoreSectionType.GetField("Id", PublicInstance);
-            }
-
-            _reflectionInitialized = true;
-            Log.Msg("Codex", $"Reflection cached. Root={_learnToPlayRootField != null}, " +
-                $"TOC={_tableOfContentsField != null}, Topics={_tableOfContentsTopicsField != null}, " +
-                $"ContentView={_contentViewField != null}, Credits={_creditsDisplayField != null}, " +
-                $"TocSectionType={_tocSectionType != null}, LearnMoreSection={_learnMoreSectionType != null}, " +
-                $"Button={_tocButtonField != null}, Intent={_tocIntentField != null}, " +
-                $"ChildAnchor={_tocChildAnchorField != null}");
+            _codexCache.EnsureInitialized(controllerType);
         }
 
         #endregion
@@ -261,15 +256,15 @@ namespace AccessibleArena.Core.Services
             if (_controller == null) return;
 
             // Scan depth 0 bubbles only (top-level categories)
-            var tocBubblesGo = GetFieldGameObject(_tableOfContentsField);
+            var tocBubblesGo = GetFieldGameObject(_codexCache.Handles.TableOfContents);
             if (tocBubblesGo != null)
             {
                 ScanContainerForItems(tocBubblesGo.transform);
             }
 
             // Add standalone buttons: Replay Tutorial and Credits
-            AddStandaloneButton(_replayTutorialButtonField, "Replay Tutorial");
-            AddStandaloneButton(_creditsButtonField, "Credits");
+            AddStandaloneButton(_codexCache.Handles.ReplayTutorialButton, "Replay Tutorial");
+            AddStandaloneButton(_codexCache.Handles.CreditsButton, "Credits");
 
             Log.Msg("Codex", $"Discovered {_tocItems.Count} top-level TOC items");
         }
@@ -312,9 +307,9 @@ namespace AccessibleArena.Core.Services
 
         private MonoBehaviour FindTocSectionComponent(GameObject go)
         {
-            if (_tocSectionType != null)
+            if (_codexCache.Handles.TocSectionType != null)
             {
-                var comp = go.GetComponent(_tocSectionType);
+                var comp = go.GetComponent(_codexCache.Handles.TocSectionType);
                 return comp as MonoBehaviour;
             }
 
@@ -333,34 +328,34 @@ namespace AccessibleArena.Core.Services
 
         private void CacheTocSectionType(Type type)
         {
-            _tocSectionType = type;
+            _codexCache.Handles.TocSectionType = type;
             var flags = AllInstanceFlags;
-            _tocButtonField = type.GetField("button", flags);
-            _tocIntentField = type.GetField("buttonClickIntent", flags);
-            _tocChildAnchorField = type.GetField("childAnchor", flags);
-            _tocSectionField = type.GetField("section", flags);
+            _codexCache.Handles.TocButton = type.GetField("button", flags);
+            _codexCache.Handles.TocIntent = type.GetField("buttonClickIntent", flags);
+            _codexCache.Handles.TocChildAnchor = type.GetField("childAnchor", flags);
+            _codexCache.Handles.TocSection = type.GetField("section", flags);
 
             Log.Msg("Codex", $"Cached TOC section type from fallback: " +
-                $"Button={_tocButtonField != null}, Intent={_tocIntentField != null}, " +
-                $"ChildAnchor={_tocChildAnchorField != null}, Section={_tocSectionField != null}");
+                $"Button={_codexCache.Handles.TocButton != null}, Intent={_codexCache.Handles.TocIntent != null}, " +
+                $"ChildAnchor={_codexCache.Handles.TocChildAnchor != null}, Section={_codexCache.Handles.TocSection != null}");
 
             // Also cache LearnMoreSection type from the section field
-            if (_tocSectionField != null && _learnMoreSectionType == null)
+            if (_codexCache.Handles.TocSection != null && _codexCache.Handles.LearnMoreSectionType == null)
             {
-                _learnMoreSectionType = _tocSectionField.FieldType;
-                _sectionTitleField = _learnMoreSectionType.GetField("_title", flags);
-                _sectionIdField = _learnMoreSectionType.GetField("Id", PublicInstance);
-                Log.Msg("Codex", $"Cached LearnMoreSection type: Title={_sectionTitleField != null}, Id={_sectionIdField != null}");
+                _codexCache.Handles.LearnMoreSectionType = _codexCache.Handles.TocSection.FieldType;
+                _codexCache.Handles.SectionTitle = _codexCache.Handles.LearnMoreSectionType.GetField("_title", flags);
+                _codexCache.Handles.SectionId = _codexCache.Handles.LearnMoreSectionType.GetField("Id", PublicInstance);
+                Log.Msg("Codex", $"Cached LearnMoreSection type: Title={_codexCache.Handles.SectionTitle != null}, Id={_codexCache.Handles.SectionId != null}");
             }
         }
 
         private GameObject GetCustomButtonGameObject(MonoBehaviour tocSection)
         {
-            if (_tocButtonField != null)
+            if (_codexCache.Handles.TocButton != null)
             {
                 try
                 {
-                    var btn = _tocButtonField.GetValue(tocSection) as MonoBehaviour;
+                    var btn = _codexCache.Handles.TocButton.GetValue(tocSection) as MonoBehaviour;
                     if (btn != null && btn.gameObject != null)
                         return btn.gameObject;
                 }
@@ -373,11 +368,11 @@ namespace AccessibleArena.Core.Services
 
         private GameObject GetChildAnchor(MonoBehaviour tocSection)
         {
-            if (_tocChildAnchorField != null)
+            if (_codexCache.Handles.TocChildAnchor != null)
             {
                 try
                 {
-                    return _tocChildAnchorField.GetValue(tocSection) as GameObject;
+                    return _codexCache.Handles.TocChildAnchor.GetValue(tocSection) as GameObject;
                 }
                 catch { /* Field may not exist on different game versions */ }
             }
@@ -391,21 +386,21 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HasChildSections(MonoBehaviour tocSection)
         {
-            if (_tocSectionField == null) return false;
+            if (_codexCache.Handles.TocSection == null) return false;
             try
             {
-                var learnMoreSection = _tocSectionField.GetValue(tocSection);
+                var learnMoreSection = _codexCache.Handles.TocSection.GetValue(tocSection);
                 if (learnMoreSection == null) return false;
 
                 // Cache _childSections field on first use
-                if (_childSectionsField == null)
+                if (_codexCache.Handles.ChildSections == null)
                 {
                     var flags = AllInstanceFlags;
-                    _childSectionsField = learnMoreSection.GetType().GetField("_childSections", flags);
+                    _codexCache.Handles.ChildSections = learnMoreSection.GetType().GetField("_childSections", flags);
                 }
 
-                if (_childSectionsField == null) return false;
-                var list = _childSectionsField.GetValue(learnMoreSection) as System.Collections.IList;
+                if (_codexCache.Handles.ChildSections == null) return false;
+                var list = _codexCache.Handles.ChildSections.GetValue(learnMoreSection) as System.Collections.IList;
                 return list != null && list.Count > 0;
             }
             catch { return false; }
@@ -501,7 +496,7 @@ namespace AccessibleArena.Core.Services
             _contentParagraphs.Clear();
             _contentIndex = 0;
 
-            var contentViewGo = GetFieldGameObject(_contentViewField);
+            var contentViewGo = GetFieldGameObject(_codexCache.Handles.ContentView);
             if (contentViewGo == null || !contentViewGo.activeInHierarchy) return;
 
             int skippedCards = 0;
@@ -568,11 +563,11 @@ namespace AccessibleArena.Core.Services
             _creditsParagraphs.Clear();
             _creditsIndex = 0;
 
-            if (_creditsDisplayField == null || _controller == null) return;
+            if (_codexCache.Handles.CreditsDisplay == null || _controller == null) return;
 
             try
             {
-                var creditsDisplay = _creditsDisplayField.GetValue(_controller) as MonoBehaviour;
+                var creditsDisplay = _codexCache.Handles.CreditsDisplay.GetValue(_controller) as MonoBehaviour;
                 if (creditsDisplay == null || !creditsDisplay.gameObject.activeInHierarchy) return;
 
                 var texts = creditsDisplay.GetComponentsInChildren<TMPro.TMP_Text>(false);
@@ -602,14 +597,14 @@ namespace AccessibleArena.Core.Services
 
         private bool IsCreditsActive()
         {
-            var root = GetFieldGameObject(_learnToPlayRootField);
+            var root = GetFieldGameObject(_codexCache.Handles.LearnToPlayRoot);
             if (root == null) return false;
             if (root.activeInHierarchy) return false;
 
-            if (_creditsDisplayField == null || _controller == null) return false;
+            if (_codexCache.Handles.CreditsDisplay == null || _controller == null) return false;
             try
             {
-                var creditsDisplay = _creditsDisplayField.GetValue(_controller) as MonoBehaviour;
+                var creditsDisplay = _codexCache.Handles.CreditsDisplay.GetValue(_controller) as MonoBehaviour;
                 return creditsDisplay != null && creditsDisplay.gameObject.activeInHierarchy;
             }
             catch { return false; }
@@ -617,7 +612,7 @@ namespace AccessibleArena.Core.Services
 
         private bool IsContentActive()
         {
-            var contentViewGo = GetFieldGameObject(_contentViewField);
+            var contentViewGo = GetFieldGameObject(_codexCache.Handles.ContentView);
             if (contentViewGo == null || !contentViewGo.activeInHierarchy) return false;
 
             // Check for LearnToPlayContents component (the active content prefab)
@@ -654,7 +649,6 @@ namespace AccessibleArena.Core.Services
         {
             _controller = null;
             _controllerGameObject = null;
-            _reflectionInitialized = false;
             base.OnSceneChanged(sceneName);
         }
 
@@ -863,7 +857,7 @@ namespace AccessibleArena.Core.Services
             // (secondary sub-categories put their children there instead of in childAnchor)
             if (_tocItems.Count == 0)
             {
-                var topicsGo = GetFieldGameObject(_tableOfContentsTopicsField);
+                var topicsGo = GetFieldGameObject(_codexCache.Handles.TableOfContentsTopics);
                 if (topicsGo != null && HasActiveChildren(topicsGo.transform))
                 {
                     ScanContainerForItems(topicsGo.transform);
@@ -1171,7 +1165,7 @@ namespace AccessibleArena.Core.Services
         private void CloseContent()
         {
             // Find LearnToPlayContents component and click its backButton
-            var contentViewGo = GetFieldGameObject(_contentViewField);
+            var contentViewGo = GetFieldGameObject(_codexCache.Handles.ContentView);
             if (contentViewGo != null)
             {
                 foreach (var mb in contentViewGo.GetComponentsInChildren<MonoBehaviour>(false))
@@ -1211,11 +1205,11 @@ namespace AccessibleArena.Core.Services
 
         private void CloseCredits()
         {
-            if (_creditsDisplayField != null && _controller != null)
+            if (_codexCache.Handles.CreditsDisplay != null && _controller != null)
             {
                 try
                 {
-                    var creditsDisplay = _creditsDisplayField.GetValue(_controller) as MonoBehaviour;
+                    var creditsDisplay = _codexCache.Handles.CreditsDisplay.GetValue(_controller) as MonoBehaviour;
                     if (creditsDisplay != null)
                     {
                         var backBtn = FindCustomButton(creditsDisplay.gameObject);
