@@ -33,14 +33,31 @@ namespace AccessibleArena.Core.Services
         private static readonly HashSet<string> _instanceMemberSearched = new HashSet<string>();
 
         // Model-level PropertyInfo cache (for GetCardCategory, GetModelInstanceId, GetModelGrpId)
-        private static PropertyInfo _controllerNumProp;
-        private static PropertyInfo _isBasicLandProp;
-        private static PropertyInfo _isLandButNotBasicProp;
-        private static PropertyInfo _cardTypesProp;
-        private static PropertyInfo _instanceIdProp;
-        private static PropertyInfo _grpIdProp;
-        private static PropertyInfo _subtypesProp;
-        private static bool _modelPropsSearched;
+        private sealed class ModelHandles
+        {
+            public PropertyInfo ControllerNum;
+            public PropertyInfo IsBasicLand;
+            public PropertyInfo IsLandButNotBasic;
+            public PropertyInfo CardTypes;
+            public PropertyInfo InstanceId;
+            public PropertyInfo GrpId;
+            public PropertyInfo Subtypes;
+        }
+
+        private static readonly ReflectionCache<ModelHandles> _modelCache = new ReflectionCache<ModelHandles>(
+            builder: t => new ModelHandles
+            {
+                ControllerNum = t.GetProperty("ControllerNum"),
+                IsBasicLand = t.GetProperty("IsBasicLand"),
+                IsLandButNotBasic = t.GetProperty("IsLandButNotBasic"),
+                CardTypes = t.GetProperty("CardTypes"),
+                InstanceId = t.GetProperty("InstanceId"),
+                GrpId = t.GetProperty("GrpId"),
+                Subtypes = t.GetProperty("Subtypes"),
+            },
+            validator: _ => true,
+            logTag: "CardStateProvider",
+            logSubject: "CardModel");
 
         #endregion
 
@@ -55,14 +72,7 @@ namespace AccessibleArena.Core.Services
             _zoneTypePropSearched = false;
             _instanceMemberCache.Clear();
             _instanceMemberSearched.Clear();
-            _controllerNumProp = null;
-            _isBasicLandProp = null;
-            _isLandButNotBasicProp = null;
-            _cardTypesProp = null;
-            _instanceIdProp = null;
-            _grpIdProp = null;
-            _subtypesProp = null;
-            _modelPropsSearched = false;
+            _modelCache.Clear();
         }
 
         #region Generic Instance Accessors
@@ -145,27 +155,6 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
-        #region Model Property Cache
-
-        /// <summary>
-        /// Ensures model-level PropertyInfo objects are cached. Called once per model type.
-        /// The model type is constant for the entire duel so these are looked up once and reused.
-        /// </summary>
-        private static void EnsureModelPropsSearched(Type modelType)
-        {
-            if (_modelPropsSearched) return;
-            _modelPropsSearched = true;
-            _controllerNumProp = modelType.GetProperty("ControllerNum");
-            _isBasicLandProp = modelType.GetProperty("IsBasicLand");
-            _isLandButNotBasicProp = modelType.GetProperty("IsLandButNotBasic");
-            _cardTypesProp = modelType.GetProperty("CardTypes");
-            _instanceIdProp = modelType.GetProperty("InstanceId");
-            _grpIdProp = modelType.GetProperty("GrpId");
-            _subtypesProp = modelType.GetProperty("Subtypes");
-        }
-
-        #endregion
-
         #region Attachments
 
         /// <summary>
@@ -205,10 +194,9 @@ namespace AccessibleArena.Core.Services
             if (model == null) return 0;
             try
             {
-                EnsureModelPropsSearched(model.GetType());
-                if (_instanceIdProp != null)
+                if (_modelCache.EnsureInitialized(model.GetType()) && _modelCache.Handles.InstanceId != null)
                 {
-                    var val = _instanceIdProp.GetValue(model);
+                    var val = _modelCache.Handles.InstanceId.GetValue(model);
                     if (val is uint id) return id;
                 }
             }
@@ -224,10 +212,9 @@ namespace AccessibleArena.Core.Services
             if (model == null) return 0;
             try
             {
-                EnsureModelPropsSearched(model.GetType());
-                if (_grpIdProp != null)
+                if (_modelCache.EnsureInitialized(model.GetType()) && _modelCache.Handles.GrpId != null)
                 {
-                    var val = _grpIdProp.GetValue(model);
+                    var val = _modelCache.Handles.GrpId.GetValue(model);
                     if (val is uint id) return id;
                 }
             }
@@ -464,10 +451,9 @@ namespace AccessibleArena.Core.Services
             if (model == null) return null;
             try
             {
-                EnsureModelPropsSearched(model.GetType());
-                if (_cardTypesProp != null)
+                if (_modelCache.EnsureInitialized(model.GetType()) && _modelCache.Handles.CardTypes != null)
                 {
-                    var cardTypes = _cardTypesProp.GetValue(model) as System.Collections.IEnumerable;
+                    var cardTypes = _modelCache.Handles.CardTypes.GetValue(model) as System.Collections.IEnumerable;
                     if (cardTypes != null)
                     {
                         foreach (var cardType in cardTypes)
@@ -919,36 +905,39 @@ namespace AccessibleArena.Core.Services
                 {
                     try
                     {
-                        EnsureModelPropsSearched(model.GetType());
-
-                        // Check ownership from ControllerNum
-                        if (_controllerNumProp != null)
+                        if (_modelCache.EnsureInitialized(model.GetType()))
                         {
-                            var controller = _controllerNumProp.GetValue(model);
-                            isOpponent = controller?.ToString() == "Opponent";
-                        }
+                            var h = _modelCache.Handles;
 
-                        // Check IsBasicLand property
-                        if (_isBasicLandProp != null && (bool)_isBasicLandProp.GetValue(model))
-                            isLand = true;
-
-                        // Check IsLandButNotBasic property
-                        if (!isLand && _isLandButNotBasicProp != null && (bool)_isLandButNotBasicProp.GetValue(model))
-                            isLand = true;
-
-                        // Check CardTypes for Creature and Land
-                        if (_cardTypesProp != null)
-                        {
-                            var cardTypes = _cardTypesProp.GetValue(model) as IEnumerable;
-                            if (cardTypes != null)
+                            // Check ownership from ControllerNum
+                            if (h.ControllerNum != null)
                             {
-                                foreach (var cardType in cardTypes)
+                                var controller = h.ControllerNum.GetValue(model);
+                                isOpponent = controller?.ToString() == "Opponent";
+                            }
+
+                            // Check IsBasicLand property
+                            if (h.IsBasicLand != null && (bool)h.IsBasicLand.GetValue(model))
+                                isLand = true;
+
+                            // Check IsLandButNotBasic property
+                            if (!isLand && h.IsLandButNotBasic != null && (bool)h.IsLandButNotBasic.GetValue(model))
+                                isLand = true;
+
+                            // Check CardTypes for Creature and Land
+                            if (h.CardTypes != null)
+                            {
+                                var cardTypes = h.CardTypes.GetValue(model) as IEnumerable;
+                                if (cardTypes != null)
                                 {
-                                    string typeStr = cardType?.ToString() ?? "";
-                                    if (typeStr == "Creature" || typeStr.Contains("Creature"))
-                                        isCreature = true;
-                                    if (typeStr == "Land" || typeStr.Contains("Land"))
-                                        isLand = true;
+                                    foreach (var cardType in cardTypes)
+                                    {
+                                        string typeStr = cardType?.ToString() ?? "";
+                                        if (typeStr == "Creature" || typeStr.Contains("Creature"))
+                                            isCreature = true;
+                                        if (typeStr == "Land" || typeStr.Contains("Land"))
+                                            isLand = true;
+                                    }
                                 }
                             }
                         }
@@ -999,24 +988,27 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                EnsureModelPropsSearched(model.GetType());
-
-                if (_cardTypesProp != null)
+                if (_modelCache.EnsureInitialized(model.GetType()))
                 {
-                    var cardTypes = _cardTypesProp.GetValue(model) as IEnumerable;
-                    if (cardTypes != null)
-                        foreach (var ct in cardTypes)
-                            if (ct != null && ct.ToString().Contains("Creature"))
-                                return true;
-                }
+                    var h = _modelCache.Handles;
 
-                if (_subtypesProp != null)
-                {
-                    var subtypes = _subtypesProp.GetValue(model) as IEnumerable;
-                    if (subtypes != null)
-                        foreach (var st in subtypes)
-                            if (st != null && st.ToString().Contains("Vehicle"))
-                                return true;
+                    if (h.CardTypes != null)
+                    {
+                        var cardTypes = h.CardTypes.GetValue(model) as IEnumerable;
+                        if (cardTypes != null)
+                            foreach (var ct in cardTypes)
+                                if (ct != null && ct.ToString().Contains("Creature"))
+                                    return true;
+                    }
+
+                    if (h.Subtypes != null)
+                    {
+                        var subtypes = h.Subtypes.GetValue(model) as IEnumerable;
+                        if (subtypes != null)
+                            foreach (var st in subtypes)
+                                if (st != null && st.ToString().Contains("Vehicle"))
+                                    return true;
+                    }
                 }
             }
             catch { }
