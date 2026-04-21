@@ -38,19 +38,71 @@ namespace AccessibleArena.Core.Services
         private bool _isToggleRescan; // true = quiet rescan after Enter, false = may need full rescan
         private bool _isConfirmRescan; // true = rescan after Space confirm
 
-        // Reflection cache for DraftDeckManager access
-        private static FieldInfo _draftDeckManagerField;
-        private static MethodInfo _getDeckMethod;
-        private static MethodInfo _getReservedCardsMethod;
-        private static MethodInfo _isCardAlreadyReservedMethod;
-        private static PropertyInfo _deckMainProp;
-        private static PropertyInfo _deckSideboardProp;
-        private static MethodInfo _cardCollectionQuantityMethod;
-        private static PropertyInfo _useButtonOverlayProp;
-        private static PropertyInfo _currentCardProp;
-        private static PropertyInfo _metaCardViewCardProp;
-        private static PropertyInfo _cardDataGrpIdProp;
-        private static bool _reflectionInitialized;
+        private sealed class DraftHandles
+        {
+            public FieldInfo DraftDeckManager;
+            public MethodInfo GetDeck;
+            public MethodInfo GetReservedCards;
+            public MethodInfo IsCardAlreadyReserved;
+            public PropertyInfo DeckMain;
+            public PropertyInfo DeckSideboard;
+            public MethodInfo CardCollectionQuantity;
+            public PropertyInfo UseButtonOverlay;
+            public PropertyInfo CurrentCard;
+            public PropertyInfo MetaCardViewCard;
+            public PropertyInfo CardDataGrpId;
+        }
+
+        private static readonly ReflectionCache<DraftHandles> _draftCache = new ReflectionCache<DraftHandles>(
+            builder: _ =>
+            {
+                var h = new DraftHandles();
+
+                var controllerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftContentController");
+                if (controllerType != null)
+                    h.DraftDeckManager = controllerType.GetField("_draftDeckManager", PrivateInstance);
+
+                var managerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftDeckManager");
+                if (managerType != null)
+                {
+                    h.GetDeck = managerType.GetMethod("GetDeck", PublicInstance);
+                    h.GetReservedCards = managerType.GetMethod("GetReservedCards", PublicInstance);
+                    h.IsCardAlreadyReserved = managerType.GetMethod("IsCardAlreadyReserved", PublicInstance);
+                }
+
+                var deckType = FindType("Deck");
+                if (deckType != null)
+                {
+                    h.DeckMain = deckType.GetProperty("Main", PublicInstance);
+                    h.DeckSideboard = deckType.GetProperty("Sideboard", PublicInstance);
+                }
+
+                var cardDataType = FindType("GreClient.CardData.CardData");
+                var cardCollectionType = FindType("CardCollection");
+                if (cardCollectionType != null && cardDataType != null)
+                {
+                    h.CardCollectionQuantity = cardCollectionType.GetMethod("Quantity", PublicInstance, null, new[] { cardDataType }, null);
+                }
+
+                var draftCardViewType = FindType("DraftPackCardView");
+                if (draftCardViewType != null)
+                {
+                    h.UseButtonOverlay = draftCardViewType.GetProperty("UseButtonOverlay", PublicInstance);
+                    h.CurrentCard = draftCardViewType.GetProperty("CurrentCard", PublicInstance);
+                }
+
+                var metaCardViewType = FindType("MetaCardView");
+                if (metaCardViewType != null)
+                    h.MetaCardViewCard = metaCardViewType.GetProperty("Card", PublicInstance);
+
+                if (cardDataType != null)
+                    h.CardDataGrpId = cardDataType.GetProperty("GrpId", PublicInstance);
+
+                return h;
+            },
+            validator: h => h.DraftDeckManager != null && h.UseButtonOverlay != null,
+            logTag: "Draft",
+            logSubject: "DraftContentController");
 
         public override string NavigatorId => "Draft";
         public override string ScreenName => GetScreenName();
@@ -127,77 +179,7 @@ namespace AccessibleArena.Core.Services
 
         private static void EnsureReflectionInitialized()
         {
-            if (_reflectionInitialized) return;
-            _reflectionInitialized = true;
-
-            try
-            {
-                // DraftContentController._draftDeckManager (private field)
-                var controllerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftContentController");
-                if (controllerType != null)
-                {
-                    _draftDeckManagerField = controllerType.GetField("_draftDeckManager", PrivateInstance);
-                }
-
-                // DraftDeckManager methods
-                var managerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftDeckManager");
-                if (managerType != null)
-                {
-                    _getDeckMethod = managerType.GetMethod("GetDeck", PublicInstance);
-                    _getReservedCardsMethod = managerType.GetMethod("GetReservedCards", PublicInstance);
-                    _isCardAlreadyReservedMethod = managerType.GetMethod("IsCardAlreadyReserved", PublicInstance);
-                }
-
-                // Deck.Main / Deck.Sideboard
-                var deckType = FindType("Deck");
-                if (deckType != null)
-                {
-                    _deckMainProp = deckType.GetProperty("Main", PublicInstance);
-                    _deckSideboardProp = deckType.GetProperty("Sideboard", PublicInstance);
-                }
-
-                // CardCollection.Quantity(CardData)
-                var cardCollectionType = FindType("CardCollection");
-                if (cardCollectionType != null)
-                {
-                    var cardDataType = FindType("GreClient.CardData.CardData");
-                    if (cardDataType != null)
-                    {
-                        _cardCollectionQuantityMethod = cardCollectionType.GetMethod("Quantity", PublicInstance, null, new[] { cardDataType }, null);
-                    }
-                }
-
-                // DraftPackCardView.UseButtonOverlay, .CurrentCard
-                var draftCardViewType = FindType("DraftPackCardView");
-                if (draftCardViewType != null)
-                {
-                    _useButtonOverlayProp = draftCardViewType.GetProperty("UseButtonOverlay", PublicInstance);
-                    _currentCardProp = draftCardViewType.GetProperty("CurrentCard", PublicInstance);
-                }
-
-                // MetaCardView.Card (CardData)
-                var metaCardViewType = FindType("MetaCardView");
-                if (metaCardViewType != null)
-                {
-                    _metaCardViewCardProp = metaCardViewType.GetProperty("Card", PublicInstance);
-                }
-
-                // CardData.GrpId
-                var cardDataType2 = FindType("GreClient.CardData.CardData");
-                if (cardDataType2 != null)
-                {
-                    _cardDataGrpIdProp = cardDataType2.GetProperty("GrpId", PublicInstance);
-                }
-
-                Log.Msg("Draft", $"Reflection init: deckMgr={_draftDeckManagerField != null}, getDeck={_getDeckMethod != null}, " +
-                    $"reserved={_getReservedCardsMethod != null}, isReserved={_isCardAlreadyReservedMethod != null}, " +
-                    $"main={_deckMainProp != null}, qty={_cardCollectionQuantityMethod != null}, " +
-                    $"overlay={_useButtonOverlayProp != null}, grpId={_cardDataGrpIdProp != null}");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("Draft", $"Reflection init error: {ex.Message}");
-            }
+            _draftCache.EnsureInitialized(typeof(DraftNavigator));
         }
 
         /// <summary>
@@ -205,7 +187,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private object GetDraftDeckManager()
         {
-            if (_draftControllerObject == null || _draftDeckManagerField == null) return null;
+            if (_draftControllerObject == null || _draftCache.Handles.DraftDeckManager == null) return null;
 
             try
             {
@@ -215,7 +197,7 @@ namespace AccessibleArena.Core.Services
                     if (mb == null) continue;
                     if (mb.GetType().Name == T.DraftContentController)
                     {
-                        return _draftDeckManagerField.GetValue(mb);
+                        return _draftCache.Handles.DraftDeckManager.GetValue(mb);
                     }
                 }
             }
@@ -240,32 +222,32 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Count in deck (main + sideboard)
-                if (_getDeckMethod != null)
+                if (_draftCache.Handles.GetDeck != null)
                 {
-                    var deck = _getDeckMethod.Invoke(draftDeckManager, null);
+                    var deck = _draftCache.Handles.GetDeck.Invoke(draftDeckManager, null);
                     if (deck != null)
                     {
                         // Get card data from the card view for Quantity lookup
                         object cardData = null;
-                        if (_metaCardViewCardProp != null)
+                        if (_draftCache.Handles.MetaCardViewCard != null)
                         {
-                            cardData = _metaCardViewCardProp.GetValue(cardViewMb);
+                            cardData = _draftCache.Handles.MetaCardViewCard.GetValue(cardViewMb);
                         }
 
-                        if (cardData != null && _cardCollectionQuantityMethod != null)
+                        if (cardData != null && _draftCache.Handles.CardCollectionQuantity != null)
                         {
-                            var main = _deckMainProp?.GetValue(deck);
-                            var sideboard = _deckSideboardProp?.GetValue(deck);
+                            var main = _draftCache.Handles.DeckMain?.GetValue(deck);
+                            var sideboard = _draftCache.Handles.DeckSideboard?.GetValue(deck);
 
                             if (main != null)
                             {
-                                var mainQty = _cardCollectionQuantityMethod.Invoke(main, new[] { cardData });
+                                var mainQty = _draftCache.Handles.CardCollectionQuantity.Invoke(main, new[] { cardData });
                                 if (mainQty is int mq) count += mq;
                             }
 
                             if (sideboard != null)
                             {
-                                var sideQty = _cardCollectionQuantityMethod.Invoke(sideboard, new[] { cardData });
+                                var sideQty = _draftCache.Handles.CardCollectionQuantity.Invoke(sideboard, new[] { cardData });
                                 if (sideQty is int sq) count += sq;
                             }
                         }
@@ -273,9 +255,9 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Count reserved cards with same GrpId (current pack selections not yet committed)
-                if (_getReservedCardsMethod != null)
+                if (_draftCache.Handles.GetReservedCards != null)
                 {
-                    var reserved = _getReservedCardsMethod.Invoke(draftDeckManager, new object[] { false });
+                    var reserved = _draftCache.Handles.GetReservedCards.Invoke(draftDeckManager, new object[] { false });
                     if (reserved is IEnumerable enumerable)
                     {
                         foreach (var kvp in enumerable)
@@ -288,12 +270,12 @@ namespace AccessibleArena.Core.Services
                             if (reservedView == null) continue;
 
                             // Get GrpId from reserved card's CardData
-                            if (_metaCardViewCardProp != null && _cardDataGrpIdProp != null)
+                            if (_draftCache.Handles.MetaCardViewCard != null && _draftCache.Handles.CardDataGrpId != null)
                             {
-                                var reservedCardData = _metaCardViewCardProp.GetValue(reservedView);
+                                var reservedCardData = _draftCache.Handles.MetaCardViewCard.GetValue(reservedView);
                                 if (reservedCardData != null)
                                 {
-                                    var reservedGrpId = _cardDataGrpIdProp.GetValue(reservedCardData);
+                                    var reservedGrpId = _draftCache.Handles.CardDataGrpId.GetValue(reservedCardData);
                                     if (reservedGrpId is uint rGrpId && rGrpId == grpId)
                                     {
                                         count++;
@@ -322,9 +304,9 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Try DraftPackCardView.CurrentCard.Card.GrpId first
-                if (_currentCardProp != null)
+                if (_draftCache.Handles.CurrentCard != null)
                 {
-                    var currentCard = _currentCardProp.GetValue(cardViewMb);
+                    var currentCard = _draftCache.Handles.CurrentCard.GetValue(cardViewMb);
                     if (currentCard != null)
                     {
                         // ICardCollectionItem.Card → CardData
@@ -332,9 +314,9 @@ namespace AccessibleArena.Core.Services
                         if (cardProp != null)
                         {
                             var cardData = cardProp.GetValue(currentCard);
-                            if (cardData != null && _cardDataGrpIdProp != null)
+                            if (cardData != null && _draftCache.Handles.CardDataGrpId != null)
                             {
-                                var grpId = _cardDataGrpIdProp.GetValue(cardData);
+                                var grpId = _draftCache.Handles.CardDataGrpId.GetValue(cardData);
                                 if (grpId is uint id) return id;
                             }
                         }
@@ -342,12 +324,12 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Fallback: MetaCardView.Card.GrpId
-                if (_metaCardViewCardProp != null && _cardDataGrpIdProp != null)
+                if (_draftCache.Handles.MetaCardViewCard != null && _draftCache.Handles.CardDataGrpId != null)
                 {
-                    var cardData = _metaCardViewCardProp.GetValue(cardViewMb);
+                    var cardData = _draftCache.Handles.MetaCardViewCard.GetValue(cardViewMb);
                     if (cardData != null)
                     {
-                        var grpId = _cardDataGrpIdProp.GetValue(cardData);
+                        var grpId = _draftCache.Handles.CardDataGrpId.GetValue(cardData);
                         if (grpId is uint id) return id;
                     }
                 }
@@ -477,9 +459,9 @@ namespace AccessibleArena.Core.Services
                 try
                 {
                     // Check UseButtonOverlay → locked-in pick (confirmed)
-                    if (_useButtonOverlayProp != null)
+                    if (_draftCache.Handles.UseButtonOverlay != null)
                     {
-                        var overlay = _useButtonOverlayProp.GetValue(cardViewMb);
+                        var overlay = _draftCache.Handles.UseButtonOverlay.GetValue(cardViewMb);
                         if (overlay is bool isOverlay && isOverlay)
                         {
                             return Strings.Confirmed;
@@ -487,9 +469,9 @@ namespace AccessibleArena.Core.Services
                     }
 
                     // Check IsCardAlreadyReserved → selected but not yet confirmed
-                    if (_isCardAlreadyReservedMethod != null)
+                    if (_draftCache.Handles.IsCardAlreadyReserved != null)
                     {
-                        var result = _isCardAlreadyReservedMethod.Invoke(draftDeckManager, new object[] { cardViewMb });
+                        var result = _draftCache.Handles.IsCardAlreadyReserved.Invoke(draftDeckManager, new object[] { cardViewMb });
                         if (result is bool isReserved && isReserved)
                         {
                             return Strings.Selected;
@@ -1046,23 +1028,7 @@ namespace AccessibleArena.Core.Services
                 Deactivate();
             }
             _draftControllerObject = null;
-            ClearReflectionCache();
-        }
-
-        private static void ClearReflectionCache()
-        {
-            _reflectionInitialized = false;
-            _draftDeckManagerField = null;
-            _getDeckMethod = null;
-            _getReservedCardsMethod = null;
-            _isCardAlreadyReservedMethod = null;
-            _deckMainProp = null;
-            _deckSideboardProp = null;
-            _cardCollectionQuantityMethod = null;
-            _useButtonOverlayProp = null;
-            _currentCardProp = null;
-            _metaCardViewCardProp = null;
-            _cardDataGrpIdProp = null;
+            _draftCache.Clear();
         }
     }
 }
