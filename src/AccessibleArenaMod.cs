@@ -234,6 +234,15 @@ namespace AccessibleArena
             _settingsNavigator?.Toggle();
         }
 
+        /// <summary>
+        /// Opens the mod settings overlay. Used when the user activates the
+        /// synthetic "Mod Settings" entry in the game's settings menu.
+        /// </summary>
+        public void OpenModSettings()
+        {
+            _settingsNavigator?.Open();
+        }
+
         private void RepeatLastAnnouncement()
         {
             _announcer?.RepeatLastAnnouncement();

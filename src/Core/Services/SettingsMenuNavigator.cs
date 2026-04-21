@@ -48,6 +48,10 @@ namespace AccessibleArena.Core.Services
         private bool _isInQuickMenu = true;
         private GameObject _optionsVirtualElement; // Carrier GO for virtual Options button
 
+        // Virtual "Mod Settings" entry injected into the full MainMenu settings panel
+        // so users who don't know the F2 shortcut can still find the mod's settings.
+        private GameObject _modSettingsVirtualElement;
+
         // Web browser accessibility (for privacy policy, GDPR consent, etc.)
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
         private bool _isWebBrowserActive;
@@ -337,6 +341,64 @@ namespace AccessibleArena.Core.Services
             {
                 ApplyQuickMenuFilter();
             }
+            // In full menu mode on MainMenu, inject a synthetic "Mod Settings" entry
+            // so users who don't know the F2 shortcut can find mod settings alongside the game's.
+            else if (!_isInQuickMenu && _settingsContentPanel?.name == "Content - MainMenu")
+            {
+                InjectModSettingsEntry();
+            }
+            else
+            {
+                _modSettingsVirtualElement = null;
+            }
+        }
+
+        /// <summary>
+        /// Insert a synthetic "Mod Settings" entry into the full settings MainMenu, positioned
+        /// just before the Account submenu button so the order reads Gameplay, Audio, Graphics,
+        /// Mod Settings, Account, [links]. Activation routes to ModSettingsNavigator.Open().
+        /// </summary>
+        private void InjectModSettingsEntry()
+        {
+            // Use the content panel GO as carrier — distinct from the Options virtual carrier
+            // (SettingsMenu GO) so the AddElement duplicate-by-instanceID check doesn't clash.
+            _modSettingsVirtualElement = _settingsContentPanel;
+            if (_modSettingsVirtualElement == null) return;
+
+            int instanceId = _modSettingsVirtualElement.GetInstanceID();
+            if (_elements.Any(e => e.GameObject != null && e.GameObject.GetInstanceID() == instanceId))
+                return;
+
+            // Find the Account submenu button to anchor our insertion
+            int accountIndex = -1;
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var go = _elements[i].GameObject;
+                if (go == null) continue;
+                if (go.name.IndexOf("Account", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    IsSettingsSubmenuButton(go))
+                {
+                    accountIndex = i;
+                    break;
+                }
+            }
+
+            string label = BuildLabel(Models.Strings.SettingsMenuTitle,
+                Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button);
+
+            var entry = new NavigableElement
+            {
+                GameObject = _modSettingsVirtualElement,
+                Label = label,
+                Role = UIElementClassifier.ElementRole.Button
+            };
+
+            if (accountIndex >= 0)
+                _elements.Insert(accountIndex, entry);
+            else
+                _elements.Add(entry);
+
+            Log.Msg("{NavigatorId}", $"Injected Mod Settings entry at index {(accountIndex >= 0 ? accountIndex : _elements.Count - 1)}");
         }
 
         /// <summary>
@@ -899,6 +961,14 @@ namespace AccessibleArena.Core.Services
                 _isInQuickMenu = false;
                 _optionsVirtualElement = null;
                 TriggerRescan();
+                return true;
+            }
+
+            // Full menu: virtual "Mod Settings" entry -> open mod's F2 settings overlay
+            if (!_isInQuickMenu && _modSettingsVirtualElement != null && element == _modSettingsVirtualElement)
+            {
+                Log.Msg("{NavigatorId}", "Mod Settings entry activated, opening ModSettingsNavigator");
+                AccessibleArenaMod.Instance?.OpenModSettings();
                 return true;
             }
 
