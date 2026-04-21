@@ -242,8 +242,6 @@ namespace AccessibleArena.Core.Services
                         }
                     }
 
-                    if (grpId != 0)
-                        Log.Announce("DuelAnnouncer", $"ControllerId={controllerId}, _localPlayerId={_localPlayerId}");
                     isOpponent = controllerId != 0 && controllerId != _localPlayerId;
                 }
 
@@ -256,10 +254,6 @@ namespace AccessibleArena.Core.Services
                 {
                     zoneToCheck = toZoneStr;
                 }
-
-                // Log zone strings for debugging ownership detection (skip for GrpId=0 library shuffles)
-                if (grpId != 0)
-                    Log.Announce("DuelAnnouncer", $"Zone strings - From: '{fromZoneStr}', To: '{toZoneStr}', checking: '{zoneToCheck}'");
 
                 // Try to auto-correct local player ID from zone strings containing "(LocalPlayer)"
                 TryUpdateLocalPlayerIdFromZoneString(fromZoneStr);
