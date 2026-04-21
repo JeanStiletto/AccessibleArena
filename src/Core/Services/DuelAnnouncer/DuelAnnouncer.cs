@@ -331,10 +331,12 @@ namespace AccessibleArena.Core.Services
             var type = uxEvent.GetType();
             Log.Announce("DuelAnnouncer", $"=== {label} TYPE: {type.FullName} ===");
 
-            // Log all fields
+            // Log all fields. Skip compiler-generated auto-property backing fields
+            // (<Name>k__BackingField) — the matching Property: line below carries the same value.
             var fields = type.GetFields(AllInstanceFlags);
             foreach (var field in fields)
             {
+                if (field.Name.StartsWith("<") && field.Name.EndsWith("k__BackingField")) continue;
                 try
                 {
                     var value = field.GetValue(uxEvent);
