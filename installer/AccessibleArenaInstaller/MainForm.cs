@@ -405,10 +405,15 @@ namespace AccessibleArenaInstaller
                     // Step 6: Hide MelonLoader console window
                     installationManager.ConfigureMelonLoaderConsole();
 
-                    // Step 7: Register in Add/Remove Programs
+                    // Step 7: Copy a persistent uninstaller into the MTGA folder
+                    // so Add/Remove Programs keeps working after the user deletes
+                    // the original download. Registered as UninstallString below.
+                    string uninstallerPath = installationManager.CopyUninstaller();
+
+                    // Step 8: Register in Add/Remove Programs
                     UpdateStatus(InstallerLocale.Get("Main_StatusRegistering"));
                     string installedModVersion = latestVersion ?? installationManager.GetInstalledModVersion() ?? "1.0.0";
-                    RegistryManager.Register(_mtgaPath, installedModVersion);
+                    RegistryManager.Register(_mtgaPath, installedModVersion, uninstallerPath);
 
                     UpdateProgress(100);
                     UpdateStatus(InstallerLocale.Get(_updateOnly ? "Main_StatusUpdateComplete" : "Main_StatusInstallComplete"));

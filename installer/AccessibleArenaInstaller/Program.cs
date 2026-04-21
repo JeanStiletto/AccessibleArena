@@ -320,8 +320,36 @@ namespace AccessibleArenaInstaller
                     }
                 }
 
+                // Remove our mod's UserData entries (mod settings JSON + per-mod
+                // folder written by MelonPreferences). We do this unconditionally
+                // — these files are ours regardless of whether the user opts to
+                // remove MelonLoader. If the UserData folder ends up empty after
+                // MelonLoader's own configs are also removed, UninstallMelonLoader
+                // will delete the folder itself.
+                string userDataPath = Path.Combine(mtgaPath, "UserData");
+                string modSettingsJson = Path.Combine(userDataPath, "AccessibleArena.json");
+                if (File.Exists(modSettingsJson))
+                {
+                    Logger.Info("Removing mod settings (UserData/AccessibleArena.json)...");
+                    File.Delete(modSettingsJson);
+                }
+                string modUserDataFolder = Path.Combine(userDataPath, "AccessibleArena");
+                if (Directory.Exists(modUserDataFolder))
+                {
+                    Logger.Info("Removing mod user data folder (UserData/AccessibleArena)...");
+                    Directory.Delete(modUserDataFolder, recursive: true);
+                }
+
                 // Remove registry entry
                 RegistryManager.Unregister();
+
+                // Schedule deletion of the persistent uninstaller EXE in the MTGA
+                // folder. If we're running from that exact file, the OS holds it
+                // open for the lifetime of this process, so we detach a cmd child
+                // that waits a few seconds and then deletes it. If we're running
+                // from Downloads, the file is not locked and the same command
+                // deletes it immediately on the timer.
+                ScheduleUninstallerSelfDelete(mtgaPath);
 
                 Logger.Info("Uninstallation complete");
                 Logger.Flush();
@@ -331,6 +359,42 @@ namespace AccessibleArenaInstaller
                 Logger.Error("Uninstallation failed", ex);
                 Logger.Flush();
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Schedules deletion of the persistent uninstaller EXE that install
+        /// placed in the MTGA folder. Uses a detached cmd child so we can
+        /// delete the currently-running EXE after this process exits.
+        /// </summary>
+        private static void ScheduleUninstallerSelfDelete(string mtgaPath)
+        {
+            try
+            {
+                string uninstallerPath = Path.Combine(mtgaPath, Config.UninstallerExeName);
+                if (!File.Exists(uninstallerPath))
+                    return;
+
+                Logger.Info($"Scheduling deletion of uninstaller: {uninstallerPath}");
+
+                // Use ping as a delay because timeout refuses to run without an
+                // interactive console (which Process.Start with CreateNoWindow does
+                // not provide). Five pings at ~1 s each gives the parent installer
+                // process enough time to exit and release its file handle before
+                // `del` runs.
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c ping 127.0.0.1 -n 5 -w 1000 >nul & del /f /q \"{uninstallerPath}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Could not schedule uninstaller deletion: {ex.Message}");
             }
         }
 
@@ -351,8 +415,8 @@ namespace AccessibleArenaInstaller
                     Logger.Info("Removed MelonLoader folder");
                 }
 
-                // Remove MelonLoader DLLs
-                string[] mlDlls = { "version.dll", "dobby.dll" };
+                // Remove MelonLoader DLLs and their install-time backups
+                string[] mlDlls = { "version.dll", "version.dll.backup", "dobby.dll", "dobby.dll.backup" };
                 foreach (var dll in mlDlls)
                 {
                     string dllPath = Path.Combine(mtgaPath, dll);
@@ -368,6 +432,41 @@ namespace AccessibleArenaInstaller
                 if (Directory.Exists(backupFolder))
                 {
                     Directory.Delete(backupFolder, recursive: true);
+                    Logger.Info("Removed MelonLoader.backup folder");
+                }
+
+                // Remove MelonLoader's own cfg files from UserData so the folder can
+                // be cleaned up below if nothing else remains.
+                string[] mlUserDataFiles = { "Loader.cfg", "MelonPreferences.cfg" };
+                foreach (var fileName in mlUserDataFiles)
+                {
+                    string filePath = Path.Combine(mtgaPath, "UserData", fileName);
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                        Logger.Info($"Removed UserData/{fileName}");
+                    }
+                }
+
+                // Remove MelonLoader-generated folders if they're empty. If the user
+                // has other mods or data in them, leave them alone.
+                string[] generatedFolders = { "Plugins", "UserLibs", "UserData" };
+                foreach (var folderName in generatedFolders)
+                {
+                    string folderPath = Path.Combine(mtgaPath, folderName);
+                    if (!Directory.Exists(folderPath))
+                        continue;
+
+                    if (Directory.GetFiles(folderPath).Length == 0 &&
+                        Directory.GetDirectories(folderPath).Length == 0)
+                    {
+                        Directory.Delete(folderPath);
+                        Logger.Info($"Removed empty {folderName} folder");
+                    }
+                    else
+                    {
+                        Logger.Info($"Keeping {folderName} folder (not empty)");
+                    }
                 }
 
                 Logger.Info("MelonLoader removed successfully");

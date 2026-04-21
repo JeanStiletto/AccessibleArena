@@ -18,7 +18,12 @@ namespace AccessibleArenaInstaller
         /// </summary>
         /// <param name="installPath">The MTGA installation path</param>
         /// <param name="version">The mod version being installed</param>
-        public static void Register(string installPath, string version)
+        /// <param name="uninstallerPath">
+        /// Absolute path to the uninstaller EXE that Windows should invoke
+        /// when the user clicks Uninstall. If null, falls back to the current
+        /// process's own location (legacy behaviour — Downloads-path, fragile).
+        /// </param>
+        public static void Register(string installPath, string version, string uninstallerPath = null)
         {
             try
             {
@@ -34,8 +39,11 @@ namespace AccessibleArenaInstaller
                         return;
                     }
 
-                    // Get the path to this installer executable
-                    string installerPath = Assembly.GetExecutingAssembly().Location;
+                    // Prefer the persistent copy in the MTGA folder so uninstall keeps
+                    // working after the original download is deleted.
+                    string installerPath = !string.IsNullOrEmpty(uninstallerPath) && File.Exists(uninstallerPath)
+                        ? uninstallerPath
+                        : Assembly.GetExecutingAssembly().Location;
 
                     // Basic info
                     key.SetValue("DisplayName", Config.DisplayName);

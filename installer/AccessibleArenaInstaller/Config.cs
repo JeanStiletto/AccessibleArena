@@ -26,5 +26,12 @@ namespace AccessibleArenaInstaller
         /// Display name for Add/Remove Programs.
         /// </summary>
         public const string DisplayName = "Accessible Arena";
+
+        /// <summary>
+        /// Filename of the persistent uninstaller copied into the MTGA folder
+        /// at install time so Add/Remove Programs keeps working after the
+        /// original download is deleted.
+        /// </summary>
+        public const string UninstallerExeName = "AccessibleArena_Uninstaller.exe";
     }
 }

@@ -108,7 +108,8 @@ Three outcomes:
 4. **Download Mod DLL** from GitHub releases (no redundant version check)
 5. **Configure mod language** if selected
 6. **Hide MelonLoader console** - sets `hide_console = true` in `UserData/Loader.cfg`
-7. **Register in Add/Remove Programs** - stores GitHub release tag as version
+7. **Copy persistent uninstaller** - `InstallationManager.CopyUninstaller()` copies the running EXE to `<MtgaPath>\AccessibleArena_Uninstaller.exe` so Add/Remove Programs keeps working after the original download is deleted
+8. **Register in Add/Remove Programs** - stores GitHub release tag as version; `UninstallString` points at the persistent copy from step 7
 
 **Update Only Mode:**
 1. Skip Tolk DLLs and MelonLoader
@@ -138,20 +139,65 @@ Three outcomes:
 
 ## Uninstallation
 
-**Trigger methods:**
-- Windows Settings → Apps → Accessible Arena → Uninstall
+### Persistent Uninstaller in the MTGA Folder
+
+At install time (`InstallationManager.CopyUninstaller()`) the running installer EXE is copied to `<MtgaPath>\AccessibleArena_Uninstaller.exe` (see `Config.UninstallerExeName`). `RegistryManager.Register(..., uninstallerPath)` then writes that stable path into the `UninstallString` / `QuietUninstallString` registry values.
+
+**Why:** Earlier versions registered `Assembly.GetExecutingAssembly().Location` as the uninstall path, which meant the `UninstallString` pointed at the user's `Downloads` folder. If the user deleted the installer (or Windows Storage Sense cleaned it up), Add/Remove Programs would silently fail or 404 on uninstall, leaving MelonLoader and mod files permanently on disk. The persistent copy guarantees uninstall keeps working regardless of what happens to the original download.
+
+**Register signature:** `Register(installPath, version, uninstallerPath = null)`. If the caller passes `null` or a path that doesn't exist on disk, it falls back to the current EXE's location (legacy behaviour — still works if a fresh EXE invocation happens to be in a stable location, but fragile).
+
+### Trigger Methods
+
+- Windows Settings → Apps → Accessible Arena → Uninstall (uses registered `UninstallString`)
 - Control Panel → Programs and Features
-- Command line: `AccessibleArenaInstaller.exe /uninstall`
+- Command line (any EXE copy): `AccessibleArenaInstaller.exe /uninstall`
 - Silent: `AccessibleArenaInstaller.exe /uninstall /quiet`
 
-**What gets removed:**
-- AccessibleArena.dll from Mods folder
-- Tolk.dll and nvdaControllerClient64.dll from MTGA root
-- Backup files (.backup)
-- Empty Mods folder (if no other mods)
-- Registry uninstall entry
+Running `AccessibleArena_Uninstaller.exe` directly **without `/uninstall`** enters the normal install wizard (it's the same binary as the installer). If users report being offered a reinstall instead of uninstall, they double-clicked the EXE instead of going through Add/Remove Programs. Not a bug — by design, since the same EXE is both installer and uninstaller.
 
-**Optional:** User can choose to also remove MelonLoader (checkbox in UninstallForm)
+### What Gets Removed (Always, regardless of MelonLoader checkbox)
+
+`Program.PerformUninstall`:
+
+- `Mods/AccessibleArena.dll` + `.backup`
+- `Tolk.dll`, `nvdaControllerClient64.dll` + `.backup` files from MTGA root
+- Empty `Mods/` folder (kept if it still contains other files)
+- `UserData/AccessibleArena.json` (mod settings)
+- `UserData/AccessibleArena/` folder (per-mod `MelonPreferences` data)
+- Registry entry under `HKLM\...\Uninstall\AccessibleArena`
+- Schedules self-delete of `AccessibleArena_Uninstaller.exe` (see below)
+
+### What Gets Removed Additionally When MelonLoader Checkbox Is Ticked
+
+`Program.UninstallMelonLoader`:
+
+- `MelonLoader/` folder (entire MelonLoader runtime)
+- `MelonLoader.backup/` folder (if present from a previous reinstall)
+- `version.dll` + `version.dll.backup` from MTGA root
+- `dobby.dll` + `dobby.dll.backup` from MTGA root (MTGA is Mono, not Il2Cpp, so these are usually absent — removed defensively)
+- `UserData/Loader.cfg`, `UserData/MelonPreferences.cfg`
+- Empty `Plugins/`, `UserLibs/`, `UserData/` folders (kept if they still contain files, so other mods are safe)
+
+The checkbox is opt-in and defaults to unchecked, with label "Also remove MelonLoader (only if you don't use other mods)". Keep this UX in mind: if a user only ticks the mod uninstall and not MelonLoader, the game still launches with MelonLoader injecting into the process — which has caused real downstream problems (e.g. PayPal's anti-fraud fingerprinting flagging the account because `version.dll` + `MelonLoader/` are still present in the game folder).
+
+### Self-Deleting Uninstaller
+
+Since the running process is the same EXE as `AccessibleArena_Uninstaller.exe`, we can't delete ourselves directly — Windows holds an exclusive lock on a running executable's image. `Program.ScheduleUninstallerSelfDelete` spawns a detached `cmd.exe` child with:
+
+```
+cmd /c ping 127.0.0.1 -n 5 -w 1000 >nul & del /f /q "<path>\AccessibleArena_Uninstaller.exe"
+```
+
+The child process uses `CreateNoWindow=true` and `UseShellExecute=false`, so no console window flashes. After ~4–5 seconds (the delay must outlast the parent's completion MessageBox and final shutdown), `ping` returns and `del` runs. By then the parent has exited, the file lock is released, and the EXE is deleted.
+
+**Pitfall: don't use `timeout` as the delay.** `timeout /t N /nobreak` refuses to run when stdin is not an interactive console, which is exactly what `Process.Start(CreateNoWindow=true)` gives it. It exits immediately with "ERROR: Input redirection is not supported," then `&` moves on to `del` — which fails because the parent is still alive and holding the file lock. The bug is silent: the scheduled deletion fires, returns no error, and leaves the EXE in place. `ping 127.0.0.1 -n N` has no such stdin requirement and is reliable across all Windows versions.
+
+Same lesson applies any time you need a delay in a detached cmd: prefer `ping` over `timeout`. (Related: the in-mod auto-updater in `src/Core/Services/UpdateChecker.cs` spawns a cmd relaunch that currently uses `timeout /t 8 /nobreak` — that one runs with a visible console so `timeout` works there, but worth being aware of the asymmetry.)
+
+### Logging Gotcha
+
+`Logger.Flush()` is called inside `PerformUninstall` *before* `UninstallMelonLoader` runs. After MelonLoader removal finishes, `Logger.AskAndSave()` only writes a log file if `_hasErrors` is true. Consequence: on a clean successful uninstall where the user ticked the MelonLoader checkbox, the desktop log file shows only `PerformUninstall` output — no `Removing MelonLoader folder...` lines — even though the MelonLoader removal actually ran. The desktop log is therefore not a reliable diagnostic for "did MelonLoader removal happen"; check the actual file system state instead. (Worth fixing by always flushing at the true end of an uninstall run.)
 
 ## Registry Entries
 
@@ -163,7 +209,8 @@ Values:
 - Publisher: "Accessible Arena Project"
 - InstallLocation: (MTGA path)
 - InstallDate: (YYYYMMDD)
-- UninstallString: (path to installer with /uninstall flag)
+- UninstallString: `"<MtgaPath>\AccessibleArena_Uninstaller.exe" /uninstall "<MtgaPath>"` — points at the persistent copy in the MTGA folder, not the original download (see "Persistent Uninstaller in the MTGA Folder" under Uninstallation).
+- QuietUninstallString: same as UninstallString, with `/quiet` appended.
 - NoModify: 1
 - NoRepair: 1
 - EstimatedSize: 5000 (KB)
@@ -546,6 +593,21 @@ en, de, fr, es, it, pt-BR, ru, pl, ja, ko, zh-CN, zh-TW
 4. Rebuild - the wildcard `<EmbeddedResource Include="Locales\*.json" />` picks it up automatically
 
 ## Changelog
+
+### Version 1.8
+- Persistent uninstaller in the MTGA folder
+  - Install now copies the running EXE to `<MtgaPath>\AccessibleArena_Uninstaller.exe`
+  - Registry `UninstallString` points at that copy instead of the fragile Downloads path
+  - Add/Remove Programs keeps working even after the original download is deleted or moved
+- Self-deleting uninstaller
+  - On a successful uninstall, the persistent EXE schedules its own deletion via a detached `cmd` child using `ping 127.0.0.1 -n 5` as the delay
+  - Previously used `timeout`, which refuses to run without an interactive console (`Process.Start(CreateNoWindow=true)` doesn't provide one), causing `del` to hit a still-running parent and fail silently
+- Complete MelonLoader cleanup when checkbox is ticked
+  - Now also removes `version.dll.backup`, `dobby.dll.backup`
+  - Now also removes `UserData/Loader.cfg` and `UserData/MelonPreferences.cfg`
+  - Now removes empty `Plugins/`, `UserLibs/`, `UserData/` folders (was never called before — `MelonLoaderInstaller.Uninstall` had the logic but was unreferenced)
+- Mod UserData cleanup on every uninstall
+  - `UserData/AccessibleArena.json` and `UserData/AccessibleArena/` now removed unconditionally, not gated on the MelonLoader checkbox
 
 ### Version 1.7
 - Launch MTGA via launcher instead of game executable

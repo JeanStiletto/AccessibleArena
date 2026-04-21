@@ -215,6 +215,36 @@ namespace AccessibleArenaInstaller
         }
 
         /// <summary>
+        /// Copies the running installer EXE into the MTGA folder so that
+        /// Add/Remove Programs has a stable uninstaller path even if the user
+        /// later deletes the originally-downloaded installer. Returns the
+        /// destination path so the caller can register it in the registry.
+        /// </summary>
+        public string CopyUninstaller()
+        {
+            string sourceExe = Assembly.GetExecutingAssembly().Location;
+            string destExe = Path.Combine(_mtgaPath, Config.UninstallerExeName);
+
+            if (string.IsNullOrEmpty(sourceExe) || !File.Exists(sourceExe))
+            {
+                Logger.Warning($"Could not locate running installer EXE; uninstaller copy skipped (source: '{sourceExe}')");
+                return null;
+            }
+
+            try
+            {
+                File.Copy(sourceExe, destExe, overwrite: true);
+                Logger.Info($"Copied uninstaller to: {destExe}");
+                return destExe;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Could not copy uninstaller to MTGA folder: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Configures MelonLoader to hide the console window on startup.
         /// Creates or updates UserData/Loader.cfg with hide_console = true.
         /// </summary>
