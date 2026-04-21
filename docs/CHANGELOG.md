@@ -2,6 +2,31 @@
 
 All notable changes to Accessible Arena.
 
+## v1.0.0
+
+First stable release. Accessible Arena 1.0 makes Magic: The Gathering Arena playable end-to-end by blind users — login, tutorial, deck builder, store, duels, draft, events, mastery, and social features — through full keyboard navigation and screen reader integration.
+
+### What 1.0 means
+
+After just over three months of development across 44 point releases, the mod is feature-complete for its core use case: a blind user can install Accessible Arena and play Magic: The Gathering Arena independently, without sighted assistance, for the vast majority of activities. Remaining gaps and known bugs are tracked openly in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+### Changes since 0.9.4 (release candidate)
+
+No behavioral changes. Documentation and release-process updates only:
+
+- README rewritten for public 1.0
+- Added SECURITY.md and GitHub issue / pull request templates
+- Release notes now publish SHA256 checksums for both the installer and the DLL so downloads can be verified
+- Known Issues list edited for clarity (active bugs given user-facing descriptions, stale entries moved to "Not Reproducible")
+
+### Thanks
+
+A 1.0 release for an accessibility mod is not the work of one person. Special thanks to [blindndangerous](https://github.com/blindndangerous), who contributed as a de facto co-author — dozens of pull requests ranging from small polish fixes to full-screen accessibility work, across most of the mod's lifespan.
+
+Deep thanks also to all the blind testers who reported bugs, validated fixes, and shaped the UX through months of feedback; to the sighted testers who helped confirm visual workflows I couldn't verify myself; and to the accessibility modding community that gave me the technical grounding, the tools, and the social space to build this project in the first place.
+
+The full list of people who made this release possible is credited in the [README](../README.md#credits). This mod exists because of them.
+
 ## v0.9.4
 
 ### Internal

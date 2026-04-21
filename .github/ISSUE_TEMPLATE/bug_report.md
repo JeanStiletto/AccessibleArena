@@ -1,35 +1,18 @@
 ---
-name: Bug Report
-about: Report a bug or unexpected behavior in Accessible Arena
-title: ''
+name: Bug report
+about: Something doesn't work right
 labels: bug
-assignees: ''
 ---
 
-**Please check [Known Issues](https://github.com/JeanStiletto/AccessibleArena/blob/main/docs/KNOWN_ISSUES.md) before reporting - your issue may already be tracked.**
+**What happens:**
 
-**Describe the bug**
-A clear description of what went wrong.
+**Mod version:** (announced by your screen reader at game launch — "Accessible Arena vX.Y launched")
+**Windows:** (10 or 11)
 
-**Steps to reproduce**
-1. Open screen / enter duel / navigate to ...
-2. Press key ...
-3. Expected: ...
-4. Actual: ...
+**Game log (helps a lot):**
 
-**Screen or game state**
-Where did this happen? (e.g., Home screen, Duel - combat phase, Deck builder, Store)
+Close the game first, then find `Latest.log` at:
+- WotC install: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
+- Steam install: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\MelonLoader\Latest.log`
 
-**Versions**
-- Accessible Arena version:
-- NVDA version:
-- Windows version:
-
-**MelonLoader log**
-Please attach the log file from:
-`C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
-
-The log is most useful when captured right after the bug occurs, before restarting the game.
-
-**Additional context**
-Any other details, screenshots, or observations.
+Drag the file into the GitHub comment box to attach it. If GitHub rejects the `.log` extension, rename it to `.txt` first.

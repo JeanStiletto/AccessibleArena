@@ -7,7 +7,7 @@ Active bugs, limitations, and planned work for Accessible Arena.
 
 ### Phase Stop System Breaks During Mulligan
 
-Pressing phase stop keys (1-0) during the mulligan phase breaks the phase stop system. Exact symptoms and reproduction steps to be documented.
+Phase stops (a game feature made accessible by the mod, toggled with keys 1-0) break if you try to use them while still in the mulligan phase. Once broken, they stay broken for the rest of the match. Workaround: wait until turn 1 begins before touching phase stop keys.
 
 ---
 
@@ -17,9 +17,21 @@ After a filter is applied in the deck builder (collection or deck side), the fir
 
 ---
 
-### Event-Specific Quests Show English Text
+### Home/End Not Working in Mastery Navigator
 
-Event-specific quests (e.g. special event objectives) display English text instead of the user's localized language. Standard daily/weekly quests are localized correctly.
+Home and End keys do not jump to the first/last item in the Mastery Navigator. Other navigators handle them correctly — Mastery needs the same wiring.
+
+---
+
+### Sphere Buy Button Announced Twice
+
+The buy button for Spheres (mastery/cosmetics store) is announced twice when focused. Likely a duplicate element being picked up by the scan.
+
+---
+
+### Opponent's Exile Zone Not Visible
+
+Shift+X does not surface the opponent's Exile when it contains cards. The zone navigator needs to detect and announce opponent-side exile contents like it does for the graveyard.
 
 ---
 
@@ -73,6 +85,10 @@ Combining set filters (Advanced Filters) with a text search in the deck builder 
 ---
 
 ## Under Investigation
+
+### Codex "How to Play" Category Completeness
+
+The "How to Play" category in the Codex of the Multiverse may be missing entries or have sections that don't read fully. Needs a pass to verify all subsections are reachable and read correctly.
 
 ---
 
@@ -198,7 +214,7 @@ Season end rewards popup now uses content-gated detection (NPE-style): the navig
 
 ### Other Windows Versions and Screen Readers
 
-Only tested on Windows 11 with NVDA. Other Windows versions (Windows 10) and other screen readers (JAWS, Narrator, etc.) may work via Tolk but are untested.
+Tested on Windows 10 and Windows 11 with NVDA and JAWS. Other Windows versions and other screen readers (Narrator, etc.) may work via Tolk but are untested.
 
 ---
 
@@ -209,6 +225,12 @@ Emblems created by planeswalkers live in the Command zone (`ZoneType.Command`) a
 ---
 
 ## Not Reproducible Yet
+
+### Event-Specific Quests Show English Text
+
+Event-specific quests (e.g. special event objectives) reportedly display English text instead of the user's localized language. Standard daily/weekly quests are localized correctly. Exact reproduction steps unknown — needs a specific event with localized objectives to confirm.
+
+---
 
 ### Game Assets Loading Problem
 
@@ -249,17 +271,18 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 1. Display emblems in command zone and modified player properties (max hand size, extra turns, etc.)
 2. Sylvan Library support — the card has a unique draw-then-choose UI that needs accessible navigation. Planned for when Strixhaven Remastered releases on Arena. Reference: https://magic.wizards.com/en/news/mtg-arena/dev-diary-sylvan-library
 3. Emote system improvements — fix and improve the emote system so emotes can be sent and received correctly, with proper screen reader announcements for incoming opponent emotes. Add the ability to mute the opponent's emotes.
+4. Surface cards revealed in the opponent's hand — when a card is revealed (by effects like Thoughtseize, Duress, Telepathy), the revealed card should be visible and readable without exposing the rest of the hand. Needs a similar implementation to the opponent library (which shows known top cards from scry/surveil without allowing cheating): only the revealed cards become inspectable, the rest stays hidden.
 
 ### Polish
 
 1. Unify E and T shortcut announcements — make the announcement style consistent between the two shortcuts.
-2. Store deck popups — deck detail popups in the Store Decks tab are not working correctly and mana costs in card titles are not parsed properly (raw mana symbols instead of readable text).
-3. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
-4. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
-5. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
-6. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
-7. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-8. Replace Tolk with Prism library — Tolk covers the major Western screen readers (NVDA, JAWS, Narrator) but lacks support for several Asian ones. A switch to Prism may be considered if Asian screen reader users request it. Two blockers remain: the official Prism .NET binding currently targets .NET 10, while this mod runs on .NET Framework 4.7.2; and the mod would need to be confirmed portable to macOS, which requires a contributor with access to a Mac (the maintainer does not have one).
-9. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
-10. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
+2. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
+3. Make extended card menu accessible in deck screens — the right-click/long-press context menu on cards (craft, add to deck, view details, etc.) is currently not accessible via keyboard or screen reader.
+4. Make card styles and card sleeves readable and switchable — announce available card styles (alternate art, showcase frames, etc.) and card sleeves, potentially as part of the artist info block. Provide accessible controls to browse and switch between owned styles and sleeves.
+5. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
+6. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
+7. Replace Tolk with Prism library — Tolk covers the major Western screen readers (NVDA, JAWS, Narrator) but lacks support for several Asian ones. A switch to Prism may be considered if Asian screen reader users request it. Two blockers remain: the official Prism .NET binding currently targets .NET 10, while this mod runs on .NET Framework 4.7.2; and the mod would need to be confirmed portable to macOS, which requires a contributor with access to a Mac (the maintainer does not have one).
+8. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
+9. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
+10. Hand count restricted to hand zone — the Shift+C opponent hand count (and the equivalent own-hand count) currently includes cards that are not actually in the hand zone. The count should be restricted to `ZoneType.Hand` only.
 

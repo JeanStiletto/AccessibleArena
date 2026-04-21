@@ -136,6 +136,23 @@ if ($notes.Count -eq 0) {
     $notesText = $notes -join "`n"
 }
 
+# Append SHA256 verification block
+$installerHash = (Get-FileHash -Path $installerExe -Algorithm SHA256).Hash.ToLower()
+$modHash       = (Get-FileHash -Path $modDll       -Algorithm SHA256).Hash.ToLower()
+
+$notesText += @"
+
+
+---
+
+**Verification (SHA256):**
+
+- ``AccessibleArenaInstaller.exe``: ``$installerHash``
+- ``AccessibleArena.dll``: ``$modHash``
+
+Verify in PowerShell with ``Get-FileHash <filename> -Algorithm SHA256`` or in Command Prompt with ``certutil -hashfile <filename> SHA256``.
+"@
+
 $notesFile = Join-Path $root 'release_notes.txt'
 $notesText | Out-File -FilePath $notesFile -Encoding utf8
 
