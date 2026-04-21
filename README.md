@@ -5,8 +5,6 @@ permalink: /
 ---
 <h1>Accessible Arena</h1>
 
-Read in other languages: [Deutsch](docs/README.de.md) | [Español](docs/README.es.md) | [Français](docs/README.fr.md) | [Italiano](docs/README.it.md) | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [Polski](docs/README.pl.md) | [Português (Brasil)](docs/README.pt-BR.md) | [Русский](docs/README.ru.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md)
-
 <h2>What is this mod</h2>
 
 This mod allows you to play Arena, the most popular and beginner-friendly digital representation of the TCG Magic: The Gathering. It adds full screen reader support and keyboard navigation to nearly every aspect of the game.
@@ -266,12 +264,18 @@ Creating this mod was not just a lot of fun and empowerment for me but cost me r
 So if you are willing and able to afford a one-time or even monthly donation you can look over here.
 I would highly appreciate this recognition of my work and it gives me a stable base to keep working on Arena and, hopefully, other large projects in the future.
 
-Ko-fi: https://ko-fi.com/jeanstiletto
+[Ko-fi: ko-fi.com/jeanstiletto](https://ko-fi.com/jeanstiletto)
+
+<h2>License</h2>
 
 This project is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
 
 <h2>Links</h2>
 
-- GitHub: https://github.com/JeanStiletto/AccessibleArena
-- MelonLoader: https://github.com/LavaGang/MelonLoader
-- MTG Arena: https://magic.wizards.com/mtgarena
+- [GitHub](https://github.com/JeanStiletto/AccessibleArena)
+- [MelonLoader](https://github.com/LavaGang/MelonLoader)
+- [MTG Arena](https://magic.wizards.com/mtgarena)
+
+<h2>Other languages</h2>
+
+[Deutsch](docs/README.de.md) | [Español](docs/README.es.md) | [Français](docs/README.fr.md) | [Italiano](docs/README.it.md) | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [Polski](docs/README.pl.md) | [Português (Brasil)](docs/README.pt-BR.md) | [Русский](docs/README.ru.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md)
