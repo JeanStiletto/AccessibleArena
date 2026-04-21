@@ -33,6 +33,10 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _getArtistMethod = null;
         private static bool _artistProviderSearched = false;
 
+        // Dedup cache for ability-text lookup logs. Same id → same text is pure-function,
+        // so we log the first occurrence and only re-log if the resolved text ever differs.
+        private static readonly Dictionary<uint, string> _loggedAbilityText = new Dictionary<uint, string>();
+
         /// <summary>
         /// Clears all text provider caches. Call when scene changes.
         /// </summary>
@@ -47,6 +51,7 @@ namespace AccessibleArena.Core.Services
             _artistProvider = null;
             _getArtistMethod = null;
             _artistProviderSearched = false;
+            _loggedAbilityText.Clear();
         }
 
         /// <summary>
@@ -175,7 +180,16 @@ namespace AccessibleArena.Core.Services
                 string text = result?.ToString();
                 if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.StartsWith("#") && !text.StartsWith("Ability #") && !text.Contains("Unknown"))
                 {
-                    Log.Card("CardTextProvider", $"Ability {abilityId} -> {text}");
+                    if (!_loggedAbilityText.TryGetValue(abilityId, out var prevText))
+                    {
+                        _loggedAbilityText[abilityId] = text;
+                        Log.Card("CardTextProvider", $"Ability {abilityId} -> {text}");
+                    }
+                    else if (prevText != text)
+                    {
+                        _loggedAbilityText[abilityId] = text;
+                        Log.Card("CardTextProvider", $"Ability {abilityId} CHANGED: {prevText} -> {text}");
+                    }
                     return text;
                 }
             }

@@ -37,6 +37,10 @@ namespace AccessibleArena.Core.Services
         private static readonly Dictionary<uint, (uint cardGrpId, uint[] abilityIds, uint cardTitleId)> _abilityParentCache
             = new Dictionary<uint, (uint, uint[], uint)>();
 
+        // Dedup cache for GrpId→Name lookup logs. Same id → same name is pure-function,
+        // so we log the first occurrence and only re-log if the resolved name ever differs.
+        private static readonly Dictionary<uint, string> _loggedGrpIdName = new Dictionary<uint, string>();
+
         /// <summary>
         /// Clears the model provider cache. Call when scene changes.
         /// </summary>
@@ -48,6 +52,7 @@ namespace AccessibleArena.Core.Services
             _getNameMethod = null;
             _idNameProviderSearched = false;
             _abilityPropertiesLogged = false;
+            _loggedGrpIdName.Clear();
             // CDC Model property cache
             _cdcModelProp = null;
             _cdcModelPropType = null;
@@ -749,7 +754,16 @@ namespace AccessibleArena.Core.Services
                 // Check if we got a valid result (not null, not empty, not "Unknown Card Title X")
                 if (!string.IsNullOrEmpty(name) && !name.StartsWith("$") && !name.StartsWith("Unknown Card Title"))
                 {
-                    Log.Card("CardModelProvider", $"GrpId {grpId} -> Name: {name}");
+                    if (!_loggedGrpIdName.TryGetValue(grpId, out var prevName))
+                    {
+                        _loggedGrpIdName[grpId] = name;
+                        Log.Card("CardModelProvider", $"GrpId {grpId} -> Name: {name}");
+                    }
+                    else if (prevName != name)
+                    {
+                        _loggedGrpIdName[grpId] = name;
+                        Log.Card("CardModelProvider", $"GrpId {grpId} CHANGED: {prevName} -> {name}");
+                    }
                     return name;
                 }
 
