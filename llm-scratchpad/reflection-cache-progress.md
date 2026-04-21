@@ -177,13 +177,52 @@ Decisions above are final unless the pilot itself reveals an API gap.
     - [x] `BrowserNavigator.Keyword.cs`, `BrowserNavigator.OrderCards.cs` (commit 02b2bf2)
     - [x] `DuelAnnouncer.Commander.cs`, `DuelAnnouncer.NPE.cs` (commit 6b7d1af)
     - [x] `UITextExtractor.Localization.cs`, `UITextExtractor.Objectives.cs` (commit 33c4809)
-  - [ ] Other navigators:
-    - [x] `ChooseXNavigator`, `SpinnerNavigator` (this commit)
-    - [ ] `HotHighlightNavigator`, `ManaColorPickerNavigator`, `ProfileNavigator`, `AchievementsNavigator`,
-        `CodexNavigator`, `ChatMessageWatcher`, `ChatNavigator`, `DuelChatNavigator`,
-        `DraftNavigator`, `SideboardNavigator`, `BoosterOpenNavigator`, `StoreNavigator`,
-        `ChallengeNavigationHelper`, `PriorityController`
-- [ ] Phase 4: survivor audit (grep `Initialize.*Reflection` + `Ensure.*Cached` + raw `GetField` etc.), final line count
+  - [x] Other navigators:
+    - [x] `ChooseXNavigator`, `SpinnerNavigator` (commit 9d2c88b)
+    - [x] `CodexNavigator` (commit 6abd140)
+    - [x] `StoreNavigator` + 6 partials (commit ca8f60a)
+    - [x] `ChatMessageWatcher`, `ChatNavigator`, `DuelChatNavigator` (commit 5efc9b1)
+    - [x] `DraftNavigator` (commit cba6ca7)
+    - [x] `SideboardNavigator` (commit 129a459 — 3 caches: Sideboard/DeckBuilder/NavBar)
+    - [x] `ChallengeNavigationHelper` (commit 6aa7f49 — 2 caches: Challenge/PlayBlade)
+    - [x] `PriorityController` (commit 061be83 — 3 caches: AutoResp/PhaseLadder/PhaseLadderButton)
+    - [x] `BrowserNavigator.AssignDamage` (commit 0ccd0b0 — 4 caches: WorkflowChain/Interaction/DamageAssigner/Browser)
+    - [x] `HotHighlightNavigator`, `ManaColorPickerNavigator` (commit 77aa0fa)
+    - [x] `ProfileNavigator`, `AchievementsNavigator` (commit ecbd727)
+    - SKIPPED — not a fit for `ReflectionCache<THandles>`:
+      `BoosterOpenNavigator.cs` (12 FieldInfo/PropertyInfo/MethodInfo fields scattered across 6 usage sites,
+      each with its own lazy null-check-and-lookup pattern; no single init method exists; spans 6 different
+      seed types — controller/holder/entry/CardData/AudioManager/chamber. Analogous to
+      `CardTextProvider`/`ExtendedCardInfoProvider`.)
+- [x] Phase 4: survivor audit (grep `Initialize.*Reflection` + `Ensure.*Cached` + raw `GetField` etc.), final line count
+
+## Phase 4 — survivor audit result (2026-04-21)
+
+Grep `private (static )?(bool|void) (Initialize\w*Reflection|Ensure\w*(Reflect|Cached))\s*\(`
+returns 12 methods — all are now thin wrappers that call
+`_cache.EnsureInitialized(...)` (preserved for API compatibility with existing
+call sites / for live-type seeding). None of them hold scattered FieldInfo
+fields anymore. List:
+
+- AchievementsNavigator.EnsureReflectionCached
+- BrowserNavigator.AssignDamage.EnsureTotalDamageCached
+- ChooseXNavigator.InitializeReflection
+- CodexNavigator.EnsureReflectionCached
+- ChatNavigator.EnsureReflectionCached
+- HotHighlightNavigator.InitializeAvatarReflection
+- ManaColorPickerNavigator.InitializeReflection
+- SpinnerNavigator.InitializeReflection
+- PriorityController.EnsureAutoPassCached
+- DuelChatNavigator.EnsureReflectionCached
+- ProfileNavigator.EnsureReflectionCached
+- StoreNavigator.EnsureReflectionCached
+
+Remaining raw `GetField/GetProperty/GetMethod` calls (976 total across 83 files)
+are either inside `ReflectionCache` builder lambdas (correct usage), inside the
+explicitly-skipped files (BoosterOpenNavigator, CardTextProvider,
+ExtendedCardInfoProvider, DeckCardProvider, CardModelProvider dynamic name-keyed
+cache, CardStateProvider lazy non-handle paths), or Harmony patches / genuinely
+per-frame uncached lookups. No further migration candidates.
 
 ## Notes
 
