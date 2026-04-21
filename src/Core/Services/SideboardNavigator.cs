@@ -46,24 +46,61 @@ namespace AccessibleArena.Core.Services
         private int _rescanFrameCountdown = -1;
         private const int RescanDelayFrames = 8;
 
-        // Reflection caches for SideboardInterface
-        private static FieldInfo _deckBuilderField;
-        private static FieldInfo _showHideToggleField;
-        private static FieldInfo _navBarField;
-        private static FieldInfo _introTextField;
-        private static bool _sideboardReflectionInit;
+        private sealed class SideboardHandles
+        {
+            public FieldInfo DeckBuilder;
+            public FieldInfo ShowHideToggle;
+            public FieldInfo NavBar;
+            public FieldInfo IntroText;
+        }
 
-        // Reflection caches for DeckBuilderWidget
-        private static FieldInfo _doneButtonField;
-        private static bool _deckBuilderReflectionInit;
+        private sealed class DeckBuilderHandles
+        {
+            public FieldInfo DoneButton;
+        }
 
-        // Reflection caches for SideboardNavBar
-        private static FieldInfo _playerNameField;
-        private static FieldInfo _opponentNameField;
-        private static FieldInfo _playerWinPipsField;
-        private static FieldInfo _opponentWinPipsField;
-        private static FieldInfo _timerTextField;
-        private static bool _navBarReflectionInit;
+        private sealed class NavBarHandles
+        {
+            public FieldInfo PlayerName;
+            public FieldInfo OpponentName;
+            public FieldInfo PlayerWinPips;
+            public FieldInfo OpponentWinPips;
+            public FieldInfo TimerText;
+        }
+
+        private static readonly ReflectionCache<SideboardHandles> _sideboardCache = new ReflectionCache<SideboardHandles>(
+            builder: t => new SideboardHandles
+            {
+                DeckBuilder = t.GetField("_deckBuilder", PrivateInstance),
+                ShowHideToggle = t.GetField("_showHideToggle", PrivateInstance),
+                NavBar = t.GetField("_navBar", PrivateInstance),
+                IntroText = t.GetField("_sideboardIntroText", PrivateInstance),
+            },
+            validator: h => h.DeckBuilder != null && h.NavBar != null,
+            logTag: "SideboardNavigator",
+            logSubject: "SideboardInterface");
+
+        private static readonly ReflectionCache<DeckBuilderHandles> _deckBuilderCache = new ReflectionCache<DeckBuilderHandles>(
+            builder: t => new DeckBuilderHandles
+            {
+                DoneButton = t.GetField("_doneButton", PrivateInstance),
+            },
+            validator: h => h.DoneButton != null,
+            logTag: "SideboardNavigator",
+            logSubject: "DeckBuilderWidget");
+
+        private static readonly ReflectionCache<NavBarHandles> _navBarCache = new ReflectionCache<NavBarHandles>(
+            builder: t => new NavBarHandles
+            {
+                PlayerName = t.GetField("PlayerName", PublicInstance),
+                OpponentName = t.GetField("OpponentName", PublicInstance),
+                PlayerWinPips = t.GetField("PlayerWinPips", PublicInstance),
+                OpponentWinPips = t.GetField("OpponentWinPips", PublicInstance),
+                TimerText = t.GetField("TimerText", PublicInstance),
+            },
+            validator: h => h.PlayerName != null && h.OpponentName != null,
+            logTag: "SideboardNavigator",
+            logSubject: "SideboardNavBar");
 
         public override string NavigatorId => "Sideboard";
         public override string ScreenName => Strings.ScreenSideboard;
@@ -737,12 +774,13 @@ namespace AccessibleArena.Core.Services
         {
             if (_sideboardInterface == null) return;
 
-            EnsureSideboardReflection();
-            if (_showHideToggleField == null) return;
+            if (!EnsureSideboardReflection()) return;
+            var h = _sideboardCache.Handles;
+            if (h.ShowHideToggle == null) return;
 
             try
             {
-                var toggleButton = _showHideToggleField.GetValue(_sideboardInterface) as UnityEngine.UI.Button;
+                var toggleButton = h.ShowHideToggle.GetValue(_sideboardInterface) as UnityEngine.UI.Button;
                 if (toggleButton != null)
                 {
                     toggleButton.onClick.Invoke();
@@ -859,93 +897,58 @@ namespace AccessibleArena.Core.Services
         {
             if (_sideboardInterface == null) return;
 
-            EnsureSideboardReflection();
-            if (_navBarField != null)
+            if (!EnsureSideboardReflection()) return;
+            var h = _sideboardCache.Handles;
+            if (h.NavBar == null) return;
+
+            try
             {
-                try
+                _navBar = h.NavBar.GetValue(_sideboardInterface) as MonoBehaviour;
+                if (_navBar != null)
                 {
-                    _navBar = _navBarField.GetValue(_sideboardInterface) as MonoBehaviour;
-                    if (_navBar != null)
-                    {
-                        EnsureNavBarReflection();
-                    }
+                    EnsureNavBarReflection(_navBar.GetType());
                 }
-                catch (Exception ex)
-                {
-                    Log.Error("{NavigatorId}", $"FindNavBar failed: {ex.Message}");
-                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("{NavigatorId}", $"FindNavBar failed: {ex.Message}");
             }
         }
 
-        private static void EnsureSideboardReflection()
+        private static bool EnsureSideboardReflection()
         {
-            if (_sideboardReflectionInit) return;
-            _sideboardReflectionInit = true;
-
             var type = FindType("SideboardInterface");
-            if (type == null) return;
-
-            _deckBuilderField = type.GetField("_deckBuilder", PrivateInstance);
-            _showHideToggleField = type.GetField("_showHideToggle", PrivateInstance);
-            _navBarField = type.GetField("_navBar", PrivateInstance);
-            _introTextField = type.GetField("_sideboardIntroText", PrivateInstance);
-
-            Log.Msg("SideboardNavigator", $"Reflection init: " +
-                $"_deckBuilder={_deckBuilderField != null}, " +
-                $"_showHideToggle={_showHideToggleField != null}, " +
-                $"_navBar={_navBarField != null}, " +
-                $"_introText={_introTextField != null}");
+            return type != null && _sideboardCache.EnsureInitialized(type);
         }
 
-        private static void EnsureDeckBuilderReflection()
+        private static bool EnsureDeckBuilderReflection()
         {
-            if (_deckBuilderReflectionInit) return;
-            _deckBuilderReflectionInit = true;
-
             var type = FindType("DeckBuilderWidget");
-            if (type == null) return;
-
-            _doneButtonField = type.GetField("_doneButton", PrivateInstance);
-
-            Log.Msg("SideboardNavigator", $"DeckBuilder reflection: " +
-                $"_doneButton={_doneButtonField != null}");
+            return type != null && _deckBuilderCache.EnsureInitialized(type);
         }
 
-        private static void EnsureNavBarReflection()
+        private static bool EnsureNavBarReflection(Type seed)
         {
-            if (_navBarReflectionInit) return;
-            _navBarReflectionInit = true;
-
-            var type = FindType("SideboardNavBar");
-            if (type == null) return;
-
-            _playerNameField = type.GetField("PlayerName", PublicInstance);
-            _opponentNameField = type.GetField("OpponentName", PublicInstance);
-            _playerWinPipsField = type.GetField("PlayerWinPips", PublicInstance);
-            _opponentWinPipsField = type.GetField("OpponentWinPips", PublicInstance);
-            _timerTextField = type.GetField("TimerText", PublicInstance);
-
-            Log.Msg("SideboardNavigator", $"NavBar reflection: " +
-                $"PlayerName={_playerNameField != null}, OpponentName={_opponentNameField != null}, " +
-                $"PlayerWinPips={_playerWinPipsField != null}, OpponentWinPips={_opponentWinPipsField != null}, " +
-                $"TimerText={_timerTextField != null}");
+            return seed != null && _navBarCache.EnsureInitialized(seed);
         }
 
         private GameObject GetDoneButton()
         {
             if (_sideboardInterface == null) return null;
 
-            EnsureSideboardReflection();
-            EnsureDeckBuilderReflection();
+            if (!EnsureSideboardReflection()) return null;
+            if (!EnsureDeckBuilderReflection()) return null;
 
-            if (_deckBuilderField == null || _doneButtonField == null) return null;
+            var sh = _sideboardCache.Handles;
+            var dh = _deckBuilderCache.Handles;
+            if (sh.DeckBuilder == null || dh.DoneButton == null) return null;
 
             try
             {
-                var deckBuilder = _deckBuilderField.GetValue(_sideboardInterface);
+                var deckBuilder = sh.DeckBuilder.GetValue(_sideboardInterface);
                 if (deckBuilder == null) return null;
 
-                var doneButton = _doneButtonField.GetValue(deckBuilder);
+                var doneButton = dh.DoneButton.GetValue(deckBuilder);
                 if (doneButton is Component comp)
                     return comp.gameObject;
             }
@@ -962,10 +965,11 @@ namespace AccessibleArena.Core.Services
 
         private string GetPlayerName()
         {
-            if (_navBar == null || _playerNameField == null) return "You";
+            var h = _navBarCache.Handles;
+            if (_navBar == null || h?.PlayerName == null) return "You";
             try
             {
-                var tmp = _playerNameField.GetValue(_navBar) as TMP_Text;
+                var tmp = h.PlayerName.GetValue(_navBar) as TMP_Text;
                 return tmp?.text ?? "You";
             }
             catch { return "You"; }
@@ -973,10 +977,11 @@ namespace AccessibleArena.Core.Services
 
         private string GetOpponentName()
         {
-            if (_navBar == null || _opponentNameField == null) return "Opponent";
+            var h = _navBarCache.Handles;
+            if (_navBar == null || h?.OpponentName == null) return "Opponent";
             try
             {
-                var tmp = _opponentNameField.GetValue(_navBar) as TMP_Text;
+                var tmp = h.OpponentName.GetValue(_navBar) as TMP_Text;
                 return tmp?.text ?? "Opponent";
             }
             catch { return "Opponent"; }
@@ -984,12 +989,12 @@ namespace AccessibleArena.Core.Services
 
         private int GetPlayerWins()
         {
-            return CountActivePips(_playerWinPipsField);
+            return CountActivePips(_navBarCache.Handles?.PlayerWinPips);
         }
 
         private int GetOpponentWins()
         {
-            return CountActivePips(_opponentWinPipsField);
+            return CountActivePips(_navBarCache.Handles?.OpponentWinPips);
         }
 
         private int CountActivePips(FieldInfo pipsField)
@@ -1011,10 +1016,11 @@ namespace AccessibleArena.Core.Services
 
         private string GetTimerText()
         {
-            if (_navBar == null || _timerTextField == null) return null;
+            var h = _navBarCache.Handles;
+            if (_navBar == null || h?.TimerText == null) return null;
             try
             {
-                var tmp = _timerTextField.GetValue(_navBar) as TMP_Text;
+                var tmp = h.TimerText.GetValue(_navBar) as TMP_Text;
                 if (tmp != null && tmp.gameObject.activeInHierarchy)
                     return tmp.text;
             }
@@ -1024,10 +1030,11 @@ namespace AccessibleArena.Core.Services
 
         private string GetIntroText()
         {
-            if (_sideboardInterface == null || _introTextField == null) return null;
+            var h = _sideboardCache.Handles;
+            if (_sideboardInterface == null || h?.IntroText == null) return null;
             try
             {
-                var tmp = _introTextField.GetValue(_sideboardInterface) as TMP_Text;
+                var tmp = h.IntroText.GetValue(_sideboardInterface) as TMP_Text;
                 if (tmp != null && !string.IsNullOrEmpty(tmp.text))
                     return tmp.text;
             }
