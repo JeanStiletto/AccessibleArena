@@ -163,12 +163,14 @@ namespace AccessibleArena.Patches
         /// Returns true when the Tab key is held, in which case the caller should skip the
         /// patched SocialUI method. Our mod uses Tab for navigation — we never want Tab to
         /// open, close, or toggle the friends panel / chat window.
+        /// Pass log=false for postfix sites that always pair with a prefix site (the prefix
+        /// already logged the block; the postfix would just duplicate the line).
         /// </summary>
-        private static bool ShouldBlockSocialUITabToggle(string whatWasBlocked)
+        private static bool ShouldBlockSocialUITabToggle(string whatWasBlocked, bool log = true)
         {
             if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
             {
-                Log.Patch("PanelStatePatch", $"Blocked {whatWasBlocked} (Tab pressed)");
+                if (log) Log.Patch("PanelStatePatch", $"Blocked {whatWasBlocked} (Tab pressed)");
                 return true;
             }
             return false;
@@ -803,13 +805,13 @@ namespace AccessibleArena.Patches
 
         public static void SocialUIShowPostfix(object __instance)
         {
-            if (ShouldBlockSocialUITabToggle("SocialUI.ShowSocialEntitiesList postfix")) return;
+            if (ShouldBlockSocialUITabToggle("SocialUI.ShowSocialEntitiesList postfix", log: false)) return;
             FirePanelStateChange(__instance, true, "SocialUI", "SocialUI.ShowSocialEntitiesList");
         }
 
         public static void SocialUIHidePostfix(object __instance)
         {
-            if (ShouldBlockSocialUITabToggle("SocialUI Hide postfix")) return;
+            if (ShouldBlockSocialUITabToggle("SocialUI Hide postfix", log: false)) return;
             FirePanelStateChange(__instance, false, "SocialUI", "SocialUI Hide");
         }
 
@@ -828,7 +830,7 @@ namespace AccessibleArena.Patches
 
         public static void SocialUISetVisiblePostfix(object __instance, bool visible)
         {
-            if (visible && ShouldBlockSocialUITabToggle("SocialUI.SetVisible postfix")) return;
+            if (visible && ShouldBlockSocialUITabToggle("SocialUI.SetVisible postfix", log: false)) return;
             FirePanelStateChange(__instance, visible, "SocialUI", $"SocialUI.SetVisible({visible})");
         }
 
