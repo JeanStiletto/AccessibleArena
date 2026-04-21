@@ -25,6 +25,73 @@ namespace AccessibleArena.Core.Services
         private int _assignerTotal;   // total number of damage assigners in this combat
         private const BindingFlags ReflFlags = AllInstanceFlags;
 
+        private sealed class WorkflowChainHandles
+        {
+            public PropertyInfo WorkflowController;
+            public PropertyInfo CurrentWorkflow;
+        }
+
+        private sealed class AssignDamageInteractionHandles
+        {
+            public FieldInfo DamageAssigner;
+            public FieldInfo HandledAssigners;
+            public FieldInfo UnhandledAssigners;
+        }
+
+        private sealed class DamageAssignerHandles
+        {
+            public FieldInfo TotalDamage;
+        }
+
+        private sealed class AssignDamageBrowserHandles
+        {
+            public FieldInfo IdToSpinnerMap;
+        }
+
+        private static readonly ReflectionCache<WorkflowChainHandles> _workflowChainCache = new ReflectionCache<WorkflowChainHandles>(
+            builder: gmType =>
+            {
+                var h = new WorkflowChainHandles
+                {
+                    WorkflowController = gmType.GetProperty("WorkflowController", ReflFlags),
+                };
+                if (h.WorkflowController != null)
+                    h.CurrentWorkflow = h.WorkflowController.PropertyType.GetProperty("CurrentWorkflow", ReflFlags);
+                return h;
+            },
+            validator: h => h.WorkflowController != null && h.CurrentWorkflow != null,
+            logTag: "BrowserNavigator",
+            logSubject: "WorkflowChain");
+
+        private static readonly ReflectionCache<AssignDamageInteractionHandles> _assignDamageInteractionCache = new ReflectionCache<AssignDamageInteractionHandles>(
+            builder: t => new AssignDamageInteractionHandles
+            {
+                DamageAssigner = ReflectionWalk.FindField(t, "_damageAssigner", ReflFlags),
+                HandledAssigners = t.GetField("_handledAssigners", ReflFlags),
+                UnhandledAssigners = t.GetField("_unhandledAssigners", ReflFlags),
+            },
+            validator: h => h.DamageAssigner != null,
+            logTag: "BrowserNavigator",
+            logSubject: "AssignDamageWorkflow");
+
+        private static readonly ReflectionCache<DamageAssignerHandles> _damageAssignerCache = new ReflectionCache<DamageAssignerHandles>(
+            builder: t => new DamageAssignerHandles
+            {
+                TotalDamage = t.GetField("TotalDamage", PublicInstance),
+            },
+            validator: h => h.TotalDamage != null,
+            logTag: "BrowserNavigator",
+            logSubject: "MtgDamageAssigner");
+
+        private static readonly ReflectionCache<AssignDamageBrowserHandles> _assignDamageBrowserCache = new ReflectionCache<AssignDamageBrowserHandles>(
+            builder: t => new AssignDamageBrowserHandles
+            {
+                IdToSpinnerMap = t.GetField("_idToSpinnerMap", ReflFlags),
+            },
+            validator: h => h.IdToSpinnerMap != null,
+            logTag: "BrowserNavigator",
+            logSubject: "AssignDamageBrowser");
+
         /// <summary>
         /// Caches state for the AssignDamage browser: browser ref, spinner map, total damage.
         /// </summary>
@@ -47,16 +114,10 @@ namespace AccessibleArena.Core.Services
                 // (it runs before BrowserNavigator in the update loop and would intercept spinner keys)
                 AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
 
-                // Cache _idToSpinnerMap
-                var spinnerField = currentBrowser.GetType().GetField("_idToSpinnerMap", ReflFlags);
-                if (spinnerField != null)
+                if (_assignDamageBrowserCache.EnsureInitialized(currentBrowser.GetType()))
                 {
-                    _spinnerMap = spinnerField.GetValue(currentBrowser) as System.Collections.IDictionary;
+                    _spinnerMap = _assignDamageBrowserCache.Handles.IdToSpinnerMap.GetValue(currentBrowser) as System.Collections.IDictionary;
                     Log.Msg("BrowserNavigator", $"AssignDamage: Spinner map has {_spinnerMap?.Count ?? 0} entries");
-                }
-                else
-                {
-                    Log.Msg("BrowserNavigator", "AssignDamage: _idToSpinnerMap field not found");
                 }
 
                 // TotalDamage is cached lazily via EnsureTotalDamageCached()
@@ -135,75 +196,34 @@ namespace AccessibleArena.Core.Services
                         break;
                     }
                 }
-                if (gameManager == null)
-                {
-                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: GameManager not found");
-                    return;
-                }
+                if (gameManager == null) return;
 
-                var wcProp = gameManager.GetType().GetProperty("WorkflowController", ReflFlags);
-                var workflowController = wcProp?.GetValue(gameManager);
-                if (workflowController == null)
-                {
-                    Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: WorkflowController null (prop found: {wcProp != null})");
-                    return;
-                }
+                if (!_workflowChainCache.EnsureInitialized(gameManager.GetType())) return;
+                var wh = _workflowChainCache.Handles;
 
-                var cwProp = workflowController.GetType().GetProperty("CurrentWorkflow", ReflFlags);
-                var interaction = cwProp?.GetValue(workflowController);
-                if (interaction == null)
-                {
-                    Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: CurrentWorkflow null (prop found: {cwProp != null}), WC type: {workflowController.GetType().Name}");
-                    return;
-                }
+                var workflowController = wh.WorkflowController.GetValue(gameManager);
+                if (workflowController == null) return;
 
-                Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: Interaction type: {interaction.GetType().Name}");
+                var interaction = wh.CurrentWorkflow.GetValue(workflowController);
+                if (interaction == null) return;
 
-                // Walk type hierarchy to find _damageAssigner (declared on AssignDamageWorkflow, not base)
-                FieldInfo daField = null;
-                var searchType = interaction.GetType();
-                while (searchType != null && daField == null)
-                {
-                    daField = searchType.GetField("_damageAssigner", ReflFlags);
-                    searchType = searchType.BaseType;
-                }
-                if (daField == null)
-                {
-                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: _damageAssigner field not found");
-                    return;
-                }
+                if (!_assignDamageInteractionCache.EnsureInitialized(interaction.GetType())) return;
+                var ih = _assignDamageInteractionCache.Handles;
 
-                var damageAssigner = daField.GetValue(interaction);
-                if (damageAssigner == null)
-                {
-                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: _damageAssigner value is null");
-                    return;
-                }
+                var damageAssigner = ih.DamageAssigner.GetValue(interaction);
+                if (damageAssigner == null) return;
 
-                Log.Msg("BrowserNavigator", $"EnsureTotalDamageCached: damageAssigner type: {damageAssigner.GetType().Name}");
-
-                // TotalDamage is a public readonly field on the MtgDamageAssigner struct
-                var tdField = damageAssigner.GetType().GetField("TotalDamage", PublicInstance);
-                if (tdField != null)
+                if (_damageAssignerCache.EnsureInitialized(damageAssigner.GetType()))
                 {
-                    _totalDamage = (uint)tdField.GetValue(damageAssigner);
+                    _totalDamage = (uint)_damageAssignerCache.Handles.TotalDamage.GetValue(damageAssigner);
                     _totalDamageCached = true;
                     Log.Msg("BrowserNavigator", $"AssignDamage: TotalDamage = {_totalDamage}");
                 }
-                else
-                {
-                    Log.Msg("BrowserNavigator", "EnsureTotalDamageCached: TotalDamage field not found");
-                }
 
-                // Read assigner queue counts: _handledAssigners (List) + _unhandledAssigners (Queue)
-                // Current = handledCount + 1, Total = handledCount + unhandledCount + 1
-                var iType = interaction.GetType();
-                var handledField = iType.GetField("_handledAssigners", ReflFlags);
-                var unhandledField = iType.GetField("_unhandledAssigners", ReflFlags);
-                if (handledField != null && unhandledField != null)
+                if (ih.HandledAssigners != null && ih.UnhandledAssigners != null)
                 {
-                    var handled = handledField.GetValue(interaction) as ICollection;
-                    var unhandled = unhandledField.GetValue(interaction) as ICollection;
+                    var handled = ih.HandledAssigners.GetValue(interaction) as ICollection;
+                    var unhandled = ih.UnhandledAssigners.GetValue(interaction) as ICollection;
                     int handledCount = handled?.Count ?? 0;
                     int unhandledCount = unhandled?.Count ?? 0;
                     _assignerIndex = handledCount + 1;
