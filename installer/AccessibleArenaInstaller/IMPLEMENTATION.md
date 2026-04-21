@@ -122,6 +122,7 @@ Three outcomes:
 ### Step 6: Completion
 - Show success message (with first-launch warning if MelonLoader was installed)
 - Ask about log file only if there were errors/warnings
+- If "Open README" is checked (default on): open the README on the GitHub Pages site in the selected language — see [README Viewing (GitHub Pages)](#readme-viewing-github-pages)
 - Optionally launch MTGA
 
 ## MelonLoader Installation Details
@@ -232,10 +233,13 @@ Values:
 Update these values before building for release:
 ```csharp
 ModRepositoryUrl = "https://github.com/JeanStiletto/AccessibleArena"
-ModDllName = "AccessibleArena.dll"
-Publisher = "Accessible Arena Project"
-DisplayName = "Accessible Arena"
+ModSiteUrl       = "https://jeanstiletto.github.io/AccessibleArena/"  // trailing slash required
+ModDllName       = "AccessibleArena.dll"
+Publisher        = "Accessible Arena Project"
+DisplayName      = "Accessible Arena"
 ```
+
+`ModSiteUrl` is the GitHub Pages site that serves the README without the repo chrome — see [README Viewing (GitHub Pages)](#readme-viewing-github-pages).
 
 ## Command Line Arguments
 
@@ -627,6 +631,83 @@ en, de, fr, es, it, pt-BR, ru, pl, ja, ko, zh-CN, zh-TW
 2. Translate all values (keep keys, `{0}` placeholders, and technical terms unchanged)
 3. Add the language code to `LanguageDetector.SupportedLanguages` and `DisplayNames`
 4. Rebuild - the wildcard `<EmbeddedResource Include="Locales\*.json" />` picks it up automatically
+
+## README Viewing (GitHub Pages)
+
+After a successful install the installer opens the README for the user. The old approach pointed at `github.com/<user>/<repo>/blob/main/README.md`, which renders the markdown but wraps it in the full GitHub repo UI — file tree, commit history, branch picker, issues/PRs/actions tabs — all noise for a screen-reader user who just wants to read the mod's docs.
+
+The new approach serves the README through **GitHub Pages** from the same repo, so the user lands on a plain rendered HTML page with only the README content. One hoster (GitHub), no external service.
+
+### URL pattern used by the installer
+
+`MainForm.OpenReadme()`:
+
+- English: `{ModSiteUrl}` (e.g. `https://jeanstiletto.github.io/AccessibleArena/`)
+- Localized: `{ModSiteUrl}docs/README.<lang>.html` (e.g. `.../docs/README.de.html`)
+
+The `<lang>` token matches the codes in `LanguageDetector.SupportedLanguages` and the filenames of `docs/README.<lang>.md`.
+
+### One-time Pages setup for a fork
+
+1. In the repo root, add `_config.yml`:
+   ```yaml
+   title: <Project Name>
+   theme: jekyll-theme-cayman
+   include:
+     - docs
+   exclude:
+     - src
+     - tests
+     - tools
+     - installer
+     - llm-docs
+     - CLAUDE.md
+     - CONTRIBUTING.md
+     - LICENSE
+     - Directory.Build.props
+     - "*.csproj"
+     - "*.props"
+     - "*.ps1"
+     - "*.bat"
+     - bin
+     - obj
+   ```
+   The `exclude` list keeps code, build artifacts, and internal docs out of the published site. Only the READMEs and the `docs/` folder get served.
+
+2. Prepend YAML front matter to `README.md`. The `permalink: /` makes it the site root:
+   ```markdown
+   ---
+   layout: default
+   title: <Project Name>
+   permalink: /
+   ---
+   ```
+
+3. Prepend matching front matter (without `permalink`) to every `docs/README.<lang>.md` so Jekyll renders them with the theme. Example for German:
+   ```markdown
+   ---
+   layout: default
+   title: <Project Name> (Deutsch)
+   ---
+   ```
+   These files get served at `/docs/README.<lang>.html`.
+
+4. Enable Pages. Either in the GitHub web UI (Settings → Pages → Deploy from a branch → `main` / `/`), or via `gh` CLI:
+   ```bash
+   gh api -X POST repos/<user>/<repo>/pages -f "source[branch]=main" -f "source[path]=/"
+   ```
+
+5. Point the installer at the new site:
+   ```csharp
+   public const string ModSiteUrl = "https://<user>.github.io/<repo>/";  // trailing slash required
+   ```
+
+### Gotchas
+
+- Bare URLs in the markdown (e.g. `https://example.com/foo`) are **not** auto-linked by kramdown (the default GitHub Pages processor). Always wrap them as `[label](url)` or use `<url>`, otherwise they render as plain text and can wrap mid-URL.
+- The Cayman theme joins `site.title` and `site.description` into the HTML `<title>`. Leave `description:` out of `_config.yml` if you want a short browser-tab title.
+- YAML front matter is hidden by GitHub's web UI when viewing `.md` files directly in the repo, so adding it does not affect how the READMEs look on `github.com`.
+- First build takes up to a minute. Poll with `gh api repos/<user>/<repo>/pages/builds/latest --jq .status` until it returns `built`.
 
 ## Changelog
 
