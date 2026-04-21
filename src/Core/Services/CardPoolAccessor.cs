@@ -1,5 +1,4 @@
 using UnityEngine;
-using MelonLoader;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -21,19 +20,42 @@ namespace AccessibleArena.Core.Services
         // Cached component reference (invalidated on scene change via ClearCache)
         private static MonoBehaviour _cachedPoolHolder;
 
-        // Cached reflection members for CardPoolHolder
-        private static FieldInfo _pagesField;              // _pages (List<Page>)
-        private static FieldInfo _currentPageField;        // _currentPage (int)
-        private static FieldInfo _isScrollingField;        // _isScrolling (bool)
-        private static MethodInfo _scrollNextMethod;       // ScrollNext() (private)
-        private static MethodInfo _scrollPreviousMethod;   // ScrollPrevious() (private)
-        private static PropertyInfo _pageCountProperty;    // PageCount (private)
+        private sealed class Handles
+        {
+            // CardPoolHolder members
+            public FieldInfo Pages;            // _pages (List<Page>)
+            public FieldInfo CurrentPage;      // _currentPage (int)
+            public FieldInfo IsScrolling;      // _isScrolling (bool)
+            public MethodInfo ScrollNext;      // ScrollNext() (private)
+            public MethodInfo ScrollPrevious;  // ScrollPrevious() (private)
+            public PropertyInfo PageCount;     // PageCount (private)
+            // Nested Page class member (derived from Pages field type's nested Page type)
+            public FieldInfo PageCardViews;    // Page.CardViews (public)
+        }
 
-        // Cached reflection members for nested Page class
-        private static Type _pageType;                     // CardPoolHolder+Page
-        private static FieldInfo _pageCardViewsField;      // Page.CardViews (public)
-
-        private static bool _reflectionInitialized;
+        private static readonly ReflectionCache<Handles> _cache = new ReflectionCache<Handles>(
+            builder: t =>
+            {
+                var h = new Handles
+                {
+                    Pages = t.GetField("_pages", PrivateInstance),
+                    CurrentPage = t.GetField("_currentPage", PrivateInstance),
+                    IsScrolling = t.GetField("_isScrolling", PrivateInstance),
+                    ScrollNext = t.GetMethod("ScrollNext", PrivateInstance),
+                    ScrollPrevious = t.GetMethod("ScrollPrevious", PrivateInstance),
+                    PageCount = t.GetProperty("PageCount", PrivateInstance),
+                };
+                var pageType = t.GetNestedType("Page", BindingFlags.NonPublic);
+                if (pageType != null)
+                    h.PageCardViews = pageType.GetField("CardViews", PublicInstance);
+                return h;
+            },
+            validator: h =>
+                h.Pages != null && h.CurrentPage != null && h.IsScrolling != null
+                && h.ScrollNext != null && h.ScrollPrevious != null
+                && h.PageCount != null && h.PageCardViews != null,
+            logTag: "CardPoolAccessor",
+            logSubject: "CardPoolHolder");
 
         /// <summary>
         /// Find and cache the CardPoolHolder component on the PoolHolder hierarchy.
@@ -70,12 +92,7 @@ namespace AccessibleArena.Core.Services
                 if (typeName == T.CardPoolHolder || typeName == T.ScrollCardPoolHolder)
                 {
                     _cachedPoolHolder = mb;
-
-                    if (!_reflectionInitialized)
-                    {
-                        InitializeReflection(mb.GetType());
-                    }
-
+                    _cache.EnsureInitialized(mb.GetType());
                     return _cachedPoolHolder;
                 }
             }
@@ -91,12 +108,7 @@ namespace AccessibleArena.Core.Services
                     if (typeName == T.CardPoolHolder || typeName == T.ScrollCardPoolHolder)
                     {
                         _cachedPoolHolder = mb;
-
-                        if (!_reflectionInitialized)
-                        {
-                            InitializeReflection(mb.GetType());
-                        }
-
+                        _cache.EnsureInitialized(mb.GetType());
                         return _cachedPoolHolder;
                     }
                 }
@@ -107,50 +119,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Initialize all reflection members from the CardPoolHolder type.
-        /// Called once when the component is first found.
-        /// </summary>
-        private static void InitializeReflection(Type type)
-        {
-            if (_reflectionInitialized) return;
-
-            try
-            {
-                // CardPoolHolder fields
-                _pagesField = type.GetField("_pages", PrivateInstance);
-                _currentPageField = type.GetField("_currentPage", PrivateInstance);
-                _isScrollingField = type.GetField("_isScrolling", PrivateInstance);
-
-                // Private methods
-                _scrollNextMethod = type.GetMethod("ScrollNext", PrivateInstance);
-                _scrollPreviousMethod = type.GetMethod("ScrollPrevious", PrivateInstance);
-
-                // Private properties
-                _pageCountProperty = type.GetProperty("PageCount", PrivateInstance);
-
-                // Nested Page class
-                _pageType = type.GetNestedType("Page", BindingFlags.NonPublic);
-                if (_pageType != null)
-                {
-                    _pageCardViewsField = _pageType.GetField("CardViews", PublicInstance);
-                }
-
-                _reflectionInitialized = true;
-
-                Log.Msg("CardPoolAccessor", $"Reflection init on {type.Name}: " +
-                    $"_pages={_pagesField != null}, _currentPage={_currentPageField != null}, " +
-                    $"_isScrolling={_isScrollingField != null}, " +
-                    $"ScrollNext={_scrollNextMethod != null}, ScrollPrev={_scrollPreviousMethod != null}, " +
-                    $"PageCount={_pageCountProperty != null}, " +
-                    $"PageType={_pageType != null}, CardViews={_pageCardViewsField != null}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("CardPoolAccessor", $"Reflection init failed: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Get the card GameObjects on the currently visible page.
         /// Returns only active cards (filters out empty slots).
         /// </summary>
@@ -158,12 +126,13 @@ namespace AccessibleArena.Core.Services
         {
             var result = new List<GameObject>();
 
-            if (_cachedPoolHolder == null || _pagesField == null || _pageCardViewsField == null)
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
                 return result;
 
             try
             {
-                var pages = _pagesField.GetValue(_cachedPoolHolder) as IList;
+                var h = _cache.Handles;
+                var pages = h.Pages.GetValue(_cachedPoolHolder) as IList;
                 if (pages == null || pages.Count < 2)
                     return result;
 
@@ -172,7 +141,7 @@ namespace AccessibleArena.Core.Services
                 if (currentPage == null)
                     return result;
 
-                var cardViews = _pageCardViewsField.GetValue(currentPage) as IList;
+                var cardViews = h.PageCardViews.GetValue(currentPage) as IList;
                 if (cardViews == null)
                     return result;
 
@@ -198,7 +167,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static bool ScrollNext()
         {
-            if (_cachedPoolHolder == null || _scrollNextMethod == null)
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
                 return false;
 
             try
@@ -212,7 +181,7 @@ namespace AccessibleArena.Core.Services
                 if (IsScrolling())
                     return false;
 
-                _scrollNextMethod.Invoke(_cachedPoolHolder, null);
+                _cache.Handles.ScrollNext.Invoke(_cachedPoolHolder, null);
                 return true;
             }
             catch (Exception ex)
@@ -227,7 +196,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static bool ScrollPrevious()
         {
-            if (_cachedPoolHolder == null || _scrollPreviousMethod == null)
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
                 return false;
 
             try
@@ -240,7 +209,7 @@ namespace AccessibleArena.Core.Services
                 if (IsScrolling())
                     return false;
 
-                _scrollPreviousMethod.Invoke(_cachedPoolHolder, null);
+                _cache.Handles.ScrollPrevious.Invoke(_cachedPoolHolder, null);
                 return true;
             }
             catch (Exception ex)
@@ -255,12 +224,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static int GetCurrentPageIndex()
         {
-            if (_cachedPoolHolder == null || _currentPageField == null)
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
                 return 0;
 
             try
             {
-                return (int)_currentPageField.GetValue(_cachedPoolHolder);
+                return (int)_cache.Handles.CurrentPage.GetValue(_cachedPoolHolder);
             }
             catch
             {
@@ -273,12 +242,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static int GetPageCount()
         {
-            if (_cachedPoolHolder == null || _pageCountProperty == null)
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
                 return 1;
 
             try
             {
-                return (int)_pageCountProperty.GetValue(_cachedPoolHolder);
+                return (int)_cache.Handles.PageCount.GetValue(_cachedPoolHolder);
             }
             catch
             {
@@ -291,12 +260,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static bool IsScrolling()
         {
-            if (_cachedPoolHolder == null || _isScrollingField == null)
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
                 return false;
 
             try
             {
-                return (bool)_isScrollingField.GetValue(_cachedPoolHolder);
+                return (bool)_cache.Handles.IsScrolling.GetValue(_cachedPoolHolder);
             }
             catch
             {
@@ -309,7 +278,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static bool IsValid()
         {
-            return _cachedPoolHolder != null && _reflectionInitialized;
+            return _cachedPoolHolder != null && _cache.IsInitialized;
         }
 
         /// <summary>
