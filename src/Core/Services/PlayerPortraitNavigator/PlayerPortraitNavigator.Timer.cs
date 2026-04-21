@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.Events;
-using MelonLoader;
 using AccessibleArena.Core.Utils;
 using AccessibleArena.Core.Models;
 using System;
@@ -29,18 +28,55 @@ namespace AccessibleArena.Core.Services
         private UnityAction<bool> _localRopeCallback;
         private UnityAction<bool> _opponentRopeCallback;
 
-        // MtgTimer model reflection cache (shared by MatchTimer and LowTimeWarning)
-        private static FieldInfo _matchTimerField; // MatchTimer._matchTimer (MtgTimer)
-        private static FieldInfo _timeRunningField; // MatchTimer._timeRunning (float)
-        private static PropertyInfo _remainingTimeProp; // MtgTimer.RemainingTime (float)
-        private static FieldInfo _runningField; // MtgTimer.Running (bool)
-        private static bool _mtgTimerReflectionInitialized;
+        private sealed class LtwHandles
+        {
+            public FieldInfo ActiveTimer;   // LowTimeWarning._activeTimer (MtgTimer)
+            public FieldInfo TimeRunning;   // LowTimeWarning._timeRunning (float)
+            public FieldInfo TimeoutPips;   // LowTimeWarning._timeoutPips (List<TimeoutPip>), optional
+        }
 
-        // LowTimeWarning rope timer reflection cache
-        private static FieldInfo _ltwActiveTimerField; // LowTimeWarning._activeTimer (MtgTimer)
-        private static FieldInfo _ltwTimeRunningField; // LowTimeWarning._timeRunning (float)
-        private static FieldInfo _ltwTimeoutPipsField; // LowTimeWarning._timeoutPips (List<TimeoutPip>)
-        private static bool _ltwReflectionInitialized;
+        private sealed class MatchTimerHandles
+        {
+            public FieldInfo MatchTimer;    // MatchTimer._matchTimer (MtgTimer)
+            public FieldInfo TimeRunning;   // MatchTimer._timeRunning (float)
+        }
+
+        private sealed class MtgTimerHandles
+        {
+            public PropertyInfo RemainingTime;
+            public FieldInfo Running;
+        }
+
+        private static readonly ReflectionCache<LtwHandles> _ltwCache = new ReflectionCache<LtwHandles>(
+            builder: t => new LtwHandles
+            {
+                ActiveTimer = t.GetField("_activeTimer", PrivateInstance),
+                TimeRunning = t.GetField("_timeRunning", PrivateInstance),
+                TimeoutPips = t.GetField("_timeoutPips", PrivateInstance),
+            },
+            validator: h => h.ActiveTimer != null && h.TimeRunning != null,
+            logTag: "PlayerPortrait",
+            logSubject: "LowTimeWarning");
+
+        private static readonly ReflectionCache<MatchTimerHandles> _matchTimerCache = new ReflectionCache<MatchTimerHandles>(
+            builder: t => new MatchTimerHandles
+            {
+                MatchTimer = t.GetField("_matchTimer", PrivateInstance),
+                TimeRunning = t.GetField("_timeRunning", PrivateInstance),
+            },
+            validator: h => h.MatchTimer != null && h.TimeRunning != null,
+            logTag: "PlayerPortrait",
+            logSubject: "MatchTimer");
+
+        private static readonly ReflectionCache<MtgTimerHandles> _mtgTimerCache = new ReflectionCache<MtgTimerHandles>(
+            builder: t => new MtgTimerHandles
+            {
+                RemainingTime = t.GetProperty("RemainingTime", PublicInstance),
+                Running = t.GetField("Running", PublicInstance),
+            },
+            validator: h => h.RemainingTime != null && h.Running != null,
+            logTag: "PlayerPortrait",
+            logSubject: "MtgTimer");
 
         private bool _loggedTimerPlayer;
         private bool _loggedTimerOpponent;
@@ -164,21 +200,22 @@ namespace AccessibleArena.Core.Services
             var matchTimer = isOpponent ? _opponentMatchTimer : _localMatchTimer;
             if (matchTimer == null) return null;
 
-            if (!_mtgTimerReflectionInitialized)
-                InitializeMtgTimerReflection(matchTimer);
-            if (!_mtgTimerReflectionInitialized) return null;
+            if (!_matchTimerCache.EnsureInitialized(matchTimer.GetType())) return null;
+            var mt = _matchTimerCache.Handles;
+            if (!_mtgTimerCache.EnsureInitialized(mt.MatchTimer.FieldType)) return null;
+            var mtg = _mtgTimerCache.Handles;
 
             try
             {
                 // Read private _matchTimer field (MtgTimer) from MatchTimer component
-                var mtgTimer = _matchTimerField.GetValue(matchTimer);
+                var mtgTimer = mt.MatchTimer.GetValue(matchTimer);
                 if (mtgTimer == null) return null;
 
-                bool running = (bool)_runningField.GetValue(mtgTimer);
+                bool running = (bool)mtg.Running.GetValue(mtgTimer);
                 if (!running) return null;
 
-                float remainingTime = (float)_remainingTimeProp.GetValue(mtgTimer);
-                float timeRunning = (float)_timeRunningField.GetValue(matchTimer);
+                float remainingTime = (float)mtg.RemainingTime.GetValue(mtgTimer);
+                float timeRunning = (float)mt.TimeRunning.GetValue(matchTimer);
 
                 // Same formula as MatchTimer.LateUpdate: actual = RemainingTime - _timeRunning
                 float actualRemaining = remainingTime - timeRunning;
@@ -202,40 +239,44 @@ namespace AccessibleArena.Core.Services
             var ltw = isOpponent ? _opponentLowTimeWarning : _localLowTimeWarning;
             if (ltw == null) return null;
 
-            if (!_ltwReflectionInitialized)
-                InitializeLtwReflection(ltw);
-            if (!_ltwReflectionInitialized) return null;
+            if (!_ltwCache.EnsureInitialized(ltw.GetType())) return null;
+            var lh = _ltwCache.Handles;
 
             // Ensure MtgTimer reflection is ready (for RemainingTime/Running).
-            // Try from MatchTimer first; fall back to LowTimeWarning's field type.
-            if (!_mtgTimerReflectionInitialized)
+            // Try from MatchTimer first; fall back to LowTimeWarning._activeTimer field type
+            // (needed for casual Brawl games where no MatchTimer component exists).
+            if (!_mtgTimerCache.IsInitialized)
             {
                 var matchTimer = isOpponent ? _opponentMatchTimer : _localMatchTimer;
-                if (matchTimer != null)
-                    InitializeMtgTimerReflection(matchTimer);
+                if (matchTimer != null && _matchTimerCache.EnsureInitialized(matchTimer.GetType()))
+                    _mtgTimerCache.EnsureInitialized(_matchTimerCache.Handles.MatchTimer.FieldType);
             }
-            if (!_mtgTimerReflectionInitialized)
-                InitializeMtgTimerFromLtw();
-            if (!_mtgTimerReflectionInitialized) return null;
+            if (!_mtgTimerCache.IsInitialized)
+                _mtgTimerCache.EnsureInitialized(lh.ActiveTimer.FieldType);
+            if (!_mtgTimerCache.IsInitialized) return null;
+            var mtg = _mtgTimerCache.Handles;
 
             try
             {
-                var activeTimer = _ltwActiveTimerField.GetValue(ltw);
+                var activeTimer = lh.ActiveTimer.GetValue(ltw);
                 if (activeTimer == null) return null;
 
-                bool running = (bool)_runningField.GetValue(activeTimer);
+                bool running = (bool)mtg.Running.GetValue(activeTimer);
                 if (!running) return null;
 
-                float remainingTime = (float)_remainingTimeProp.GetValue(activeTimer);
-                float timeRunning = (float)_ltwTimeRunningField.GetValue(ltw);
+                float remainingTime = (float)mtg.RemainingTime.GetValue(activeTimer);
+                float timeRunning = (float)lh.TimeRunning.GetValue(ltw);
 
                 float actualRemaining = remainingTime - timeRunning;
                 if (actualRemaining < 0f) actualRemaining = 0f;
 
-                // Get timeout count from pip list
+                // Get timeout count from pip list (optional handle)
                 int timeouts = 0;
-                var pipList = _ltwTimeoutPipsField.GetValue(ltw) as System.Collections.IList;
-                if (pipList != null) timeouts = pipList.Count;
+                if (lh.TimeoutPips != null)
+                {
+                    var pipList = lh.TimeoutPips.GetValue(ltw) as System.Collections.IList;
+                    if (pipList != null) timeouts = pipList.Count;
+                }
 
                 return (FormatSecondsToReadable(actualRemaining), timeouts);
             }
@@ -243,99 +284,6 @@ namespace AccessibleArena.Core.Services
             {
                 Log.Nav("PlayerPortrait", $"Error reading rope timer: {ex.Message}");
                 return null;
-            }
-        }
-
-        /// <summary>
-        /// Initializes reflection cache for reading rope timer from LowTimeWarning.
-        /// </summary>
-        private static void InitializeLtwReflection(MonoBehaviour ltwComponent)
-        {
-            try
-            {
-                var ltwType = ltwComponent.GetType();
-
-                _ltwActiveTimerField = ltwType.GetField("_activeTimer", PrivateInstance);
-                _ltwTimeRunningField = ltwType.GetField("_timeRunning", PrivateInstance);
-                _ltwTimeoutPipsField = ltwType.GetField("_timeoutPips", PrivateInstance);
-
-                if (_ltwActiveTimerField == null || _ltwTimeRunningField == null)
-                {
-                    Log.Warn("PlayerPortrait", "Could not find _activeTimer or _timeRunning on LowTimeWarning");
-                    return;
-                }
-
-                _ltwReflectionInitialized = true;
-                Log.Msg("PlayerPortrait", "LowTimeWarning reflection initialized");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("PlayerPortrait", $"Failed to initialize LowTimeWarning reflection: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Fallback: initialize MtgTimer reflection from LowTimeWarning._activeTimer field type
-        /// when no MatchTimer component is available (e.g., casual Brawl games).
-        /// </summary>
-        private static void InitializeMtgTimerFromLtw()
-        {
-            if (_ltwActiveTimerField == null) return;
-            try
-            {
-                var mtgTimerType = _ltwActiveTimerField.FieldType;
-                _remainingTimeProp = mtgTimerType.GetProperty("RemainingTime", PublicInstance);
-                _runningField = mtgTimerType.GetField("Running", PublicInstance);
-
-                if (_remainingTimeProp != null && _runningField != null)
-                {
-                    _mtgTimerReflectionInitialized = true;
-                    Log.Msg("PlayerPortrait", "MtgTimer reflection initialized from LowTimeWarning field type");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("PlayerPortrait", $"Failed to init MtgTimer from LTW: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Initializes reflection cache for reading MtgTimer from MatchTimer component.
-        /// </summary>
-        private static void InitializeMtgTimerReflection(MonoBehaviour matchTimerComponent)
-        {
-            try
-            {
-                var matchTimerType = matchTimerComponent.GetType();
-
-                // MatchTimer._matchTimer is a private MtgTimer field
-                _matchTimerField = matchTimerType.GetField("_matchTimer", PrivateInstance);
-                // MatchTimer._timeRunning is a private float field
-                _timeRunningField = matchTimerType.GetField("_timeRunning", PrivateInstance);
-
-                if (_matchTimerField == null || _timeRunningField == null)
-                {
-                    Log.Warn("PlayerPortrait", "Could not find _matchTimer or _timeRunning fields on MatchTimer");
-                    return;
-                }
-
-                // MtgTimer fields (accessed from the _matchTimer value)
-                var mtgTimerType = _matchTimerField.FieldType;
-                _remainingTimeProp = mtgTimerType.GetProperty("RemainingTime", PublicInstance);
-                _runningField = mtgTimerType.GetField("Running", PublicInstance);
-
-                if (_remainingTimeProp == null || _runningField == null)
-                {
-                    Log.Warn("PlayerPortrait", "Could not find RemainingTime/Running on MtgTimer");
-                    return;
-                }
-
-                _mtgTimerReflectionInitialized = true;
-                Log.Msg("PlayerPortrait", "MtgTimer reflection initialized");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("PlayerPortrait", $"Failed to initialize MtgTimer reflection: {ex.Message}");
             }
         }
 

@@ -148,7 +148,11 @@ Decisions above are final unless the pilot itself reveals an API gap.
 ## Checklist
 
 - [x] Phase 1: API design + user approval (2026-04-21)
-- [ ] Phase 2: helper + tests + Timer pilot
+- [x] Phase 2: helper + tests + Timer pilot (2026-04-21)
+  - Helper + tests: commit `37b22fc` (28 new tests, 150/150 green)
+  - Timer pilot: 3 init methods → 3 caches (Ltw/MatchTimer/MtgTimer per
+    Decision 3); file 459 → 407 lines (−52, −11%). Awaiting user smoke
+    test of E / Shift+E timer announcements in a duel before Phase 3.
 - [ ] Phase 3 files (batch order cheapest first):
   - [ ] Accessors: `RecentPlayAccessor.cs`, `CardPoolAccessor.cs`, `EventAccessor.cs`
   - [ ] Providers: `CardModelProvider.cs`, `CardStateProvider.cs`, `CardTextProvider.cs`,
