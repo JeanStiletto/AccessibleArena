@@ -114,11 +114,14 @@ Before running: update `ModVersion` in `src/Directory.Build.props` and add a `##
 
 ### Key Utilities (always use these)
 - `UIActivator.Activate(element)` - Element activation
+- `CardTileActivator` - Deck/collection card-tile identification + activation (extracted from UIActivator)
 - `CardDetector.IsCard(element)` - Card detection
 - `UITextExtractor.GetText(element)` - Text extraction
-- `CardModelProvider` - Card data extraction, component access, name lookup, mana parsing
+- `CardModelProvider` - Card data extraction, component access, name lookup
+- `ManaTextFormatter` - MTGA mana notation parsing (extracted from CardModelProvider)
 - `CardTextProvider` - Ability text, flavor text, localized text lookups
 - `CardStateProvider` - Attachments, combat state, targeting, counters, categorization
+- `ReflectionCache<THandles>` (`Core/Utils/ReflectionCache.cs`) + `ReflectionWalk` - strongly-typed reflection-handle caches with uniform init logging and base-type walking. Use for new reflection-heavy services instead of scattered `FieldInfo`/`PropertyInfo`/`MethodInfo` fields.
 
 ### Browser Debug Tools
 Enable detailed debug logging for investigating browser activation issues:
