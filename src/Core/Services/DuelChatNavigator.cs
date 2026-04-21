@@ -65,49 +65,118 @@ namespace AccessibleArena.Core.Services
 
         #region Reflection Cache
 
-        private bool _reflectionInitialized;
-
-        // SocialUI
-        private PropertyInfo _chatVisibleProp;
-        private MethodInfo _closeChatMethod;
-        private FieldInfo _socialManagerField;
-        private MethodInfo _showChatWindowMethod;
-
-        // ISocialManager -> ChatManager
+        // ISocialManager -> ChatManager (resolved lazily from live SocialManager instance)
         private PropertyInfo _chatManagerProp;
 
-        // ChatManager
-        private PropertyInfo _currentConversationProp;
-        private FieldInfo _conversationsField;
-        private MethodInfo _selectNextConversationMethod;
+        private sealed class DuelChatHandles
+        {
+            // SocialUI
+            public PropertyInfo ChatVisible;
+            public MethodInfo CloseChat;
+            public FieldInfo SocialManager;
+            public MethodInfo ShowChatWindow;
 
-        // ChatWindow
-        private FieldInfo _chatInputFieldField;
-        private FieldInfo _sendButtonField;
-        private FieldInfo _messagesViewField;
-        private MethodInfo _trySendMessageMethod;
+            // ChatManager
+            public PropertyInfo CurrentConversation;
+            public FieldInfo Conversations;
+            public MethodInfo SelectNextConversation;
 
-        // SocialMessagesView
-        private FieldInfo _activeMessagesField;
+            // ChatWindow
+            public FieldInfo ChatInputField;
+            public FieldInfo SendButton;
+            public FieldInfo MessagesView;
+            public MethodInfo TrySendMessage;
 
-        // MessageTile
-        private FieldInfo _titleField;
-        private FieldInfo _bodyField;
+            // SocialMessagesView
+            public FieldInfo ActiveMessages;
 
-        // SocialMessage
-        private FieldInfo _directionField;
-        private FieldInfo _textBodyField;
-        private FieldInfo _textTitleField;
+            // MessageTile
+            public FieldInfo Title;
+            public FieldInfo Body;
 
-        // Direction enum
-        private object _directionIncoming;
+            // SocialMessage
+            public FieldInfo Direction;
+            public FieldInfo TextBody;
+            public FieldInfo TextTitle;
 
-        // Conversation
-        private PropertyInfo _friendProp;
-        private FieldInfo _messageHistoryField;
+            // Direction enum
+            public object DirectionIncoming;
 
-        // SocialEntity
-        private PropertyInfo _displayNameProp;
+            // Conversation
+            public PropertyInfo Friend;
+            public FieldInfo MessageHistory;
+
+            // SocialEntity
+            public PropertyInfo DisplayName;
+        }
+
+        private static readonly ReflectionCache<DuelChatHandles> _duelChatCache = new ReflectionCache<DuelChatHandles>(
+            builder: socialUIType =>
+            {
+                var h = new DuelChatHandles
+                {
+                    ChatVisible = socialUIType.GetProperty("ChatVisible", PublicInstance),
+                    CloseChat = socialUIType.GetMethod("CloseChat", PublicInstance),
+                    SocialManager = socialUIType.GetField("_socialManager", PrivateInstance),
+                    ShowChatWindow = socialUIType.GetMethod("ShowChatWindow", PublicInstance),
+                };
+
+                var chatWindowType = FindType("ChatWindow");
+                if (chatWindowType != null)
+                {
+                    h.ChatInputField = chatWindowType.GetField("_chatInputField", PrivateInstance);
+                    h.SendButton = chatWindowType.GetField("_sendButton", PrivateInstance);
+                    h.MessagesView = chatWindowType.GetField("_messagesView", PrivateInstance);
+                    h.TrySendMessage = chatWindowType.GetMethod("TrySendMessage", PublicInstance);
+                }
+
+                var chatManagerType = FindType("MTGA.Social.ChatManager");
+                if (chatManagerType != null)
+                {
+                    h.CurrentConversation = chatManagerType.GetProperty("CurrentConversation", PublicInstance);
+                    h.Conversations = chatManagerType.GetField("Conversations", PublicInstance);
+                    h.SelectNextConversation = chatManagerType.GetMethod("SelectNextConversation", PublicInstance);
+                }
+
+                var messagesViewType = FindType("SocialMessagesView");
+                if (messagesViewType != null)
+                    h.ActiveMessages = messagesViewType.GetField("_activeMessages", PrivateInstance);
+
+                var messageTileType = FindType("MessageTile");
+                if (messageTileType != null)
+                {
+                    h.Title = messageTileType.GetField("_title", PrivateInstance);
+                    h.Body = messageTileType.GetField("_body", PrivateInstance);
+                }
+
+                var socialMessageType = FindType("MTGA.Social.SocialMessage");
+                if (socialMessageType != null)
+                {
+                    h.Direction = socialMessageType.GetField("Direction", PublicInstance);
+                    h.TextBody = socialMessageType.GetField("TextBody", PublicInstance);
+                    h.TextTitle = socialMessageType.GetField("TextTitle", PublicInstance);
+                }
+
+                var directionType = FindType("MTGA.Social.Direction");
+                if (directionType != null)
+                    h.DirectionIncoming = Enum.Parse(directionType, "Incoming");
+
+                var conversationType = FindType("MTGA.Social.Conversation");
+                if (conversationType != null)
+                {
+                    h.Friend = conversationType.GetProperty("Friend", PublicInstance);
+                    h.MessageHistory = conversationType.GetField("MessageHistory", PublicInstance);
+                }
+
+                var socialEntityType = FindType("MTGA.Social.SocialEntity") ?? FindType("SocialEntity");
+                if (socialEntityType != null)
+                    h.DisplayName = socialEntityType.GetProperty("DisplayName", PublicInstance);
+
+                return h;
+            },
+            validator: h => h.ChatVisible != null && h.SocialManager != null && h.ShowChatWindow != null,
+            logTag: "DuelChat",
+            logSubject: "SocialUI");
 
         #endregion
 
@@ -152,7 +221,7 @@ namespace AccessibleArena.Core.Services
             _socialUI = socialUI;
             EnsureReflectionCached(socialUI.GetType());
 
-            if (_showChatWindowMethod == null)
+            if (_duelChatCache.Handles.ShowChatWindow == null)
             {
                 _announcer.AnnounceInterrupt(Strings.ChatUnavailable);
                 Deactivate();
@@ -162,7 +231,7 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // ShowChatWindow(SocialEntity chatFriend = null) - pass null to open last conversation
-                _showChatWindowMethod.Invoke(socialUI, new object[] { null });
+                _duelChatCache.Handles.ShowChatWindow.Invoke(socialUI, new object[] { null });
             }
             catch (Exception ex)
             {
@@ -182,11 +251,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public void Close()
         {
-            if (_socialUI != null && _closeChatMethod != null)
+            if (_socialUI != null && _duelChatCache.Handles.CloseChat != null)
             {
                 try
                 {
-                    _closeChatMethod.Invoke(_socialUI, null);
+                    _duelChatCache.Handles.CloseChat.Invoke(_socialUI, null);
                 }
                 catch (Exception ex)
                 {
@@ -450,14 +519,14 @@ namespace AccessibleArena.Core.Services
 
         private void SendMessage()
         {
-            if (_chatWindow == null || _trySendMessageMethod == null) return;
+            if (_chatWindow == null || _duelChatCache.Handles.TrySendMessage == null) return;
 
             if (_inputFieldHelper.IsEditing)
                 _inputFieldHelper.ExitEditMode();
 
             try
             {
-                _trySendMessageMethod.Invoke(_chatWindow, null);
+                _duelChatCache.Handles.TrySendMessage.Invoke(_chatWindow, null);
                 _announcer.Announce(Strings.ChatMessageSent, AnnouncementPriority.High);
 
                 _pendingRescan = true;
@@ -471,7 +540,7 @@ namespace AccessibleArena.Core.Services
 
         private void SwitchConversation(bool reverse)
         {
-            if (_chatManager == null || _selectNextConversationMethod == null) return;
+            if (_chatManager == null || _duelChatCache.Handles.SelectNextConversation == null) return;
 
             int count = GetConversationCount();
             if (count <= 1)
@@ -482,7 +551,7 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var parameters = _selectNextConversationMethod.GetParameters();
+                var parameters = _duelChatCache.Handles.SelectNextConversation.GetParameters();
                 object[] args;
                 if (parameters.Length >= 2)
                     args = new object[] { reverse, false };
@@ -491,7 +560,7 @@ namespace AccessibleArena.Core.Services
                 else
                     args = Array.Empty<object>();
 
-                _selectNextConversationMethod.Invoke(_chatManager, args);
+                _duelChatCache.Handles.SelectNextConversation.Invoke(_chatManager, args);
 
                 _pendingRescan = true;
                 _rescanDelay = RescanDelay;
@@ -592,14 +661,14 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverMessages()
         {
-            if (_chatWindow == null || _messagesViewField == null) return;
+            if (_chatWindow == null || _duelChatCache.Handles.MessagesView == null) return;
 
             try
             {
-                var messagesView = _messagesViewField.GetValue(_chatWindow) as MonoBehaviour;
-                if (messagesView == null || _activeMessagesField == null) return;
+                var messagesView = _duelChatCache.Handles.MessagesView.GetValue(_chatWindow) as MonoBehaviour;
+                if (messagesView == null || _duelChatCache.Handles.ActiveMessages == null) return;
 
-                var activeMessages = _activeMessagesField.GetValue(messagesView);
+                var activeMessages = _duelChatCache.Handles.ActiveMessages.GetValue(messagesView);
                 if (activeMessages == null) return;
 
                 var dict = activeMessages as IDictionary;
@@ -689,17 +758,17 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                var conversation = _currentConversationProp?.GetValue(_chatManager);
-                if (conversation == null || _messageHistoryField == null) return;
+                var conversation = _duelChatCache.Handles.CurrentConversation?.GetValue(_chatManager);
+                if (conversation == null || _duelChatCache.Handles.MessageHistory == null) return;
 
-                var history = _messageHistoryField.GetValue(conversation) as IList;
+                var history = _duelChatCache.Handles.MessageHistory.GetValue(conversation) as IList;
                 if (history == null || history.Count == 0) return;
 
                 var latestMessage = history[history.Count - 1];
                 if (latestMessage == null || !IsIncomingMessage(latestMessage)) return;
 
-                string body = _textBodyField?.GetValue(latestMessage)?.ToString();
-                string senderName = _textTitleField?.GetValue(latestMessage)?.ToString();
+                string body = _duelChatCache.Handles.TextBody?.GetValue(latestMessage)?.ToString();
+                string senderName = _duelChatCache.Handles.TextTitle?.GetValue(latestMessage)?.ToString();
 
                 if (!string.IsNullOrEmpty(body))
                 {
@@ -729,20 +798,20 @@ namespace AccessibleArena.Core.Services
 
         private bool IsChatVisible()
         {
-            if (_socialUI == null || _chatVisibleProp == null) return false;
+            if (_socialUI == null || _duelChatCache.Handles.ChatVisible == null) return false;
             try
             {
-                return (bool)_chatVisibleProp.GetValue(_socialUI);
+                return (bool)_duelChatCache.Handles.ChatVisible.GetValue(_socialUI);
             }
             catch { return false; }
         }
 
         private object GetChatManager()
         {
-            if (_socialUI == null || _socialManagerField == null) return null;
+            if (_socialUI == null || _duelChatCache.Handles.SocialManager == null) return null;
             try
             {
-                var socialManager = _socialManagerField.GetValue(_socialUI);
+                var socialManager = _duelChatCache.Handles.SocialManager.GetValue(_socialUI);
                 if (socialManager == null) return null;
 
                 if (_chatManagerProp == null)
@@ -766,24 +835,24 @@ namespace AccessibleArena.Core.Services
 
         private string GetCurrentFriendName()
         {
-            if (_chatManager == null || _currentConversationProp == null) return null;
+            if (_chatManager == null || _duelChatCache.Handles.CurrentConversation == null) return null;
             try
             {
-                var conversation = _currentConversationProp.GetValue(_chatManager);
-                if (conversation == null || _friendProp == null) return null;
-                var friend = _friendProp.GetValue(conversation);
-                if (friend == null || _displayNameProp == null) return null;
-                return _displayNameProp.GetValue(friend) as string;
+                var conversation = _duelChatCache.Handles.CurrentConversation.GetValue(_chatManager);
+                if (conversation == null || _duelChatCache.Handles.Friend == null) return null;
+                var friend = _duelChatCache.Handles.Friend.GetValue(conversation);
+                if (friend == null || _duelChatCache.Handles.DisplayName == null) return null;
+                return _duelChatCache.Handles.DisplayName.GetValue(friend) as string;
             }
             catch { return null; }
         }
 
         private int GetConversationCount()
         {
-            if (_chatManager == null || _conversationsField == null) return 0;
+            if (_chatManager == null || _duelChatCache.Handles.Conversations == null) return 0;
             try
             {
-                var conversations = _conversationsField.GetValue(_chatManager);
+                var conversations = _duelChatCache.Handles.Conversations.GetValue(_chatManager);
                 if (conversations is ICollection collection) return collection.Count;
                 if (conversations is IList list) return list.Count;
                 return 0;
@@ -793,12 +862,12 @@ namespace AccessibleArena.Core.Services
 
         private int GetMessageCount()
         {
-            if (_chatManager == null || _currentConversationProp == null) return 0;
+            if (_chatManager == null || _duelChatCache.Handles.CurrentConversation == null) return 0;
             try
             {
-                var conversation = _currentConversationProp.GetValue(_chatManager);
-                if (conversation == null || _messageHistoryField == null) return 0;
-                var history = _messageHistoryField.GetValue(conversation) as IList;
+                var conversation = _duelChatCache.Handles.CurrentConversation.GetValue(_chatManager);
+                if (conversation == null || _duelChatCache.Handles.MessageHistory == null) return 0;
+                var history = _duelChatCache.Handles.MessageHistory.GetValue(conversation) as IList;
                 return history?.Count ?? 0;
             }
             catch { return 0; }
@@ -806,8 +875,8 @@ namespace AccessibleArena.Core.Services
 
         private string GetMessageLabel(object socialMessage, MonoBehaviour tile)
         {
-            string title = ReadLocalizeText(tile, _titleField);
-            string body = ReadLocalizeText(tile, _bodyField);
+            string title = ReadLocalizeText(tile, _duelChatCache.Handles.Title);
+            string body = ReadLocalizeText(tile, _duelChatCache.Handles.Body);
 
             if (!string.IsNullOrEmpty(body))
             {
@@ -824,11 +893,11 @@ namespace AccessibleArena.Core.Services
 
         private bool IsIncomingMessage(object socialMessage)
         {
-            if (socialMessage == null || _directionField == null || _directionIncoming == null) return true;
+            if (socialMessage == null || _duelChatCache.Handles.Direction == null || _duelChatCache.Handles.DirectionIncoming == null) return true;
             try
             {
-                var direction = _directionField.GetValue(socialMessage);
-                return direction != null && direction.Equals(_directionIncoming);
+                var direction = _duelChatCache.Handles.Direction.GetValue(socialMessage);
+                return direction != null && direction.Equals(_duelChatCache.Handles.DirectionIncoming);
             }
             catch { return true; }
         }
@@ -850,10 +919,10 @@ namespace AccessibleArena.Core.Services
 
         private GameObject GetChatInputField()
         {
-            if (_chatWindow == null || _chatInputFieldField == null) return null;
+            if (_chatWindow == null || _duelChatCache.Handles.ChatInputField == null) return null;
             try
             {
-                var inputField = _chatInputFieldField.GetValue(_chatWindow) as Component;
+                var inputField = _duelChatCache.Handles.ChatInputField.GetValue(_chatWindow) as Component;
                 return inputField?.gameObject;
             }
             catch { return null; }
@@ -861,10 +930,10 @@ namespace AccessibleArena.Core.Services
 
         private GameObject GetSendButton()
         {
-            if (_chatWindow == null || _sendButtonField == null) return null;
+            if (_chatWindow == null || _duelChatCache.Handles.SendButton == null) return null;
             try
             {
-                var button = _sendButtonField.GetValue(_chatWindow) as Component;
+                var button = _duelChatCache.Handles.SendButton.GetValue(_chatWindow) as Component;
                 return button?.gameObject;
             }
             catch { return null; }
@@ -876,73 +945,7 @@ namespace AccessibleArena.Core.Services
 
         private void EnsureReflectionCached(Type socialUIType)
         {
-            if (_reflectionInitialized) return;
-            _reflectionInitialized = true;
-
-            // SocialUI
-            _chatVisibleProp = socialUIType.GetProperty("ChatVisible", PublicInstance);
-            _closeChatMethod = socialUIType.GetMethod("CloseChat", PublicInstance);
-            _socialManagerField = socialUIType.GetField("_socialManager", PrivateInstance);
-            _showChatWindowMethod = socialUIType.GetMethod("ShowChatWindow", PublicInstance);
-
-            // ChatWindow type
-            var chatWindowType = FindType("ChatWindow");
-            if (chatWindowType != null)
-            {
-                _chatInputFieldField = chatWindowType.GetField("_chatInputField", PrivateInstance);
-                _sendButtonField = chatWindowType.GetField("_sendButton", PrivateInstance);
-                _messagesViewField = chatWindowType.GetField("_messagesView", PrivateInstance);
-                _trySendMessageMethod = chatWindowType.GetMethod("TrySendMessage", PublicInstance);
-            }
-
-            // ChatManager type
-            var chatManagerType = FindType("MTGA.Social.ChatManager");
-            if (chatManagerType != null)
-            {
-                _currentConversationProp = chatManagerType.GetProperty("CurrentConversation", PublicInstance);
-                _conversationsField = chatManagerType.GetField("Conversations", PublicInstance);
-                _selectNextConversationMethod = chatManagerType.GetMethod("SelectNextConversation", PublicInstance);
-            }
-
-            // SocialMessagesView
-            var messagesViewType = FindType("SocialMessagesView");
-            if (messagesViewType != null)
-                _activeMessagesField = messagesViewType.GetField("_activeMessages", PrivateInstance);
-
-            // MessageTile
-            var messageTileType = FindType("MessageTile");
-            if (messageTileType != null)
-            {
-                _titleField = messageTileType.GetField("_title", PrivateInstance);
-                _bodyField = messageTileType.GetField("_body", PrivateInstance);
-            }
-
-            // SocialMessage
-            var socialMessageType = FindType("MTGA.Social.SocialMessage");
-            if (socialMessageType != null)
-            {
-                _directionField = socialMessageType.GetField("Direction", PublicInstance);
-                _textBodyField = socialMessageType.GetField("TextBody", PublicInstance);
-                _textTitleField = socialMessageType.GetField("TextTitle", PublicInstance);
-            }
-
-            // Direction enum
-            var directionType = FindType("MTGA.Social.Direction");
-            if (directionType != null)
-                _directionIncoming = Enum.Parse(directionType, "Incoming");
-
-            // Conversation
-            var conversationType = FindType("MTGA.Social.Conversation");
-            if (conversationType != null)
-            {
-                _friendProp = conversationType.GetProperty("Friend", PublicInstance);
-                _messageHistoryField = conversationType.GetField("MessageHistory", PublicInstance);
-            }
-
-            // SocialEntity
-            var socialEntityType = FindType("MTGA.Social.SocialEntity") ?? FindType("SocialEntity");
-            if (socialEntityType != null)
-                _displayNameProp = socialEntityType.GetProperty("DisplayName", PublicInstance);
+            _duelChatCache.EnsureInitialized(socialUIType);
         }
 
         #endregion

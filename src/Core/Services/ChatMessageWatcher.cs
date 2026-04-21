@@ -30,18 +30,66 @@ namespace AccessibleArena.Core.Services
         private bool _lookupAttempted;
         private bool _loggedLookupFailure;
 
-        // Reflection cache (never changes)
-        private bool _reflectionInitialized;
-        private FieldInfo _conversationsField;
-        private FieldInfo _messageHistoryField;
-        private FieldInfo _directionField;
-        private FieldInfo _textBodyField;
-        private FieldInfo _textTitleField;
-        private FieldInfo _messageTypeField;
-        private PropertyInfo _friendProp;
-        private PropertyInfo _displayNameProp;
-        private object _directionIncoming;
-        private object _messageTypeChat;
+        private sealed class ChatWatcherHandles
+        {
+            public FieldInfo SocialManager;
+            public FieldInfo Conversations;
+            public FieldInfo MessageHistory;
+            public FieldInfo Direction;
+            public FieldInfo TextBody;
+            public FieldInfo TextTitle;
+            public FieldInfo MessageType;
+            public PropertyInfo Friend;
+            public PropertyInfo DisplayName;
+            public object DirectionIncoming;
+            public object MessageTypeChat;
+        }
+
+        private static readonly ReflectionCache<ChatWatcherHandles> _watcherCache = new ReflectionCache<ChatWatcherHandles>(
+            builder: socialUIType =>
+            {
+                var h = new ChatWatcherHandles
+                {
+                    SocialManager = socialUIType.GetField("_socialManager", PrivateInstance),
+                };
+
+                var conversationType = FindType("MTGA.Social.Conversation");
+                if (conversationType != null)
+                {
+                    h.Friend = conversationType.GetProperty("Friend", PublicInstance);
+                    h.MessageHistory = conversationType.GetField("MessageHistory", PublicInstance);
+                }
+
+                var chatManagerType = FindType("MTGA.Social.ChatManager");
+                if (chatManagerType != null)
+                    h.Conversations = chatManagerType.GetField("Conversations", PublicInstance);
+
+                var socialMessageType = FindType("MTGA.Social.SocialMessage");
+                if (socialMessageType != null)
+                {
+                    h.Direction = socialMessageType.GetField("Direction", PublicInstance);
+                    h.TextBody = socialMessageType.GetField("TextBody", PublicInstance);
+                    h.TextTitle = socialMessageType.GetField("TextTitle", PublicInstance);
+                    h.MessageType = socialMessageType.GetField("Type", PublicInstance);
+                }
+
+                var directionType = FindType("MTGA.Social.Direction");
+                if (directionType != null)
+                    h.DirectionIncoming = Enum.Parse(directionType, "Incoming");
+
+                var messageTypeEnum = FindType("MTGA.Social.MessageType");
+                if (messageTypeEnum != null)
+                    h.MessageTypeChat = Enum.Parse(messageTypeEnum, "Chat");
+
+                var socialEntityType = FindType("MTGA.Social.SocialEntity") ?? FindType("SocialEntity");
+                if (socialEntityType != null)
+                    h.DisplayName = socialEntityType.GetProperty("DisplayName", PublicInstance);
+
+                return h;
+            },
+            validator: h => h.Conversations != null && h.MessageHistory != null,
+            logTag: "ChatWatcher",
+            logSubject: "ChatManager");
 
         // Track known message counts per conversation (by identity)
         private readonly Dictionary<object, int> _knownMessageCounts = new Dictionary<object, int>();
@@ -106,13 +154,13 @@ namespace AccessibleArena.Core.Services
                 var socialUI = socialPanel.GetComponent(T.SocialUI) as MonoBehaviour;
                 if (socialUI == null) return null;
 
-                EnsureReflectionCached(socialUI.GetType());
+                if (!_watcherCache.EnsureInitialized(socialUI.GetType())) { _lookupFailed = true; return null; }
+                var h = _watcherCache.Handles;
 
                 // SocialUI._socialManager -> ISocialManager.ChatManager
-                var socialManagerField = socialUI.GetType().GetField("_socialManager", PrivateInstance);
-                if (socialManagerField == null) { _lookupFailed = true; return null; }
+                if (h.SocialManager == null) { _lookupFailed = true; return null; }
 
-                var socialManager = socialManagerField.GetValue(socialUI);
+                var socialManager = h.SocialManager.GetValue(socialUI);
                 if (socialManager == null) return null; // Transient - social not connected yet
 
                 var chatManagerProp = socialManager.GetType().GetProperty("ChatManager", PublicInstance);
@@ -133,67 +181,22 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private void EnsureReflectionCached(Type socialUIType)
-        {
-            if (_reflectionInitialized) return;
-            _reflectionInitialized = true;
-
-            // Conversation
-            var conversationType = FindType("MTGA.Social.Conversation");
-            if (conversationType != null)
-            {
-                _friendProp = conversationType.GetProperty("Friend", PublicInstance);
-                _messageHistoryField = conversationType.GetField("MessageHistory", PublicInstance);
-            }
-
-            // ChatManager
-            var chatManagerType = FindType("MTGA.Social.ChatManager");
-            if (chatManagerType != null)
-            {
-                _conversationsField = chatManagerType.GetField("Conversations", PublicInstance);
-            }
-
-            // SocialMessage
-            var socialMessageType = FindType("MTGA.Social.SocialMessage");
-            if (socialMessageType != null)
-            {
-                _directionField = socialMessageType.GetField("Direction", PublicInstance);
-                _textBodyField = socialMessageType.GetField("TextBody", PublicInstance);
-                _textTitleField = socialMessageType.GetField("TextTitle", PublicInstance);
-                _messageTypeField = socialMessageType.GetField("Type", PublicInstance);
-            }
-
-            // Direction enum
-            var directionType = FindType("MTGA.Social.Direction");
-            if (directionType != null)
-                _directionIncoming = Enum.Parse(directionType, "Incoming");
-
-            // MessageType enum
-            var messageTypeEnum = FindType("MTGA.Social.MessageType");
-            if (messageTypeEnum != null)
-                _messageTypeChat = Enum.Parse(messageTypeEnum, "Chat");
-
-            // SocialEntity
-            var socialEntityType = FindType("MTGA.Social.SocialEntity") ?? FindType("SocialEntity");
-            if (socialEntityType != null)
-                _displayNameProp = socialEntityType.GetProperty("DisplayName", PublicInstance);
-        }
-
         private void PollConversations(object chatManager)
         {
-            if (_conversationsField == null || _messageHistoryField == null)
+            var h = _watcherCache.Handles;
+            if (h == null || h.Conversations == null || h.MessageHistory == null)
             {
                 if (!_loggedFirstPoll)
                 {
                     _loggedFirstPoll = true;
-                    Log.Warn("ChatWatcher", $"Reflection fields null: conversations={_conversationsField != null}, messageHistory={_messageHistoryField != null}");
+                    Log.Warn("ChatWatcher", $"Reflection handles not available");
                 }
                 return;
             }
 
             try
             {
-                var conversations = _conversationsField.GetValue(chatManager) as IList;
+                var conversations = h.Conversations.GetValue(chatManager) as IList;
                 if (conversations == null)
                 {
                     if (!_loggedFirstPoll)
@@ -214,7 +217,7 @@ namespace AccessibleArena.Core.Services
                 {
                     if (conversation == null) continue;
 
-                    var history = _messageHistoryField.GetValue(conversation) as IList;
+                    var history = h.MessageHistory.GetValue(conversation) as IList;
                     if (history == null) continue;
 
                     int currentCount = history.Count;
@@ -265,22 +268,24 @@ namespace AccessibleArena.Core.Services
         private bool IsIncomingChatMessage(object message)
         {
             if (message == null) return false;
+            var h = _watcherCache.Handles;
+            if (h == null) return false;
 
             try
             {
                 // Check direction
-                if (_directionField != null && _directionIncoming != null)
+                if (h.Direction != null && h.DirectionIncoming != null)
                 {
-                    var direction = _directionField.GetValue(message);
-                    if (direction == null || !direction.Equals(_directionIncoming))
+                    var direction = h.Direction.GetValue(message);
+                    if (direction == null || !direction.Equals(h.DirectionIncoming))
                         return false;
                 }
 
                 // Check message type
-                if (_messageTypeField != null && _messageTypeChat != null)
+                if (h.MessageType != null && h.MessageTypeChat != null)
                 {
-                    var msgType = _messageTypeField.GetValue(message);
-                    if (msgType == null || !msgType.Equals(_messageTypeChat))
+                    var msgType = h.MessageType.GetValue(message);
+                    if (msgType == null || !msgType.Equals(h.MessageTypeChat))
                         return false;
                 }
 
@@ -291,19 +296,22 @@ namespace AccessibleArena.Core.Services
 
         private void AnnounceMessage(object message, object conversation)
         {
+            var h = _watcherCache.Handles;
+            if (h == null) return;
+
             try
             {
-                string body = _textBodyField?.GetValue(message)?.ToString();
+                string body = h.TextBody?.GetValue(message)?.ToString();
                 if (string.IsNullOrEmpty(body)) return;
 
-                string senderName = _textTitleField?.GetValue(message)?.ToString();
+                string senderName = h.TextTitle?.GetValue(message)?.ToString();
 
                 // Fall back to conversation friend name
-                if (string.IsNullOrEmpty(senderName) && _friendProp != null && _displayNameProp != null)
+                if (string.IsNullOrEmpty(senderName) && h.Friend != null && h.DisplayName != null)
                 {
-                    var friend = _friendProp.GetValue(conversation);
+                    var friend = h.Friend.GetValue(conversation);
                     if (friend != null)
-                        senderName = _displayNameProp.GetValue(friend) as string;
+                        senderName = h.DisplayName.GetValue(friend) as string;
                 }
 
                 string announcement = !string.IsNullOrEmpty(senderName)
