@@ -23,16 +23,36 @@ namespace AccessibleArena.Core.Services
         private readonly IAnnouncementService _announcer;
 
         // Reflection cache
+        private sealed class ChooseXHandles
+        {
+            public FieldInfo Root;
+            public FieldInfo UpArrow;
+            public FieldInfo DownArrow;
+            public FieldInfo UpFiveArrow;
+            public FieldInfo DownFiveArrow;
+            public FieldInfo ButtonLabel;
+            public FieldInfo ConfirmButton;
+        }
+
         private static Type _viewType;
-        private static FieldInfo _rootField;
-        private static FieldInfo _upArrowField;
-        private static FieldInfo _downArrowField;
-        private static FieldInfo _upFiveArrowField;
-        private static FieldInfo _downFiveArrowField;
-        private static FieldInfo _buttonLabelField;
-        private static FieldInfo _confirmButtonField;
         private static bool _reflectionInitialized;
         private static bool _reflectionFailed;
+
+        private static readonly ReflectionCache<ChooseXHandles> _chooseXCache = new ReflectionCache<ChooseXHandles>(
+            builder: t => new ChooseXHandles
+            {
+                Root = t.GetField("_root", PrivateInstance),
+                UpArrow = t.GetField("_upArrowButton", PrivateInstance),
+                DownArrow = t.GetField("_downArrowButton", PrivateInstance),
+                UpFiveArrow = t.GetField("_upFiveArrowButton", PrivateInstance),
+                DownFiveArrow = t.GetField("_downFiveArrowButton", PrivateInstance),
+                ButtonLabel = t.GetField("_buttonLabel", PrivateInstance),
+                ConfirmButton = t.GetField("_confirmationButton", PrivateInstance),
+            },
+            validator: h => h.Root != null && h.UpArrow != null && h.DownArrow != null
+                         && h.ButtonLabel != null && h.ConfirmButton != null,
+            logTag: "ChooseXNavigator",
+            logSubject: "View_ChooseXInterface");
 
         // State
         private bool _isActive;
@@ -136,31 +156,33 @@ namespace AccessibleArena.Core.Services
             if (!_hasFocus)
                 return false;
 
+            var h = _chooseXCache.Handles;
+
             // Up arrow = increment by 1
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
-                ClickButton(_upArrowField, 1);
+                ClickButton(h.UpArrow, 1);
                 return true;
             }
 
             // Down arrow = decrement by 1
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
-                ClickButton(_downArrowField, -1);
+                ClickButton(h.DownArrow, -1);
                 return true;
             }
 
             // Page Up = increment by 5
             if (Input.GetKeyDown(KeyCode.PageUp))
             {
-                ClickButton(_upFiveArrowField, 5);
+                ClickButton(h.UpFiveArrow, 5);
                 return true;
             }
 
             // Page Down = decrement by 5
             if (Input.GetKeyDown(KeyCode.PageDown))
             {
-                ClickButton(_downFiveArrowField, -5);
+                ClickButton(h.DownFiveArrow, -5);
                 return true;
             }
 
@@ -190,6 +212,7 @@ namespace AccessibleArena.Core.Services
         private MonoBehaviour FindActiveView()
         {
             var instances = UnityEngine.Object.FindObjectsOfType(_viewType);
+            var rootField = _chooseXCache.Handles.Root;
             foreach (var inst in instances)
             {
                 try
@@ -197,7 +220,7 @@ namespace AccessibleArena.Core.Services
                     var mb = inst as MonoBehaviour;
                     if (mb == null) continue;
 
-                    var root = _rootField.GetValue(mb) as GameObject;
+                    var root = rootField.GetValue(mb) as GameObject;
                     if (root != null && root.activeInHierarchy)
                         return mb;
                 }
@@ -240,7 +263,7 @@ namespace AccessibleArena.Core.Services
                 labelText = "0";
 
             // Check which buttons are available to determine max range
-            bool hasFiveButtons = IsButtonActive(_upFiveArrowField);
+            bool hasFiveButtons = IsButtonActive(_chooseXCache.Handles.UpFiveArrow);
             string rangeInfo = hasFiveButtons ? " (PageUp/PageDown: +5/-5)" : "";
 
             string entryText = _maxValue.HasValue
@@ -306,7 +329,7 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var confirmButton = _confirmButtonField.GetValue(_viewInstance) as Button;
+                var confirmButton = _chooseXCache.Handles.ConfirmButton.GetValue(_viewInstance) as Button;
                 if (confirmButton == null || !confirmButton.interactable)
                 {
                     _announcer.AnnounceInterrupt(Strings.ChooseXCannotSubmit);
@@ -356,11 +379,12 @@ namespace AccessibleArena.Core.Services
 
         private string GetLabelText()
         {
-            if (_viewInstance == null || _buttonLabelField == null) return null;
+            var labelField = _chooseXCache.Handles?.ButtonLabel;
+            if (_viewInstance == null || labelField == null) return null;
 
             try
             {
-                var label = _buttonLabelField.GetValue(_viewInstance);
+                var label = labelField.GetValue(_viewInstance);
                 if (label == null) return null;
 
                 // TextMeshProUGUI.text
@@ -440,61 +464,16 @@ namespace AccessibleArena.Core.Services
         {
             _reflectionInitialized = true;
 
-            try
+            _viewType = FindType("View_ChooseXInterface");
+            if (_viewType == null)
             {
-                _viewType = FindType("View_ChooseXInterface");
-                if (_viewType == null)
-                {
-                    Log.Warn("ChooseXNavigator", "View_ChooseXInterface type not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                Log.Msg("ChooseXNavigator", $"Found View_ChooseXInterface: {_viewType.FullName}");
-
-                _rootField = _viewType.GetField("_root", PrivateInstance);
-                _upArrowField = _viewType.GetField("_upArrowButton", PrivateInstance);
-                _downArrowField = _viewType.GetField("_downArrowButton", PrivateInstance);
-                _upFiveArrowField = _viewType.GetField("_upFiveArrowButton", PrivateInstance);
-                _downFiveArrowField = _viewType.GetField("_downFiveArrowButton", PrivateInstance);
-                _buttonLabelField = _viewType.GetField("_buttonLabel", PrivateInstance);
-                _confirmButtonField = _viewType.GetField("_confirmationButton", PrivateInstance);
-
-                if (_rootField == null)
-                {
-                    Log.Warn("ChooseXNavigator", "_root field not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                if (_upArrowField == null || _downArrowField == null)
-                {
-                    Log.Warn("ChooseXNavigator", "Arrow button fields not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                if (_buttonLabelField == null)
-                {
-                    Log.Warn("ChooseXNavigator", "_buttonLabel field not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                if (_confirmButtonField == null)
-                {
-                    Log.Warn("ChooseXNavigator", "_confirmationButton field not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                Log.Msg("ChooseXNavigator", "Reflection initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("ChooseXNavigator", $"Reflection init failed: {ex.Message}");
+                Log.Warn("ChooseXNavigator", "View_ChooseXInterface type not found");
                 _reflectionFailed = true;
+                return;
             }
+
+            if (!_chooseXCache.EnsureInitialized(_viewType))
+                _reflectionFailed = true;
         }
     }
 }

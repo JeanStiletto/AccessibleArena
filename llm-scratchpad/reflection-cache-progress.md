@@ -171,14 +171,15 @@ Decisions above are final unless the pilot itself reveals an API gap.
     - [x] `PlayerPortraitNavigator.Life.cs` (done earlier, entityCache + ReflectionWalk)
     - [x] `PlayerPortraitNavigator.Emotes.cs` (done earlier, avatarCache)
     - [x] `PlayerPortraitNavigator.Properties.cs` (pending commit — 3-chain rank cache)
-    - [ ] `MasteryNavigator.Levels.cs` (~60 handles, chained discovery)
+    - [x] `MasteryNavigator.Levels.cs` (done earlier, LevelsHandles ~25-handle chained cache)
     - [x] `MasteryNavigator.PrizeWall.cs` (commit bdd1a0f)
     - [x] `MasteryNavigator.ConfirmationModal.cs` (commit bdd1a0f)
     - [x] `BrowserNavigator.Keyword.cs`, `BrowserNavigator.OrderCards.cs` (commit 02b2bf2)
     - [x] `DuelAnnouncer.Commander.cs`, `DuelAnnouncer.NPE.cs` (commit 6b7d1af)
     - [x] `UITextExtractor.Localization.cs`, `UITextExtractor.Objectives.cs` (commit 33c4809)
-  - [ ] Other navigators: `ChooseXNavigator`, `HotHighlightNavigator`, `SpinnerNavigator`,
-        `SpinnerNavigator`, `ManaColorPickerNavigator`, `ProfileNavigator`, `AchievementsNavigator`,
+  - [ ] Other navigators:
+    - [x] `ChooseXNavigator`, `SpinnerNavigator` (this commit)
+    - [ ] `HotHighlightNavigator`, `ManaColorPickerNavigator`, `ProfileNavigator`, `AchievementsNavigator`,
         `CodexNavigator`, `ChatMessageWatcher`, `ChatNavigator`, `DuelChatNavigator`,
         `DraftNavigator`, `SideboardNavigator`, `BoosterOpenNavigator`, `StoreNavigator`,
         `ChallengeNavigationHelper`, `PriorityController`

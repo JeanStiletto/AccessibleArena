@@ -26,16 +26,46 @@ namespace AccessibleArena.Core.Services
         private readonly IAnnouncementService _announcer;
 
         // Reflection cache
+        private sealed class SpinnerAnimatedHandles
+        {
+            public PropertyInfo InstanceId;
+            public PropertyInfo Value;
+            public FieldInfo UpButton;
+            public FieldInfo DownButton;
+            public FieldInfo Group; // SpinnerAnimated._group
+        }
+
+        private sealed class SpinnerGroupHandles
+        {
+            public PropertyInfo MaxValue;
+        }
+
         private static Type _spinnerAnimatedType;
         private static Type _spinnerGroupType;
-        private static PropertyInfo _instanceIdProp;
-        private static PropertyInfo _valueProp;
-        private static FieldInfo _upButtonField;
-        private static FieldInfo _downButtonField;
-        private static PropertyInfo _groupMaxValueProp;
-        private static FieldInfo _groupField; // SpinnerAnimated._group
         private static bool _reflectionInitialized;
         private static bool _reflectionFailed;
+
+        private static readonly ReflectionCache<SpinnerAnimatedHandles> _spinnerCache = new ReflectionCache<SpinnerAnimatedHandles>(
+            builder: t => new SpinnerAnimatedHandles
+            {
+                InstanceId = t.GetProperty("InstanceId", PublicInstance),
+                Value = t.GetProperty("Value", PublicInstance),
+                UpButton = t.GetField("_upButton", PrivateInstance),
+                DownButton = t.GetField("_downButton", PrivateInstance),
+                Group = t.GetField("_group", PrivateInstance),
+            },
+            validator: h => h.InstanceId != null && h.Value != null && h.UpButton != null && h.DownButton != null,
+            logTag: "SpinnerNavigator",
+            logSubject: "SpinnerAnimated");
+
+        private static readonly ReflectionCache<SpinnerGroupHandles> _spinnerGroupCache = new ReflectionCache<SpinnerGroupHandles>(
+            builder: t => new SpinnerGroupHandles
+            {
+                MaxValue = t.GetProperty("MaxValue", PublicInstance),
+            },
+            validator: h => h.MaxValue != null,
+            logTag: "SpinnerNavigator",
+            logSubject: "SpinnerGroup");
 
         // State
         private bool _isActive;
@@ -226,6 +256,7 @@ namespace AccessibleArena.Core.Services
         private List<MonoBehaviour> FindActiveSpinners()
         {
             var result = new List<MonoBehaviour>();
+            var h = _spinnerCache.Handles;
             var instances = UnityEngine.Object.FindObjectsOfType(_spinnerAnimatedType);
             foreach (var inst in instances)
             {
@@ -235,13 +266,13 @@ namespace AccessibleArena.Core.Services
                     if (mb == null || !mb.gameObject.activeInHierarchy)
                         continue;
 
-                    uint instanceId = (uint)_instanceIdProp.GetValue(mb);
+                    uint instanceId = (uint)h.InstanceId.GetValue(mb);
                     if (instanceId == 0)
                         continue;
 
                     // Verify up/down buttons are active (spinner is interactable)
-                    var upBtn = _upButtonField.GetValue(mb) as Button;
-                    var downBtn = _downButtonField.GetValue(mb) as Button;
+                    var upBtn = h.UpButton.GetValue(mb) as Button;
+                    var downBtn = h.DownButton.GetValue(mb) as Button;
                     if (upBtn == null || downBtn == null)
                         continue;
                     if (!upBtn.gameObject.activeInHierarchy && !downBtn.gameObject.activeInHierarchy)
@@ -326,10 +357,11 @@ namespace AccessibleArena.Core.Services
                 return;
 
             var spinner = _spinners[_currentIndex];
+            var h = _spinnerCache.Handles;
 
             try
             {
-                var buttonField = direction > 0 ? _upButtonField : _downButtonField;
+                var buttonField = direction > 0 ? h.UpButton : h.DownButton;
                 var button = buttonField.GetValue(spinner) as Button;
 
                 if (button == null || !button.interactable)
@@ -342,7 +374,7 @@ namespace AccessibleArena.Core.Services
                 button.onClick.Invoke();
 
                 // Read new value and announce
-                int newValue = (int)_valueProp.GetValue(spinner);
+                int newValue = (int)h.Value.GetValue(spinner);
                 int distributed = GetTotalDistributed();
                 int remaining = _totalMax > 0 ? _totalMax - distributed : 0;
                 string announcement = _totalMax > 0
@@ -419,7 +451,7 @@ namespace AccessibleArena.Core.Services
 
             var spinner = _spinners[_currentIndex];
             string cardName = GetSpinnerCardName(spinner);
-            int value = (int)_valueProp.GetValue(spinner);
+            int value = (int)_spinnerCache.Handles.Value.GetValue(spinner);
 
             _announcer.AnnounceInterrupt(Strings.SpinnerEntry(_totalMax, cardName, value));
         }
@@ -430,7 +462,7 @@ namespace AccessibleArena.Core.Services
 
             var spinner = _spinners[_currentIndex];
             string cardName = GetSpinnerCardName(spinner);
-            int value = (int)_valueProp.GetValue(spinner);
+            int value = (int)_spinnerCache.Handles.Value.GetValue(spinner);
 
             _announcer.AnnounceInterrupt(Strings.SpinnerCard(cardName, value, _currentIndex + 1, _spinners.Count));
         }
@@ -439,7 +471,7 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                uint instanceId = (uint)_instanceIdProp.GetValue(spinner);
+                uint instanceId = (uint)_spinnerCache.Handles.InstanceId.GetValue(spinner);
                 string name = CardStateProvider.ResolveInstanceIdToNameWithPT(instanceId);
                 return name ?? $"Card #{instanceId}";
             }
@@ -452,11 +484,12 @@ namespace AccessibleArena.Core.Services
         private int GetTotalDistributed()
         {
             int total = 0;
+            var valueProp = _spinnerCache.Handles.Value;
             foreach (var spinner in _spinners)
             {
                 try
                 {
-                    total += (int)_valueProp.GetValue(spinner);
+                    total += (int)valueProp.GetValue(spinner);
                 }
                 catch { }
             }
@@ -470,13 +503,15 @@ namespace AccessibleArena.Core.Services
 
             try
             {
+                var groupField = _spinnerCache.Handles.Group;
+
                 // Try reading _group field from the spinner directly (set in Awake)
-                if (_groupField != null)
+                if (groupField != null)
                 {
-                    var group = _groupField.GetValue(_spinners[0]);
-                    if (group != null)
+                    var group = groupField.GetValue(_spinners[0]);
+                    if (group != null && _spinnerGroupCache.EnsureInitialized(group.GetType()))
                     {
-                        int maxVal = (int)_groupMaxValueProp.GetValue(group);
+                        int maxVal = (int)_spinnerGroupCache.Handles.MaxValue.GetValue(group);
                         Log.Msg("SpinnerNavigator", $"Read group max from _group field: {maxVal}");
                         return maxVal;
                     }
@@ -486,13 +521,13 @@ namespace AccessibleArena.Core.Services
                 if (_spinnerGroupType != null)
                 {
                     var group = _spinners[0].GetComponentInParent(_spinnerGroupType);
-                    if (group != null)
+                    if (group != null && _spinnerGroupCache.EnsureInitialized(group.GetType()))
                     {
-                        int maxVal = (int)_groupMaxValueProp.GetValue(group);
+                        int maxVal = (int)_spinnerGroupCache.Handles.MaxValue.GetValue(group);
                         Log.Msg("SpinnerNavigator", $"Read group max from GetComponentInParent: {maxVal}");
                         return maxVal;
                     }
-                    else
+                    else if (group == null)
                     {
                         Log.Warn("SpinnerNavigator", "SpinnerGroup not found via GetComponentInParent");
                     }
@@ -512,59 +547,23 @@ namespace AccessibleArena.Core.Services
         {
             _reflectionInitialized = true;
 
-            try
+            _spinnerAnimatedType = FindType(T.SpinnerAnimated);
+            if (_spinnerAnimatedType == null)
             {
-                _spinnerAnimatedType = FindType(T.SpinnerAnimated);
-                if (_spinnerAnimatedType == null)
-                {
-                    Log.Warn("SpinnerNavigator", "SpinnerAnimated type not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                _spinnerGroupType = FindType(T.SpinnerGroup);
-                if (_spinnerGroupType == null)
-                    Log.Warn("SpinnerNavigator", "SpinnerGroup type not found");
-
-                // SpinnerAnimated properties (all public)
-                _instanceIdProp = _spinnerAnimatedType.GetProperty("InstanceId", PublicInstance);
-                _valueProp = _spinnerAnimatedType.GetProperty("Value", PublicInstance);
-
-                // SpinnerAnimated private fields
-                _upButtonField = _spinnerAnimatedType.GetField("_upButton", PrivateInstance);
-                _downButtonField = _spinnerAnimatedType.GetField("_downButton", PrivateInstance);
-                _groupField = _spinnerAnimatedType.GetField("_group", PrivateInstance);
-
-                if (_instanceIdProp == null || _valueProp == null)
-                {
-                    Log.Warn("SpinnerNavigator", "Core SpinnerAnimated properties not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                if (_upButtonField == null || _downButtonField == null)
-                {
-                    Log.Warn("SpinnerNavigator", "SpinnerAnimated button fields not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                Log.Msg("SpinnerNavigator", $"_groupField found: {_groupField != null}");
-
-                // SpinnerGroup properties
-                if (_spinnerGroupType != null)
-                {
-                    _groupMaxValueProp = _spinnerGroupType.GetProperty("MaxValue", PublicInstance);
-                    Log.Msg("SpinnerNavigator", $"SpinnerGroup.MaxValue prop found: {_groupMaxValueProp != null}");
-                }
-
-                Log.Msg("SpinnerNavigator", "Reflection initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("SpinnerNavigator", $"Reflection init failed: {ex.Message}");
+                Log.Warn("SpinnerNavigator", "SpinnerAnimated type not found");
                 _reflectionFailed = true;
+                return;
             }
+
+            _spinnerGroupType = FindType(T.SpinnerGroup);
+            if (_spinnerGroupType == null)
+                Log.Warn("SpinnerNavigator", "SpinnerGroup type not found");
+
+            if (!_spinnerCache.EnsureInitialized(_spinnerAnimatedType))
+                _reflectionFailed = true;
+
+            if (_spinnerGroupType != null)
+                _spinnerGroupCache.EnsureInitialized(_spinnerGroupType);
         }
     }
 }
