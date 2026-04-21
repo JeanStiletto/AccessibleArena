@@ -12,12 +12,45 @@ namespace AccessibleArena.Core.Services
 {
     public partial class DuelAnnouncer
     {
-        // Reflection cache for reading CommanderGrpIds from MatchManager
-        private static PropertyInfo _mmProp;       // GameManager.MatchManager
-        private static PropertyInfo _localPIProp;  // MatchManager.LocalPlayerInfo
-        private static PropertyInfo _opponentPIProp; // MatchManager.OpponentInfo
-        private static PropertyInfo _commanderGrpIdsProp; // PlayerInfo.CommanderGrpIds
-        private static bool _commanderReflectionInitialized;
+        // Reflection caches for reading CommanderGrpIds (3-type chain:
+        // GameManager → MatchManager → PlayerInfo). Each type is only reachable
+        // via a live instance from the previous step, so three caches seeded
+        // independently at point of use.
+        private sealed class GameManagerHandles
+        {
+            public PropertyInfo MatchManager;
+        }
+        private sealed class MatchManagerHandles
+        {
+            public PropertyInfo LocalPlayerInfo;
+            public PropertyInfo OpponentInfo;
+        }
+        private sealed class PlayerInfoHandles
+        {
+            public PropertyInfo CommanderGrpIds;
+        }
+
+        private static readonly ReflectionCache<GameManagerHandles> _gmCache = new ReflectionCache<GameManagerHandles>(
+            builder: t => new GameManagerHandles { MatchManager = t.GetProperty("MatchManager", PublicInstance) },
+            validator: h => h.MatchManager != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "GameManager");
+
+        private static readonly ReflectionCache<MatchManagerHandles> _mmCache = new ReflectionCache<MatchManagerHandles>(
+            builder: t => new MatchManagerHandles
+            {
+                LocalPlayerInfo = t.GetProperty("LocalPlayerInfo", PublicInstance),
+                OpponentInfo = t.GetProperty("OpponentInfo", PublicInstance),
+            },
+            validator: h => h.LocalPlayerInfo != null && h.OpponentInfo != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "MatchManager");
+
+        private static readonly ReflectionCache<PlayerInfoHandles> _piCache = new ReflectionCache<PlayerInfoHandles>(
+            builder: t => new PlayerInfoHandles { CommanderGrpIds = t.GetProperty("CommanderGrpIds", PublicInstance) },
+            validator: h => h.CommanderGrpIds != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "PlayerInfo");
 
         /// <summary>
         /// Gets the opponent's commander GrpId for Brawl/Commander games.
@@ -93,19 +126,19 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
-                // Initialize reflection cache once
-                if (!_commanderReflectionInitialized)
-                    InitializeCommanderReflection(gameManager);
-                if (!_commanderReflectionInitialized) return;
+                if (!_gmCache.EnsureInitialized(gameManager.GetType())) return;
 
-                var matchManager = _mmProp.GetValue(gameManager);
+                var matchManager = _gmCache.Handles.MatchManager.GetValue(gameManager);
                 if (matchManager == null) return;
 
+                if (!_mmCache.EnsureInitialized(matchManager.GetType())) return;
+                var mm = _mmCache.Handles;
+
                 // Read local player commanders
-                PopulateCommandersForPlayer(matchManager, _localPIProp, isOpponent: false);
+                PopulateCommandersForPlayer(matchManager, mm.LocalPlayerInfo, isOpponent: false);
 
                 // Read opponent commanders
-                PopulateCommandersForPlayer(matchManager, _opponentPIProp, isOpponent: true);
+                PopulateCommandersForPlayer(matchManager, mm.OpponentInfo, isOpponent: true);
             }
             catch (System.Exception ex)
             {
@@ -123,10 +156,11 @@ namespace AccessibleArena.Core.Services
             var playerInfo = playerInfoProp.GetValue(matchManager);
             if (playerInfo == null) return;
 
-            var grpIds = _commanderGrpIdsProp?.GetValue(playerInfo) as IList;
+            if (!_piCache.EnsureInitialized(playerInfo.GetType())) return;
+
+            var grpIds = _piCache.Handles.CommanderGrpIds.GetValue(playerInfo) as IList;
             if (grpIds == null || grpIds.Count == 0) return;
 
-            string side = isOpponent ? "opponent" : "local";
             foreach (var id in grpIds)
             {
                 uint grpId = System.Convert.ToUInt32(id);
@@ -135,61 +169,6 @@ namespace AccessibleArena.Core.Services
                 _commandZoneGrpIds[grpId] = isOpponent;
                 string cardName = CardModelProvider.GetNameFromGrpId(grpId) ?? "Unknown";
                 Log.Msg("DuelAnnouncer", $"Commander from MatchManager: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
-            }
-        }
-
-        /// <summary>
-        /// Initializes reflection cache for CommanderGrpIds access.
-        /// </summary>
-        private static void InitializeCommanderReflection(object gameManager)
-        {
-            try
-            {
-                var gmType = gameManager.GetType();
-                _mmProp = gmType.GetProperty("MatchManager", PublicInstance);
-                if (_mmProp == null)
-                {
-                    Log.Warn("DuelAnnouncer", "Could not find MatchManager property on GameManager");
-                    return;
-                }
-
-                var mm = _mmProp.GetValue(gameManager);
-                if (mm == null)
-                {
-                    Log.Warn("DuelAnnouncer", "MatchManager is null during commander reflection init");
-                    return;
-                }
-
-                var mmType = mm.GetType();
-                _localPIProp = mmType.GetProperty("LocalPlayerInfo", PublicInstance);
-                _opponentPIProp = mmType.GetProperty("OpponentInfo", PublicInstance);
-
-                if (_localPIProp == null || _opponentPIProp == null)
-                {
-                    Log.Warn("DuelAnnouncer", "Could not find player info properties on MatchManager");
-                    return;
-                }
-
-                var playerInfo = _localPIProp.GetValue(mm);
-                if (playerInfo == null)
-                {
-                    Log.Warn("DuelAnnouncer", "LocalPlayerInfo is null during commander reflection init");
-                    return;
-                }
-
-                _commanderGrpIdsProp = playerInfo.GetType().GetProperty("CommanderGrpIds", PublicInstance);
-                if (_commanderGrpIdsProp == null)
-                {
-                    Log.Warn("DuelAnnouncer", "Could not find CommanderGrpIds property on PlayerInfo");
-                    return;
-                }
-
-                _commanderReflectionInitialized = true;
-                Log.Msg("DuelAnnouncer", "Commander reflection initialized successfully");
-            }
-            catch (System.Exception ex)
-            {
-                Log.Warn("DuelAnnouncer", $"Commander reflection init failed: {ex.Message}");
             }
         }
     }

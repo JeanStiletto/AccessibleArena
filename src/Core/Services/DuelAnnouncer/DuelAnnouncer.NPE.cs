@@ -18,15 +18,54 @@ namespace AccessibleArena.Core.Services
         // Suppress the generic ActionReminder that fires right after a tooltip with custom text
         private bool _suppressNextActionReminder;
 
-        // Reflection cache for NPE types
-        private static FieldInfo _npeDialogLineField;
-        private static FieldInfo _npeReminderField;
-        private static FieldInfo _npeReminderTextField;
-        private static FieldInfo _npeReminderSuggestedField;
-        private static FieldInfo _npeTooltipTypeField;
-        private static FieldInfo _npeWarningTextField;
-        private static FieldInfo _localizedStringKeyField;
-        private static bool _npeReflectionInitialized;
+        // Reflection caches for NPE UX events. Each type is discovered via FindType
+        // and cached independently — they share no parent type.
+        private sealed class NpeDialogHandles { public FieldInfo Line; }
+        private sealed class NpeReminderEventHandles { public FieldInfo Reminder; }
+        private sealed class NpeReminderHandles { public FieldInfo Text; public FieldInfo SparkySuggested; }
+        private sealed class LocalizedStringHandles { public FieldInfo Key; }
+        private sealed class NpeWarningHandles { public FieldInfo DisplayText; }
+        private sealed class NpeTooltipHandles { public FieldInfo Type; }
+
+        private static readonly ReflectionCache<NpeDialogHandles> _npeDialogCache = new ReflectionCache<NpeDialogHandles>(
+            builder: t => new NpeDialogHandles { Line = t.GetField("Line", PublicInstance) },
+            validator: h => h.Line != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "NPEDialogUXEvent");
+
+        private static readonly ReflectionCache<NpeReminderEventHandles> _npeReminderEventCache = new ReflectionCache<NpeReminderEventHandles>(
+            builder: t => new NpeReminderEventHandles { Reminder = t.GetField("_reminder", PrivateInstance) },
+            validator: h => h.Reminder != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "NPEReminderUXEvent");
+
+        private static readonly ReflectionCache<NpeReminderHandles> _npeReminderCache = new ReflectionCache<NpeReminderHandles>(
+            builder: t => new NpeReminderHandles
+            {
+                Text = t.GetField("Text", PublicInstance),
+                SparkySuggested = t.GetField("SparkySuggestedInstances", PublicInstance),
+            },
+            validator: h => h.Text != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "NPEReminder");
+
+        private static readonly ReflectionCache<LocalizedStringHandles> _locStringCache = new ReflectionCache<LocalizedStringHandles>(
+            builder: t => new LocalizedStringHandles { Key = t.GetField("Key", PublicInstance) },
+            validator: h => h.Key != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "MTGALocalizedString");
+
+        private static readonly ReflectionCache<NpeWarningHandles> _npeWarningCache = new ReflectionCache<NpeWarningHandles>(
+            builder: t => new NpeWarningHandles { DisplayText = t.GetField("_displayText", PrivateInstance) },
+            validator: h => h.DisplayText != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "NPEWarningUXEvent");
+
+        private static readonly ReflectionCache<NpeTooltipHandles> _npeTooltipCache = new ReflectionCache<NpeTooltipHandles>(
+            builder: t => new NpeTooltipHandles { Type = t.GetField("_type", PrivateInstance) },
+            validator: h => h.Type != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "NPEDismissableDeluxeTooltipUXEvent");
 
         /// <summary>
         /// Returns true if the current duel is an NPE tutorial game.
@@ -36,72 +75,38 @@ namespace AccessibleArena.Core.Services
         private bool _isNPETutorial;
         private bool _npeCheckDone;
 
-        private static PropertyInfo _npeDirectorProp;
+        private sealed class GameManagerNpeHandles { public PropertyInfo NpeDirector; }
+        private static readonly ReflectionCache<GameManagerNpeHandles> _gmNpeCache = new ReflectionCache<GameManagerNpeHandles>(
+            builder: t => new GameManagerNpeHandles { NpeDirector = t.GetProperty("NpeDirector", PublicInstance) },
+            validator: h => h.NpeDirector != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "GameManager");
 
         // Hover simulation for NPE - fire CardHoverController.OnHoveredCardUpdated when user navigates to a CDC
         private GameObject _lastHoveredNPECard;
         private bool _lastHoverWasStack;
 
-        private static FieldInfo _hoverEventField;
-        private static bool _hoverFieldSearched;
-
-        private static void EnsureNPEReflection()
+        private sealed class HoverHandles
         {
-            if (_npeReflectionInitialized) return;
-            _npeReflectionInitialized = true;
-
-            try
-            {
-                // NPEDialogUXEvent.Line (public readonly field, MTGALocalizedString)
-                var dialogType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEDialogUXEvent");
-                if (dialogType != null)
-                    _npeDialogLineField = dialogType.GetField("Line", PublicInstance);
-
-                // NPEReminderUXEvent._reminder (private field, NPEReminder)
-                var reminderEventType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEReminderUXEvent");
-                if (reminderEventType != null)
-                    _npeReminderField = reminderEventType.GetField("_reminder", PrivateInstance);
-
-                // NPEReminder.Text (public field, MTGALocalizedString)
-                // NPEReminder.SparkySuggestedInstances (public field, List<uint>)
-                var reminderType = FindType("NPEReminder");
-                if (reminderType != null)
-                {
-                    _npeReminderTextField = reminderType.GetField("Text", PublicInstance);
-                    _npeReminderSuggestedField = reminderType.GetField("SparkySuggestedInstances", PublicInstance);
-                }
-
-                // MTGALocalizedString.Key (public field, string) - for NPE key extraction
-                // MTGALocalizedString is in the root namespace, not Wotc.Mtga.Loc
-                var localizedStringType = FindType("MTGALocalizedString");
-                if (localizedStringType != null)
-                    _localizedStringKeyField = localizedStringType.GetField("Key", PublicInstance);
-
-                // NPEWarningUXEvent._displayText (protected field, MTGALocalizedString)
-                var warningType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEWarningUXEvent");
-                if (warningType != null)
-                    _npeWarningTextField = warningType.GetField("_displayText", PrivateInstance);
-
-                // NPEDismissableDeluxeTooltipUXEvent._type (private field, DeluxeTooltipType enum)
-                var tooltipType = FindType("Wotc.Mtga.DuelScene.UXEvents.NPEDismissableDeluxeTooltipUXEvent");
-                if (tooltipType != null)
-                    _npeTooltipTypeField = tooltipType.GetField("_type", PrivateInstance);
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("DuelAnnouncer", $"Failed to initialize NPE reflection: {ex.Message}");
-            }
+            public FieldInfo OnHoveredCardUpdated;   // static event backing field
         }
+        private static readonly ReflectionCache<HoverHandles> _hoverCache = new ReflectionCache<HoverHandles>(
+            builder: t => new HoverHandles
+            {
+                OnHoveredCardUpdated = t.GetField("OnHoveredCardUpdated",
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic),
+            },
+            validator: h => h.OnHoveredCardUpdated != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "CardHoverController");
 
         private string HandleNPEDialog(object uxEvent)
         {
             try
             {
-                EnsureNPEReflection();
+                if (!_npeDialogCache.EnsureInitialized(uxEvent.GetType())) return null;
 
-                if (_npeDialogLineField == null) return null;
-
-                var lineObj = _npeDialogLineField.GetValue(uxEvent);
+                var lineObj = _npeDialogCache.Handles.Line.GetValue(uxEvent);
                 if (lineObj == null) return null;
 
                 string text = lineObj.ToString();
@@ -109,8 +114,8 @@ namespace AccessibleArena.Core.Services
 
                 // Extract localization key for language-agnostic hint matching
                 string locKey = null;
-                if (_localizedStringKeyField != null)
-                    locKey = _localizedStringKeyField.GetValue(lineObj) as string;
+                if (_locStringCache.EnsureInitialized(lineObj.GetType()))
+                    locKey = _locStringCache.Handles.Key.GetValue(lineObj) as string;
 
                 Log.Announce("DuelAnnouncer", $"NPE Dialog: {text} (key: {locKey})");
 
@@ -140,34 +145,32 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                EnsureNPEReflection();
+                if (!_npeReminderEventCache.EnsureInitialized(uxEvent.GetType())) return null;
 
-                if (_npeReminderField == null) return null;
-
-                var reminderObj = _npeReminderField.GetValue(uxEvent);
+                var reminderObj = _npeReminderEventCache.Handles.Reminder.GetValue(uxEvent);
                 if (reminderObj == null) return null;
+
+                if (!_npeReminderCache.EnsureInitialized(reminderObj.GetType())) return null;
+                var r = _npeReminderCache.Handles;
 
                 // Get reminder text and localization key
                 string text = null;
                 string locKey = null;
-                if (_npeReminderTextField != null)
+                var textObj = r.Text.GetValue(reminderObj);
+                if (textObj != null)
                 {
-                    var textObj = _npeReminderTextField.GetValue(reminderObj);
-                    if (textObj != null)
-                    {
-                        text = textObj.ToString();
-                        if (_localizedStringKeyField != null)
-                            locKey = _localizedStringKeyField.GetValue(textObj) as string;
-                    }
+                    text = textObj.ToString();
+                    if (_locStringCache.EnsureInitialized(textObj.GetType()))
+                        locKey = _locStringCache.Handles.Key.GetValue(textObj) as string;
                 }
 
                 if (string.IsNullOrEmpty(text)) return null;
 
                 // Try to resolve suggested card names
                 string cardHint = null;
-                if (_npeReminderSuggestedField != null)
+                if (r.SparkySuggested != null)
                 {
-                    var suggestedObj = _npeReminderSuggestedField.GetValue(reminderObj);
+                    var suggestedObj = r.SparkySuggested.GetValue(reminderObj);
                     if (suggestedObj is IList suggestedList && suggestedList.Count > 0)
                     {
                         var names = new List<string>();
@@ -226,11 +229,9 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                EnsureNPEReflection();
+                if (!_npeTooltipCache.EnsureInitialized(uxEvent.GetType())) return null;
 
-                if (_npeTooltipTypeField == null) return null;
-
-                var typeObj = _npeTooltipTypeField.GetValue(uxEvent);
+                var typeObj = _npeTooltipCache.Handles.Type.GetValue(uxEvent);
                 if (typeObj == null) return null;
 
                 string tooltipType = typeObj.ToString();
@@ -264,11 +265,9 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                EnsureNPEReflection();
+                if (!_npeWarningCache.EnsureInitialized(uxEvent.GetType())) return null;
 
-                if (_npeWarningTextField == null) return null;
-
-                var textObj = _npeWarningTextField.GetValue(uxEvent);
+                var textObj = _npeWarningCache.Handles.DisplayText.GetValue(uxEvent);
                 if (textObj == null) return null;
 
                 string text = textObj.ToString();
@@ -295,20 +294,16 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                if (_npeDirectorProp == null)
-                {
-                    var gmType = FindType("GameManager");
-                    if (gmType != null)
-                        _npeDirectorProp = gmType.GetProperty("NpeDirector", PublicInstance);
-                }
+                var gmType = FindType("GameManager");
+                if (gmType == null) return;
 
-                if (_npeDirectorProp == null) return;
+                if (!_gmNpeCache.EnsureInitialized(gmType)) return;
 
                 // GameManager is a singleton - find it
-                var gmObj = UnityEngine.Object.FindObjectOfType(FindType("GameManager")) as Component;
+                var gmObj = UnityEngine.Object.FindObjectOfType(gmType) as Component;
                 if (gmObj == null) return;
 
-                var director = _npeDirectorProp.GetValue(gmObj);
+                var director = _gmNpeCache.Handles.NpeDirector.GetValue(gmObj);
                 _isNPETutorial = director != null;
 
                 if (_isNPETutorial)
@@ -399,23 +394,12 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                if (!_hoverFieldSearched)
-                {
-                    _hoverFieldSearched = true;
-                    var hoverType = FindType("CardHoverController");
-                    if (hoverType != null)
-                    {
-                        // OnHoveredCardUpdated is a static event (Action<DuelScene_CDC>)
-                        // Access the backing field directly
-                        _hoverEventField = hoverType.GetField("OnHoveredCardUpdated",
-                            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-                    }
-                }
-
-                if (_hoverEventField == null) return;
+                var hoverType = FindType("CardHoverController");
+                if (hoverType == null) return;
+                if (!_hoverCache.EnsureInitialized(hoverType)) return;
 
                 // Re-read the delegate each time since subscribers may change
-                var currentDelegate = _hoverEventField.GetValue(null) as Delegate;
+                var currentDelegate = _hoverCache.Handles.OnHoveredCardUpdated.GetValue(null) as Delegate;
                 if (currentDelegate != null)
                 {
                     // DynamicInvoke(null) is ambiguous - must wrap in array to pass null as first arg
