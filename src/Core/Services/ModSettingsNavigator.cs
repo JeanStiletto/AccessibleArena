@@ -54,6 +54,8 @@ namespace AccessibleArena.Core.Services
             public Action Toggle { get; set; }
             /// <summary>True if this item uses dropdown mode instead of simple toggle.</summary>
             public bool IsDropdown { get; set; }
+            /// <summary>True if activating this item performs an action (e.g. opens a URL) rather than toggling a value.</summary>
+            public bool IsAction { get; set; }
             /// <summary>Optional short description of what this setting controls.</summary>
             public string Description { get; set; }
         }
@@ -130,8 +132,38 @@ namespace AccessibleArena.Core.Services
                     GetValue = () => _settings.CheckForUpdates ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.CheckForUpdates = !_settings.CheckForUpdates,
                     Description = Strings.SettingCheckForUpdatesDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingUpdateNotes,
+                    GetValue = () => Strings.SettingActionOpen,
+                    Toggle = () => OpenUrl("https://github.com/JeanStiletto/AccessibleArena/releases/latest", Strings.SettingUpdateNotes),
+                    IsAction = true,
+                    Description = Strings.SettingUpdateNotesDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingSupport,
+                    GetValue = () => Strings.SettingActionOpen,
+                    Toggle = () => OpenUrl("https://ko-fi.com/jeanstiletto", Strings.SettingSupport),
+                    IsAction = true,
+                    Description = Strings.SettingSupportDesc
                 }
             };
+        }
+
+        private void OpenUrl(string url, string name)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(url);
+                _announcer.AnnounceInterrupt(Strings.SettingOpeningBrowser(name));
+                Log.Msg("ModSettingsNavigator", $"Opened URL for '{name}': {url}");
+            }
+            catch (Exception ex)
+            {
+                Log.Msg("ModSettingsNavigator", $"Failed to open URL {url}: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -251,6 +283,10 @@ namespace AccessibleArena.Core.Services
             if (item.IsDropdown)
             {
                 EnterDropdownMode();
+            }
+            else if (item.IsAction)
+            {
+                item.Toggle?.Invoke();
             }
             else
             {

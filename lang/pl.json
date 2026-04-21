@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "Aktualizację można uruchomić tylko z ekranów menu.",
   "SettingCheckForUpdates": "Sprawdzaj aktualizacje",
   "SettingCheckForUpdatesDesc": "Sprawdzaj nowe wersje moda przy uruchomieniu",
+  "SettingUpdateNotes": "Informacje o aktualizacji",
+  "SettingUpdateNotesDesc": "Otwiera stronę najnowszego wydania na GitHub z pełnymi informacjami o aktualizacji",
+  "SettingSupport": "Wesprzyj twórcę moda",
+  "SettingSupportDesc": "Otwiera stronę wsparcia Ko-fi w przeglądarce",
+  "SettingActionOpen": "Naciśnij Enter, aby otworzyć",
+  "SettingOpeningBrowser_Format": "Otwieranie {0} w przeglądarce...",
   "HelpF5Update": "F5: Aktualizuj moda (z ekranów menu)"
 }

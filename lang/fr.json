@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "La mise à jour ne peut être lancée que depuis les écrans de menu.",
   "SettingCheckForUpdates": "Vérifier les mises à jour",
   "SettingCheckForUpdatesDesc": "Vérifier les nouvelles versions du mod au démarrage",
+  "SettingUpdateNotes": "Notes de version",
+  "SettingUpdateNotesDesc": "Ouvre la page de la dernière version sur GitHub avec les notes complètes",
+  "SettingSupport": "Soutenez le moddeur",
+  "SettingSupportDesc": "Ouvre la page de dons Ko-fi dans votre navigateur",
+  "SettingActionOpen": "Appuyez sur Entrée pour ouvrir",
+  "SettingOpeningBrowser_Format": "Ouverture de {0} dans le navigateur...",
   "HelpF5Update": "F5 : Mettre à jour le mod (depuis les écrans de menu)"
 }

@@ -35,6 +35,12 @@ Shift+X does not surface the opponent's Exile when it contains cards. The zone n
 
 ---
 
+### Room Cards: Per-Side Mana Costs Not Announced Correctly
+
+Room cards (Duskmourn) have two independently unlockable sides, each with its own mana cost. The mod currently does not display the per-side mana costs correctly — both sides need to be announced with their individual costs so the player can decide which door to unlock.
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Steam Overlay Inaccessible to Screen Readers

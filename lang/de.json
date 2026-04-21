@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "Update kann nur von Menübildschirmen gestartet werden.",
   "SettingCheckForUpdates": "Auf Updates prüfen",
   "SettingCheckForUpdatesDesc": "Beim Start nach neuen Mod-Versionen suchen",
+  "SettingUpdateNotes": "Versionshinweise",
+  "SettingUpdateNotesDesc": "Öffnet die Seite der aktuellsten Version auf GitHub mit den vollständigen Versionshinweisen",
+  "SettingSupport": "Unterstütze deinen Modder",
+  "SettingSupportDesc": "Öffnet die Ko-fi-Spendenseite im Browser",
+  "SettingActionOpen": "Enter drücken zum Öffnen",
+  "SettingOpeningBrowser_Format": "Öffne {0} im Browser...",
   "HelpF5Update": "F5: Mod aktualisieren (von Menübildschirmen)"
 }

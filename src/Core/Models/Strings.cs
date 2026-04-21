@@ -920,6 +920,12 @@ namespace AccessibleArena.Core.Models
         public static string UpdateNotInMenu => L.Get("UpdateNotInMenu");
         public static string SettingCheckForUpdates => L.Get("SettingCheckForUpdates");
         public static string SettingCheckForUpdatesDesc => L.Get("SettingCheckForUpdatesDesc");
+        public static string SettingUpdateNotes => L.Get("SettingUpdateNotes");
+        public static string SettingUpdateNotesDesc => L.Get("SettingUpdateNotesDesc");
+        public static string SettingSupport => L.Get("SettingSupport");
+        public static string SettingSupportDesc => L.Get("SettingSupportDesc");
+        public static string SettingActionOpen => L.Get("SettingActionOpen");
+        public static string SettingOpeningBrowser(string name) => L.Format("SettingOpeningBrowser_Format", name);
 
         // ===========================================
         // HELP MENU

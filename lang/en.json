@@ -1143,5 +1143,11 @@
   "UpdateNotInMenu": "Update can only be started from menu screens.",
   "SettingCheckForUpdates": "Check for updates",
   "SettingCheckForUpdatesDesc": "Check for new mod versions on startup",
+  "SettingUpdateNotes": "Update notes",
+  "SettingUpdateNotesDesc": "Opens the latest release page on GitHub with full release notes",
+  "SettingSupport": "Support your modder",
+  "SettingSupportDesc": "Opens the Ko-fi donation page in your browser",
+  "SettingActionOpen": "Press Enter to open",
+  "SettingOpeningBrowser_Format": "Opening {0} in browser...",
   "HelpF5Update": "F5: Update mod (from menu screens)"
 }

@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "A atualização só pode ser iniciada nas telas de menu.",
   "SettingCheckForUpdates": "Verificar atualizações",
   "SettingCheckForUpdatesDesc": "Verificar novas versões do mod ao iniciar",
+  "SettingUpdateNotes": "Notas da versão",
+  "SettingUpdateNotesDesc": "Abre a página da versão mais recente no GitHub com as notas completas",
+  "SettingSupport": "Apoie seu modder",
+  "SettingSupportDesc": "Abre a página de doações do Ko-fi no seu navegador",
+  "SettingActionOpen": "Pressione Enter para abrir",
+  "SettingOpeningBrowser_Format": "Abrindo {0} no navegador...",
   "HelpF5Update": "F5: Atualizar mod (nas telas de menu)"
 }

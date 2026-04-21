@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "Обновление можно запустить только из экранов меню.",
   "SettingCheckForUpdates": "Проверять обновления",
   "SettingCheckForUpdatesDesc": "Проверять новые версии мода при запуске",
+  "SettingUpdateNotes": "Примечания к обновлению",
+  "SettingUpdateNotesDesc": "Открывает страницу последнего релиза на GitHub с полными примечаниями",
+  "SettingSupport": "Поддержать автора мода",
+  "SettingSupportDesc": "Открывает страницу пожертвований Ko-fi в браузере",
+  "SettingActionOpen": "Нажмите Enter, чтобы открыть",
+  "SettingOpeningBrowser_Format": "Открытие {0} в браузере...",
   "HelpF5Update": "F5: Обновить мод (из экранов меню)"
 }

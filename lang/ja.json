@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "アップデートはメニュー画面からのみ開始できます。",
   "SettingCheckForUpdates": "アップデートを確認",
   "SettingCheckForUpdatesDesc": "起動時に新しいModバージョンを確認する",
+  "SettingUpdateNotes": "更新情報",
+  "SettingUpdateNotesDesc": "GitHubの最新リリースページを開き、すべての更新情報を表示します",
+  "SettingSupport": "モッダーを支援する",
+  "SettingSupportDesc": "Ko-fiの寄付ページをブラウザで開きます",
+  "SettingActionOpen": "Enterキーで開く",
+  "SettingOpeningBrowser_Format": "{0}をブラウザで開いています...",
   "HelpF5Update": "F5: Modをアップデート（メニュー画面から）"
 }

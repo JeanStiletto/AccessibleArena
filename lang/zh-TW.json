@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "只能從選單畫面啟動更新。",
   "SettingCheckForUpdates": "檢查更新",
   "SettingCheckForUpdatesDesc": "啟動時檢查新的模組版本",
+  "SettingUpdateNotes": "更新說明",
+  "SettingUpdateNotesDesc": "在GitHub上開啟最新發布頁面並顯示完整更新說明",
+  "SettingSupport": "支持模組作者",
+  "SettingSupportDesc": "在瀏覽器中開啟Ko-fi捐贈頁面",
+  "SettingActionOpen": "按Enter鍵開啟",
+  "SettingOpeningBrowser_Format": "正在瀏覽器中開啟{0}...",
   "HelpF5Update": "F5：更新模組（從選單畫面）"
 }

@@ -1141,5 +1141,11 @@
   "UpdateNotInMenu": "업데이트는 메뉴 화면에서만 시작할 수 있습니다.",
   "SettingCheckForUpdates": "업데이트 확인",
   "SettingCheckForUpdatesDesc": "시작 시 새 모드 버전 확인",
+  "SettingUpdateNotes": "업데이트 노트",
+  "SettingUpdateNotesDesc": "GitHub에서 최신 릴리스 페이지를 열어 전체 업데이트 내역을 표시합니다",
+  "SettingSupport": "모더 후원하기",
+  "SettingSupportDesc": "브라우저에서 Ko-fi 후원 페이지를 엽니다",
+  "SettingActionOpen": "Enter를 눌러 열기",
+  "SettingOpeningBrowser_Format": "{0}을(를) 브라우저에서 여는 중...",
   "HelpF5Update": "F5: 모드 업데이트 (메뉴 화면에서)"
 }
