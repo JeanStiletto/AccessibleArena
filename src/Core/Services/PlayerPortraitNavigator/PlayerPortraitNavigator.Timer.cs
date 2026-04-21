@@ -42,9 +42,14 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _ltwTimeoutPipsField; // LowTimeWarning._timeoutPips (List<TimeoutPip>)
         private static bool _ltwReflectionInitialized;
 
+        private bool _loggedTimerPlayer;
+        private bool _loggedTimerOpponent;
+
         private void DiscoverTimerElements()
         {
-            // Find MatchTimer components
+            // Find MatchTimer components. Only log on transitions from null → found,
+            // since DiscoverTimerElements runs on every V-press and the refs don't
+            // change after first discovery.
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy)
@@ -56,15 +61,17 @@ namespace AccessibleArena.Core.Services
                     string objName = mb.gameObject.name;
                     if (objName.Contains("LocalPlayer"))
                     {
+                        bool wasMissing = _localTimerObj == null;
                         _localTimerObj = mb.gameObject;
                         _localMatchTimer = mb;
-                        Log.Nav("PlayerPortrait", $"Found local timer: {objName}");
+                        if (wasMissing) Log.Nav("PlayerPortrait", $"Found local timer: {objName}");
                     }
                     else if (objName.Contains("Opponent"))
                     {
+                        bool wasMissing = _opponentTimerObj == null;
                         _opponentTimerObj = mb.gameObject;
                         _opponentMatchTimer = mb;
-                        Log.Nav("PlayerPortrait", $"Found opponent timer: {objName}");
+                        if (wasMissing) Log.Nav("PlayerPortrait", $"Found opponent timer: {objName}");
                     }
                 }
             }
@@ -73,10 +80,16 @@ namespace AccessibleArena.Core.Services
             var timerPlayer = GameObject.Find("Timer_Player");
             var timerOpponent = GameObject.Find("Timer_Opponent");
 
-            if (timerPlayer != null)
+            if (timerPlayer != null && !_loggedTimerPlayer)
+            {
+                _loggedTimerPlayer = true;
                 Log.Nav("PlayerPortrait", $"Found Timer_Player for timeouts");
-            if (timerOpponent != null)
+            }
+            if (timerOpponent != null && !_loggedTimerOpponent)
+            {
+                _loggedTimerOpponent = true;
                 Log.Nav("PlayerPortrait", $"Found Timer_Opponent for timeouts");
+            }
         }
 
         private int GetTimeoutCount(string playerType)

@@ -53,6 +53,8 @@ namespace AccessibleArena.Core.Services
             _opponentMatchTimer = null;
             _localLowTimeWarning = null;
             _opponentLowTimeWarning = null;
+            _loggedTimerPlayer = false;
+            _loggedTimerOpponent = false;
             Log.Nav("PlayerPortrait", $"Deactivated");
         }
 
