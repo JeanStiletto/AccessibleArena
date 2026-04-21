@@ -27,14 +27,14 @@ If you want to learn more about Magic in general, the game's website as well as 
 
 <h3>Using the installer (recommended)</h3>
 
-1. Download `AccessibleArenaInstaller.exe` from the latest release on GitHub: https://github.com/JeanStiletto/AccessibleArena/releases/latest/download/AccessibleArenaInstaller.exe
+1. [Download AccessibleArenaInstaller.exe](https://github.com/JeanStiletto/AccessibleArena/releases/latest/download/AccessibleArenaInstaller.exe) from the latest release on GitHub
 2. Close MTG Arena if it is running
 3. Run the installer. It will detect your MTGA installation, install MelonLoader if needed, and deploy the mod
 4. Launch MTG Arena. You should hear "Accessible Arena v... launched" through your screen reader
 
 <h3>Manual installation</h3>
 
-1. Install MelonLoader into your MTGA folder (https://github.com/LavaGang/MelonLoader)
+1. Install [MelonLoader](https://github.com/LavaGang/MelonLoader) into your MTGA folder
 2. Download `AccessibleArena.dll` from the latest release
 3. Copy the DLL to your MTGA Mods folder:
    - WotC install: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
@@ -175,7 +175,7 @@ If the hash matches the one in the release notes, the file is genuine. To run th
 
 <h2>Reporting bugs</h2>
 
-If you find a bug, you can post in the place you found the mod published, or open an issue on GitHub: https://github.com/JeanStiletto/AccessibleArena/issues
+If you find a bug, you can post in the place you found the mod published, or [open an issue on GitHub](https://github.com/JeanStiletto/AccessibleArena/issues).
 
 Include the following information:
 
@@ -246,7 +246,7 @@ For testing the betas, feedback and ideas I want to thank:
 - [patricus3](https://github.com/patricus3)
 
 For sighted testing to understand visual workflows and confirming some things I want to thank:
-- https://github.com/mauriceKA
+- [mauriceKA](https://github.com/mauriceKA)
 - VeganWolf
 - Lea Holstein
 
