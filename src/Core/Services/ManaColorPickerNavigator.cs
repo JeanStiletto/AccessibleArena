@@ -21,27 +21,74 @@ namespace AccessibleArena.Core.Services
         private readonly IAnnouncementService _announcer;
 
         // Reflection cache
+        private sealed class SelectorHandles
+        {
+            public PropertyInfo IsOpen;
+            public FieldInfo SelectionProvider;
+            public MethodInfo SelectColor;
+            public MethodInfo TryCloseSelector;
+        }
+
+        private sealed class ProviderHandles
+        {
+            public PropertyInfo ValidSelectionCount;
+            public MethodInfo GetElementAt;
+            public PropertyInfo MaxSelections;
+            public PropertyInfo AllSelectionsComplete;
+            public PropertyInfo CurrentSelection;
+        }
+
+        private sealed class ElementHandles
+        {
+            public FieldInfo PrimaryColorField;
+            public PropertyInfo PrimaryColorProp;
+        }
+
         private static Type _selectorType;
-        private static PropertyInfo _isOpenProp;
-        private static FieldInfo _selectionProviderField;
-        private static MethodInfo _selectColorMethod;
-        private static MethodInfo _tryCloseSelectorMethod;
         private static Type _manaColorEnum;
         private static bool _reflectionInitialized;
         private static bool _reflectionFailed;
 
-        // IManaSelectorProvider reflection cache
-        private static PropertyInfo _validSelectionsCountProp;
-        private static MethodInfo _getElementAtMethod;
-        private static PropertyInfo _maxSelectionsProp;
-        private static PropertyInfo _allSelectionsCompleteProp;
-        private static PropertyInfo _currentSelectionProp;
-        private static bool _providerReflectionInitialized;
+        private static readonly ReflectionCache<SelectorHandles> _selectorCache = new ReflectionCache<SelectorHandles>(
+            builder: t => new SelectorHandles
+            {
+                IsOpen = t.GetProperty("IsOpen", PublicInstance),
+                SelectionProvider = ReflectionWalk.FindField(t, "_selectionProvider", PrivateInstance),
+                SelectColor = ReflectionWalk.FindMethod(t, "SelectColor", PrivateInstance),
+                TryCloseSelector = t.GetMethod("TryCloseSelector", PublicInstance),
+            },
+            validator: h => h.IsOpen != null && h.SelectionProvider != null
+                         && h.SelectColor != null && h.TryCloseSelector != null,
+            logTag: "ManaColorPicker",
+            logSubject: "ManaColorSelector");
 
-        // ManaProducedData reflection cache
-        private static FieldInfo _primaryColorField;
-        private static PropertyInfo _primaryColorProp;
-        private static bool _primaryColorIsField; // true=field, false=property
+        private static readonly ReflectionCache<ProviderHandles> _providerCache = new ReflectionCache<ProviderHandles>(
+            builder: t => new ProviderHandles
+            {
+                ValidSelectionCount = FindPropertyOnTypeOrInterfaces(t, "ValidSelectionCount")
+                                   ?? FindPropertyOnTypeOrInterfaces(t, "ValidSelectionsCount"),
+                GetElementAt = FindMethodOnTypeOrInterfaces(t, "GetElementAt"),
+                MaxSelections = FindPropertyOnTypeOrInterfaces(t, "MaxSelections"),
+                AllSelectionsComplete = FindPropertyOnTypeOrInterfaces(t, "AllSelectionsComplete"),
+                CurrentSelection = FindPropertyOnTypeOrInterfaces(t, "CurrentSelection"),
+            },
+            validator: h => h.ValidSelectionCount != null && h.GetElementAt != null
+                         && h.MaxSelections != null && h.AllSelectionsComplete != null
+                         && h.CurrentSelection != null,
+            logTag: "ManaColorPicker",
+            logSubject: "IManaSelectorProvider");
+
+        private static readonly ReflectionCache<ElementHandles> _elementCache = new ReflectionCache<ElementHandles>(
+            builder: t =>
+            {
+                var h = new ElementHandles { PrimaryColorField = t.GetField("PrimaryColor") };
+                if (h.PrimaryColorField == null)
+                    h.PrimaryColorProp = t.GetProperty("PrimaryColor");
+                return h;
+            },
+            validator: h => h.PrimaryColorField != null || h.PrimaryColorProp != null,
+            logTag: "ManaColorPicker",
+            logSubject: "ManaProducedData");
 
         // State
         private bool _isActive;
@@ -92,7 +139,7 @@ namespace AccessibleArena.Core.Services
             {
                 try
                 {
-                    bool isOpen = (bool)_isOpenProp.GetValue(sel, null);
+                    bool isOpen = (bool)_selectorCache.Handles.IsOpen.GetValue(sel, null);
                     if (isOpen)
                     {
                         activeSelector = sel;
@@ -213,7 +260,7 @@ namespace AccessibleArena.Core.Services
             // Get the selection provider
             try
             {
-                _selectionProvider = _selectionProviderField.GetValue(selector);
+                _selectionProvider = _selectorCache.Handles.SelectionProvider.GetValue(selector);
                 if (_selectionProvider == null)
                 {
                     Log.Warn("ManaColorPicker", "_selectionProvider is null");
@@ -221,8 +268,11 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
-                if (!_providerReflectionInitialized)
-                    InitializeProviderReflection(_selectionProvider.GetType());
+                if (!_providerCache.EnsureInitialized(_selectionProvider.GetType()))
+                {
+                    _isActive = false;
+                    return;
+                }
 
                 ReadAvailableColors();
                 ReadSelectionState();
@@ -252,36 +302,21 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                int count = (int)_validSelectionsCountProp.GetValue(_selectionProvider, null);
+                var ph = _providerCache.Handles;
+                int count = (int)ph.ValidSelectionCount.GetValue(_selectionProvider, null);
 
                 for (int i = 0; i < count; i++)
                 {
-                    object element = _getElementAtMethod.Invoke(_selectionProvider, new object[] { i });
+                    object element = ph.GetElementAt.Invoke(_selectionProvider, new object[] { i });
                     if (element == null) continue;
 
-                    // First time: discover whether PrimaryColor is a field or property
-                    if (_primaryColorField == null && _primaryColorProp == null)
-                    {
-                        _primaryColorField = element.GetType().GetField("PrimaryColor");
-                        if (_primaryColorField != null)
-                        {
-                            _primaryColorIsField = true;
-                        }
-                        else
-                        {
-                            _primaryColorProp = element.GetType().GetProperty("PrimaryColor");
-                            if (_primaryColorProp == null)
-                            {
-                                Log.Warn("ManaColorPicker", "Cannot find PrimaryColor on element");
-                                continue;
-                            }
-                            _primaryColorIsField = false;
-                        }
-                    }
+                    if (!_elementCache.EnsureInitialized(element.GetType()))
+                        continue;
 
-                    object colorValue = _primaryColorIsField
-                        ? _primaryColorField.GetValue(element)
-                        : _primaryColorProp.GetValue(element, null);
+                    var eh = _elementCache.Handles;
+                    object colorValue = eh.PrimaryColorField != null
+                        ? eh.PrimaryColorField.GetValue(element)
+                        : eh.PrimaryColorProp.GetValue(element, null);
                     int colorInt = Convert.ToInt32(colorValue);
                     string colorName = GetColorDisplayName(colorInt);
                     _availableColors.Add((i, colorInt, colorName));
@@ -297,8 +332,9 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                _maxSelections = (int)_maxSelectionsProp.GetValue(_selectionProvider, null);
-                _currentSelection = (int)_currentSelectionProp.GetValue(_selectionProvider, null);
+                var ph = _providerCache.Handles;
+                _maxSelections = (int)ph.MaxSelections.GetValue(_selectionProvider, null);
+                _currentSelection = (int)ph.CurrentSelection.GetValue(_selectionProvider, null);
             }
             catch (Exception ex)
             {
@@ -352,10 +388,10 @@ namespace AccessibleArena.Core.Services
                 // Get the enum value to pass to SelectColor
                 object manaColorEnumValue = Enum.ToObject(_manaColorEnum, manaColorValue);
 
-                _selectColorMethod.Invoke(_selectorInstance, new object[] { manaColorEnumValue });
+                _selectorCache.Handles.SelectColor.Invoke(_selectorInstance, new object[] { manaColorEnumValue });
 
                 // Check if more selections needed
-                bool allComplete = (bool)_allSelectionsCompleteProp.GetValue(_selectionProvider, null);
+                bool allComplete = (bool)_providerCache.Handles.AllSelectionsComplete.GetValue(_selectionProvider, null);
 
                 if (allComplete)
                 {
@@ -387,7 +423,7 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                _tryCloseSelectorMethod.Invoke(_selectorInstance, null);
+                _selectorCache.Handles.TryCloseSelector.Invoke(_selectorInstance, null);
                 _announcer.AnnounceInterrupt(Strings.ManaColorPickerCancelled);
             }
             catch (Exception ex)
@@ -414,168 +450,45 @@ namespace AccessibleArena.Core.Services
         {
             _reflectionInitialized = true;
 
-            try
+            _selectorType = FindType("ManaColorSelector");
+            if (_selectorType == null)
             {
-                // Find ManaColorSelector type from loaded assemblies
-                _selectorType = FindType("ManaColorSelector");
-
-                if (_selectorType == null)
-                {
-                    Log.Warn("ManaColorPicker", "ManaColorSelector type not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                Log.Msg("ManaColorPicker", $"Found ManaColorSelector: {_selectorType.FullName}");
-
-                // IsOpen property (public)
-                _isOpenProp = _selectorType.GetProperty("IsOpen", PublicInstance);
-                if (_isOpenProp == null)
-                {
-                    Log.Warn("ManaColorPicker", "IsOpen property not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                // _selectionProvider field (protected)
-                _selectionProviderField = _selectorType.GetField("_selectionProvider",
-                    PrivateInstance);
-                if (_selectionProviderField == null)
-                {
-                    // Try base class
-                    _selectionProviderField = _selectorType.BaseType?.GetField("_selectionProvider",
-                        PrivateInstance);
-                }
-                if (_selectionProviderField == null)
-                {
-                    Log.Warn("ManaColorPicker", "_selectionProvider field not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                // SelectColor method (protected)
-                _selectColorMethod = _selectorType.GetMethod("SelectColor",
-                    PrivateInstance);
-                if (_selectColorMethod == null)
-                {
-                    // Try base class
-                    _selectColorMethod = _selectorType.BaseType?.GetMethod("SelectColor",
-                        PrivateInstance);
-                }
-                if (_selectColorMethod == null)
-                {
-                    Log.Warn("ManaColorPicker", "SelectColor method not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                // TryCloseSelector method (public)
-                _tryCloseSelectorMethod = _selectorType.GetMethod("TryCloseSelector",
-                    PublicInstance);
-                if (_tryCloseSelectorMethod == null)
-                {
-                    Log.Warn("ManaColorPicker", "TryCloseSelector method not found");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                // ManaColor enum type (from SelectColor parameter)
-                var parameters = _selectColorMethod.GetParameters();
-                if (parameters.Length > 0)
-                {
-                    _manaColorEnum = parameters[0].ParameterType;
-                    Log.Msg("ManaColorPicker", $"ManaColor enum: {_manaColorEnum.FullName}");
-                }
-                else
-                {
-                    Log.Warn("ManaColorPicker", "SelectColor has no parameters");
-                    _reflectionFailed = true;
-                    return;
-                }
-
-                Log.Msg("ManaColorPicker", "Reflection initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("ManaColorPicker", $"Reflection init failed: {ex.Message}");
+                Log.Warn("ManaColorPicker", "ManaColorSelector type not found");
                 _reflectionFailed = true;
+                return;
             }
+
+            if (!_selectorCache.EnsureInitialized(_selectorType))
+            {
+                _reflectionFailed = true;
+                return;
+            }
+
+            // ManaColor enum type (from SelectColor parameter)
+            var parameters = _selectorCache.Handles.SelectColor.GetParameters();
+            if (parameters.Length == 0)
+            {
+                Log.Warn("ManaColorPicker", "SelectColor has no parameters");
+                _reflectionFailed = true;
+                return;
+            }
+            _manaColorEnum = parameters[0].ParameterType;
         }
 
-        private static void InitializeProviderReflection(Type providerInstanceType)
+        private static PropertyInfo FindPropertyOnTypeOrInterfaces(Type type, string name)
         {
-            _providerReflectionInitialized = true;
-
-            try
-            {
-                // Try interface members first, then direct type
-                // ValidSelectionCount property
-                _validSelectionsCountProp = FindProperty(providerInstanceType, "ValidSelectionCount");
-                if (_validSelectionsCountProp == null)
-                {
-                    // Try ValidSelections.Count pattern
-                    _validSelectionsCountProp = FindProperty(providerInstanceType, "ValidSelectionsCount");
-                }
-
-                // GetElementAt method
-                _getElementAtMethod = FindMethod(providerInstanceType, "GetElementAt");
-
-                // MaxSelections property
-                _maxSelectionsProp = FindProperty(providerInstanceType, "MaxSelections");
-
-                // AllSelectionsComplete property
-                _allSelectionsCompleteProp = FindProperty(providerInstanceType, "AllSelectionsComplete");
-
-                // CurrentSelection property
-                _currentSelectionProp = FindProperty(providerInstanceType, "CurrentSelection");
-
-                if (_validSelectionsCountProp == null)
-                    Log.Warn("ManaColorPicker", "ValidSelectionCount not found");
-                if (_getElementAtMethod == null)
-                    Log.Warn("ManaColorPicker", "GetElementAt not found");
-                if (_maxSelectionsProp == null)
-                    Log.Warn("ManaColorPicker", "MaxSelections not found");
-                if (_allSelectionsCompleteProp == null)
-                    Log.Warn("ManaColorPicker", "AllSelectionsComplete not found");
-                if (_currentSelectionProp == null)
-                    Log.Warn("ManaColorPicker", "CurrentSelection not found");
-
-                Log.Msg("ManaColorPicker", $"Provider reflection initialized for {providerInstanceType.FullName}");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("ManaColorPicker", $"Provider reflection init failed: {ex.Message}");
-            }
-        }
-
-        private static PropertyInfo FindProperty(Type type, string name)
-        {
-            // Search type itself, then all interfaces
             var prop = type.GetProperty(name, PublicInstance);
             if (prop != null) return prop;
 
             foreach (var iface in type.GetInterfaces())
             {
                 prop = iface.GetProperty(name, PublicInstance);
-                if (prop != null)
-                {
-                    // Get the implementation via interface map
-                    var map = type.GetInterfaceMap(iface);
-                    for (int i = 0; i < map.InterfaceMethods.Length; i++)
-                    {
-                        if (map.InterfaceMethods[i].Name == "get_" + name)
-                        {
-                            return prop;
-                        }
-                    }
-                    return prop;
-                }
+                if (prop != null) return prop;
             }
-
             return null;
         }
 
-        private static MethodInfo FindMethod(Type type, string name)
+        private static MethodInfo FindMethodOnTypeOrInterfaces(Type type, string name)
         {
             var method = type.GetMethod(name, PublicInstance);
             if (method != null) return method;
@@ -585,7 +498,6 @@ namespace AccessibleArena.Core.Services
                 method = iface.GetMethod(name, PublicInstance);
                 if (method != null) return method;
             }
-
             return null;
         }
     }

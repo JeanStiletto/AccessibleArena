@@ -59,12 +59,40 @@ namespace AccessibleArena.Core.Services
         private int _lastDiscoveryCount = -1;
 
         // Avatar targeting reflection cache
+        private sealed class AvatarViewHandles
+        {
+            public FieldInfo HighlightSystem;  // DuelScene_AvatarView._highlightSystem
+            public PropertyInfo IsLocalPlayer; // DuelScene_AvatarView.IsLocalPlayer
+            public FieldInfo PortraitButton;   // DuelScene_AvatarView.PortraitButton
+        }
+
+        private sealed class HighlightSystemHandles
+        {
+            public FieldInfo CurrentHighlight; // HighlightSystem._currentHighlightType
+        }
+
         private static Type _avatarViewType;
-        private static FieldInfo _highlightSystemField;    // DuelScene_AvatarView._highlightSystem
-        private static FieldInfo _currentHighlightField;   // HighlightSystem._currentHighlightType
-        private static PropertyInfo _isLocalPlayerProp;    // DuelScene_AvatarView.IsLocalPlayer
-        private static FieldInfo _portraitButtonField;     // DuelScene_AvatarView.PortraitButton
         private static bool _avatarReflectionInitialized;
+
+        private static readonly ReflectionCache<AvatarViewHandles> _avatarCache = new ReflectionCache<AvatarViewHandles>(
+            builder: t => new AvatarViewHandles
+            {
+                HighlightSystem = t.GetField("_highlightSystem", PrivateInstance),
+                IsLocalPlayer = t.GetProperty("IsLocalPlayer", PublicInstance),
+                PortraitButton = t.GetField("PortraitButton", PrivateInstance),
+            },
+            validator: h => h.HighlightSystem != null && h.IsLocalPlayer != null && h.PortraitButton != null,
+            logTag: "HotHighlightNavigator",
+            logSubject: "DuelScene_AvatarView");
+
+        private static readonly ReflectionCache<HighlightSystemHandles> _highlightSystemCache = new ReflectionCache<HighlightSystemHandles>(
+            builder: t => new HighlightSystemHandles
+            {
+                CurrentHighlight = t.GetField("_currentHighlightType", PrivateInstance),
+            },
+            validator: h => h.CurrentHighlight != null,
+            logTag: "HotHighlightNavigator",
+            logSubject: "HighlightSystem");
 
         // Cached avatar view references (only 2 per duel: local + opponent)
         private readonly List<MonoBehaviour> _cachedAvatarViews = new List<MonoBehaviour>();
@@ -601,18 +629,22 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private HighlightedItem CreateAvatarTargetItem(MonoBehaviour avatarView)
         {
-            var highlightSystem = _highlightSystemField?.GetValue(avatarView);
+            var ah = _avatarCache.Handles;
+            var highlightSystem = ah.HighlightSystem.GetValue(avatarView);
             if (highlightSystem == null) return null;
 
-            int highlightValue = (int)_currentHighlightField.GetValue(highlightSystem);
+            if (!_highlightSystemCache.EnsureInitialized(highlightSystem.GetType()))
+                return null;
+
+            int highlightValue = (int)_highlightSystemCache.Handles.CurrentHighlight.GetValue(highlightSystem);
 
             // Accept Hot(3), Tepid(2), Cold(1) — skip None(0), Selected(5), others
             if (highlightValue != 1 && highlightValue != 2 && highlightValue != 3)
                 return null;
 
-            bool isLocal = (bool)_isLocalPlayerProp.GetValue(avatarView);
+            bool isLocal = (bool)ah.IsLocalPlayer.GetValue(avatarView);
 
-            var portraitButton = _portraitButtonField?.GetValue(avatarView) as MonoBehaviour;
+            var portraitButton = ah.PortraitButton.GetValue(avatarView) as MonoBehaviour;
             if (portraitButton == null)
             {
                 Log.Nav("HotHighlightNavigator", $"AvatarView has highlight={highlightValue} but no PortraitButton");
@@ -670,46 +702,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static void InitializeAvatarReflection(Type avatarType)
         {
-            try
-            {
-                _avatarViewType = avatarType;
-
-                _highlightSystemField = avatarType.GetField("_highlightSystem", PrivateInstance);
-                if (_highlightSystemField == null)
-                {
-                    Log.Warn("HotHighlightNavigator", "Could not find _highlightSystem field on DuelScene_AvatarView");
-                    return;
-                }
-
-                Type highlightSystemType = _highlightSystemField.FieldType;
-                _currentHighlightField = highlightSystemType.GetField("_currentHighlightType", PrivateInstance);
-                if (_currentHighlightField == null)
-                {
-                    Log.Warn("HotHighlightNavigator", $"Could not find _currentHighlightType on {highlightSystemType.Name}");
-                    return;
-                }
-
-                _isLocalPlayerProp = avatarType.GetProperty("IsLocalPlayer", PublicInstance);
-                if (_isLocalPlayerProp == null)
-                {
-                    Log.Warn("HotHighlightNavigator", "Could not find IsLocalPlayer property on DuelScene_AvatarView");
-                    return;
-                }
-
-                _portraitButtonField = avatarType.GetField("PortraitButton", PrivateInstance);
-                if (_portraitButtonField == null)
-                {
-                    Log.Warn("HotHighlightNavigator", "Could not find PortraitButton field on DuelScene_AvatarView");
-                    return;
-                }
-
+            _avatarViewType = avatarType;
+            if (_avatarCache.EnsureInitialized(avatarType))
                 _avatarReflectionInitialized = true;
-                Log.Msg("HotHighlightNavigator", $"Avatar reflection initialized: HighlightSystem={highlightSystemType.Name}, HighlightField={_currentHighlightField.FieldType.Name}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("HotHighlightNavigator", $"Failed to initialize avatar reflection: {ex.Message}");
-            }
         }
 
         /// <summary>
