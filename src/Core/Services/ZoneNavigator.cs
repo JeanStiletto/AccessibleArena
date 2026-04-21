@@ -41,6 +41,7 @@ namespace AccessibleArena.Core.Services
         private readonly IAnnouncementService _announcer;
 
         private Dictionary<ZoneType, ZoneInfo> _zones = new Dictionary<ZoneType, ZoneInfo>();
+        private readonly Dictionary<ZoneType, int> _lastLoggedLibraryCount = new Dictionary<ZoneType, int>();
         private ZoneType _currentZone = ZoneType.Hand;
         private ZoneOwner _zoneOwner = ZoneOwner.None;
         private int _cardIndexInZone = 0;
@@ -560,8 +561,15 @@ namespace AccessibleArena.Core.Services
             // Showing hidden cards would be cheating.
             if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
             {
-                Log.Card("ZoneNavigator",
-                    $"Library zone: {zone.Cards.Count} CDCs before filter");
+                // Only log when the count changes — discovery runs on every zone refresh
+                // and the unfiltered library size is stable most of the time.
+                int count = zone.Cards.Count;
+                if (!_lastLoggedLibraryCount.TryGetValue(zone.Type, out var prev) || prev != count)
+                {
+                    _lastLoggedLibraryCount[zone.Type] = count;
+                    Log.Card("ZoneNavigator",
+                        $"{zone.Type} zone: {count} CDCs before filter");
+                }
 
                 zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.IsDisplayedFaceUp(c));
             }
