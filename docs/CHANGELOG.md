@@ -4,6 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v0.9.4
 
+### Internal
+- Large-scale code refactoring round 2: split 11 oversized files into topical partial classes, introduced strongly-typed `ReflectionCache<THandles>` for all reflection-heavy services, extracted `CardTileActivator` / `ManaTextFormatter` / `WebBrowserScripts` helpers, removed significant dead code, and expanded the test suite from 105 to 150 tests. No user-visible behavior changes.
+
 ## v0.9.3
 
 ### Duel
