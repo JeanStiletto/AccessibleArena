@@ -25,54 +25,47 @@ namespace AccessibleArena.Core.Services
 
         #region Confirmation Modal Reflection
 
-        private Type _confirmationModalType;
         private static readonly string[] ModalPurchaseButtonFields = new[]
         {
             "_buttonGemPurchase", "_buttonCoinPurchase", "_buttonCashPurchase", "_buttonFreePurchase"
         };
-        private FieldInfo[] _modalButtonFields;
-        private Type _modalPurchaseButtonType;
-        private FieldInfo _modalPbButtonField;     // Button (CustomButton)
-        private FieldInfo _modalPbLabelField;      // Label (TMP_Text)
-        private MethodInfo _modalCloseMethod;
-        private FieldInfo _modalLabelField;        // _label (Localize) for item name
-        private FieldInfo _modalItemContainerField;  // _storeItemContainer (Transform) for card preview
-        private FieldInfo _modalProductListField;    // _productListContainer (Transform) for card tiles
-        private bool _modalReflectionCached;
 
-        #endregion
-
-        #region Reflection Caching
-
-        private void EnsureConfirmationModalReflectionCached()
+        private sealed class ModalHandles
         {
-            if (_modalReflectionCached) return;
-
-            _confirmationModalType = FindType("StoreConfirmationModal");
-            if (_confirmationModalType != null)
-            {
-                var flags = AllInstanceFlags;
-                _modalButtonFields = new FieldInfo[ModalPurchaseButtonFields.Length];
-                for (int i = 0; i < ModalPurchaseButtonFields.Length; i++)
-                    _modalButtonFields[i] = _confirmationModalType.GetField(ModalPurchaseButtonFields[i], flags);
-
-                _modalCloseMethod = _confirmationModalType.GetMethod("Close", PublicInstance);
-                _modalLabelField = _confirmationModalType.GetField("_label", flags);
-                _modalItemContainerField = _confirmationModalType.GetField("_storeItemContainer", flags);
-                _modalProductListField = _confirmationModalType.GetField("_productListContainer", flags);
-
-                if (_modalButtonFields[0] != null)
-                {
-                    _modalPurchaseButtonType = _modalButtonFields[0].FieldType;
-                    _modalPbButtonField = _modalPurchaseButtonType.GetField("Button", flags);
-                    _modalPbLabelField = _modalPurchaseButtonType.GetField("Label", flags);
-                }
-            }
-
-            _modalReflectionCached = true;
-            Log.Msg("Mastery", $"ConfirmationModal reflection cached. Type={_confirmationModalType != null}, " +
-                $"Close={_modalCloseMethod != null}, PbButton={_modalPbButtonField != null}");
+            public FieldInfo[] ButtonFields;       // indexed by ModalPurchaseButtonFields
+            public MethodInfo CloseMethod;         // Close()
+            public FieldInfo Label;                // _label (Localize)
+            public FieldInfo ItemContainer;        // _storeItemContainer (Transform)
+            public FieldInfo ProductList;          // _productListContainer (Transform)
+            public FieldInfo PbButton;             // PurchaseButton.Button (CustomButton)
+            public FieldInfo PbLabel;              // PurchaseButton.Label (TMP_Text)
         }
+
+        private readonly ReflectionCache<ModalHandles> _modalCache = new ReflectionCache<ModalHandles>(
+            builder: modalType =>
+            {
+                var h = new ModalHandles
+                {
+                    ButtonFields = new FieldInfo[ModalPurchaseButtonFields.Length],
+                    CloseMethod = modalType.GetMethod("Close", PublicInstance),
+                    Label = modalType.GetField("_label", AllInstanceFlags),
+                    ItemContainer = modalType.GetField("_storeItemContainer", AllInstanceFlags),
+                    ProductList = modalType.GetField("_productListContainer", AllInstanceFlags),
+                };
+                for (int i = 0; i < ModalPurchaseButtonFields.Length; i++)
+                    h.ButtonFields[i] = modalType.GetField(ModalPurchaseButtonFields[i], AllInstanceFlags);
+
+                if (h.ButtonFields[0] != null)
+                {
+                    var pbType = h.ButtonFields[0].FieldType;
+                    h.PbButton = pbType.GetField("Button", AllInstanceFlags);
+                    h.PbLabel = pbType.GetField("Label", AllInstanceFlags);
+                }
+                return h;
+            },
+            validator: _ => true,
+            logTag: "Mastery",
+            logSubject: "ConfirmationModal");
 
         #endregion
 
@@ -80,10 +73,11 @@ namespace AccessibleArena.Core.Services
 
         private MonoBehaviour GetConfirmationModalMb()
         {
-            if (_prizeWallConfirmModalField == null || _prizeWallController == null) return null;
+            var confirmModalField = _prizeWallCache.Handles?.ConfirmModal;
+            if (confirmModalField == null || _prizeWallController == null) return null;
             try
             {
-                return _prizeWallConfirmModalField.GetValue(_prizeWallController) as MonoBehaviour;
+                return confirmModalField.GetValue(_prizeWallController) as MonoBehaviour;
             }
             catch { return null; }
         }
@@ -95,8 +89,10 @@ namespace AccessibleArena.Core.Services
 
             if (_confirmationModalMb == null) return;
 
-            EnsureConfirmationModalReflectionCached();
-            if (_modalButtonFields == null) return;
+            var modalType = FindType("StoreConfirmationModal");
+            if (modalType != null) _modalCache.EnsureInitialized(modalType);
+            var m = _modalCache.Handles;
+            if (m?.ButtonFields == null) return;
 
             // Phase 1: Text blocks from known content containers only.
             // StoreConfirmationModal has _storeItemContainer (reparented item widget with card
@@ -105,14 +101,14 @@ namespace AccessibleArena.Core.Services
             var contentContainers = new List<Transform>();
             try
             {
-                if (_modalItemContainerField != null)
+                if (m.ItemContainer != null)
                 {
-                    var c = _modalItemContainerField.GetValue(_confirmationModalMb) as Transform;
+                    var c = m.ItemContainer.GetValue(_confirmationModalMb) as Transform;
                     if (c != null && c.gameObject.activeInHierarchy) contentContainers.Add(c);
                 }
-                if (_modalProductListField != null)
+                if (m.ProductList != null)
                 {
-                    var c = _modalProductListField.GetValue(_confirmationModalMb) as Transform;
+                    var c = m.ProductList.GetValue(_confirmationModalMb) as Transform;
                     if (c != null && c.gameObject.activeInHierarchy) contentContainers.Add(c);
                 }
             }
@@ -141,7 +137,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Phase 2: Purchase buttons
-            foreach (var field in _modalButtonFields)
+            foreach (var field in m.ButtonFields)
             {
                 if (field == null) continue;
                 try
@@ -149,14 +145,14 @@ namespace AccessibleArena.Core.Services
                     var buttonStruct = field.GetValue(_confirmationModalMb);
                     if (buttonStruct == null) continue;
 
-                    var customButton = _modalPbButtonField?.GetValue(buttonStruct) as MonoBehaviour;
+                    var customButton = m.PbButton?.GetValue(buttonStruct) as MonoBehaviour;
                     if (customButton == null || !customButton.gameObject.activeInHierarchy) continue;
 
                     // Check Interactable
                     var interactableProp = customButton.GetType().GetProperty("Interactable", AllInstanceFlags);
                     if (interactableProp != null && !(bool)interactableProp.GetValue(customButton)) continue;
 
-                    var labelTmp = _modalPbLabelField?.GetValue(buttonStruct) as TMPro.TMP_Text;
+                    var labelTmp = m.PbLabel?.GetValue(buttonStruct) as TMPro.TMP_Text;
                     string priceText = labelTmp?.text?.Trim() ?? "";
 
                     if (string.IsNullOrEmpty(priceText))
@@ -187,11 +183,12 @@ namespace AccessibleArena.Core.Services
         {
             // Extract item name from modal's _label field
             string labelText = null;
-            if (_confirmationModalMb != null && _modalLabelField != null)
+            var labelField = _modalCache.Handles?.Label;
+            if (_confirmationModalMb != null && labelField != null)
             {
                 try
                 {
-                    var localize = _modalLabelField.GetValue(_confirmationModalMb) as MonoBehaviour;
+                    var localize = labelField.GetValue(_confirmationModalMb) as MonoBehaviour;
                     if (localize != null)
                     {
                         var tmp = localize.GetComponentInChildren<TMPro.TMP_Text>();
@@ -304,12 +301,13 @@ namespace AccessibleArena.Core.Services
 
         private void DismissConfirmationModal()
         {
-            if (_confirmationModalMb != null && _modalCloseMethod != null)
+            var closeMethod = _modalCache.Handles?.CloseMethod;
+            if (_confirmationModalMb != null && closeMethod != null)
             {
                 try
                 {
                     Log.Msg("Mastery", "Closing confirmation modal via Close()");
-                    _modalCloseMethod.Invoke(_confirmationModalMb, null);
+                    closeMethod.Invoke(_confirmationModalMb, null);
                     _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
                     return;
                 }

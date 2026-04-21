@@ -31,68 +31,149 @@ namespace AccessibleArena.Core.Services
         private MonoBehaviour _controller;
         private GameObject _controllerGameObject;
 
-        // Reflection: ProgressionTracksContentController
-        private Type _controllerType;
-        private PropertyInfo _isOpenProp;
-        private FieldInfo _activeViewField;
-        private FieldInfo _backButtonField;
+        private sealed class LevelsHandles
+        {
+            // Controller (ProgressionTracksContentController)
+            public PropertyInfo IsOpen;
+            public FieldInfo ActiveView;
+            public FieldInfo BackButton;
 
-        // Reflection: RewardTrackView
-        private Type _viewType;
-        private FieldInfo _levelsField;          // List<ProgressionTrackLevel>
-        private FieldInfo _levelRewardDataField;  // List<RewardDisplayData[]>
-        private FieldInfo _pagesField;            // List<PageLevels>
-        private PropertyInfo _currentPageProp;    // int CurrentPage { get; set; }
-        private PropertyInfo _pagesCountProp;     // int PagesCount { get; }
-        private FieldInfo _trackNameField;        // string TrackName
-        private FieldInfo _trackLabelField;       // MTGALocalizedString TrackLabel
-        private FieldInfo _masteryTreeButtonField;
-        private FieldInfo _previousTreeButtonField;
-        private FieldInfo _purchaseButtonField;
-        private FieldInfo _purchaseCenterField;    // GameObject _purchaseCenter
+            // View (RewardTrackView) — type derived from ActiveView.FieldType
+            public FieldInfo Levels;            // List<ProgressionTrackLevel>
+            public FieldInfo LevelRewardData;   // List<RewardDisplayData[]>
+            public FieldInfo Pages;             // List<PageLevels>
+            public PropertyInfo CurrentPage;    // int (get/set)
+            public PropertyInfo PagesCount;     // int (get)
+            public FieldInfo TrackName;         // string
+            public FieldInfo TrackLabel;        // MTGALocalizedString
+            public FieldInfo MasteryTreeButton;
+            public FieldInfo PreviousTreeButton;
+            public FieldInfo PurchaseButton;
+            public FieldInfo PurchaseCenter;    // GameObject
+            public PropertyInfo MasteryPassProvider;  // private _masteryPassProvider
 
-        // Reflection: PageLevels nested class
-        private Type _pageLevelsType;
-        private FieldInfo _pageLevelStartField;   // int LevelStart
-        private PropertyInfo _pageLevelEndProp;    // int LevelEnd { get; }
+            // PageLevels nested class — derived from View.GetNestedType("PageLevels")
+            public FieldInfo PageLevelStart;    // int
+            public PropertyInfo PageLevelEnd;   // int (get)
 
-        // Reflection: ProgressionTrackLevel
-        private Type _trackLevelType;
-        private FieldInfo _levelIndexField;       // int Index
-        private FieldInfo _levelExpField;         // int EXPProgressIfIsCurrent
-        private FieldInfo _levelCompleteField;    // bool IsProgressionComplete
-        private FieldInfo _levelRepeatableField;  // bool IsRepeatable
-        private FieldInfo _serverLevelField;      // ClientTrackLevelInfo ServerLevel
+            // ProgressionTrackLevel — FindType
+            public FieldInfo LevelIndex;        // int Index
+            public FieldInfo LevelExp;          // int EXPProgressIfIsCurrent
+            public FieldInfo LevelRepeatable;   // bool IsRepeatable
+            public FieldInfo ServerLevel;       // ClientTrackLevelInfo
 
-        // Reflection: ClientTrackLevelInfo
-        private Type _clientLevelInfoType;
-        private FieldInfo _xpToCompleteField;     // int xpToComplete
+            // ClientTrackLevelInfo — derived from ServerLevel.FieldType (or FindType fallback)
+            public FieldInfo XpToComplete;      // int xpToComplete
 
-        // Reflection: RewardDisplayData
-        private Type _rewardDisplayType;
-        private FieldInfo _rewardMainTextField;    // MTGALocalizedString MainText
-        private FieldInfo _rewardQuantityField;    // int Quantity
-        private FieldInfo _rewardDescTextField;    // MTGALocalizedString DescriptionText
-        private FieldInfo _rewardSecondaryField;   // MTGALocalizedString SecondaryText
+            // RewardDisplayData — FindType
+            public FieldInfo RewardMainText;    // MTGALocalizedString
+            public FieldInfo RewardQuantity;    // int
+            public FieldInfo RewardDescText;    // MTGALocalizedString
+            public FieldInfo RewardSecondary;   // MTGALocalizedString
 
-        // Reflection: SetMasteryDataProvider (for current level / XP progress)
-        private PropertyInfo _masteryPassProviderProp; // private prop on view: _masteryPassProvider
-        private Type _setMasteryDataProviderType;
-        private MethodInfo _getCurrentLevelIndexMethod;  // GetCurrentLevelIndex(string) -> int
-        private MethodInfo _getCurrentXpProgressMethod;  // GetCurrentXpProgress(string) -> int
-        private MethodInfo _playerHitPremiumTierMethod;  // PlayerHitPremiumRewardTier(string) -> bool
+            // SetMasteryDataProvider — derived from MasteryPassProvider.PropertyType
+            public MethodInfo GetCurrentLevelIndex;  // (string) -> int
 
-        // Reflection: MTGALocalizedString
-        private Type _mtgaLocStringType;
-        private FieldInfo _locStringKeyField;      // string Key
-        private FieldInfo _locStringParamsField;   // Dictionary<string,string> Parameters
+            // MTGALocalizedString — FindType (Key only; ToString() handles param substitution)
+            public FieldInfo LocStringKey;      // string Key
 
-        // Reflection: Localization
-        private Type _languagesType;
-        private PropertyInfo _activeLocProviderProp; // static IClientLocProvider ActiveLocProvider
-        private MethodInfo _getLocalizedTextMethod;   // IClientLocProvider.GetLocalizedText(string)
+            // Languages / LocProvider — FindType("Wotc.Mtga.Loc.Languages")
+            public PropertyInfo ActiveLocProvider;  // static IClientLocProvider
+            public MethodInfo GetLocalizedText;     // (string) -> string
+        }
 
-        private bool _reflectionInitialized;
+        private readonly ReflectionCache<LevelsHandles> _levelsCache = new ReflectionCache<LevelsHandles>(
+            builder: controllerType =>
+            {
+                var h = new LevelsHandles
+                {
+                    IsOpen = controllerType.GetProperty("IsOpen", AllInstanceFlags | BindingFlags.FlattenHierarchy),
+                    ActiveView = controllerType.GetField("_activeView", AllInstanceFlags),
+                    BackButton = controllerType.GetField("_backButton", AllInstanceFlags),
+                };
+
+                // View (RewardTrackView) — chained off _activeView.FieldType
+                Type viewType = h.ActiveView?.FieldType;
+                if (viewType != null)
+                {
+                    h.Levels = viewType.GetField("_levels", AllInstanceFlags);
+                    h.LevelRewardData = viewType.GetField("_levelRewardData", AllInstanceFlags);
+                    h.Pages = viewType.GetField("_pages", AllInstanceFlags);
+                    h.CurrentPage = viewType.GetProperty("CurrentPage", PublicInstance);
+                    h.PagesCount = viewType.GetProperty("PagesCount", PublicInstance);
+                    h.TrackName = viewType.GetField("TrackName", PublicInstance);
+                    h.TrackLabel = viewType.GetField("TrackLabel", PublicInstance);
+                    h.MasteryTreeButton = viewType.GetField("_masteryTreeButton", AllInstanceFlags);
+                    h.PreviousTreeButton = viewType.GetField("_previousTreeButton", AllInstanceFlags);
+                    h.PurchaseButton = viewType.GetField("_purchaseButton", AllInstanceFlags);
+                    h.PurchaseCenter = viewType.GetField("_purchaseCenter", AllInstanceFlags);
+                    h.MasteryPassProvider = viewType.GetProperty("_masteryPassProvider", AllInstanceFlags);
+
+                    // SetMasteryDataProvider — chained off MasteryPassProvider.PropertyType
+                    Type providerType = h.MasteryPassProvider?.PropertyType;
+                    if (providerType != null)
+                    {
+                        h.GetCurrentLevelIndex = providerType.GetMethod("GetCurrentLevelIndex",
+                            PublicInstance, null, new[] { typeof(string) }, null);
+                    }
+
+                    // PageLevels nested class
+                    Type pageLevelsType = viewType.GetNestedType("PageLevels", BindingFlags.NonPublic);
+                    if (pageLevelsType != null)
+                    {
+                        h.PageLevelStart = pageLevelsType.GetField("LevelStart", PublicInstance);
+                        h.PageLevelEnd = pageLevelsType.GetProperty("LevelEnd", PublicInstance);
+                    }
+                }
+
+                // ProgressionTrackLevel — FindType
+                Type trackLevelType = FindType("Core.MainNavigation.RewardTrack.ProgressionTrackLevel");
+                if (trackLevelType != null)
+                {
+                    h.LevelIndex = trackLevelType.GetField("Index", PublicInstance);
+                    h.LevelExp = trackLevelType.GetField("EXPProgressIfIsCurrent", PublicInstance);
+                    h.LevelRepeatable = trackLevelType.GetField("IsRepeatable", PublicInstance);
+                    h.ServerLevel = trackLevelType.GetField("ServerLevel", PublicInstance);
+                }
+
+                // ClientTrackLevelInfo — prefer ServerLevel.FieldType, fall back to FindType
+                Type clientLevelInfoType = h.ServerLevel?.FieldType
+                    ?? FindType("Core.MainNavigation.RewardTrack.ClientTrackLevelInfo");
+                if (clientLevelInfoType != null)
+                    h.XpToComplete = clientLevelInfoType.GetField("xpToComplete", PublicInstance);
+
+                // RewardDisplayData — FindType
+                Type rewardDisplayType = FindType("RewardDisplayData");
+                if (rewardDisplayType != null)
+                {
+                    h.RewardMainText = rewardDisplayType.GetField("MainText", PublicInstance);
+                    h.RewardQuantity = rewardDisplayType.GetField("Quantity", PublicInstance);
+                    h.RewardDescText = rewardDisplayType.GetField("DescriptionText", PublicInstance);
+                    h.RewardSecondary = rewardDisplayType.GetField("SecondaryText", PublicInstance);
+                }
+
+                // MTGALocalizedString — FindType
+                Type locStringType = FindType("MTGALocalizedString");
+                if (locStringType != null)
+                    h.LocStringKey = locStringType.GetField("Key", PublicInstance);
+
+                // Languages.ActiveLocProvider (static) → GetLocalizedText(string)
+                Type languagesType = FindType("Wotc.Mtga.Loc.Languages");
+                if (languagesType != null)
+                {
+                    h.ActiveLocProvider = languagesType.GetProperty("ActiveLocProvider",
+                        BindingFlags.Public | BindingFlags.Static);
+                    Type locProviderType = h.ActiveLocProvider?.PropertyType;
+                    if (locProviderType != null)
+                        h.GetLocalizedText = locProviderType.GetMethod("GetLocalizedText",
+                            new[] { typeof(string) });
+                }
+
+                return h;
+            },
+            validator: _ => true,  // All handles optional; every read site null-checks per graceful-degradation semantics
+            logTag: "Mastery",
+            logSubject: "Levels");
 
         #endregion
 
@@ -155,140 +236,12 @@ namespace AccessibleArena.Core.Services
 
         private bool IsControllerOpen(MonoBehaviour controller)
         {
-            var type = controller.GetType();
-            EnsureReflectionCached(type);
+            if (!_levelsCache.EnsureInitialized(controller.GetType())) return true;
+            var isOpen = _levelsCache.Handles.IsOpen;
+            if (isOpen == null) return true;
 
-            if (_isOpenProp != null)
-            {
-                try
-                {
-                    bool isOpen = (bool)_isOpenProp.GetValue(controller);
-                    if (!isOpen) return false;
-                }
-                catch { return false; }
-            }
-
-            return true;
-        }
-
-        #endregion
-
-        #region Reflection Caching
-
-        private void EnsureReflectionCached(Type controllerType)
-        {
-            if (_reflectionInitialized && _controllerType == controllerType) return;
-
-            _controllerType = controllerType;
-            var flags = AllInstanceFlags;
-
-            // Controller properties/fields
-            _isOpenProp = controllerType.GetProperty("IsOpen", flags | BindingFlags.FlattenHierarchy);
-            _activeViewField = controllerType.GetField("_activeView", flags);
-            _backButtonField = controllerType.GetField("_backButton", flags);
-
-            // RewardTrackView type from _activeView field
-            if (_activeViewField != null)
-            {
-                _viewType = _activeViewField.FieldType;
-                _levelsField = _viewType.GetField("_levels", flags);
-                _levelRewardDataField = _viewType.GetField("_levelRewardData", flags);
-                _pagesField = _viewType.GetField("_pages", flags);
-                _currentPageProp = _viewType.GetProperty("CurrentPage", PublicInstance);
-                _pagesCountProp = _viewType.GetProperty("PagesCount", PublicInstance);
-                _trackNameField = _viewType.GetField("TrackName", PublicInstance);
-                _trackLabelField = _viewType.GetField("TrackLabel", PublicInstance);
-                _masteryTreeButtonField = _viewType.GetField("_masteryTreeButton", flags);
-                _previousTreeButtonField = _viewType.GetField("_previousTreeButton", flags);
-                _purchaseButtonField = _viewType.GetField("_purchaseButton", flags);
-                _purchaseCenterField = _viewType.GetField("_purchaseCenter", flags);
-
-                // SetMasteryDataProvider via view's _masteryPassProvider property
-                _masteryPassProviderProp = _viewType.GetProperty("_masteryPassProvider", flags);
-                if (_masteryPassProviderProp != null)
-                {
-                    _setMasteryDataProviderType = _masteryPassProviderProp.PropertyType;
-                    var pubInstance = PublicInstance;
-                    _getCurrentLevelIndexMethod = _setMasteryDataProviderType.GetMethod("GetCurrentLevelIndex",
-                        pubInstance, null, new[] { typeof(string) }, null);
-                    _getCurrentXpProgressMethod = _setMasteryDataProviderType.GetMethod("GetCurrentXpProgress",
-                        pubInstance, null, new[] { typeof(string) }, null);
-                    _playerHitPremiumTierMethod = _setMasteryDataProviderType.GetMethod("PlayerHitPremiumRewardTier",
-                        pubInstance, null, new[] { typeof(string) }, null);
-                }
-
-                // PageLevels nested class
-                _pageLevelsType = _viewType.GetNestedType("PageLevels", BindingFlags.NonPublic);
-                if (_pageLevelsType != null)
-                {
-                    _pageLevelStartField = _pageLevelsType.GetField("LevelStart", PublicInstance);
-                    _pageLevelEndProp = _pageLevelsType.GetProperty("LevelEnd", PublicInstance);
-                }
-            }
-
-            // Find types from assemblies
-            _trackLevelType = FindType("Core.MainNavigation.RewardTrack.ProgressionTrackLevel");
-            _clientLevelInfoType = FindType("Core.MainNavigation.RewardTrack.ClientTrackLevelInfo");
-            _rewardDisplayType = FindType("RewardDisplayData");
-            _mtgaLocStringType = FindType("MTGALocalizedString");
-            _languagesType = FindType("Wotc.Mtga.Loc.Languages");
-
-            // ProgressionTrackLevel fields
-            if (_trackLevelType != null)
-            {
-                _levelIndexField = _trackLevelType.GetField("Index", PublicInstance);
-                _levelExpField = _trackLevelType.GetField("EXPProgressIfIsCurrent", PublicInstance);
-                _levelCompleteField = _trackLevelType.GetField("IsProgressionComplete", PublicInstance);
-                _levelRepeatableField = _trackLevelType.GetField("IsRepeatable", PublicInstance);
-                _serverLevelField = _trackLevelType.GetField("ServerLevel", PublicInstance);
-            }
-
-            // ClientTrackLevelInfo fields
-            if (_clientLevelInfoType == null && _serverLevelField != null)
-            {
-                _clientLevelInfoType = _serverLevelField.FieldType;
-            }
-            if (_clientLevelInfoType != null)
-            {
-                _xpToCompleteField = _clientLevelInfoType.GetField("xpToComplete", PublicInstance);
-            }
-
-            // RewardDisplayData fields
-            if (_rewardDisplayType != null)
-            {
-                _rewardMainTextField = _rewardDisplayType.GetField("MainText", PublicInstance);
-                _rewardQuantityField = _rewardDisplayType.GetField("Quantity", PublicInstance);
-                _rewardDescTextField = _rewardDisplayType.GetField("DescriptionText", PublicInstance);
-                _rewardSecondaryField = _rewardDisplayType.GetField("SecondaryText", PublicInstance);
-            }
-
-            // MTGALocalizedString fields
-            if (_mtgaLocStringType != null)
-            {
-                _locStringKeyField = _mtgaLocStringType.GetField("Key", PublicInstance);
-                _locStringParamsField = _mtgaLocStringType.GetField("Parameters", PublicInstance);
-            }
-
-            // Languages.ActiveLocProvider
-            if (_languagesType != null)
-            {
-                _activeLocProviderProp = _languagesType.GetProperty("ActiveLocProvider",
-                    BindingFlags.Public | BindingFlags.Static);
-                if (_activeLocProviderProp != null)
-                {
-                    var locProviderType = _activeLocProviderProp.PropertyType;
-                    _getLocalizedTextMethod = locProviderType.GetMethod("GetLocalizedText",
-                        new[] { typeof(string) });
-                }
-            }
-
-            _reflectionInitialized = true;
-            Log.Msg("Mastery", $"Reflection cached. View={_viewType != null}, " +
-                $"Level={_trackLevelType != null}, RewardData={_rewardDisplayType != null}, " +
-                $"LocString={_mtgaLocStringType != null}, Languages={_languagesType != null}, " +
-                $"PageLevels={_pageLevelsType != null}, " +
-                $"DataProvider={_setMasteryDataProviderType != null}, " +
-                $"GetCurrentLevelIndex={_getCurrentLevelIndexMethod != null}");
+            try { return (bool)isOpen.GetValue(controller); }
+            catch { return false; }
         }
 
         #endregion
@@ -311,7 +264,7 @@ namespace AccessibleArena.Core.Services
             _trackTitle = ResolveTrackTitle(view);
 
             // Get levels list
-            var levelsObj = _levelsField?.GetValue(view);
+            var levelsObj = _levelsCache.Handles.Levels?.GetValue(view);
             if (levelsObj == null)
             {
                 Log.Msg("Mastery", "No levels data found");
@@ -321,7 +274,7 @@ namespace AccessibleArena.Core.Services
             if (levelsList == null || levelsList.Count == 0) return;
 
             // Get reward data list
-            var rewardDataObj = _levelRewardDataField?.GetValue(view);
+            var rewardDataObj = _levelsCache.Handles.LevelRewardData?.GetValue(view);
             var rewardDataList = rewardDataObj as IList;
 
             _totalLevels = levelsList.Count;
@@ -331,15 +284,15 @@ namespace AccessibleArena.Core.Services
             int curLevelIndex = -1;
             try
             {
-                if (_masteryPassProviderProp != null && _getCurrentLevelIndexMethod != null)
+                if (_levelsCache.Handles.MasteryPassProvider != null && _levelsCache.Handles.GetCurrentLevelIndex != null)
                 {
-                    var provider = _masteryPassProviderProp.GetValue(view);
+                    var provider = _levelsCache.Handles.MasteryPassProvider.GetValue(view);
                     if (provider != null)
                     {
-                        string trackName = _trackNameField?.GetValue(view) as string;
+                        string trackName = _levelsCache.Handles.TrackName?.GetValue(view) as string;
                         if (!string.IsNullOrEmpty(trackName))
                         {
-                            curLevelIndex = (int)_getCurrentLevelIndexMethod.Invoke(provider, new object[] { trackName });
+                            curLevelIndex = (int)_levelsCache.Handles.GetCurrentLevelIndex.Invoke(provider, new object[] { trackName });
                             Log.Msg("Mastery", $"Data provider: curLevelIndex={curLevelIndex}, trackName={trackName}");
                         }
                     }
@@ -391,18 +344,18 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                if (_levelIndexField != null)
-                    levelIndex = (int)_levelIndexField.GetValue(level);
-                if (_levelExpField != null)
-                    expProgress = (int)_levelExpField.GetValue(level);
-                if (_levelRepeatableField != null)
-                    isRepeatable = (bool)_levelRepeatableField.GetValue(level);
+                if (_levelsCache.Handles.LevelIndex != null)
+                    levelIndex = (int)_levelsCache.Handles.LevelIndex.GetValue(level);
+                if (_levelsCache.Handles.LevelExp != null)
+                    expProgress = (int)_levelsCache.Handles.LevelExp.GetValue(level);
+                if (_levelsCache.Handles.LevelRepeatable != null)
+                    isRepeatable = (bool)_levelsCache.Handles.LevelRepeatable.GetValue(level);
 
-                if (_serverLevelField != null && _xpToCompleteField != null)
+                if (_levelsCache.Handles.ServerLevel != null && _levelsCache.Handles.XpToComplete != null)
                 {
-                    var serverLevel = _serverLevelField.GetValue(level);
+                    var serverLevel = _levelsCache.Handles.ServerLevel.GetValue(level);
                     if (serverLevel != null)
-                        xpToComplete = (int)_xpToCompleteField.GetValue(serverLevel);
+                        xpToComplete = (int)_levelsCache.Handles.XpToComplete.GetValue(serverLevel);
                 }
             }
             catch (Exception ex)
@@ -432,14 +385,14 @@ namespace AccessibleArena.Core.Services
                             if (reward == null) continue;
 
                             string tierName = t < tierNames.Length ? tierNames[t] : $"Tier {t + 1}";
-                            string rewardName = ResolveLocString(_rewardMainTextField?.GetValue(reward));
+                            string rewardName = ResolveLocString(_levelsCache.Handles.RewardMainText?.GetValue(reward));
                             int quantity = 0;
-                            if (_rewardQuantityField != null)
-                                quantity = (int)_rewardQuantityField.GetValue(reward);
-                            string description = ResolveLocString(_rewardSecondaryField?.GetValue(reward));
+                            if (_levelsCache.Handles.RewardQuantity != null)
+                                quantity = (int)_levelsCache.Handles.RewardQuantity.GetValue(reward);
+                            string description = ResolveLocString(_levelsCache.Handles.RewardSecondary?.GetValue(reward));
 
                             if (string.IsNullOrEmpty(rewardName) || rewardName.StartsWith("$"))
-                                rewardName = ResolveLocString(_rewardDescTextField?.GetValue(reward));
+                                rewardName = ResolveLocString(_levelsCache.Handles.RewardDescText?.GetValue(reward));
                             if (string.IsNullOrEmpty(rewardName) || rewardName.StartsWith("$"))
                                 rewardName = Strings.MasteryNoReward;
 
@@ -479,31 +432,31 @@ namespace AccessibleArena.Core.Services
             if (view == null) return;
 
             // Mastery Tree / Spend Orbs button
-            TryAddButton(view, _masteryTreeButtonField, "Mastery Tree");
+            TryAddButton(view, _levelsCache.Handles.MasteryTreeButton, "Mastery Tree");
 
             // Previous Season button (only if visible)
-            TryAddButton(view, _previousTreeButtonField, "Previous Season");
+            TryAddButton(view, _levelsCache.Handles.PreviousTreeButton, "Previous Season");
 
             // Purchase button (only if purchase center is visible)
-            if (_purchaseCenterField != null && _purchaseButtonField != null)
+            if (_levelsCache.Handles.PurchaseCenter != null && _levelsCache.Handles.PurchaseButton != null)
             {
                 try
                 {
-                    var purchaseCenter = _purchaseCenterField.GetValue(view) as GameObject;
+                    var purchaseCenter = _levelsCache.Handles.PurchaseCenter.GetValue(view) as GameObject;
                     if (purchaseCenter != null && purchaseCenter.activeInHierarchy)
                     {
-                        TryAddButton(view, _purchaseButtonField, "Purchase");
+                        TryAddButton(view, _levelsCache.Handles.PurchaseButton, "Purchase");
                     }
                 }
                 catch { /* Reflection may fail on different game versions */ }
             }
 
             // Back button (from controller, not view)
-            if (_backButtonField != null && _controller != null)
+            if (_levelsCache.Handles.BackButton != null && _controller != null)
             {
                 try
                 {
-                    var backBtn = _backButtonField.GetValue(_controller) as MonoBehaviour;
+                    var backBtn = _levelsCache.Handles.BackButton.GetValue(_controller) as MonoBehaviour;
                     if (backBtn != null && backBtn.gameObject != null && backBtn.gameObject.activeInHierarchy)
                     {
                         _actionButtons.Add(new ActionButton
@@ -622,9 +575,9 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Check Key first - skip empty strings
-                if (_locStringKeyField != null)
+                if (_levelsCache.Handles.LocStringKey != null)
                 {
-                    string key = _locStringKeyField.GetValue(mtgaLocString) as string;
+                    string key = _levelsCache.Handles.LocStringKey.GetValue(mtgaLocString) as string;
                     if (string.IsNullOrEmpty(key) || key == "MainNav/General/Empty_String")
                         return null;
                 }
@@ -650,13 +603,13 @@ namespace AccessibleArena.Core.Services
         private string GetLocalizedText(string key)
         {
             if (string.IsNullOrEmpty(key)) return null;
-            if (_activeLocProviderProp == null || _getLocalizedTextMethod == null) return key;
+            if (_levelsCache.Handles.ActiveLocProvider == null || _levelsCache.Handles.GetLocalizedText == null) return key;
 
             try
             {
-                var locProvider = _activeLocProviderProp.GetValue(null);
+                var locProvider = _levelsCache.Handles.ActiveLocProvider.GetValue(null);
                 if (locProvider == null) return key;
-                return _getLocalizedTextMethod.Invoke(locProvider, new object[] { key }) as string;
+                return _levelsCache.Handles.GetLocalizedText.Invoke(locProvider, new object[] { key }) as string;
             }
             catch
             {
@@ -667,11 +620,11 @@ namespace AccessibleArena.Core.Services
         private string ResolveTrackTitle(MonoBehaviour view)
         {
             // Try TrackLabel (MTGALocalizedString) first - has ToString() that resolves automatically
-            if (_trackLabelField != null)
+            if (_levelsCache.Handles.TrackLabel != null)
             {
                 try
                 {
-                    var label = _trackLabelField.GetValue(view);
+                    var label = _levelsCache.Handles.TrackLabel.GetValue(view);
                     if (label != null)
                     {
                         string resolved = label.ToString();
@@ -686,11 +639,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Fall back to TrackName (raw string) and localize it
-            if (_trackNameField != null)
+            if (_levelsCache.Handles.TrackName != null)
             {
                 try
                 {
-                    var trackName = _trackNameField.GetValue(view) as string;
+                    var trackName = _levelsCache.Handles.TrackName.GetValue(view) as string;
                     if (!string.IsNullOrEmpty(trackName))
                     {
                         // Try to resolve "MainNav/BattlePass/{trackName}" like the game does
@@ -817,11 +770,11 @@ namespace AccessibleArena.Core.Services
 
         private MonoBehaviour GetActiveView()
         {
-            if (_controller == null || _activeViewField == null) return null;
+            if (_controller == null || _levelsCache.Handles.ActiveView == null) return null;
 
             try
             {
-                return _activeViewField.GetValue(_controller) as MonoBehaviour;
+                return _levelsCache.Handles.ActiveView.GetValue(_controller) as MonoBehaviour;
             }
             catch
             {
@@ -832,11 +785,11 @@ namespace AccessibleArena.Core.Services
         private int GetCurrentPage()
         {
             var view = GetActiveView();
-            if (view == null || _currentPageProp == null) return 0;
+            if (view == null || _levelsCache.Handles.CurrentPage == null) return 0;
 
             try
             {
-                return (int)_currentPageProp.GetValue(view);
+                return (int)_levelsCache.Handles.CurrentPage.GetValue(view);
             }
             catch { return 0; }
         }
@@ -844,11 +797,11 @@ namespace AccessibleArena.Core.Services
         private int GetPagesCount()
         {
             var view = GetActiveView();
-            if (view == null || _pagesCountProp == null) return 1;
+            if (view == null || _levelsCache.Handles.PagesCount == null) return 1;
 
             try
             {
-                return (int)_pagesCountProp.GetValue(view);
+                return (int)_levelsCache.Handles.PagesCount.GetValue(view);
             }
             catch { return 1; }
         }
@@ -862,14 +815,14 @@ namespace AccessibleArena.Core.Services
             if (_currentLevelIndex <= 0) return;
 
             var view = GetActiveView();
-            if (view == null || _pagesField == null || _currentPageProp == null) return;
+            if (view == null || _levelsCache.Handles.Pages == null || _levelsCache.Handles.CurrentPage == null) return;
 
             try
             {
-                var pages = _pagesField.GetValue(view) as IList;
+                var pages = _levelsCache.Handles.Pages.GetValue(view) as IList;
                 if (pages == null || pages.Count == 0) return;
 
-                int currentPage = (int)_currentPageProp.GetValue(view);
+                int currentPage = (int)_levelsCache.Handles.CurrentPage.GetValue(view);
                 int targetLevel = _currentLevelIndex < _levelData.Count
                     ? _levelData[_currentLevelIndex].LevelNumber
                     : _currentLevelIndex + 1;
@@ -881,16 +834,16 @@ namespace AccessibleArena.Core.Services
                     if (page == null) continue;
 
                     int start = 0, end = 0;
-                    if (_pageLevelStartField != null)
-                        start = (int)_pageLevelStartField.GetValue(page);
-                    if (_pageLevelEndProp != null)
-                        end = (int)_pageLevelEndProp.GetValue(page);
+                    if (_levelsCache.Handles.PageLevelStart != null)
+                        start = (int)_levelsCache.Handles.PageLevelStart.GetValue(page);
+                    if (_levelsCache.Handles.PageLevelEnd != null)
+                        end = (int)_levelsCache.Handles.PageLevelEnd.GetValue(page);
 
                     if (targetLevel >= start && targetLevel <= end)
                     {
                         if (i != currentPage)
                         {
-                            _currentPageProp.SetValue(view, i);
+                            _levelsCache.Handles.CurrentPage.SetValue(view, i);
                             _announcer.Announce(Strings.MasteryPage(i + 1, pages.Count));
                         }
                         return;
@@ -1057,11 +1010,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Fallback: try the _backButton field directly
-            if (_backButtonField != null && _controller != null)
+            if (_levelsCache.Handles.BackButton != null && _controller != null)
             {
                 try
                 {
-                    var backBtn = _backButtonField.GetValue(_controller) as MonoBehaviour;
+                    var backBtn = _levelsCache.Handles.BackButton.GetValue(_controller) as MonoBehaviour;
                     if (backBtn != null && backBtn.gameObject != null)
                     {
                         _announcer.AnnounceInterruptVerbose(Strings.NavigatingBack);

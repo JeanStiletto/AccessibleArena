@@ -33,27 +33,69 @@ namespace AccessibleArena.Core.Services
 
         #region PrizeWall Reflection
 
-        private Type _prizeWallControllerType;
-        private PropertyInfo _prizeWallIsOpenProp;
-        private FieldInfo _prizeWallCurrencyField;          // PrizeWallCurrency _currencyPrizeWall
-        private FieldInfo _prizeWallBackButtonField;         // CustomButton _prizeWallBackButton
-        private FieldInfo _prizeWallContentsField;           // GameObject _contentsContainer
-        private FieldInfo _prizeWallLayoutGroupField;        // HorizontalLayoutGroup _storeButtonLayoutGroup
-        private FieldInfo _prizeWallConfirmModalField;       // StoreConfirmationModal _confirmationModal
-        private Type _prizeWallCurrencyType;
-        private FieldInfo _currencyQuantityField;            // TMP_Text _currencyQuantity
-        private bool _prizeWallReflectionInitialized;
+        private sealed class PrizeWallHandles
+        {
+            public PropertyInfo IsOpen;
+            public FieldInfo Currency;           // PrizeWallCurrency _currencyPrizeWall
+            public FieldInfo BackButton;         // CustomButton _prizeWallBackButton
+            public FieldInfo Contents;           // GameObject _contentsContainer
+            public FieldInfo LayoutGroup;        // HorizontalLayoutGroup _storeButtonLayoutGroup
+            public FieldInfo ConfirmModal;       // StoreConfirmationModal _confirmationModal
+            public FieldInfo CurrencyQuantity;   // TMP_Text _currencyQuantity on PrizeWallCurrency
+        }
+
+        private readonly ReflectionCache<PrizeWallHandles> _prizeWallCache = new ReflectionCache<PrizeWallHandles>(
+            builder: controllerType =>
+            {
+                var h = new PrizeWallHandles
+                {
+                    IsOpen = controllerType.GetProperty("IsOpen", AllInstanceFlags | BindingFlags.FlattenHierarchy),
+                    Currency = controllerType.GetField("_currencyPrizeWall", AllInstanceFlags),
+                    BackButton = controllerType.GetField("_prizeWallBackButton", AllInstanceFlags),
+                    Contents = controllerType.GetField("_contentsContainer", AllInstanceFlags),
+                    LayoutGroup = controllerType.GetField("_storeButtonLayoutGroup", AllInstanceFlags),
+                    ConfirmModal = controllerType.GetField("_confirmationModal", AllInstanceFlags),
+                };
+                if (h.Currency != null)
+                    h.CurrencyQuantity = h.Currency.FieldType?.GetField("_currencyQuantity", AllInstanceFlags);
+                return h;
+            },
+            validator: _ => true,
+            logTag: "Mastery",
+            logSubject: "PrizeWall");
 
         // StoreItemBase purchase button reflection (for extracting cost + owned status)
-        private Type _storeItemBaseType;
-        private FieldInfo _siBlueButtonField;     // BlueButton (PurchaseButton struct)
-        private FieldInfo _siOrangeButtonField;   // OrangeButton
-        private FieldInfo _siClearButtonField;    // ClearButton
-        private FieldInfo _siGreenButtonField;    // GreenButton
-        private Type _purchaseButtonType;
-        private FieldInfo _pbButtonField;         // Button (CustomButton)
-        private FieldInfo _pbContainerField;      // ButtonContainer (GameObject)
-        private bool _storeItemReflectionInitialized;
+        private sealed class StoreItemHandles
+        {
+            public FieldInfo BlueButton;     // PurchaseButton struct
+            public FieldInfo OrangeButton;
+            public FieldInfo ClearButton;
+            public FieldInfo GreenButton;
+            public FieldInfo PbButton;       // PurchaseButton.Button (CustomButton)
+            public FieldInfo PbContainer;    // PurchaseButton.ButtonContainer (GameObject)
+        }
+
+        private readonly ReflectionCache<StoreItemHandles> _storeItemCache = new ReflectionCache<StoreItemHandles>(
+            builder: storeItemType =>
+            {
+                var h = new StoreItemHandles
+                {
+                    BlueButton = storeItemType.GetField("BlueButton", AllInstanceFlags),
+                    OrangeButton = storeItemType.GetField("OrangeButton", AllInstanceFlags),
+                    ClearButton = storeItemType.GetField("ClearButton", AllInstanceFlags),
+                    GreenButton = storeItemType.GetField("GreenButton", AllInstanceFlags),
+                };
+                if (h.BlueButton != null)
+                {
+                    var pbType = h.BlueButton.FieldType;
+                    h.PbButton = pbType.GetField("Button", AllInstanceFlags);
+                    h.PbContainer = pbType.GetField("ButtonContainer", AllInstanceFlags);
+                }
+                return h;
+            },
+            validator: _ => true,
+            logTag: "Mastery",
+            logSubject: "StoreItemBase");
 
         #endregion
 
@@ -81,80 +123,19 @@ namespace AccessibleArena.Core.Services
 
         private bool IsPrizeWallOpen(MonoBehaviour controller)
         {
-            EnsurePrizeWallReflectionCached(controller.GetType());
+            _prizeWallCache.EnsureInitialized(controller.GetType());
 
-            if (_prizeWallIsOpenProp != null)
+            var isOpen = _prizeWallCache.Handles?.IsOpen;
+            if (isOpen != null)
             {
                 try
                 {
-                    return (bool)_prizeWallIsOpenProp.GetValue(controller);
+                    return (bool)isOpen.GetValue(controller);
                 }
                 catch { return false; }
             }
 
             return true;
-        }
-
-        #endregion
-
-        #region Reflection Caching
-
-        private void EnsurePrizeWallReflectionCached(Type controllerType)
-        {
-            if (_prizeWallReflectionInitialized && _prizeWallControllerType == controllerType) return;
-
-            _prizeWallControllerType = controllerType;
-            var flags = AllInstanceFlags;
-
-            // IsOpen from NavContentController base
-            _prizeWallIsOpenProp = controllerType.GetProperty("IsOpen", flags | BindingFlags.FlattenHierarchy);
-
-            // Key fields on ContentController_PrizeWall
-            _prizeWallCurrencyField = controllerType.GetField("_currencyPrizeWall", flags);
-            _prizeWallBackButtonField = controllerType.GetField("_prizeWallBackButton", flags);
-            _prizeWallContentsField = controllerType.GetField("_contentsContainer", flags);
-            _prizeWallLayoutGroupField = controllerType.GetField("_storeButtonLayoutGroup", flags);
-            _prizeWallConfirmModalField = controllerType.GetField("_confirmationModal", flags);
-
-            // PrizeWallCurrency type -> _currencyQuantity TMP field
-            if (_prizeWallCurrencyField != null)
-            {
-                _prizeWallCurrencyType = _prizeWallCurrencyField.FieldType;
-                _currencyQuantityField = _prizeWallCurrencyType?.GetField("_currencyQuantity", flags);
-            }
-
-            _prizeWallReflectionInitialized = true;
-            Log.Msg("Mastery", $"PrizeWall reflection cached. Currency={_prizeWallCurrencyField != null}, " +
-                $"BackButton={_prizeWallBackButtonField != null}, " +
-                $"Contents={_prizeWallContentsField != null}, " +
-                $"Layout={_prizeWallLayoutGroupField != null}, " +
-                $"CurrencyQty={_currencyQuantityField != null}, " +
-                $"ConfirmModal={_prizeWallConfirmModalField != null}");
-        }
-
-        private void EnsureStoreItemReflectionCached(Type storeItemType)
-        {
-            if (_storeItemReflectionInitialized && _storeItemBaseType == storeItemType) return;
-
-            _storeItemBaseType = storeItemType;
-            var flags = AllInstanceFlags;
-
-            _siBlueButtonField = storeItemType.GetField("BlueButton", flags);
-            _siOrangeButtonField = storeItemType.GetField("OrangeButton", flags);
-            _siClearButtonField = storeItemType.GetField("ClearButton", flags);
-            _siGreenButtonField = storeItemType.GetField("GreenButton", flags);
-
-            // PurchaseButton struct type from BlueButton field
-            if (_siBlueButtonField != null)
-            {
-                _purchaseButtonType = _siBlueButtonField.FieldType;
-                _pbButtonField = _purchaseButtonType.GetField("Button", flags);
-                _pbContainerField = _purchaseButtonType.GetField("ButtonContainer", flags);
-            }
-
-            _storeItemReflectionInitialized = true;
-            Log.Msg("Mastery", $"StoreItemBase reflection cached. PurchaseButton={_purchaseButtonType != null}, " +
-                $"PbButton={_pbButtonField != null}");
         }
 
         #endregion
@@ -170,17 +151,19 @@ namespace AccessibleArena.Core.Services
 
             if (_prizeWallController == null) return;
 
-            EnsurePrizeWallReflectionCached(_prizeWallController.GetType());
+            _prizeWallCache.EnsureInitialized(_prizeWallController.GetType());
+            var pw = _prizeWallCache.Handles;
+            if (pw == null) return;
 
             // Get sphere count from PrizeWallCurrency._currencyQuantity
-            if (_prizeWallCurrencyField != null && _currencyQuantityField != null)
+            if (pw.Currency != null && pw.CurrencyQuantity != null)
             {
                 try
                 {
-                    var currency = _prizeWallCurrencyField.GetValue(_prizeWallController);
+                    var currency = pw.Currency.GetValue(_prizeWallController);
                     if (currency != null)
                     {
-                        var tmpText = _currencyQuantityField.GetValue(currency) as TMPro.TMP_Text;
+                        var tmpText = pw.CurrencyQuantity.GetValue(currency) as TMPro.TMP_Text;
                         if (tmpText != null && !string.IsNullOrEmpty(tmpText.text))
                             _sphereCount = tmpText.text.Trim();
                     }
@@ -192,11 +175,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Get back button
-            if (_prizeWallBackButtonField != null)
+            if (pw.BackButton != null)
             {
                 try
                 {
-                    var backBtn = _prizeWallBackButtonField.GetValue(_prizeWallController) as MonoBehaviour;
+                    var backBtn = pw.BackButton.GetValue(_prizeWallController) as MonoBehaviour;
                     if (backBtn != null && backBtn.gameObject != null && backBtn.gameObject.activeInHierarchy)
                         _prizeWallBackButton = backBtn.gameObject;
                 }
@@ -205,11 +188,11 @@ namespace AccessibleArena.Core.Services
 
             // Find StoreItemBase components under the layout group (the purchasable items)
             Transform layoutParent = null;
-            if (_prizeWallLayoutGroupField != null)
+            if (pw.LayoutGroup != null)
             {
                 try
                 {
-                    var layoutGroup = _prizeWallLayoutGroupField.GetValue(_prizeWallController) as Component;
+                    var layoutGroup = pw.LayoutGroup.GetValue(_prizeWallController) as Component;
                     if (layoutGroup != null)
                         layoutParent = layoutGroup.transform;
                 }
@@ -217,11 +200,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Fallback: search under contents container
-            if (layoutParent == null && _prizeWallContentsField != null)
+            if (layoutParent == null && pw.Contents != null)
             {
                 try
                 {
-                    var contents = _prizeWallContentsField.GetValue(_prizeWallController) as GameObject;
+                    var contents = pw.Contents.GetValue(_prizeWallController) as GameObject;
                     if (contents != null)
                         layoutParent = contents.transform;
                 }
@@ -238,7 +221,7 @@ namespace AccessibleArena.Core.Services
                     if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                     if (mb.GetType().Name != "StoreItemBase") continue;
 
-                    EnsureStoreItemReflectionCached(mb.GetType());
+                    _storeItemCache.EnsureInitialized(mb.GetType());
                     var itemData = ExtractPrizeWallItemData(mb);
 
                     var pos = mb.transform.position;
@@ -262,11 +245,11 @@ namespace AccessibleArena.Core.Services
             // Cache confirmation modal GameObject for polling
             _confirmationModalGameObject = null;
             _wasModalOpen = false;
-            if (_prizeWallConfirmModalField != null)
+            if (pw.ConfirmModal != null)
             {
                 try
                 {
-                    var modal = _prizeWallConfirmModalField.GetValue(_prizeWallController) as MonoBehaviour;
+                    var modal = pw.ConfirmModal.GetValue(_prizeWallController) as MonoBehaviour;
                     if (modal != null)
                     {
                         _confirmationModalGameObject = modal.gameObject;
@@ -310,50 +293,56 @@ namespace AccessibleArena.Core.Services
             data.Cost = null;
             data.IsOwned = true; // Assume owned unless we find an active purchase button
 
-            FieldInfo[] buttonFields = { _siGreenButtonField, _siBlueButtonField, _siOrangeButtonField, _siClearButtonField };
-            foreach (var bf in buttonFields)
+            var si = _storeItemCache.Handles;
+            FieldInfo[] buttonFields = si != null
+                ? new[] { si.GreenButton, si.BlueButton, si.OrangeButton, si.ClearButton }
+                : null;
+            if (buttonFields != null && si.PbButton != null)
             {
-                if (bf == null || _purchaseButtonType == null) continue;
-
-                try
+                foreach (var bf in buttonFields)
                 {
-                    var buttonStruct = bf.GetValue(storeItemBase);
-                    if (buttonStruct == null) continue;
+                    if (bf == null) continue;
 
-                    // Check container visibility
-                    if (_pbContainerField != null)
+                    try
                     {
-                        var container = _pbContainerField.GetValue(buttonStruct) as GameObject;
-                        if (container != null && !container.activeInHierarchy)
-                            continue;
-                    }
+                        var buttonStruct = bf.GetValue(storeItemBase);
+                        if (buttonStruct == null) continue;
 
-                    // Get the CustomButton
-                    var customButton = _pbButtonField?.GetValue(buttonStruct) as MonoBehaviour;
-                    if (customButton == null || customButton.gameObject == null ||
-                        !customButton.gameObject.activeInHierarchy)
-                        continue;
-
-                    // Found an active purchase button — item is NOT owned
-                    data.IsOwned = false;
-
-                    // Extract price text
-                    if (data.Cost == null)
-                    {
-                        var tmpText = customButton.GetComponentInChildren<TMPro.TMP_Text>(true);
-                        if (tmpText != null)
+                        // Check container visibility
+                        if (si.PbContainer != null)
                         {
-                            string price = UITextExtractor.StripRichText(tmpText.text)?.Trim();
-                            if (!string.IsNullOrEmpty(price))
-                                data.Cost = price;
+                            var container = si.PbContainer.GetValue(buttonStruct) as GameObject;
+                            if (container != null && !container.activeInHierarchy)
+                                continue;
+                        }
+
+                        // Get the CustomButton
+                        var customButton = si.PbButton.GetValue(buttonStruct) as MonoBehaviour;
+                        if (customButton == null || customButton.gameObject == null ||
+                            !customButton.gameObject.activeInHierarchy)
+                            continue;
+
+                        // Found an active purchase button — item is NOT owned
+                        data.IsOwned = false;
+
+                        // Extract price text
+                        if (data.Cost == null)
+                        {
+                            var tmpText = customButton.GetComponentInChildren<TMPro.TMP_Text>(true);
+                            if (tmpText != null)
+                            {
+                                string price = UITextExtractor.StripRichText(tmpText.text)?.Trim();
+                                if (!string.IsNullOrEmpty(price))
+                                    data.Cost = price;
+                            }
                         }
                     }
+                    catch { /* Reflection may fail on different game versions */ }
                 }
-                catch { /* Reflection may fail on different game versions */ }
             }
 
             // 3. Fallback: if no purchase button fields found, check for any CustomButton
-            if (!_storeItemReflectionInitialized || _purchaseButtonType == null)
+            if (!_storeItemCache.IsInitialized || si?.PbButton == null)
             {
                 foreach (var mb in storeItemBase.GetComponentsInChildren<MonoBehaviour>(false))
                 {

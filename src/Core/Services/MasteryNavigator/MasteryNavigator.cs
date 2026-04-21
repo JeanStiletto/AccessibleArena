@@ -164,10 +164,10 @@ namespace AccessibleArena.Core.Services
         {
             _controller = null;
             _controllerGameObject = null;
-            _reflectionInitialized = false;
+            _levelsCache.Clear();
             _prizeWallController = null;
             _prizeWallGameObject = null;
-            _prizeWallReflectionInitialized = false;
+            _prizeWallCache.Clear();
 
             base.OnSceneChanged(sceneName);
         }
