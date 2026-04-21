@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
@@ -20,25 +20,86 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private readonly GroupedNavigator _groupedNavigator;
         private readonly IAnnouncementService _announcer;
 
-        // Cached reflection info for player status extraction
-        private static Type _challengeDisplayType;
-        private static Type _playerDisplayType;
-        private static Type _playBladeControllerType;
-        private static Type _bladeWidgetType;
-        private static MethodInfo _hideDeckSelectorMethod;
-        private static FieldInfo _deckSelectorField;
+        private sealed class ChallengeHandles
+        {
+            public Type ChallengeDisplayType;
+            public Type PlayerDisplayType;
+            public Type BladeWidgetType;
 
-        private static FieldInfo _localPlayerField;
-        private static FieldInfo _enemyPlayerField;
-        private static FieldInfo _playerNameField;
-        private static FieldInfo _noPlayerField;
-        private static FieldInfo _playerInvitedField;
+            public FieldInfo LocalPlayer;
+            public FieldInfo EnemyPlayer;
+            public FieldInfo PlayerName;
+            public FieldInfo NoPlayer;
+            public FieldInfo PlayerInvited;
 
-        // Blade widget reflection for status text and settings lock
-        private static FieldInfo _challengeStatusTextField;
-        private static FieldInfo _isChallengeSettingsLockedField;
-        private static PropertyInfo _isChallengeSettingsLockedProp;
-        private static bool _reflectionInitialized;
+            public FieldInfo ChallengeStatusText;
+            public FieldInfo IsChallengeSettingsLockedField;
+            public PropertyInfo IsChallengeSettingsLockedProp;
+        }
+
+        private sealed class PlayBladeHandles
+        {
+            public Type ControllerType;
+            public FieldInfo DeckSelector;
+            public MethodInfo HideDeckSelector;
+        }
+
+        private static readonly ReflectionCache<ChallengeHandles> _challengeCache = new ReflectionCache<ChallengeHandles>(
+            builder: _ =>
+            {
+                var h = new ChallengeHandles
+                {
+                    ChallengeDisplayType = FindType("UnifiedChallengeDisplay"),
+                    PlayerDisplayType = FindType("Wizards.Mtga.PrivateGame.ChallengePlayerDisplay"),
+                    BladeWidgetType = FindType("UnifiedChallengeBladeWidget"),
+                };
+
+                if (h.ChallengeDisplayType != null)
+                {
+                    h.LocalPlayer = h.ChallengeDisplayType.GetField("_localPlayerDisplay", PrivateInstance);
+                    h.EnemyPlayer = h.ChallengeDisplayType.GetField("_enemyPlayerDisplay", PrivateInstance);
+                }
+
+                if (h.PlayerDisplayType != null)
+                {
+                    h.PlayerName = h.PlayerDisplayType.GetField("_playerName", PrivateInstance);
+                    h.NoPlayer = h.PlayerDisplayType.GetField("_noPlayer", PrivateInstance);
+                    h.PlayerInvited = h.PlayerDisplayType.GetField("_playerInvited", PrivateInstance);
+                }
+
+                if (h.BladeWidgetType != null)
+                {
+                    h.ChallengeStatusText = h.BladeWidgetType.GetField("_challengeStatusText", PrivateInstance);
+                    h.IsChallengeSettingsLockedProp = h.BladeWidgetType.GetProperty("IsChallengeSettingsLocked", AllInstanceFlags);
+                    if (h.IsChallengeSettingsLockedProp == null)
+                        h.IsChallengeSettingsLockedField = h.BladeWidgetType.GetField("IsChallengeSettingsLocked", AllInstanceFlags);
+                    if (h.IsChallengeSettingsLockedField == null)
+                        h.IsChallengeSettingsLockedField = h.BladeWidgetType.GetField("_isChallengeSettingsLocked", PrivateInstance);
+                }
+
+                return h;
+            },
+            validator: h => h.ChallengeDisplayType != null && h.PlayerDisplayType != null,
+            logTag: "ChallengeHelper",
+            logSubject: "Challenge");
+
+        private static readonly ReflectionCache<PlayBladeHandles> _playBladeCache = new ReflectionCache<PlayBladeHandles>(
+            builder: _ =>
+            {
+                var h = new PlayBladeHandles
+                {
+                    ControllerType = FindType("PlayBladeController"),
+                };
+                if (h.ControllerType != null)
+                {
+                    h.DeckSelector = h.ControllerType.GetField("DeckSelector", PublicInstance);
+                    h.HideDeckSelector = h.ControllerType.GetMethod("HideDeckSelector", PublicInstance);
+                }
+                return h;
+            },
+            validator: h => h.ControllerType != null,
+            logTag: "ChallengeHelper",
+            logSubject: "PlayBladeController");
 
         // Polling state for player status changes
         private enum EnemyState { NotInvited, Invited, Joined }
@@ -333,9 +394,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 var widget = FindBladeWidget();
                 if (widget == null) return null;
 
-                if (_challengeStatusTextField == null) return null;
+                if (_challengeCache.Handles.ChallengeStatusText == null) return null;
 
-                var statusComponent = _challengeStatusTextField.GetValue(widget) as Component;
+                var statusComponent = _challengeCache.Handles.ChallengeStatusText.GetValue(widget) as Component;
                 if (statusComponent == null || !statusComponent.gameObject.activeInHierarchy)
                     return null;
 
@@ -364,10 +425,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (widget == null) return false;
 
                 // Try property first, then field
-                if (_isChallengeSettingsLockedProp != null)
-                    return (bool)_isChallengeSettingsLockedProp.GetValue(widget);
-                if (_isChallengeSettingsLockedField != null)
-                    return (bool)_isChallengeSettingsLockedField.GetValue(widget);
+                if (_challengeCache.Handles.IsChallengeSettingsLockedProp != null)
+                    return (bool)_challengeCache.Handles.IsChallengeSettingsLockedProp.GetValue(widget);
+                if (_challengeCache.Handles.IsChallengeSettingsLockedField != null)
+                    return (bool)_challengeCache.Handles.IsChallengeSettingsLockedField.GetValue(widget);
 
                 return false;
             }
@@ -461,7 +522,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 var display = FindChallengeDisplay();
                 if (display != null)
                 {
-                    var enemyDisplay = _enemyPlayerField?.GetValue(display);
+                    var enemyDisplay = _challengeCache.Handles.EnemyPlayer?.GetValue(display);
                     _lastEnemyState = GetEnemyState(enemyDisplay);
                     _lastEnemyName = GetEnemyName(enemyDisplay);
                 }
@@ -493,7 +554,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (display == null) return;
 
             // Check enemy state
-            var enemyDisplay = _enemyPlayerField?.GetValue(display);
+            var enemyDisplay = _challengeCache.Handles.EnemyPlayer?.GetValue(display);
             var currentState = GetEnemyState(enemyDisplay);
             var currentName = GetEnemyName(enemyDisplay);
 
@@ -607,8 +668,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (enemyDisplay == null) return EnemyState.NotInvited;
 
-            var noPlayerObj = _noPlayerField?.GetValue(enemyDisplay) as GameObject;
-            var invitedObj = _playerInvitedField?.GetValue(enemyDisplay) as GameObject;
+            var noPlayerObj = _challengeCache.Handles.NoPlayer?.GetValue(enemyDisplay) as GameObject;
+            var invitedObj = _challengeCache.Handles.PlayerInvited?.GetValue(enemyDisplay) as GameObject;
 
             if (noPlayerObj != null && noPlayerObj.activeSelf)
                 return EnemyState.NotInvited;
@@ -622,7 +683,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             if (enemyDisplay == null) return null;
 
-            var nameText = _playerNameField?.GetValue(enemyDisplay) as TMP_Text;
+            var nameText = _challengeCache.Handles.PlayerName?.GetValue(enemyDisplay) as TMP_Text;
             if (nameText == null || string.IsNullOrEmpty(nameText.text)) return null;
 
             return StripRichTextTags(nameText.text);
@@ -657,10 +718,10 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 var display = FindChallengeDisplay();
                 if (display == null) return null;
 
-                var localDisplay = _localPlayerField?.GetValue(display);
+                var localDisplay = _challengeCache.Handles.LocalPlayer?.GetValue(display);
                 if (localDisplay == null) return null;
 
-                var nameText = _playerNameField?.GetValue(localDisplay) as TMP_Text;
+                var nameText = _challengeCache.Handles.PlayerName?.GetValue(localDisplay) as TMP_Text;
                 if (nameText == null || string.IsNullOrEmpty(nameText.text)) return null;
 
                 return StripRichTextTags(nameText.text);
@@ -684,7 +745,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 var display = FindChallengeDisplay();
                 if (display == null) return null;
 
-                var localDisplay = _localPlayerField?.GetValue(display);
+                var localDisplay = _challengeCache.Handles.LocalPlayer?.GetValue(display);
                 return GetPlayerStatus(localDisplay);
             }
             catch (Exception ex)
@@ -705,44 +766,21 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             try
             {
-                if (_playBladeControllerType == null)
-                {
-                    _playBladeControllerType = FindType("PlayBladeController");
-                    if (_playBladeControllerType == null) return;
-                }
+                if (!_playBladeCache.EnsureInitialized(typeof(ChallengeNavigationHelper))) return;
+                var h = _playBladeCache.Handles;
+                if (h.ControllerType == null || h.DeckSelector == null || h.HideDeckSelector == null) return;
 
-                // Find the active PlayBladeController
-                var controllers = UnityEngine.Object.FindObjectsOfType(_playBladeControllerType);
+                var controllers = UnityEngine.Object.FindObjectsOfType(h.ControllerType);
                 foreach (var controller in controllers)
                 {
                     var mb = controller as MonoBehaviour;
                     if (mb == null || !mb.gameObject.activeInHierarchy) continue;
 
-                    // Resolve DeckSelector field (needed to verify controller has one)
-                    if (_deckSelectorField == null)
-                        _deckSelectorField = _playBladeControllerType.GetField("DeckSelector",
-                            PublicInstance);
-                    if (_deckSelectorField == null) continue;
-
-                    var deckSelector = _deckSelectorField.GetValue(controller);
+                    var deckSelector = h.DeckSelector.GetValue(controller);
                     if (deckSelector == null) continue;
 
-                    // Call HideDeckSelector() unconditionally - it closes the blade AND reactivates
-                    // the challenge display. Safe to call even when blade is already hidden:
-                    // - DeckSelector.Hide() is a no-op when already hidden
-                    // - _unifiedChallengeDisplay.SetActive(true) restores Leave/Invite buttons
-                    // This is needed because the game sometimes calls DeckSelectBlade.Hide() directly
-                    // (e.g., after deck selection), which hides the blade but leaves the display inactive.
-                    if (_hideDeckSelectorMethod == null)
-                    {
-                        _hideDeckSelectorMethod = _playBladeControllerType.GetMethod("HideDeckSelector",
-                            PublicInstance);
-                    }
-                    if (_hideDeckSelectorMethod != null)
-                    {
-                        _hideDeckSelectorMethod.Invoke(controller, null);
-                        Log.Msg("ChallengeHelper", "Closed DeckSelectBlade via PlayBladeController.HideDeckSelector");
-                    }
+                    h.HideDeckSelector.Invoke(controller, null);
+                    Log.Msg("ChallengeHelper", "Closed DeckSelectBlade via PlayBladeController.HideDeckSelector");
                     break;
                 }
             }
@@ -765,7 +803,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             try
             {
                 InitReflection();
-                if (_challengeDisplayType == null)
+                if (_challengeCache.Handles.ChallengeDisplayType == null)
                     return null;
 
                 // Find UnifiedChallengeDisplay in scene
@@ -774,8 +812,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                     return null;
 
                 // Get local and enemy player displays
-                var localDisplay = _localPlayerField?.GetValue(displayComponent);
-                var enemyDisplay = _enemyPlayerField?.GetValue(displayComponent);
+                var localDisplay = _challengeCache.Handles.LocalPlayer?.GetValue(displayComponent);
+                var enemyDisplay = _challengeCache.Handles.EnemyPlayer?.GetValue(displayComponent);
 
                 string localInfo = GetPlayerInfo(localDisplay, isLocal: true);
                 string enemyInfo = GetPlayerInfo(enemyDisplay, isLocal: false);
@@ -842,7 +880,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 if (display == null)
                     return $"{Models.Strings.ChallengeOpponent}: {Models.Strings.ChallengeNotInvited}";
 
-                var enemyDisplay = _enemyPlayerField?.GetValue(display);
+                var enemyDisplay = _challengeCache.Handles.EnemyPlayer?.GetValue(display);
                 return BuildOpponentLabel(enemyDisplay);
             }
             catch (Exception ex)
@@ -857,8 +895,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (enemyDisplay == null)
                 return $"{Models.Strings.ChallengeOpponent}: {Models.Strings.ChallengeNotInvited}";
 
-            var noPlayerObj = _noPlayerField?.GetValue(enemyDisplay) as GameObject;
-            var invitedObj = _playerInvitedField?.GetValue(enemyDisplay) as GameObject;
+            var noPlayerObj = _challengeCache.Handles.NoPlayer?.GetValue(enemyDisplay) as GameObject;
+            var invitedObj = _challengeCache.Handles.PlayerInvited?.GetValue(enemyDisplay) as GameObject;
 
             if (noPlayerObj != null && noPlayerObj.activeSelf)
                 return $"{Models.Strings.ChallengeOpponent}: {Models.Strings.ChallengeNotInvited}";
@@ -883,9 +921,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         private static string GetPlayerStatus(object playerDisplay)
         {
-            if (playerDisplay == null || _playerDisplayType == null) return null;
+            if (playerDisplay == null || _challengeCache.Handles.PlayerDisplayType == null) return null;
 
-            var statusField = _playerDisplayType.GetField("_playerStatus", PrivateInstance);
+            var statusField = _challengeCache.Handles.PlayerDisplayType.GetField("_playerStatus", PrivateInstance);
             if (statusField == null) return null;
 
             var statusComponent = statusField.GetValue(playerDisplay) as Component;
@@ -917,57 +955,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             return status;
         }
 
-        private static void InitReflection()
+        private static bool InitReflection()
         {
-            if (_reflectionInitialized) return;
-            _reflectionInitialized = true;
-
-            var flags = PrivateInstance;
-
-            // Find types
-            _challengeDisplayType = FindType("UnifiedChallengeDisplay");
-            _playerDisplayType = FindType("Wizards.Mtga.PrivateGame.ChallengePlayerDisplay");
-            _bladeWidgetType = FindType("UnifiedChallengeBladeWidget");
-
-            if (_challengeDisplayType != null)
-            {
-                _localPlayerField = _challengeDisplayType.GetField("_localPlayerDisplay", flags);
-                _enemyPlayerField = _challengeDisplayType.GetField("_enemyPlayerDisplay", flags);
-            }
-
-            if (_playerDisplayType != null)
-            {
-                _playerNameField = _playerDisplayType.GetField("_playerName", flags);
-                _noPlayerField = _playerDisplayType.GetField("_noPlayer", flags);
-                _playerInvitedField = _playerDisplayType.GetField("_playerInvited", flags);
-            }
-
-            if (_bladeWidgetType != null)
-            {
-                _challengeStatusTextField = _bladeWidgetType.GetField("_challengeStatusText", flags);
-
-                // Try both property and field for settings lock
-                _isChallengeSettingsLockedProp = _bladeWidgetType.GetProperty("IsChallengeSettingsLocked",
-                    AllInstanceFlags);
-                if (_isChallengeSettingsLockedProp == null)
-                    _isChallengeSettingsLockedField = _bladeWidgetType.GetField("IsChallengeSettingsLocked",
-                        AllInstanceFlags);
-                if (_isChallengeSettingsLockedField == null)
-                    _isChallengeSettingsLockedField = _bladeWidgetType.GetField("_isChallengeSettingsLocked", flags);
-            }
-
-            Log.Msg("ChallengeHelper", $"Reflection init: display={_challengeDisplayType != null}, " +
-                $"player={_playerDisplayType != null}, widget={_bladeWidgetType != null}, " +
-                $"statusField={_challengeStatusTextField != null}, " +
-                $"lockProp={_isChallengeSettingsLockedProp != null}, lockField={_isChallengeSettingsLockedField != null}");
+            return _challengeCache.EnsureInitialized(typeof(ChallengeNavigationHelper));
         }
 
         private static UnityEngine.Object FindChallengeDisplay()
         {
-            if (_challengeDisplayType == null) return null;
+            if (_challengeCache.Handles.ChallengeDisplayType == null) return null;
 
             // FindObjectsOfType with the resolved type
-            var objects = UnityEngine.Object.FindObjectsOfType(_challengeDisplayType);
+            var objects = UnityEngine.Object.FindObjectsOfType(_challengeCache.Handles.ChallengeDisplayType);
             foreach (var obj in objects)
             {
                 var mb = obj as MonoBehaviour;
@@ -982,9 +980,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         private static UnityEngine.Object FindBladeWidget()
         {
-            if (_bladeWidgetType == null) return null;
+            if (_challengeCache.Handles.BladeWidgetType == null) return null;
 
-            var objects = UnityEngine.Object.FindObjectsOfType(_bladeWidgetType);
+            var objects = UnityEngine.Object.FindObjectsOfType(_challengeCache.Handles.BladeWidgetType);
             foreach (var obj in objects)
             {
                 var mb = obj as MonoBehaviour;
@@ -1005,8 +1003,8 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             // For enemy card: check if no player or invited
             if (!isLocal)
             {
-                var noPlayerObj = _noPlayerField?.GetValue(playerDisplay) as GameObject;
-                var invitedObj = _playerInvitedField?.GetValue(playerDisplay) as GameObject;
+                var noPlayerObj = _challengeCache.Handles.NoPlayer?.GetValue(playerDisplay) as GameObject;
+                var invitedObj = _challengeCache.Handles.PlayerInvited?.GetValue(playerDisplay) as GameObject;
 
                 if (noPlayerObj != null && noPlayerObj.activeSelf)
                     return $"{prefix}: {Models.Strings.ChallengeNotInvited}";
@@ -1020,7 +1018,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // Read player name
             string playerName = null;
-            var nameText = _playerNameField?.GetValue(playerDisplay) as TMP_Text;
+            var nameText = _challengeCache.Handles.PlayerName?.GetValue(playerDisplay) as TMP_Text;
             if (nameText != null)
                 playerName = nameText.text;
 
@@ -1030,7 +1028,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (playerDisplayMb != null)
             {
                 // Find _playerStatus field (Localize component) and read its text
-                var statusField = _playerDisplayType?.GetField("_playerStatus", PrivateInstance);
+                var statusField = _challengeCache.Handles.PlayerDisplayType?.GetField("_playerStatus", PrivateInstance);
                 if (statusField != null)
                 {
                     var statusComponent = statusField.GetValue(playerDisplay) as Component;
