@@ -56,6 +56,7 @@ namespace AccessibleArena.Core.Services
         // Previous DIAG counts - only log when changed
         private int _lastDiagHandHighlighted = -1;
         private int _lastDiagBattlefieldHighlighted = -1;
+        private int _lastDiscoveryCount = -1;
 
         // Avatar targeting reflection cache
         private static Type _avatarViewType;
@@ -445,7 +446,11 @@ namespace AccessibleArena.Core.Services
         {
             _items.Clear();
 
-            Log.Nav("HotHighlightNavigator", "Discovering highlights (full rebuild)...");
+            // Only log discovery if the previous pass found something, or this one will —
+            // avoids a pair of "Discovering... / Found 0 items" every phase change with nothing to highlight.
+            bool logThisPass = _lastDiscoveryCount != 0;
+            if (logThisPass)
+                Log.Nav("HotHighlightNavigator", "Discovering highlights (full rebuild)...");
 
             bool selectionMode = IsSelectionModeActive();
             CheckSelectionModeTransition(selectionMode);
@@ -476,7 +481,9 @@ namespace AccessibleArena.Core.Services
                 .ThenBy(i => i.GameObject?.transform.position.x ?? 0)
                 .ToList();
 
-            Log.Nav("HotHighlightNavigator", $"Found {_items.Count} highlighted items");
+            if (logThisPass || _items.Count > 0)
+                Log.Nav("HotHighlightNavigator", $"Found {_items.Count} highlighted items");
+            _lastDiscoveryCount = _items.Count;
 
             // Reset indices if out of range
             if (_currentIndex >= _items.Count)
