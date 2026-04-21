@@ -147,6 +147,13 @@ namespace AccessibleArenaInstaller
 
             // Validate initial path
             ValidatePath();
+
+            // Screen-reader support: expose heading + body as the dialog's accessible
+            // description so NVDA announces it when the form opens. Also mirror onto the
+            // primary action button so it's announced if focus lands there first.
+            string body = $"{_titleLabel.Text}. {_statusLabel.Text}";
+            AccessibleDescription = body;
+            _installButton.AccessibleDescription = body;
         }
 
         private void BrowseButton_Click(object sender, EventArgs e)

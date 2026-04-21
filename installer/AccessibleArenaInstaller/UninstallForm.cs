@@ -108,6 +108,12 @@ namespace AccessibleArenaInstaller
                 _uninstallButton,
                 _cancelButton
             });
+
+            // Screen-reader support: expose heading + body + path as the dialog's
+            // accessible description. Without this NVDA only announces the focused button.
+            string body = $"{_titleLabel.Text}. {_statusLabel.Text} {_pathLabel.Text}";
+            AccessibleDescription = body;
+            _uninstallButton.AccessibleDescription = body;
         }
 
         private async void UninstallButton_Click(object sender, EventArgs e)

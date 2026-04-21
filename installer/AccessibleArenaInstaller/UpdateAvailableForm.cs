@@ -89,6 +89,12 @@ namespace AccessibleArenaInstaller
                 fullInstallButton,
                 closeButton
             });
+
+            // Screen-reader support: expose heading + body as the dialog's accessible
+            // description so NVDA announces it when the form opens.
+            string body = $"{titleLabel.Text}. {versionLabel.Text}";
+            AccessibleDescription = body;
+            updateButton.AccessibleDescription = body;
         }
     }
 }

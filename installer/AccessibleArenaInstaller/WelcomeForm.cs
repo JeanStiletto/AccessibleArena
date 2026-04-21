@@ -235,6 +235,7 @@ namespace AccessibleArenaInstaller
         {
             _page2.Visible = false;
             _page1.Visible = true;
+            UpdateAccessibleDescription();
             _nextButton.Focus();
         }
 
@@ -242,6 +243,7 @@ namespace AccessibleArenaInstaller
         {
             _page1.Visible = false;
             _page2.Visible = true;
+            UpdateAccessibleDescription();
             _installButton.Focus();
         }
 
@@ -265,6 +267,31 @@ namespace AccessibleArenaInstaller
             _downloadPageButton.Text = InstallerLocale.Get("Welcome_DownloadPage");
             _installButton.Text = InstallerLocale.Get("Welcome_InstallMod");
             _backButton.Text = InstallerLocale.Get("Welcome_BackButton");
+
+            UpdateAccessibleDescription();
+        }
+
+        /// <summary>
+        /// Exposes the currently visible page's body text to screen readers via
+        /// Form.AccessibleDescription (read on dialog open) and also on the default-focused
+        /// button's AccessibleDescription (read when focus lands). Without this, NVDA only
+        /// announces the focused button and skips the Labels entirely.
+        /// </summary>
+        private void UpdateAccessibleDescription()
+        {
+            if (_page2 != null && _page2.Visible)
+            {
+                string body = $"{_downloadTitleLabel.Text}. {_downloadDescriptionLabel.Text}";
+                AccessibleDescription = body;
+                if (_installButton != null) _installButton.AccessibleDescription = body;
+            }
+            else
+            {
+                string version = _versionLabel != null ? _versionLabel.Text : string.Empty;
+                string body = $"{_titleLabel.Text}. {_descriptionLabel.Text} {version}".Trim();
+                AccessibleDescription = body;
+                if (_nextButton != null) _nextButton.AccessibleDescription = body;
+            }
         }
     }
 }

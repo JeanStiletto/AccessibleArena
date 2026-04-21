@@ -254,6 +254,42 @@ AccessibleArenaInstaller.exe "C:\path\to\MTGA"    # Install to specific path
 - No custom controls that might break accessibility
 - Keyboard navigation works by default in WinForms
 
+### The Label-vs-MessageBox Gotcha
+
+A native `MessageBox.Show` is read correctly by NVDA because Windows wires the
+body text into the dialog's UI Automation tree as the "main instruction" — the
+screen reader announces it as part of the dialog-open event.
+
+Custom `Form` subclasses do **not** get this for free. Body text placed in
+`Label` controls is:
+
+- not focusable and not in the tab order
+- not associated with any focused control
+- invisible to the default dialog-open announcement — NVDA lands on the first
+  focusable button and reads *only* its name
+
+**Fix pattern used throughout the installer forms:**
+
+Set `Form.AccessibleDescription` to the heading + body text, and mirror the
+same string onto the default-focused button's `AccessibleDescription`. NVDA
+reads `AccessibleDescription` both on dialog open and when focus lands on the
+button, so the user always hears the context regardless of which event the
+screen reader picks up.
+
+```csharp
+// In InitializeComponents(), after all Labels have their Text set:
+string body = $"{_titleLabel.Text}. {_statusLabel.Text}";
+AccessibleDescription = body;
+_installButton.AccessibleDescription = body;
+```
+
+For multi-page wizards like `WelcomeForm`, recompute `AccessibleDescription`
+on page navigation (`ShowPage1`/`ShowPage2`) so the currently visible page's
+body text is what the focused button announces.
+
+Files that use this pattern: `WelcomeForm.cs`, `MainForm.cs`, `UninstallForm.cs`,
+`UpdateAvailableForm.cs`.
+
 ## Build Instructions
 
 **Debug build (for testing):**
@@ -595,6 +631,10 @@ en, de, fr, es, it, pt-BR, ru, pl, ja, ko, zh-CN, zh-TW
 ## Changelog
 
 ### Version 1.8
+- Screen-reader accessibility for custom Forms
+  - `WelcomeForm`, `MainForm`, `UninstallForm`, `UpdateAvailableForm` now set `Form.AccessibleDescription` (and mirror onto the default-focused button) with heading + body text
+  - Without this, NVDA only announced the focused button on dialog open and skipped the Label text entirely — only `MessageBox.Show` got read correctly
+  - `WelcomeForm` recomputes the description on `ShowPage1`/`ShowPage2` so the correct page body is announced
 - Persistent uninstaller in the MTGA folder
   - Install now copies the running EXE to `<MtgaPath>\AccessibleArena_Uninstaller.exe`
   - Registry `UninstallString` points at that copy instead of the fragile Downloads path
