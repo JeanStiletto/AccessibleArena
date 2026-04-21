@@ -513,7 +513,7 @@
   "WebBrowser_Submitted": "已送出",
   "WebBrowser_NoBackButton": "未找到返回按鈕",
   "WebBrowser_Editing_Format": "正在編輯{0}，{1}。輸入文字，按Escape離開。",
-  "WebBrowser_CaptchaWarning": "偵測到安全驗證。這是一個視覺驗證碼，無法在沒有視力的情況下完成。PayPal未提供音訊替代方案，違反了無障礙法律。請向看得見的人尋求幫助，或按Backspace返回並嘗試其他付款方式。",
+  "WebBrowser_CaptchaWarning": "偵測到安全驗證。這是一個視覺驗證碼，無法在沒有視力的情況下完成。看得見的幫手可能可以替您點擊。為獲得最佳結果，請在重新嘗試付款前執行模組解除安裝程式——這可以減少被PayPal標記的可能性。如果驗證碼仍然無法運作，您將需要選擇其他付款方式。按Backspace返回。",
   "WebBrowser_LoginFailed": "登入失敗。請重新輸入密碼後再試一次。",
   "WebBrowser_PasswordStar": "星號",
   "WebBrowser_SpaceChar": "空白",

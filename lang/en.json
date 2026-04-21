@@ -515,7 +515,7 @@
   "WebBrowser_Submitted": "Submitted",
   "WebBrowser_NoBackButton": "No back button found",
   "WebBrowser_Editing_Format": "Editing {0}, {1}. Type to enter text, Escape to exit.",
-  "WebBrowser_CaptchaWarning": "Security verification detected. This is a visual CAPTCHA that cannot be solved without sight. PayPal is breaking accessibility laws by not providing an audio alternative. Please ask someone for sighted assistance, or press Backspace to go back and try a different payment method.",
+  "WebBrowser_CaptchaWarning": "Security verification detected. This is a visual CAPTCHA that cannot be solved without sight. A sighted helper may be able to click it for you. For best results, run the mod uninstaller before retrying payment — this reduces the chance of being flagged by PayPal. If the CAPTCHA still does not work, you will need to choose a different payment method. Press Backspace to go back.",
   "WebBrowser_LoginFailed": "Login failed. Please re-enter your password and try again.",
   "WebBrowser_PasswordStar": "star",
   "WebBrowser_SpaceChar": "space",

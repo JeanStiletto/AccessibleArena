@@ -513,7 +513,7 @@
   "WebBrowser_Submitted": "Enviado",
   "WebBrowser_NoBackButton": "No se encontró botón de retroceso",
   "WebBrowser_Editing_Format": "Editando {0}, {1}. Escriba texto, Escape para salir.",
-  "WebBrowser_CaptchaWarning": "Verificación de seguridad detectada. Es un CAPTCHA visual que no se puede resolver sin vista. PayPal está infringiendo las leyes de accesibilidad al no ofrecer una alternativa de audio. Pida ayuda a alguien que pueda ver, o pulse Retroceso para volver e intentar otro método de pago.",
+  "WebBrowser_CaptchaWarning": "Verificación de seguridad detectada. Es un CAPTCHA visual que no se puede resolver sin vista. Una persona vidente podría hacer clic por usted. Para mejores resultados, ejecute el desinstalador del mod antes de reintentar el pago — esto reduce la probabilidad de ser marcado por PayPal. Si el CAPTCHA sigue sin funcionar, tendrá que elegir otro método de pago. Pulse Retroceso para volver.",
   "WebBrowser_LoginFailed": "Inicio de sesión fallido. Por favor, vuelva a introducir su contraseña e inténtelo de nuevo.",
   "WebBrowser_PasswordStar": "estrella",
   "WebBrowser_SpaceChar": "espacio",

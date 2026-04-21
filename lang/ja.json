@@ -513,7 +513,7 @@
   "WebBrowser_Submitted": "送信済み",
   "WebBrowser_NoBackButton": "戻るボタンが見つかりません",
   "WebBrowser_Editing_Format": "{0}を編集中、{1}。テキストを入力、Escapeで終了。",
-  "WebBrowser_CaptchaWarning": "セキュリティ認証が検出されました。これは視覚的なCAPTCHAで、視力なしでは解決できません。PayPalは音声の代替手段を提供せず、アクセシビリティに関する法律に違反しています。見える方に助けを求めるか、Backspaceを押して戻り、別の支払い方法を試してください。",
+  "WebBrowser_CaptchaWarning": "セキュリティ認証が検出されました。これは視覚的なCAPTCHAで、視力なしでは解決できません。見える方が代わりにクリックしてくれるかもしれません。最良の結果を得るため、支払いを再試行する前にMODアンインストーラーを実行してください — これによりPayPalからフラグが付けられる可能性が減ります。CAPTCHAが依然として機能しない場合は、別の支払い方法を選ぶ必要があります。Backspaceを押して戻ってください。",
   "WebBrowser_LoginFailed": "ログインに失敗しました。パスワードを再入力してもう一度お試しください。",
   "WebBrowser_PasswordStar": "星",
   "WebBrowser_SpaceChar": "スペース",

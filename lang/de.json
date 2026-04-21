@@ -513,7 +513,7 @@
   "WebBrowser_Submitted": "Abgesendet",
   "WebBrowser_NoBackButton": "Keine Zurück-Schaltfläche gefunden",
   "WebBrowser_Editing_Format": "Bearbeitung von {0}, {1}. Text eingeben, Escape zum Beenden.",
-  "WebBrowser_CaptchaWarning": "Sicherheitsüberprüfung erkannt. Dies ist ein visuelles CAPTCHA, das ohne Sehvermögen nicht gelöst werden kann. PayPal verstößt gegen Barrierefreiheitsgesetze, indem keine Audio-Alternative bereitgestellt wird. Bitten Sie jemanden um sehende Hilfe oder drücken Sie Rücktaste, um zurückzugehen und eine andere Zahlungsmethode zu wählen.",
+  "WebBrowser_CaptchaWarning": "Sicherheitsüberprüfung erkannt. Dies ist ein visuelles CAPTCHA, das ohne Sehvermögen nicht gelöst werden kann. Eine sehende Person kann es möglicherweise für Sie anklicken. Für beste Ergebnisse führen Sie vor dem erneuten Bezahlversuch den Mod-Deinstallierer aus — das reduziert die Wahrscheinlichkeit, von PayPal markiert zu werden. Wenn das CAPTCHA weiterhin nicht funktioniert, müssen Sie eine andere Zahlungsmethode wählen. Drücken Sie Rücktaste, um zurückzukehren.",
   "WebBrowser_LoginFailed": "Anmeldung fehlgeschlagen. Bitte geben Sie Ihr Passwort erneut ein und versuchen Sie es noch einmal.",
   "WebBrowser_PasswordStar": "Stern",
   "WebBrowser_SpaceChar": "Leerzeichen",

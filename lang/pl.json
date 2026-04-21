@@ -513,7 +513,7 @@
   "WebBrowser_Submitted": "Wysłano",
   "WebBrowser_NoBackButton": "Nie znaleziono przycisku wstecz",
   "WebBrowser_Editing_Format": "Edycja {0}, {1}. Wpisz tekst, Escape aby wyjść.",
-  "WebBrowser_CaptchaWarning": "Wykryto weryfikację bezpieczeństwa. To wizualna CAPTCHA, której nie można rozwiązać bez wzroku. PayPal łamie przepisy dotyczące dostępności, nie zapewniając alternatywy dźwiękowej. Poproś o pomoc osobę widzącą lub naciśnij Backspace, aby wrócić i spróbować innej metody płatności.",
+  "WebBrowser_CaptchaWarning": "Wykryto weryfikację bezpieczeństwa. To wizualna CAPTCHA, której nie można rozwiązać bez wzroku. Osoba widząca może kliknąć ją za Ciebie. Dla najlepszych rezultatów uruchom dezinstalator moda przed ponowną próbą płatności — zmniejsza to ryzyko oznaczenia przez PayPal. Jeśli CAPTCHA nadal nie działa, będziesz musiał wybrać inną metodę płatności. Naciśnij Backspace, aby wrócić.",
   "WebBrowser_LoginFailed": "Logowanie nie powiodło się. Wprowadź hasło ponownie i spróbuj jeszcze raz.",
   "WebBrowser_PasswordStar": "gwiazdka",
   "WebBrowser_SpaceChar": "spacja",

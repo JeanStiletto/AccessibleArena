@@ -513,7 +513,7 @@
   "WebBrowser_Submitted": "Inviato",
   "WebBrowser_NoBackButton": "Pulsante indietro non trovato",
   "WebBrowser_Editing_Format": "Modifica di {0}, {1}. Digita per inserire testo, Escape per uscire.",
-  "WebBrowser_CaptchaWarning": "Verifica di sicurezza rilevata. Questo è un CAPTCHA visivo che non può essere risolto senza la vista. PayPal sta violando le leggi sull'accessibilità non fornendo un'alternativa audio. Chiedi assistenza a una persona vedente, oppure premi Backspace per tornare indietro e provare un altro metodo di pagamento.",
+  "WebBrowser_CaptchaWarning": "Verifica di sicurezza rilevata. Questo è un CAPTCHA visivo che non può essere risolto senza la vista. Una persona vedente potrebbe riuscire a cliccarlo per te. Per risultati migliori, esegui il disinstallatore della mod prima di riprovare il pagamento — questo riduce la possibilità di essere segnalato da PayPal. Se il CAPTCHA continua a non funzionare, dovrai scegliere un altro metodo di pagamento. Premi Backspace per tornare indietro.",
   "WebBrowser_LoginFailed": "Accesso non riuscito. Inserisci di nuovo la password e riprova.",
   "WebBrowser_PasswordStar": "stella",
   "WebBrowser_SpaceChar": "spazio",
