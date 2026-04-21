@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -19,32 +19,87 @@ namespace AccessibleArena.Core.Services
         private MonoBehaviour _gameManager;
         private int _gameManagerSearchFrame = -1;
 
-        // Cached AutoResponseManager
+        // Cached AutoResponseManager instance
         private object _autoRespManager;
-        private MethodInfo _toggleFullControl;
-        private MethodInfo _toggleLockedFullControl;
-        private PropertyInfo _fullControlEnabled;
-        private PropertyInfo _fullControlLocked;
 
-        // Cached auto-pass methods
-        private MethodInfo _setAutoPassOption;
-        private PropertyInfo _autoPassEnabled;
-        private Type _autoPassOptionType;
-        private object _optionUnlessOpponentAction; // AutoPassOption.UnlessOpponentAction = 5
-        private object _optionTurn;                 // AutoPassOption.Turn = 1
-        private object _optionResolveMyStackEffects; // AutoPassOption.ResolveMyStackEffects = 6
-
-        // Cached ButtonPhaseLadder
+        // Cached ButtonPhaseLadder instance
         private MonoBehaviour _phaseLadder;
         private int _phaseLadderSearchFrame = -1;
-        private FieldInfo _phaseIconsField;
 
-        // Cached reflection for PhaseLadderButton base type
-        private FieldInfo _playerStopTypesField;
-        private PropertyInfo _stopStateProp;
+        private sealed class AutoRespHandles
+        {
+            public MethodInfo ToggleFullControl;
+            public MethodInfo ToggleLockedFullControl;
+            public PropertyInfo FullControlEnabled;
+            public PropertyInfo FullControlLocked;
 
-        // Cached ToggleTransientStop on ButtonPhaseLadder (bypasses AllowStop guard)
-        private MethodInfo _toggleTransientStop;
+            public MethodInfo SetAutoPassOption;
+            public PropertyInfo AutoPassEnabled;
+            public Type AutoPassOptionType;
+            public object OptionUnlessOpponentAction;
+            public object OptionTurn;
+            public object OptionResolveMyStackEffects;
+        }
+
+        private sealed class PhaseLadderHandles
+        {
+            public FieldInfo PhaseIcons;
+            public MethodInfo ToggleTransientStop;
+        }
+
+        private sealed class PhaseLadderButtonHandles
+        {
+            public FieldInfo PlayerStopTypes;
+            public PropertyInfo StopState;
+        }
+
+        private static readonly ReflectionCache<AutoRespHandles> _autoRespCache = new ReflectionCache<AutoRespHandles>(
+            builder: t =>
+            {
+                var h = new AutoRespHandles
+                {
+                    ToggleFullControl = t.GetMethod("ToggleFullControl", PublicInstance),
+                    ToggleLockedFullControl = t.GetMethod("ToggleLockedFullControl", PublicInstance),
+                    FullControlEnabled = t.GetProperty("FullControlEnabled", PublicInstance),
+                    FullControlLocked = t.GetProperty("FullControlLocked", PublicInstance),
+                    SetAutoPassOption = t.GetMethod("SetAutoPassOption", PublicInstance),
+                    AutoPassEnabled = t.GetProperty("AutoPassEnabled", PublicInstance),
+                };
+
+                var parameters = h.SetAutoPassOption?.GetParameters();
+                if (parameters != null && parameters.Length >= 1)
+                {
+                    h.AutoPassOptionType = parameters[0].ParameterType;
+                    h.OptionUnlessOpponentAction = Enum.ToObject(h.AutoPassOptionType, 5);
+                    h.OptionTurn = Enum.ToObject(h.AutoPassOptionType, 1);
+                    h.OptionResolveMyStackEffects = Enum.ToObject(h.AutoPassOptionType, 6);
+                }
+
+                return h;
+            },
+            validator: h => h.ToggleFullControl != null && h.SetAutoPassOption != null && h.AutoPassOptionType != null,
+            logTag: "PriorityController",
+            logSubject: "AutoRespManager");
+
+        private static readonly ReflectionCache<PhaseLadderHandles> _phaseLadderCache = new ReflectionCache<PhaseLadderHandles>(
+            builder: t => new PhaseLadderHandles
+            {
+                PhaseIcons = t.GetField("PhaseIcons", PublicInstance),
+                ToggleTransientStop = t.GetMethod("ToggleTransientStop", PublicInstance),
+            },
+            validator: h => h.PhaseIcons != null && h.ToggleTransientStop != null,
+            logTag: "PriorityController",
+            logSubject: "ButtonPhaseLadder");
+
+        private static readonly ReflectionCache<PhaseLadderButtonHandles> _phaseLadderButtonCache = new ReflectionCache<PhaseLadderButtonHandles>(
+            builder: t => new PhaseLadderButtonHandles
+            {
+                PlayerStopTypes = ReflectionWalk.FindField(t, "_playerStopTypes", AllInstanceFlags | BindingFlags.DeclaredOnly),
+                StopState = t.GetProperty("StopState", PublicInstance),
+            },
+            validator: h => h.PlayerStopTypes != null && h.StopState != null,
+            logTag: "PriorityController",
+            logSubject: "PhaseLadderButton");
 
         // Phase stop button cache: maps our key index (0-9) to PhaseLadderButton(s)
         private Dictionary<int, List<object>> _phaseStopMap;
@@ -125,8 +180,7 @@ namespace AccessibleArena.Core.Services
             var gm = FindGameManager();
             if (gm == null) return null;
 
-            var type = gm.GetType();
-            var prop = type.GetProperty("AutoRespManager", PublicInstance);
+            var prop = gm.GetType().GetProperty("AutoRespManager", PublicInstance);
             if (prop == null)
             {
                 Log.Warn("PriorityController", "AutoRespManager property not found on GameManager");
@@ -140,17 +194,7 @@ namespace AccessibleArena.Core.Services
                 return null;
             }
 
-            // Cache methods and properties
-            var armType = _autoRespManager.GetType();
-            _toggleFullControl = armType.GetMethod("ToggleFullControl", PublicInstance);
-            _toggleLockedFullControl = armType.GetMethod("ToggleLockedFullControl", PublicInstance);
-            _fullControlEnabled = armType.GetProperty("FullControlEnabled", PublicInstance);
-            _fullControlLocked = armType.GetProperty("FullControlLocked", PublicInstance);
-
-            Log.Msg("PriorityController", $"Cached AutoRespManager " +
-                $"(ToggleFC={_toggleFullControl != null}, ToggleLocked={_toggleLockedFullControl != null}, " +
-                $"FCEnabled={_fullControlEnabled != null}, FCLocked={_fullControlLocked != null})");
-
+            _autoRespCache.EnsureInitialized(_autoRespManager.GetType());
             return _autoRespManager;
         }
 
@@ -161,7 +205,7 @@ namespace AccessibleArena.Core.Services
         public bool? ToggleFullControl()
         {
             var arm = GetAutoRespManager();
-            if (arm == null || _toggleFullControl == null)
+            if (arm == null || _autoRespCache.Handles.ToggleFullControl == null)
             {
                 Log.Warn("PriorityController", "Cannot toggle full control - AutoRespManager not available");
                 return null;
@@ -169,7 +213,7 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                _toggleFullControl.Invoke(arm, null);
+                _autoRespCache.Handles.ToggleFullControl.Invoke(arm, null);
                 return IsFullControlEnabled();
             }
             catch (Exception ex)
@@ -186,7 +230,7 @@ namespace AccessibleArena.Core.Services
         public bool? ToggleLockFullControl()
         {
             var arm = GetAutoRespManager();
-            if (arm == null || _toggleLockedFullControl == null)
+            if (arm == null || _autoRespCache.Handles.ToggleLockedFullControl == null)
             {
                 Log.Warn("PriorityController", "Cannot toggle locked full control - AutoRespManager not available");
                 return null;
@@ -194,7 +238,7 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                _toggleLockedFullControl.Invoke(arm, null);
+                _autoRespCache.Handles.ToggleLockedFullControl.Invoke(arm, null);
                 return IsFullControlLocked();
             }
             catch (Exception ex)
@@ -210,11 +254,11 @@ namespace AccessibleArena.Core.Services
         public bool IsFullControlEnabled()
         {
             var arm = GetAutoRespManager();
-            if (arm == null || _fullControlEnabled == null) return false;
+            if (arm == null || _autoRespCache.Handles.FullControlEnabled == null) return false;
 
             try
             {
-                return (bool)_fullControlEnabled.GetValue(arm);
+                return (bool)_autoRespCache.Handles.FullControlEnabled.GetValue(arm);
             }
             catch
             {
@@ -228,11 +272,11 @@ namespace AccessibleArena.Core.Services
         public bool IsFullControlLocked()
         {
             var arm = GetAutoRespManager();
-            if (arm == null || _fullControlLocked == null) return false;
+            if (arm == null || _autoRespCache.Handles.FullControlLocked == null) return false;
 
             try
             {
-                return (bool)_fullControlLocked.GetValue(arm);
+                return (bool)_autoRespCache.Handles.FullControlLocked.GetValue(arm);
             }
             catch
             {
@@ -240,41 +284,10 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        /// <summary>
-        /// Ensure auto-pass reflection is cached (SetAutoPassOption method and AutoPassOption enum).
-        /// </summary>
         private bool EnsureAutoPassCached()
         {
-            if (_setAutoPassOption != null && _autoPassOptionType != null) return true;
-
             var arm = GetAutoRespManager();
-            if (arm == null) return false;
-
-            var armType = arm.GetType();
-            _setAutoPassOption = armType.GetMethod("SetAutoPassOption", PublicInstance);
-            _autoPassEnabled = armType.GetProperty("AutoPassEnabled", PublicInstance);
-
-            if (_setAutoPassOption == null)
-            {
-                Log.Warn("PriorityController", "SetAutoPassOption method not found");
-                return false;
-            }
-
-            // Get AutoPassOption enum type from the method parameter
-            var parameters = _setAutoPassOption.GetParameters();
-            if (parameters.Length >= 1)
-            {
-                _autoPassOptionType = parameters[0].ParameterType;
-                _optionUnlessOpponentAction = Enum.ToObject(_autoPassOptionType, 5);
-                _optionTurn = Enum.ToObject(_autoPassOptionType, 1);
-                _optionResolveMyStackEffects = Enum.ToObject(_autoPassOptionType, 6);
-            }
-
-            Log.Msg("PriorityController", $"Cached auto-pass reflection " +
-                $"(SetAutoPassOption={_setAutoPassOption != null}, AutoPassEnabled={_autoPassEnabled != null}, " +
-                $"EnumType={_autoPassOptionType?.Name})");
-
-            return _setAutoPassOption != null && _autoPassOptionType != null;
+            return arm != null && _autoRespCache.EnsureInitialized(arm.GetType());
         }
 
         /// <summary>
@@ -283,9 +296,9 @@ namespace AccessibleArena.Core.Services
         public bool IsAutoPassActive()
         {
             var arm = GetAutoRespManager();
-            if (arm == null || _autoPassEnabled == null) return false;
+            if (arm == null || _autoRespCache.Handles.AutoPassEnabled == null) return false;
 
-            try { return (bool)_autoPassEnabled.GetValue(arm); }
+            try { return (bool)_autoRespCache.Handles.AutoPassEnabled.GetValue(arm); }
             catch { return false; }
         }
 
@@ -302,8 +315,8 @@ namespace AccessibleArena.Core.Services
             try
             {
                 bool wasEnabled = IsAutoPassActive();
-                var option = wasEnabled ? _optionResolveMyStackEffects : _optionUnlessOpponentAction;
-                _setAutoPassOption.Invoke(arm, new object[] { option, _optionResolveMyStackEffects });
+                var option = wasEnabled ? _autoRespCache.Handles.OptionResolveMyStackEffects : _autoRespCache.Handles.OptionUnlessOpponentAction;
+                _autoRespCache.Handles.SetAutoPassOption.Invoke(arm, new object[] { option, _autoRespCache.Handles.OptionResolveMyStackEffects });
                 Log.Msg("PriorityController", $"TogglePassUntilResponse: {(wasEnabled ? "cancelled" : "activated")}");
                 return !wasEnabled;
             }
@@ -327,8 +340,8 @@ namespace AccessibleArena.Core.Services
             try
             {
                 bool wasEnabled = IsAutoPassActive();
-                var option = wasEnabled ? _optionResolveMyStackEffects : _optionTurn;
-                _setAutoPassOption.Invoke(arm, new object[] { option, _optionResolveMyStackEffects });
+                var option = wasEnabled ? _autoRespCache.Handles.OptionResolveMyStackEffects : _autoRespCache.Handles.OptionTurn;
+                _autoRespCache.Handles.SetAutoPassOption.Invoke(arm, new object[] { option, _autoRespCache.Handles.OptionResolveMyStackEffects });
                 Log.Msg("PriorityController", $"ToggleSkipTurn: {(wasEnabled ? "cancelled" : "activated")}");
                 return !wasEnabled;
             }
@@ -352,34 +365,9 @@ namespace AccessibleArena.Core.Services
                 if (mb != null && mb.GetType().Name == "ButtonPhaseLadder")
                 {
                     _phaseLadder = mb;
-                    var type = mb.GetType();
-
-                    // PhaseIcons is a public field (List<PhaseLadderButton>) on ButtonPhaseLadder
-                    _phaseIconsField = type.GetField("PhaseIcons", PublicInstance);
-
-                    // ToggleTransientStop(PhaseLadderButton) is public on ButtonPhaseLadder
-                    _toggleTransientStop = type.GetMethod("ToggleTransientStop", PublicInstance);
-
-                    Log.Msg("PriorityController", $"Found ButtonPhaseLadder " +
-                        $"(PhaseIcons={_phaseIconsField != null}, ToggleTransientStop={_toggleTransientStop != null})");
+                    _phaseLadderCache.EnsureInitialized(mb.GetType());
                     return _phaseLadder;
                 }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Get a private FieldInfo by walking up the type hierarchy.
-        /// Required because GetField with NonPublic doesn't search base classes.
-        /// </summary>
-        private static FieldInfo GetFieldInHierarchy(Type type, string name)
-        {
-            while (type != null)
-            {
-                var field = type.GetField(name,
-                    AllInstanceFlags | BindingFlags.DeclaredOnly);
-                if (field != null) return field;
-                type = type.BaseType;
             }
             return null;
         }
@@ -393,9 +381,10 @@ namespace AccessibleArena.Core.Services
             _phaseStopMap = new Dictionary<int, List<object>>();
 
             var ladder = FindPhaseLadder();
-            if (ladder == null || _phaseIconsField == null) return;
+            var lh = _phaseLadderCache.Handles;
+            if (ladder == null || lh?.PhaseIcons == null) return;
 
-            var icons = _phaseIconsField.GetValue(ladder) as IList;
+            var icons = lh.PhaseIcons.GetValue(ladder) as IList;
             if (icons == null || icons.Count == 0) return;
 
             Log.Msg("PriorityController", $"Building phase stop map from {icons.Count} phase icons");
@@ -412,22 +401,11 @@ namespace AccessibleArena.Core.Services
                 // Skip AvatarPhaseIcon buttons - they're for player-specific stops
                 if (btnType.Name == "AvatarPhaseIcon") continue;
 
-                // Cache reflection for PhaseLadderButton base type (once)
-                if (_playerStopTypesField == null)
-                {
-                    // _playerStopTypes is private on base class PhaseLadderButton
-                    _playerStopTypesField = GetFieldInHierarchy(btnType, "_playerStopTypes");
-                    // StopState is public on PhaseLadderButton
-                    _stopStateProp = btnType.GetProperty("StopState", PublicInstance);
+                _phaseLadderButtonCache.EnsureInitialized(btnType);
+                var bh = _phaseLadderButtonCache.Handles;
+                if (bh?.PlayerStopTypes == null) continue;
 
-                    Log.Msg("PriorityController", $"Cached button reflection: " +
-                        $"_playerStopTypes={_playerStopTypesField != null}, " +
-                        $"StopState={_stopStateProp != null}");
-                }
-
-                if (_playerStopTypesField == null) continue;
-
-                var stopTypes = _playerStopTypesField.GetValue(button) as IList;
+                var stopTypes = bh.PlayerStopTypes.GetValue(button) as IList;
                 if (stopTypes == null) continue;
 
                 foreach (var st in stopTypes)
@@ -485,7 +463,7 @@ namespace AccessibleArena.Core.Services
                 return null;
             }
 
-            if (_toggleTransientStop == null || _phaseLadder == null)
+            if (_phaseLadderCache.Handles.ToggleTransientStop == null || _phaseLadder == null)
             {
                 Log.Warn("PriorityController", $"Cannot toggle phase stop - ladder not available");
                 return null;
@@ -501,7 +479,7 @@ namespace AccessibleArena.Core.Services
 
                     // Call ButtonPhaseLadder.ToggleTransientStop(button) directly
                     // This bypasses AllowStop guard on PhaseLadderButton.ToggleStop()
-                    _toggleTransientStop.Invoke(_phaseLadder, new object[] { button });
+                    _phaseLadderCache.Handles.ToggleTransientStop.Invoke(_phaseLadder, new object[] { button });
 
                     bool stateAfter = IsPhaseStopSet(button);
                     Log.Msg("PriorityController", $"Toggled phase stop index {keyIndex}: {stateBefore} -> {stateAfter}");
@@ -530,9 +508,9 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                if (_stopStateProp != null)
+                if (_phaseLadderButtonCache.Handles.StopState != null)
                 {
-                    var stopState = _stopStateProp.GetValue(button);
+                    var stopState = _phaseLadderButtonCache.Handles.StopState.GetValue(button);
                     // SettingStatus.Set means the stop is active
                     return stopState?.ToString() == "Set";
                 }
@@ -564,22 +542,8 @@ namespace AccessibleArena.Core.Services
             _gameManager = null;
             _gameManagerSearchFrame = -1;
             _autoRespManager = null;
-            _toggleFullControl = null;
-            _toggleLockedFullControl = null;
-            _fullControlEnabled = null;
-            _fullControlLocked = null;
-            _setAutoPassOption = null;
-            _autoPassEnabled = null;
-            _autoPassOptionType = null;
-            _optionUnlessOpponentAction = null;
-            _optionTurn = null;
-            _optionResolveMyStackEffects = null;
             _phaseLadder = null;
             _phaseLadderSearchFrame = -1;
-            _phaseIconsField = null;
-            _toggleTransientStop = null;
-            _playerStopTypesField = null;
-            _stopStateProp = null;
             _phaseStopMap = null;
             Log.Msg("PriorityController", "Cache cleared");
         }
