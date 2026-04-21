@@ -124,55 +124,120 @@ namespace AccessibleArena.Core.Services
 
         #region Reflection Cache
 
-        private bool _reflectionInitialized;
+        private sealed class AchievementsHandles
+        {
+            // AchievementsContentController
+            public PropertyInfo IsOpen;
 
-        // AchievementsContentController
-        private PropertyInfo _isOpenProp;
+            // AchievementCard
+            public Type AchievementCardType;
+            public FieldInfo AchievementData;
+            public FieldInfo FavoriteToggle;
 
-        // AchievementCard -> _achievementData (IClientAchievement)
-        private Type _achievementCardType;
-        private FieldInfo _achievementDataField;
+            // IClientAchievement
+            public PropertyInfo Title;
+            public PropertyInfo Description;
+            public PropertyInfo CurrentCount;
+            public PropertyInfo MaxCount;
+            public PropertyInfo IsCompleted;
+            public PropertyInfo IsClaimed;
+            public PropertyInfo IsClaimable;
+            public PropertyInfo IsFavorite;
+            public MethodInfo SetFavorite;
 
-        // IClientAchievement properties
-        private PropertyInfo _titleProp;
-        private PropertyInfo _descriptionProp;
-        private PropertyInfo _currentCountProp;
-        private PropertyInfo _maxCountProp;
-        private PropertyInfo _isCompletedProp;
-        private PropertyInfo _isClaimedProp;
-        private PropertyInfo _isClaimableProp;
-        private PropertyInfo _isFavoriteProp;
+            // AchievementGroupDisplay
+            public Type GroupDisplayType;
+            public FieldInfo AchievementGroup;
 
-        // AchievementGroupDisplay -> _achievementGroup (IClientAchievementGroup)
-        private Type _groupDisplayType;
-        private FieldInfo _achievementGroupField;
+            // IClientAchievementGroup
+            public PropertyInfo GroupTitle;
+            public PropertyInfo GroupDescription;
+            public PropertyInfo GroupCompletedCount;
+            public PropertyInfo GroupTotalCount;
+            public PropertyInfo GroupClaimableCount;
 
-        // IClientAchievementGroup properties
-        private PropertyInfo _groupTitleProp;
-        private PropertyInfo _groupDescriptionProp;
-        private PropertyInfo _groupCompletedCountProp;
-        private PropertyInfo _groupTotalCountProp;
-        private PropertyInfo _groupClaimableCountProp;
+            // AchievementSetItem
+            public Type SetItemType;
+            public FieldInfo ClientSet;
+            public FieldInfo CurrentlySelected;
+            public MethodInfo SelectSet;
 
-        // AchievementSetItem -> _clientAchievementSet (IClientAchievementSet)
-        private Type _setItemType;
-        private FieldInfo _clientSetField;
-        private PropertyInfo _setTitleProp;
+            // IClientAchievementSet
+            public PropertyInfo SetTitle;
 
-        // AchievementSetItem tab selection
-        private FieldInfo _currentlySelectedField;
-        private MethodInfo _selectSetMethod;
+            // IAchievementManager
+            public Type AchievementManagerType;
+            public PropertyInfo FavoriteAchievements;
+            public PropertyInfo UpNextAchievements;
+        }
 
-        // IClientAchievement.SetFavorite
-        private MethodInfo _setFavoriteMethod;
+        private static readonly ReflectionCache<AchievementsHandles> _achievementsCache = new ReflectionCache<AchievementsHandles>(
+            builder: t =>
+            {
+                var h = new AchievementsHandles();
+                h.IsOpen = t.GetProperty("IsOpen", AllInstanceFlags | BindingFlags.FlattenHierarchy);
 
-        // IAchievementManager — for Summary tab
-        private Type _achievementManagerType;
-        private PropertyInfo _favoriteAchievementsProp;
-        private PropertyInfo _upNextAchievementsProp;
+                h.AchievementCardType = FindType("AchievementCard");
+                if (h.AchievementCardType != null)
+                {
+                    h.AchievementData = h.AchievementCardType.GetField("_achievementData", AllInstanceFlags);
+                    h.FavoriteToggle = h.AchievementCardType.GetField("_favoriteToggle", AllInstanceFlags);
+                }
 
-        // Toggle for favorite/tracking
-        private FieldInfo _favoriteToggleField;
+                var achievementInterface = FindType("IClientAchievement");
+                if (achievementInterface != null)
+                {
+                    h.Title = achievementInterface.GetProperty("Title", PublicInstance);
+                    h.Description = achievementInterface.GetProperty("Description", PublicInstance);
+                    h.CurrentCount = achievementInterface.GetProperty("CurrentCount", PublicInstance);
+                    h.MaxCount = achievementInterface.GetProperty("MaxCount", PublicInstance);
+                    h.IsCompleted = achievementInterface.GetProperty("IsCompleted", PublicInstance);
+                    h.IsClaimed = achievementInterface.GetProperty("IsClaimed", PublicInstance);
+                    h.IsClaimable = achievementInterface.GetProperty("IsClaimable", PublicInstance);
+                    h.IsFavorite = achievementInterface.GetProperty("IsFavorite", PublicInstance);
+                    h.SetFavorite = achievementInterface.GetMethod("SetFavorite", PublicInstance);
+                }
+
+                h.GroupDisplayType = FindType("AchievementGroupDisplay");
+                if (h.GroupDisplayType != null)
+                    h.AchievementGroup = h.GroupDisplayType.GetField("_achievementGroup", AllInstanceFlags);
+
+                var groupInterface = FindType("IClientAchievementGroup");
+                if (groupInterface != null)
+                {
+                    h.GroupTitle = groupInterface.GetProperty("Title", PublicInstance);
+                    h.GroupDescription = groupInterface.GetProperty("Description", PublicInstance);
+                    h.GroupCompletedCount = groupInterface.GetProperty("CompletedAchievementCount", PublicInstance);
+                    h.GroupTotalCount = groupInterface.GetProperty("TotalAchievementCount", PublicInstance);
+                    h.GroupClaimableCount = groupInterface.GetProperty("ClaimableAchievementCount", PublicInstance);
+                }
+
+                h.SetItemType = FindType("AchievementSetItem");
+                if (h.SetItemType != null)
+                {
+                    h.ClientSet = h.SetItemType.GetField("_clientAchievementSet", AllInstanceFlags);
+                    h.CurrentlySelected = h.SetItemType.GetField("_currentlySelected", BindingFlags.Static | BindingFlags.NonPublic);
+                    h.SelectSet = h.SetItemType.GetMethod("SelectSet", PublicInstance);
+                }
+
+                var setInterface = FindType("IClientAchievementSet");
+                if (setInterface != null)
+                    h.SetTitle = setInterface.GetProperty("Title", PublicInstance);
+
+                h.AchievementManagerType = FindType("IAchievementManager");
+                if (h.AchievementManagerType != null)
+                {
+                    h.FavoriteAchievements = h.AchievementManagerType.GetProperty("FavoriteAchievements", PublicInstance);
+                    h.UpNextAchievements = h.AchievementManagerType.GetProperty("UpNextAchievements", PublicInstance);
+                }
+
+                return h;
+            },
+            validator: h => h.AchievementCardType != null && h.AchievementData != null
+                         && h.Title != null && h.GroupDisplayType != null
+                         && h.SetItemType != null,
+            logTag: "Achievements",
+            logSubject: "AchievementsContentController");
 
         #endregion
 
@@ -206,11 +271,11 @@ namespace AccessibleArena.Core.Services
 
             EnsureReflectionCached();
 
-            if (_isOpenProp != null)
+            if (_achievementsCache.Handles.IsOpen != null)
             {
                 try
                 {
-                    if (!(bool)_isOpenProp.GetValue(controller))
+                    if (!(bool)_achievementsCache.Handles.IsOpen.GetValue(controller))
                         return false;
                 }
                 catch { return false; }
@@ -243,81 +308,9 @@ namespace AccessibleArena.Core.Services
 
         private void EnsureReflectionCached()
         {
-            if (_reflectionInitialized) return;
-
-            var flags = AllInstanceFlags;
-
-            _isOpenProp = FindType(T.AchievementsContentController)
-                ?.GetProperty("IsOpen", flags | BindingFlags.FlattenHierarchy);
-
-            _achievementCardType = FindType("AchievementCard");
-            if (_achievementCardType != null)
-            {
-                _achievementDataField = _achievementCardType.GetField("_achievementData", flags);
-                _favoriteToggleField = _achievementCardType.GetField("_favoriteToggle", flags);
-            }
-
-            var achievementInterface = FindType("IClientAchievement");
-            if (achievementInterface != null)
-            {
-                var pubFlags = BindingFlags.Public | BindingFlags.Instance;
-                _titleProp = achievementInterface.GetProperty("Title", pubFlags);
-                _descriptionProp = achievementInterface.GetProperty("Description", pubFlags);
-                _currentCountProp = achievementInterface.GetProperty("CurrentCount", pubFlags);
-                _maxCountProp = achievementInterface.GetProperty("MaxCount", pubFlags);
-                _isCompletedProp = achievementInterface.GetProperty("IsCompleted", pubFlags);
-                _isClaimedProp = achievementInterface.GetProperty("IsClaimed", pubFlags);
-                _isClaimableProp = achievementInterface.GetProperty("IsClaimable", pubFlags);
-                _isFavoriteProp = achievementInterface.GetProperty("IsFavorite", pubFlags);
-                _setFavoriteMethod = achievementInterface.GetMethod("SetFavorite", pubFlags);
-            }
-
-            _groupDisplayType = FindType("AchievementGroupDisplay");
-            if (_groupDisplayType != null)
-            {
-                _achievementGroupField = _groupDisplayType.GetField("_achievementGroup", flags);
-            }
-
-            var groupInterface = FindType("IClientAchievementGroup");
-            if (groupInterface != null)
-            {
-                var pubFlags = BindingFlags.Public | BindingFlags.Instance;
-                _groupTitleProp = groupInterface.GetProperty("Title", pubFlags);
-                _groupDescriptionProp = groupInterface.GetProperty("Description", pubFlags);
-                _groupCompletedCountProp = groupInterface.GetProperty("CompletedAchievementCount", pubFlags);
-                _groupTotalCountProp = groupInterface.GetProperty("TotalAchievementCount", pubFlags);
-                _groupClaimableCountProp = groupInterface.GetProperty("ClaimableAchievementCount", pubFlags);
-            }
-
-            _setItemType = FindType("AchievementSetItem");
-            if (_setItemType != null)
-            {
-                _clientSetField = _setItemType.GetField("_clientAchievementSet", flags);
-            }
-
-            var setInterface = FindType("IClientAchievementSet");
-            if (setInterface != null)
-            {
-                _setTitleProp = setInterface.GetProperty("Title", BindingFlags.Public | BindingFlags.Instance);
-            }
-
-            _currentlySelectedField = _setItemType?.GetField("_currentlySelected", BindingFlags.Static | BindingFlags.NonPublic);
-            _selectSetMethod = _setItemType?.GetMethod("SelectSet", BindingFlags.Public | BindingFlags.Instance);
-
-            _achievementManagerType = FindType("IAchievementManager");
-            if (_achievementManagerType != null)
-            {
-                var pubFlags = BindingFlags.Public | BindingFlags.Instance;
-                _favoriteAchievementsProp = _achievementManagerType.GetProperty("FavoriteAchievements", pubFlags);
-                _upNextAchievementsProp = _achievementManagerType.GetProperty("UpNextAchievements", pubFlags);
-            }
-
-            _reflectionInitialized = true;
-            Log.Msg("{NavigatorId}", $"Reflection cached: " +
-                $"Card={_achievementCardType != null}, " +
-                $"Group={_groupDisplayType != null}, " +
-                $"Set={_setItemType != null}, " +
-                $"AchievementData={_achievementDataField != null}");
+            var controllerType = FindType(T.AchievementsContentController);
+            if (controllerType != null)
+                _achievementsCache.EnsureInitialized(controllerType);
         }
 
         #endregion
@@ -351,7 +344,7 @@ namespace AccessibleArena.Core.Services
         private void DiscoverSummaryAchievements()
         {
             var managerType = FindType("IAchievementManager");
-            if (managerType == null || _achievementManagerType == null) return;
+            if (managerType == null || _achievementsCache.Handles.AchievementManagerType == null) return;
 
             object manager = null;
             try
@@ -360,7 +353,7 @@ namespace AccessibleArena.Core.Services
                 var getMethod = pantryType?.GetMethods(BindingFlags.Public | BindingFlags.Static)
                     .FirstOrDefault(m => m.Name == "Get" && m.IsGenericMethodDefinition);
                 if (getMethod != null)
-                    manager = getMethod.MakeGenericMethod(_achievementManagerType).Invoke(null, null);
+                    manager = getMethod.MakeGenericMethod(_achievementsCache.Handles.AchievementManagerType).Invoke(null, null);
             }
             catch (Exception ex)
             {
@@ -370,8 +363,8 @@ namespace AccessibleArena.Core.Services
 
             if (manager == null) return;
 
-            AddSummarySection(Strings.AchievementSectionTracked, _favoriteAchievementsProp, manager);
-            AddSummarySection(Strings.AchievementSectionUpNext, _upNextAchievementsProp, manager);
+            AddSummarySection(Strings.AchievementSectionTracked, _achievementsCache.Handles.FavoriteAchievements, manager);
+            AddSummarySection(Strings.AchievementSectionUpNext, _achievementsCache.Handles.UpNextAchievements, manager);
         }
 
         private void AddSummarySection(string sectionName, PropertyInfo collectionProp, object manager)
@@ -398,14 +391,14 @@ namespace AccessibleArena.Core.Services
                     any = true;
                 }
 
-                string title       = StripRichText(SafeGetString(_titleProp, item) ?? "Unknown");
-                string description = SafeGetString(_descriptionProp, item) ?? "";
-                int current        = SafeGetInt(_currentCountProp, item);
-                int max            = SafeGetInt(_maxCountProp, item);
-                bool isCompleted   = SafeGetBool(_isCompletedProp, item);
-                bool isClaimed     = SafeGetBool(_isClaimedProp, item);
-                bool isClaimable   = SafeGetBool(_isClaimableProp, item);
-                bool isFavorite    = SafeGetBool(_isFavoriteProp, item);
+                string title       = StripRichText(SafeGetString(_achievementsCache.Handles.Title, item) ?? "Unknown");
+                string description = SafeGetString(_achievementsCache.Handles.Description, item) ?? "";
+                int current        = SafeGetInt(_achievementsCache.Handles.CurrentCount, item);
+                int max            = SafeGetInt(_achievementsCache.Handles.MaxCount, item);
+                bool isCompleted   = SafeGetBool(_achievementsCache.Handles.IsCompleted, item);
+                bool isClaimed     = SafeGetBool(_achievementsCache.Handles.IsClaimed, item);
+                bool isClaimable   = SafeGetBool(_achievementsCache.Handles.IsClaimable, item);
+                bool isFavorite    = SafeGetBool(_achievementsCache.Handles.IsFavorite, item);
 
                 string status = isClaimed ? Strings.AchievementClaimed
                               : isClaimable ? Strings.AchievementReadyToClaim
@@ -446,17 +439,17 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverSetTabs()
         {
-            if (_setItemType == null || _clientSetField == null) return;
+            if (_achievementsCache.Handles.SetItemType == null || _achievementsCache.Handles.ClientSet == null) return;
 
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType() != _setItemType) continue;
+                if (mb.GetType() != _achievementsCache.Handles.SetItemType) continue;
 
-                var clientSet = _clientSetField.GetValue(mb);
+                var clientSet = _achievementsCache.Handles.ClientSet.GetValue(mb);
                 if (clientSet == null) continue; // Skip Summary tab
 
-                string title = StripRichText(SafeGetString(_setTitleProp, clientSet) ?? "Unknown Set");
+                string title = StripRichText(SafeGetString(_achievementsCache.Handles.SetTitle, clientSet) ?? "Unknown Set");
 
                 _overviewEntries.Add(new OverviewEntry
                 {
@@ -469,7 +462,7 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverGroups()
         {
-            if (_groupDisplayType == null)
+            if (_achievementsCache.Handles.GroupDisplayType == null)
             {
                 Log.Warn("{NavigatorId}", $"AchievementGroupDisplay type not found");
                 return;
@@ -479,7 +472,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType() == _groupDisplayType)
+                if (mb.GetType() == _achievementsCache.Handles.GroupDisplayType)
                     groupDisplays.Add(mb);
             }
 
@@ -487,14 +480,14 @@ namespace AccessibleArena.Core.Services
 
             foreach (var groupDisplay in groupDisplays)
             {
-                var groupData = _achievementGroupField?.GetValue(groupDisplay);
+                var groupData = _achievementsCache.Handles.AchievementGroup?.GetValue(groupDisplay);
                 if (groupData == null) continue;
 
-                string groupTitle = StripRichText(SafeGetString(_groupTitleProp, groupData) ?? "Unknown Group");
-                string groupDesc = StripRichText(SafeGetString(_groupDescriptionProp, groupData) ?? "");
-                int completed = SafeGetInt(_groupCompletedCountProp, groupData);
-                int total = SafeGetInt(_groupTotalCountProp, groupData);
-                int claimable = SafeGetInt(_groupClaimableCountProp, groupData);
+                string groupTitle = StripRichText(SafeGetString(_achievementsCache.Handles.GroupTitle, groupData) ?? "Unknown Group");
+                string groupDesc = StripRichText(SafeGetString(_achievementsCache.Handles.GroupDescription, groupData) ?? "");
+                int completed = SafeGetInt(_achievementsCache.Handles.GroupCompletedCount, groupData);
+                int total = SafeGetInt(_achievementsCache.Handles.GroupTotalCount, groupData);
+                int claimable = SafeGetInt(_achievementsCache.Handles.GroupClaimableCount, groupData);
 
                 _groupEntries.Add(new GroupEntry
                 {
@@ -507,29 +500,29 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverAchievementsInGroup(GameObject groupObject)
         {
-            if (_achievementCardType == null || _achievementDataField == null || groupObject == null) return;
+            if (_achievementsCache.Handles.AchievementCardType == null || _achievementsCache.Handles.AchievementData == null || groupObject == null) return;
 
             var cards = new List<MonoBehaviour>();
             foreach (var mb in groupObject.GetComponentsInChildren<MonoBehaviour>(false))
             {
                 if (mb == null) continue;
-                if (mb.GetType() == _achievementCardType)
+                if (mb.GetType() == _achievementsCache.Handles.AchievementCardType)
                     cards.Add(mb);
             }
 
             foreach (var card in cards)
             {
-                var achievementData = _achievementDataField.GetValue(card);
+                var achievementData = _achievementsCache.Handles.AchievementData.GetValue(card);
                 if (achievementData == null) continue;
 
-                string title = StripRichText(SafeGetString(_titleProp, achievementData) ?? "Unknown");
-                string description = SafeGetString(_descriptionProp, achievementData) ?? "";
-                int current = SafeGetInt(_currentCountProp, achievementData);
-                int max = SafeGetInt(_maxCountProp, achievementData);
-                bool isCompleted = SafeGetBool(_isCompletedProp, achievementData);
-                bool isClaimed = SafeGetBool(_isClaimedProp, achievementData);
-                bool isClaimable = SafeGetBool(_isClaimableProp, achievementData);
-                bool isFavorite = SafeGetBool(_isFavoriteProp, achievementData);
+                string title = StripRichText(SafeGetString(_achievementsCache.Handles.Title, achievementData) ?? "Unknown");
+                string description = SafeGetString(_achievementsCache.Handles.Description, achievementData) ?? "";
+                int current = SafeGetInt(_achievementsCache.Handles.CurrentCount, achievementData);
+                int max = SafeGetInt(_achievementsCache.Handles.MaxCount, achievementData);
+                bool isCompleted = SafeGetBool(_achievementsCache.Handles.IsCompleted, achievementData);
+                bool isClaimed = SafeGetBool(_achievementsCache.Handles.IsClaimed, achievementData);
+                bool isClaimable = SafeGetBool(_achievementsCache.Handles.IsClaimable, achievementData);
+                bool isFavorite = SafeGetBool(_achievementsCache.Handles.IsFavorite, achievementData);
 
                 string status = isClaimed ? Strings.AchievementClaimed
                               : isClaimable ? Strings.AchievementReadyToClaim
@@ -557,14 +550,14 @@ namespace AccessibleArena.Core.Services
 
         private GameObject FindAchievementCardByTitle(string strippedTitle)
         {
-            if (_achievementCardType == null || _achievementDataField == null) return null;
+            if (_achievementsCache.Handles.AchievementCardType == null || _achievementsCache.Handles.AchievementData == null) return null;
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType() != _achievementCardType) continue;
-                var data = _achievementDataField.GetValue(mb);
+                if (mb.GetType() != _achievementsCache.Handles.AchievementCardType) continue;
+                var data = _achievementsCache.Handles.AchievementData.GetValue(mb);
                 if (data == null) continue;
-                if (StripRichText(SafeGetString(_titleProp, data) ?? "") == strippedTitle)
+                if (StripRichText(SafeGetString(_achievementsCache.Handles.Title, data) ?? "") == strippedTitle)
                     return mb.gameObject;
             }
             return null;
@@ -887,21 +880,21 @@ namespace AccessibleArena.Core.Services
             var entry = _overviewEntries[_overviewIndex];
             if (entry.Type != OverviewEntryType.SetTab) return;
 
-            var setItem = entry.GameObject.GetComponent(_setItemType) as MonoBehaviour;
+            var setItem = entry.GameObject.GetComponent(_achievementsCache.Handles.SetItemType) as MonoBehaviour;
             if (setItem == null) return;
 
             _selectedTabName = entry.Label;
             _savedOverviewIndex = _overviewIndex;
 
             // Check if this tab is already selected in the game
-            var currentlySelected = _currentlySelectedField?.GetValue(null) as UnityEngine.Object;
+            var currentlySelected = _achievementsCache.Handles.CurrentlySelected?.GetValue(null) as UnityEngine.Object;
             bool alreadyActive = currentlySelected != null && setItem.Equals(currentlySelected);
 
             if (!alreadyActive)
             {
                 try
                 {
-                    _selectSetMethod.Invoke(setItem, new object[] { true });
+                    _achievementsCache.Handles.SelectSet.Invoke(setItem, new object[] { true });
                 }
                 catch (Exception ex)
                 {
@@ -1050,12 +1043,12 @@ namespace AccessibleArena.Core.Services
 
         private void ActivateCollectButton(GameObject cardObject)
         {
-            if (_achievementCardType == null) return;
+            if (_achievementsCache.Handles.AchievementCardType == null) return;
 
-            var collectField = _achievementCardType.GetField("_collectButton", AllInstanceFlags);
+            var collectField = _achievementsCache.Handles.AchievementCardType.GetField("_collectButton", AllInstanceFlags);
             if (collectField == null) return;
 
-            var card = cardObject.GetComponent(_achievementCardType) as MonoBehaviour;
+            var card = cardObject.GetComponent(_achievementsCache.Handles.AchievementCardType) as MonoBehaviour;
             if (card == null) return;
 
             var collectButton = collectField.GetValue(card);
@@ -1072,20 +1065,20 @@ namespace AccessibleArena.Core.Services
 
         private void ToggleTracking(GameObject cardObject)
         {
-            if (_achievementCardType == null || _achievementDataField == null || _setFavoriteMethod == null) return;
+            if (_achievementsCache.Handles.AchievementCardType == null || _achievementsCache.Handles.AchievementData == null || _achievementsCache.Handles.SetFavorite == null) return;
 
-            var card = cardObject.GetComponent(_achievementCardType) as MonoBehaviour;
+            var card = cardObject.GetComponent(_achievementsCache.Handles.AchievementCardType) as MonoBehaviour;
             if (card == null) return;
 
-            var achievementData = _achievementDataField.GetValue(card);
+            var achievementData = _achievementsCache.Handles.AchievementData.GetValue(card);
             if (achievementData == null) return;
 
-            bool current = SafeGetBool(_isFavoriteProp, achievementData);
+            bool current = SafeGetBool(_achievementsCache.Handles.IsFavorite, achievementData);
             bool newValue = !current;
 
             try
             {
-                _setFavoriteMethod.Invoke(achievementData, new object[] { newValue });
+                _achievementsCache.Handles.SetFavorite.Invoke(achievementData, new object[] { newValue });
                 string announcement = newValue ? Strings.AchievementTracked : Strings.AchievementUntracked;
                 _announcer.AnnounceInterrupt(announcement);
                 ScheduleRescan(0.3f);
@@ -1217,11 +1210,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Check IsOpen
-            if (_isOpenProp != null)
+            if (_achievementsCache.Handles.IsOpen != null)
             {
                 try
                 {
-                    if (!(bool)_isOpenProp.GetValue(_controller))
+                    if (!(bool)_achievementsCache.Handles.IsOpen.GetValue(_controller))
                     {
                         Deactivate();
                         return;

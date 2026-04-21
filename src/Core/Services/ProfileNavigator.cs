@@ -76,52 +76,124 @@ namespace AccessibleArena.Core.Services
 
         #region Reflection Cache
 
-        private bool _reflectionInitialized;
+        private sealed class ProfileHandles
+        {
+            // ProfileContentController
+            public FieldInfo UsernameText;
+            public FieldInfo AvatarNameText;
+            public FieldInfo AvatarBioText;
+            public FieldInfo ProfileDetailsPanel;
+            public FieldInfo ProfileScreenMode;
+            public FieldInfo AvatarButton;
+            public FieldInfo EmoteButton;
+            public FieldInfo PetButton;
+            public FieldInfo SleeveButton;
+            public FieldInfo TitleButton;
+            public FieldInfo CosmeticSelector;
+            public FieldInfo CosmeticSelectorsTransform;
+            public FieldInfo AvatarDisplayItem;
+            public FieldInfo EmoteDisplayItem;
+            public FieldInfo PetDisplayItem;
+            public FieldInfo SleeveDisplayItem;
+            public FieldInfo TitleDisplayItem;
 
-        // ProfileContentController fields
-        private FieldInfo _usernameTextField;         // UsernameText (TMP_Text)
-        private FieldInfo _avatarNameTextField;        // AvatarNameText (Localize)
-        private FieldInfo _avatarBioTextField;         // AvatarBioText (Localize)
-        private FieldInfo _profileDetailsPanelField;   // ProfileDetailsPanel
-        private FieldInfo _profileScreenModeField;     // _profileScreenMode
-        private FieldInfo _avatarButtonField;           // _avatarButton
-        private FieldInfo _emoteButtonField;            // _emoteButton
-        private FieldInfo _petButtonField;              // _petButton
-        private FieldInfo _sleeveButtonField;           // _sleeveButton
-        private FieldInfo _titleButtonField;            // _titleButton
-        private FieldInfo _cosmeticSelectorField;       // _cosmeticSelectorController
-        private FieldInfo _cosmeticSelectorsTransformField; // _cosmeticSelectorsTransform
-        private FieldInfo _avatarDisplayItemField;     // _avatarDisplayItem
-        private FieldInfo _emoteDisplayItemField;      // _emoteDisplayItem
-        private FieldInfo _petDisplayItemField;        // _petDisplayItem
-        private FieldInfo _sleeveDisplayItemField;     // _sleeveDisplayItem
-        private FieldInfo _titleDisplayItemField;      // _titleDisplayItem
+            // ProfileDetailsPanel
+            public FieldInfo ConstructedRank;
+            public FieldInfo LimitedRank;
+            public FieldInfo SeasonName;
+            public FieldInfo BattlePassBubble;
+            public FieldInfo ProfileSetBadge;
 
-        // ProfileDetailsPanel fields
-        private FieldInfo _constructedRankField;       // _constructedRankDisplay
-        private FieldInfo _limitedRankField;           // _limitedRankDisplay
-        private FieldInfo _seasonNameField;            // _seasonNameRankText
-        private FieldInfo _battlePassBubbleField;      // _battlePassBubble
-        private FieldInfo _profileSetBadgeField;       // _profileSetBadge
+            // RankDisplay
+            public FieldInfo RankFormatText;
+            public FieldInfo RankTierText;
+            public FieldInfo MythicPlacementText;
+            public FieldInfo IsLimited;
 
-        // RankDisplay fields
-        private FieldInfo _rankFormatTextField;         // _rankFormatText
-        private FieldInfo _rankTierTextField;           // _rankTierText
-        private FieldInfo _mythicPlacementTextField;    // _mythicPlacementText
-        private FieldInfo _isLimitedField;              // _isLimited
+            // SetBadge
+            public FieldInfo PercentageText;
+            public FieldInfo Tooltip;
 
-        // SetBadge fields
-        private FieldInfo _percentageTextField;        // _percentageText (TMP_Text)
-        private FieldInfo _tooltipField;               // _tooltip (TooltipTrigger)
+            // AvatarSelection
+            public PropertyInfo BioString;
+            public PropertyInfo StoreSection;
 
-        // Avatar sub-panel fields
-        private PropertyInfo _bioStringProp;            // AvatarSelection.BioString
-        private PropertyInfo _storeSectionProp;         // AvatarSelection.StoreSection
+            // Avatar persistence
+            public Type AvatarSelectPanelType;
+            public MethodInfo DoneButtonOnClick;
+            public MethodInfo AvatarIsLocked;
+        }
 
-        // Avatar persistence
-        private Type _avatarSelectPanelType;
-        private MethodInfo _doneButtonOnClickMethod;
-        private MethodInfo _avatarIsLockedMethod;
+        private static readonly ReflectionCache<ProfileHandles> _profileCache = new ReflectionCache<ProfileHandles>(
+            builder: t =>
+            {
+                var h = new ProfileHandles
+                {
+                    // Controller
+                    UsernameText = t.GetField("UsernameText", AllInstanceFlags),
+                    AvatarNameText = t.GetField("AvatarNameText", AllInstanceFlags),
+                    AvatarBioText = t.GetField("AvatarBioText", AllInstanceFlags),
+                    ProfileDetailsPanel = t.GetField("ProfileDetailsPanel", AllInstanceFlags),
+                    ProfileScreenMode = t.GetField("_profileScreenMode", PrivateInstance),
+                    AvatarButton = t.GetField("_avatarButton", PrivateInstance),
+                    EmoteButton = t.GetField("_emoteButton", PrivateInstance),
+                    PetButton = t.GetField("_petButton", PrivateInstance),
+                    SleeveButton = t.GetField("_sleeveButton", PrivateInstance),
+                    TitleButton = t.GetField("_titleButton", PrivateInstance),
+                    CosmeticSelector = t.GetField("_cosmeticSelectorController", PrivateInstance),
+                    CosmeticSelectorsTransform = t.GetField("_cosmeticSelectorsTransform", PrivateInstance),
+                    AvatarDisplayItem = t.GetField("_avatarDisplayItem", PrivateInstance),
+                    EmoteDisplayItem = t.GetField("_emoteDisplayItem", PrivateInstance),
+                    PetDisplayItem = t.GetField("_petDisplayItem", PrivateInstance),
+                    SleeveDisplayItem = t.GetField("_sleeveDisplayItem", PrivateInstance),
+                    TitleDisplayItem = t.GetField("_titleDisplayItem", PrivateInstance),
+                };
+
+                var detailsType = FindType("ProfileUI.ProfileDetailsPanel");
+                if (detailsType != null)
+                {
+                    h.ConstructedRank = detailsType.GetField("_constructedRankDisplay", PrivateInstance);
+                    h.LimitedRank = detailsType.GetField("_limitedRankDisplay", PrivateInstance);
+                    h.SeasonName = detailsType.GetField("_seasonNameRankText", PrivateInstance);
+                    h.BattlePassBubble = detailsType.GetField("_battlePassBubble", PrivateInstance);
+                    h.ProfileSetBadge = detailsType.GetField("_profileSetBadge", PrivateInstance);
+                }
+
+                var setBadgeType = FindType("SetBadge");
+                if (setBadgeType != null)
+                {
+                    h.PercentageText = setBadgeType.GetField("_percentageText", PrivateInstance);
+                    h.Tooltip = setBadgeType.GetField("_tooltip", PrivateInstance);
+                }
+
+                var rankType = FindType("RankDisplay");
+                if (rankType != null)
+                {
+                    h.RankFormatText = rankType.GetField("_rankFormatText", PrivateInstance);
+                    h.RankTierText = rankType.GetField("_rankTierText", PrivateInstance);
+                    h.MythicPlacementText = rankType.GetField("_mythicPlacementText", PrivateInstance);
+                    h.IsLimited = rankType.GetField("_isLimited", PrivateInstance);
+                }
+
+                h.AvatarSelectPanelType = FindType("ProfileUI.AvatarSelectPanel");
+                if (h.AvatarSelectPanelType != null)
+                    h.DoneButtonOnClick = h.AvatarSelectPanelType.GetMethod("DoneButton_OnClick", PublicInstance);
+
+                var avatarSelType = FindType("AvatarSelection");
+                if (avatarSelType != null)
+                {
+                    h.AvatarIsLocked = avatarSelType.GetMethod("IsLocked", PublicInstance);
+                    h.BioString = avatarSelType.GetProperty("BioString", PublicInstance);
+                    h.StoreSection = avatarSelType.GetProperty("StoreSection", PublicInstance);
+                }
+
+                return h;
+            },
+            validator: h => h.UsernameText != null && h.AvatarButton != null
+                         && h.ProfileDetailsPanel != null && h.ConstructedRank != null
+                         && h.RankTierText != null,
+            logTag: "Profile",
+            logSubject: "ProfileContentController");
 
         #endregion
 
@@ -188,79 +260,9 @@ namespace AccessibleArena.Core.Services
 
         private void EnsureReflectionCached()
         {
-            if (_reflectionInitialized) return;
-
             var controllerType = _controller?.GetType();
             if (controllerType == null) return;
-
-            var flags = AllInstanceFlags;
-
-            // ProfileContentController fields (serialized = private with [SerializeField])
-            _usernameTextField = controllerType.GetField("UsernameText", flags);
-            _avatarNameTextField = controllerType.GetField("AvatarNameText", flags);
-            _avatarBioTextField = controllerType.GetField("AvatarBioText", flags);
-            _profileDetailsPanelField = controllerType.GetField("ProfileDetailsPanel", flags);
-            _profileScreenModeField = controllerType.GetField("_profileScreenMode", PrivateInstance);
-            _avatarButtonField = controllerType.GetField("_avatarButton", PrivateInstance);
-            _emoteButtonField = controllerType.GetField("_emoteButton", PrivateInstance);
-            _petButtonField = controllerType.GetField("_petButton", PrivateInstance);
-            _sleeveButtonField = controllerType.GetField("_sleeveButton", PrivateInstance);
-            _titleButtonField = controllerType.GetField("_titleButton", PrivateInstance);
-            _cosmeticSelectorField = controllerType.GetField("_cosmeticSelectorController", PrivateInstance);
-            _cosmeticSelectorsTransformField = controllerType.GetField("_cosmeticSelectorsTransform", PrivateInstance);
-            _avatarDisplayItemField = controllerType.GetField("_avatarDisplayItem", PrivateInstance);
-            _emoteDisplayItemField = controllerType.GetField("_emoteDisplayItem", PrivateInstance);
-            _petDisplayItemField = controllerType.GetField("_petDisplayItem", PrivateInstance);
-            _sleeveDisplayItemField = controllerType.GetField("_sleeveDisplayItem", PrivateInstance);
-            _titleDisplayItemField = controllerType.GetField("_titleDisplayItem", PrivateInstance);
-
-            // ProfileDetailsPanel fields
-            var detailsType = FindType("ProfileUI.ProfileDetailsPanel");
-            if (detailsType != null)
-            {
-                _constructedRankField = detailsType.GetField("_constructedRankDisplay", PrivateInstance);
-                _limitedRankField = detailsType.GetField("_limitedRankDisplay", PrivateInstance);
-                _seasonNameField = detailsType.GetField("_seasonNameRankText", PrivateInstance);
-                _battlePassBubbleField = detailsType.GetField("_battlePassBubble", PrivateInstance);
-                _profileSetBadgeField = detailsType.GetField("_profileSetBadge", PrivateInstance);
-            }
-
-            // SetBadge fields
-            var setBadgeType = FindType("SetBadge");
-            if (setBadgeType != null)
-            {
-                _percentageTextField = setBadgeType.GetField("_percentageText", PrivateInstance);
-                _tooltipField = setBadgeType.GetField("_tooltip", PrivateInstance);
-            }
-
-            // RankDisplay fields
-            var rankType = FindType("RankDisplay");
-            if (rankType != null)
-            {
-                _rankFormatTextField = rankType.GetField("_rankFormatText", PrivateInstance);
-                _rankTierTextField = rankType.GetField("_rankTierText", PrivateInstance);
-                _mythicPlacementTextField = rankType.GetField("_mythicPlacementText", PrivateInstance);
-                _isLimitedField = rankType.GetField("_isLimited", PrivateInstance);
-            }
-
-            // Avatar persistence types
-            _avatarSelectPanelType = FindType("ProfileUI.AvatarSelectPanel");
-            if (_avatarSelectPanelType != null)
-                _doneButtonOnClickMethod = _avatarSelectPanelType.GetMethod("DoneButton_OnClick", PublicInstance);
-            var avatarSelType = FindType("AvatarSelection");
-            if (avatarSelType != null)
-            {
-                _avatarIsLockedMethod = avatarSelType.GetMethod("IsLocked", PublicInstance);
-                _bioStringProp = avatarSelType.GetProperty("BioString", PublicInstance);
-                _storeSectionProp = avatarSelType.GetProperty("StoreSection", PublicInstance);
-            }
-
-            _reflectionInitialized = true;
-            Log.Msg("{NavigatorId}", $"Reflection cached: " +
-                $"Controller={controllerType != null}, " +
-                $"Details={detailsType != null}, " +
-                $"Rank={rankType != null}, " +
-                $"Username={_usernameTextField != null}");
+            _profileCache.EnsureInitialized(controllerType);
         }
 
         #endregion
@@ -374,11 +376,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // 8-12. Cosmetic category buttons
-            AddCosmeticButton(_avatarButtonField, "Avatar");
-            AddCosmeticButton(_titleButtonField, "Title");
-            AddCosmeticButton(_emoteButtonField, "Emote");
-            AddCosmeticButton(_petButtonField, "Pet");
-            AddCosmeticButton(_sleeveButtonField, "Sleeve");
+            AddCosmeticButton(_profileCache.Handles.AvatarButton, "Avatar");
+            AddCosmeticButton(_profileCache.Handles.TitleButton, "Title");
+            AddCosmeticButton(_profileCache.Handles.EmoteButton, "Emote");
+            AddCosmeticButton(_profileCache.Handles.PetButton, "Pet");
+            AddCosmeticButton(_profileCache.Handles.SleeveButton, "Sleeve");
         }
 
         private void EnsureDetailsPanel()
@@ -388,11 +390,11 @@ namespace AccessibleArena.Core.Services
 
             _detailsPanel = null;
 
-            if (_profileDetailsPanelField != null && _controller != null)
+            if (_profileCache.Handles.ProfileDetailsPanel != null && _controller != null)
             {
                 try
                 {
-                    _detailsPanel = _profileDetailsPanelField.GetValue(_controller) as MonoBehaviour;
+                    _detailsPanel = _profileCache.Handles.ProfileDetailsPanel.GetValue(_controller) as MonoBehaviour;
                 }
                 catch (Exception ex)
                 {
@@ -407,10 +409,10 @@ namespace AccessibleArena.Core.Services
 
         private string ReadUsername()
         {
-            if (_usernameTextField == null || _controller == null) return null;
+            if (_profileCache.Handles.UsernameText == null || _controller == null) return null;
             try
             {
-                var tmpText = _usernameTextField.GetValue(_controller) as TMP_Text;
+                var tmpText = _profileCache.Handles.UsernameText.GetValue(_controller) as TMP_Text;
                 if (tmpText == null) return null;
                 string text = tmpText.text;
                 if (string.IsNullOrEmpty(text)) return null;
@@ -425,8 +427,8 @@ namespace AccessibleArena.Core.Services
         {
             if (_controller == null) return null;
 
-            string name = ReadLocalizeText(_avatarNameTextField);
-            string bio = ReadLocalizeText(_avatarBioTextField);
+            string name = ReadLocalizeText(_profileCache.Handles.AvatarNameText);
+            string bio = ReadLocalizeText(_profileCache.Handles.AvatarBioText);
 
             if (string.IsNullOrEmpty(name)) return null;
             return Strings.ProfileAvatar(name, bio ?? "");
@@ -456,10 +458,10 @@ namespace AccessibleArena.Core.Services
 
         private string ReadSeasonName()
         {
-            if (_seasonNameField == null || _detailsPanel == null) return null;
+            if (_profileCache.Handles.SeasonName == null || _detailsPanel == null) return null;
             try
             {
-                var tmpText = _seasonNameField.GetValue(_detailsPanel) as TMP_Text;
+                var tmpText = _profileCache.Handles.SeasonName.GetValue(_detailsPanel) as TMP_Text;
                 if (tmpText == null || !tmpText.gameObject.activeInHierarchy) return null;
                 string text = UITextExtractor.CleanText(tmpText.text);
                 return string.IsNullOrEmpty(text) ? null : text;
@@ -471,7 +473,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_detailsPanel == null) return null;
 
-            var rankField = limited ? _limitedRankField : _constructedRankField;
+            var rankField = limited ? _profileCache.Handles.LimitedRank : _profileCache.Handles.ConstructedRank;
             if (rankField == null) return null;
 
             try
@@ -482,18 +484,18 @@ namespace AccessibleArena.Core.Services
 
                 // Read _rankTierText (e.g., "Gold Tier 2")
                 string tierText = null;
-                if (_rankTierTextField != null)
+                if (_profileCache.Handles.RankTierText != null)
                 {
-                    var tierTmp = _rankTierTextField.GetValue(rankDisplay) as TMP_Text;
+                    var tierTmp = _profileCache.Handles.RankTierText.GetValue(rankDisplay) as TMP_Text;
                     if (tierTmp != null && tierTmp.gameObject.activeSelf)
                         tierText = UITextExtractor.CleanText(tierTmp.text);
                 }
 
                 // Read _mythicPlacementText (e.g., "#123" or "95%")
                 string mythicText = null;
-                if (_mythicPlacementTextField != null)
+                if (_profileCache.Handles.MythicPlacementText != null)
                 {
-                    var mythicTmp = _mythicPlacementTextField.GetValue(rankDisplay) as TMP_Text;
+                    var mythicTmp = _profileCache.Handles.MythicPlacementText.GetValue(rankDisplay) as TMP_Text;
                     if (mythicTmp != null && mythicTmp.gameObject.activeInHierarchy)
                     {
                         mythicText = UITextExtractor.CleanText(mythicTmp.text);
@@ -509,10 +511,10 @@ namespace AccessibleArena.Core.Services
 
         private string ReadMasteryInfo()
         {
-            if (_battlePassBubbleField == null || _detailsPanel == null) return null;
+            if (_profileCache.Handles.BattlePassBubble == null || _detailsPanel == null) return null;
             try
             {
-                var bubble = _battlePassBubbleField.GetValue(_detailsPanel) as MonoBehaviour;
+                var bubble = _profileCache.Handles.BattlePassBubble.GetValue(_detailsPanel) as MonoBehaviour;
                 if (bubble == null || !bubble.gameObject.activeInHierarchy) return null;
 
                 // Read level text from visible TMP children
@@ -576,26 +578,26 @@ namespace AccessibleArena.Core.Services
 
         private string ReadSetCollectionInfo()
         {
-            if (_profileSetBadgeField == null || _detailsPanel == null) return null;
+            if (_profileCache.Handles.ProfileSetBadge == null || _detailsPanel == null) return null;
             try
             {
-                var badge = _profileSetBadgeField.GetValue(_detailsPanel) as MonoBehaviour;
+                var badge = _profileCache.Handles.ProfileSetBadge.GetValue(_detailsPanel) as MonoBehaviour;
                 if (badge == null || !badge.gameObject.activeInHierarchy) return null;
 
                 // Read percentage text (e.g., "73%")
                 string percentage = null;
-                if (_percentageTextField != null)
+                if (_profileCache.Handles.PercentageText != null)
                 {
-                    var tmpText = _percentageTextField.GetValue(badge) as TMP_Text;
+                    var tmpText = _profileCache.Handles.PercentageText.GetValue(badge) as TMP_Text;
                     if (tmpText != null)
                         percentage = UITextExtractor.CleanText(tmpText.text);
                 }
 
                 // Read set name from tooltip (TooltipTrigger.TooltipData.Text)
                 string setName = null;
-                if (_tooltipField != null)
+                if (_profileCache.Handles.Tooltip != null)
                 {
-                    var tooltip = _tooltipField.GetValue(badge) as Component;
+                    var tooltip = _profileCache.Handles.Tooltip.GetValue(badge) as Component;
                     if (tooltip != null)
                         setName = ReadTooltipText(tooltip.gameObject);
                 }
@@ -658,11 +660,11 @@ namespace AccessibleArena.Core.Services
         {
             switch (cosmeticType)
             {
-                case "Avatar": return _avatarDisplayItemField;
-                case "Title": return _titleDisplayItemField;
-                case "Emote": return _emoteDisplayItemField;
-                case "Pet": return _petDisplayItemField;
-                case "Sleeve": return _sleeveDisplayItemField;
+                case "Avatar": return _profileCache.Handles.AvatarDisplayItem;
+                case "Title": return _profileCache.Handles.TitleDisplayItem;
+                case "Emote": return _profileCache.Handles.EmoteDisplayItem;
+                case "Pet": return _profileCache.Handles.PetDisplayItem;
+                case "Sleeve": return _profileCache.Handles.SleeveDisplayItem;
                 default: return null;
             }
         }
@@ -943,10 +945,10 @@ namespace AccessibleArena.Core.Services
         private void TryPersistAvatarSelection(SubPanelItem item)
         {
             if (_subPanelType != "Avatar") return;
-            if (item.GameObject == null || _avatarSelectPanelType == null || _doneButtonOnClickMethod == null) return;
+            if (item.GameObject == null || _profileCache.Handles.AvatarSelectPanelType == null || _profileCache.Handles.DoneButtonOnClick == null) return;
 
             // Check if avatar is locked via IsLocked() on the AvatarSelection component
-            if (_avatarIsLockedMethod != null)
+            if (_profileCache.Handles.AvatarIsLocked != null)
             {
                 try
                 {
@@ -954,7 +956,7 @@ namespace AccessibleArena.Core.Services
                     if (avatarSelType != null)
                     {
                         var avatarComp = item.GameObject.GetComponent(avatarSelType);
-                        if (avatarComp != null && (bool)_avatarIsLockedMethod.Invoke(avatarComp, null))
+                        if (avatarComp != null && (bool)_profileCache.Handles.AvatarIsLocked.Invoke(avatarComp, null))
                         {
                             Log.Msg("{NavigatorId}", $"Avatar is locked, skipping persistence");
                             return;
@@ -970,14 +972,14 @@ namespace AccessibleArena.Core.Services
             // Find AvatarSelectPanel in parent hierarchy and invoke DoneButton_OnClick
             try
             {
-                var panel = item.GameObject.GetComponentInParent(_avatarSelectPanelType);
+                var panel = item.GameObject.GetComponentInParent(_profileCache.Handles.AvatarSelectPanelType);
                 if (panel == null)
                 {
                     Log.Msg("{NavigatorId}", $"AvatarSelectPanel not found in parent hierarchy");
                     return;
                 }
 
-                _doneButtonOnClickMethod.Invoke(panel, null);
+                _profileCache.Handles.DoneButtonOnClick.Invoke(panel, null);
                 Log.Msg("{NavigatorId}", $"Avatar selection persisted via DoneButton_OnClick");
                 // Panel closes automatically via _backButton_OnClicked callback;
                 // polling will detect mode change and call ExitSubPanel()
@@ -1204,9 +1206,9 @@ namespace AccessibleArena.Core.Services
 
                 // Read bio text from BioString property (appended after status below)
                 string bio = null;
-                if (_bioStringProp != null)
+                if (_profileCache.Handles.BioString != null)
                 {
-                    try { bio = _bioStringProp.GetValue(mb)?.ToString(); }
+                    try { bio = _profileCache.Handles.BioString.GetValue(mb)?.ToString(); }
                     catch { }
                 }
 
@@ -1233,11 +1235,11 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // For locked avatars, check if purchasable in store
-                if (isLocked && _storeSectionProp != null)
+                if (isLocked && _profileCache.Handles.StoreSection != null)
                 {
                     try
                     {
-                        var storeSection = _storeSectionProp.GetValue(mb);
+                        var storeSection = _profileCache.Handles.StoreSection.GetValue(mb);
                         // EStoreSection.None = 0; non-zero means purchasable
                         if (storeSection != null && (int)storeSection != 0)
                             status = $"{Strings.ProfileItemLocked}, {Strings.ProfileItemStore}";
@@ -1665,10 +1667,10 @@ namespace AccessibleArena.Core.Services
 
         private string ReadProfileScreenMode()
         {
-            if (_profileScreenModeField == null || _controller == null) return null;
+            if (_profileCache.Handles.ProfileScreenMode == null || _controller == null) return null;
             try
             {
-                var mode = _profileScreenModeField.GetValue(_controller);
+                var mode = _profileCache.Handles.ProfileScreenMode.GetValue(_controller);
                 return mode?.ToString();
             }
             catch { return null; }
@@ -1677,11 +1679,11 @@ namespace AccessibleArena.Core.Services
         private GameObject FindCosmeticSelectorContent()
         {
             // CosmeticSelectorController places panels under _cosmeticSelectorsTransform
-            if (_cosmeticSelectorsTransformField != null && _controller != null)
+            if (_profileCache.Handles.CosmeticSelectorsTransform != null && _controller != null)
             {
                 try
                 {
-                    var transform = _cosmeticSelectorsTransformField.GetValue(_controller) as Transform;
+                    var transform = _profileCache.Handles.CosmeticSelectorsTransform.GetValue(_controller) as Transform;
                     if (transform != null && transform.gameObject.activeInHierarchy)
                         return transform.gameObject;
                 }
