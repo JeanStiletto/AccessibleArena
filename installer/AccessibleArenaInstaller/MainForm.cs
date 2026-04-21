@@ -530,9 +530,9 @@ namespace AccessibleArenaInstaller
             {
                 string url;
                 if (_language == null || _language == "en")
-                    url = $"{Config.ModRepositoryUrl}/blob/main/README.md";
+                    url = Config.ModSiteUrl;
                 else
-                    url = $"{Config.ModRepositoryUrl}/blob/main/docs/README.{_language}.md";
+                    url = $"{Config.ModSiteUrl}docs/README.{_language}.html";
 
                 Logger.Info($"Opening README: {url}");
                 System.Diagnostics.Process.Start(url);

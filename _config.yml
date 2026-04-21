@@ -1,0 +1,24 @@
+title: Accessible Arena
+description: Screen reader accessibility mod for Magic The Gathering Arena
+theme: jekyll-theme-cayman
+
+include:
+  - docs
+
+exclude:
+  - src
+  - tests
+  - tools
+  - installer
+  - llm-docs
+  - CLAUDE.md
+  - CONTRIBUTING.md
+  - LICENSE
+  - Directory.Build.props
+  - AccessibleArena.sln
+  - "*.csproj"
+  - "*.props"
+  - "*.ps1"
+  - "*.bat"
+  - bin
+  - obj

@@ -1,4 +1,11 @@
+---
+layout: default
+title: Accessible Arena
+permalink: /
+---
 <h1>Accessible Arena</h1>
+
+Read in other languages: [Deutsch](docs/README.de.md) | [Español](docs/README.es.md) | [Français](docs/README.fr.md) | [Italiano](docs/README.it.md) | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [Polski](docs/README.pl.md) | [Português (Brasil)](docs/README.pt-BR.md) | [Русский](docs/README.ru.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md)
 
 <h2>What is this mod</h2>
 
@@ -16,7 +23,7 @@ If you want to learn more about Magic in general, the game's website as well as 
 - Windows 10 or later
 - Magic: The Gathering Arena (installed via the official Wizards installer or Steam)
 - A screen reader (only NVDA and JAWS are tested)
- - MelonLoader (the installer handles this automatically)
+- MelonLoader (the installer handles this automatically)
 
 <h2>Installation</h2>
 
@@ -82,8 +89,10 @@ Navigation follows standard conventions throughout: Arrow keys to move, Home/End
 
 - F1: Help menu (lists all shortcuts for the current screen)
 - Ctrl+F1: Announce shortcuts for the current screen
-- F2: Settings menu
+- F2: Mod settings
 - F3: Announce current screen
+- F4: Friends panel (from menus) / Duel chat (during duels)
+- F5: Check for / start update
 - Ctrl+R: Repeat last announcement
 
 <h3>Duels - Zones</h3>
@@ -96,13 +105,29 @@ Shift+Up/Down: Switch battlefield rows
 
 <h3>Duels - Information</h3>
 
-T (Turn/Phase), L (Life totals), V (Player info zone), D / Shift+D (Library counts), Shift+C (Opponent hand count)
+- T: Turn/Phase
+- L: Life totals
+- V: Player info zone
+- D / Shift+D: Library counts
+- Shift+C: Opponent hand count
+- M / Shift+M: Your / opponent land summary
+- K: Counter info on focused card
+- O: Game log (recent duel announcements)
+- E / Shift+E: Your / opponent timer
 
 <h3>Duels - Targeting and actions</h3>
 
 - Tab / Ctrl+Tab: Cycle targets (all / opponent only)
 - Enter: Select target
 - Space: Pass priority, confirm attackers/blockers, advance phase
+
+<h3>Duels - Full control and phase stops</h3>
+
+- P: Toggle full control (temporary, resets on phase change)
+- Shift+P: Toggle locked full control (permanent)
+- Shift+Backspace: Toggle pass until opponent action (soft skip)
+- Ctrl+Backspace: Toggle skip turn (force skip entire turn)
+- 1-0: Toggle phase stops (1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers, 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step)
 
 <h3>Duels - Browsers (Scry, Surveil, Mulligan)</h3>
 
@@ -152,10 +177,7 @@ If the hash matches the one in the release notes, the file is genuine. To run th
 
 <h2>Reporting bugs</h2>
 
-If you find a bug you have several options.
-Post in the place you found the mod published.
-Join the accessible modding Discord (link todo) where there is a channel for Arena.
-Open an issue on GitHub: https://github.com/JeanStiletto/AccessibleArena/issues
+If you find a bug, you can post in the place you found the mod published, or open an issue on GitHub: https://github.com/JeanStiletto/AccessibleArena/issues
 
 Include the following information:
 
@@ -171,7 +193,6 @@ The game should cover nearly every screen in the game but there might be some ed
 Some specific events might not be fully working. Drafting with real players has a lobby screen not supported yet, but in quickdraft you pick cards against bots before you face human opponents, this is functional and a recommended mode for everyone who likes this kind of experience. Cube mode is untouched. I don't even really know what this is about and it costs a lot of in-game resources. So I will do this if I have time or on request.
 The cosmetics system of the game with Emotes, Pets, card styles and titles is only partly supported yet.
 The mod is only tested on Windows with NVDA and JAWS and still relies on the unmodified Tolk library. I cannot test Mac or Linux compatibility here, and cross-platform libraries like Prism didn't fully support the old .NET versions the game depends on at this point. So I will only switch to a broader library if people can help out with testing for either other platforms or Asian screen readers that aren't fully supported by unmodified Tolk. So don't hesitate to contact me if you want me working on this.
-
 
 For the current list of known issues, see [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
@@ -239,12 +260,13 @@ For sighted testing to understand visual workflows and confirming some things I 
 - Tolk for screen reader communication
 - ILSpy for decompiling game code
 
-Support your modder:
-Creating this mod was not just a lot of fun and empowerment for me but cost me really a lot of time and real money cause I used the 100 Euro Claude plan. Further to maintain the mod I will have to keep at least on the 20 Euro plan and most probably will stay on the bigger one to work on new projects. And I bought some in-game real money stuff for testing but would have done this anyways for the most part.
-So if you are willing and able to afford some financial reward for my investments you can look over here. I would be very grateful if this project brings me not just fulfillment but even some money.
-links todo
+<h2>Support your modder</h2>
 
-<h2>License</h2>
+Creating this mod was not just a lot of fun and empowerment for me but cost me really a lot of time and real money for Claude subscriptions. I will keep those to work on further improvements and keep maintenance of the project over the next years.
+So if you are willing and able to afford a one-time or even monthly donation you can look over here.
+I would highly appreciate this recognition of my work and it gives me a stable base to keep working on Arena and, hopefully, other large projects in the future.
+
+Ko-fi: https://ko-fi.com/jeanstiletto
 
 This project is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
 
@@ -253,4 +275,3 @@ This project is licensed under the GNU General Public License v3.0. See the LICE
 - GitHub: https://github.com/JeanStiletto/AccessibleArena
 - MelonLoader: https://github.com/LavaGang/MelonLoader
 - MTG Arena: https://magic.wizards.com/mtgarena
-- Accessibility modding Discord: link todo

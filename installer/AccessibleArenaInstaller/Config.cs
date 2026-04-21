@@ -13,6 +13,12 @@ namespace AccessibleArenaInstaller
         public const string ModRepositoryUrl = "https://github.com/JeanStiletto/AccessibleArena";
 
         /// <summary>
+        /// GitHub Pages site URL. Used for opening the README without the
+        /// surrounding GitHub repo chrome. Must end with a trailing slash.
+        /// </summary>
+        public const string ModSiteUrl = "https://jeanstiletto.github.io/AccessibleArena/";
+
+        /// <summary>
         /// The filename of the mod DLL in GitHub releases.
         /// </summary>
         public const string ModDllName = "AccessibleArena.dll";
