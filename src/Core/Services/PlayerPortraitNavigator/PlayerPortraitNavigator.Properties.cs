@@ -21,15 +21,50 @@ namespace AccessibleArena.Core.Services
         private enum PlayerProperty { Life, Effects, Timer, Timeouts, Wins, Rank }
         private const int PropertyCount = 6;
 
-        // Rank reflection cache (GameManager -> MatchManager -> PlayerInfo)
-        private static PropertyInfo _matchManagerProp;
-        private static PropertyInfo _localPlayerInfoProp;
-        private static PropertyInfo _opponentInfoProp;
-        private static FieldInfo _rankingClassField;
-        private static FieldInfo _rankingTierField;
-        private static FieldInfo _mythicPercentileField;
-        private static FieldInfo _mythicPlacementField;
-        private static bool _rankReflectionInitialized;
+        // Rank reflection caches (3-type chain: GameManager → MatchManager → PlayerInfo).
+        // Each type is only reachable via a live instance from the previous step, so three
+        // caches seeded independently at point of use (Commander precedent).
+        private sealed class GameManagerRankHandles { public PropertyInfo MatchManager; }
+        private sealed class MatchManagerRankHandles
+        {
+            public PropertyInfo LocalPlayerInfo;
+            public PropertyInfo OpponentInfo;
+        }
+        private sealed class PlayerInfoRankHandles
+        {
+            public FieldInfo RankingClass;
+            public FieldInfo RankingTier;
+            public FieldInfo MythicPercentile;
+            public FieldInfo MythicPlacement;
+        }
+
+        private static readonly ReflectionCache<GameManagerRankHandles> _gmRankCache = new ReflectionCache<GameManagerRankHandles>(
+            builder: t => new GameManagerRankHandles { MatchManager = t.GetProperty("MatchManager", PublicInstance) },
+            validator: h => h.MatchManager != null,
+            logTag: "PlayerPortrait",
+            logSubject: "GameManager");
+
+        private static readonly ReflectionCache<MatchManagerRankHandles> _mmRankCache = new ReflectionCache<MatchManagerRankHandles>(
+            builder: t => new MatchManagerRankHandles
+            {
+                LocalPlayerInfo = t.GetProperty("LocalPlayerInfo", PublicInstance),
+                OpponentInfo = t.GetProperty("OpponentInfo", PublicInstance),
+            },
+            validator: h => h.LocalPlayerInfo != null,
+            logTag: "PlayerPortrait",
+            logSubject: "MatchManager");
+
+        private static readonly ReflectionCache<PlayerInfoRankHandles> _piRankCache = new ReflectionCache<PlayerInfoRankHandles>(
+            builder: t => new PlayerInfoRankHandles
+            {
+                RankingClass = t.GetField("RankingClass", AllInstanceFlags),
+                RankingTier = t.GetField("RankingTier", AllInstanceFlags),
+                MythicPercentile = t.GetField("MythicPercentile", AllInstanceFlags),
+                MythicPlacement = t.GetField("MythicPlacement", AllInstanceFlags),
+            },
+            validator: h => h.RankingClass != null,
+            logTag: "PlayerPortrait",
+            logSubject: "PlayerInfo");
 
         /// <summary>
         /// Gets the display value for a property for the current player.
@@ -229,32 +264,36 @@ namespace AccessibleArena.Core.Services
                 }
                 if (gameManager == null) return null;
 
-                if (!_rankReflectionInitialized)
-                    InitializeRankReflection(gameManager);
-                if (!_rankReflectionInitialized) return null;
+                if (!_gmRankCache.EnsureInitialized(gameManager.GetType())) return null;
 
-                var matchManager = _matchManagerProp.GetValue(gameManager);
+                var matchManager = _gmRankCache.Handles.MatchManager.GetValue(gameManager);
                 if (matchManager == null) return null;
 
-                var infoProp = isOpponent ? _opponentInfoProp : _localPlayerInfoProp;
+                if (!_mmRankCache.EnsureInitialized(matchManager.GetType())) return null;
+                var mm = _mmRankCache.Handles;
+
+                var infoProp = isOpponent ? mm.OpponentInfo : mm.LocalPlayerInfo;
                 if (infoProp == null) return null;
 
                 var playerInfo = infoProp.GetValue(matchManager);
                 if (playerInfo == null) return null;
 
+                if (!_piRankCache.EnsureInitialized(playerInfo.GetType())) return null;
+                var pi = _piRankCache.Handles;
+
                 // Read RankingClass enum value (None=-1, Spark=0, Bronze=1, Silver=2, Gold=3, Platinum=4, Diamond=5, Master=6, Mythic=7)
-                int rankingClass = System.Convert.ToInt32(_rankingClassField.GetValue(playerInfo));
+                int rankingClass = Convert.ToInt32(pi.RankingClass.GetValue(playerInfo));
 
                 if (rankingClass <= 0) return "Unranked";
 
                 // Mythic rank
                 if (rankingClass == 7)
                 {
-                    int placement = _mythicPlacementField != null ? System.Convert.ToInt32(_mythicPlacementField.GetValue(playerInfo)) : 0;
+                    int placement = pi.MythicPlacement != null ? Convert.ToInt32(pi.MythicPlacement.GetValue(playerInfo)) : 0;
                     if (placement > 0)
                         return $"Mythic #{placement}";
 
-                    float percentile = _mythicPercentileField != null ? System.Convert.ToSingle(_mythicPercentileField.GetValue(playerInfo)) : 0f;
+                    float percentile = pi.MythicPercentile != null ? Convert.ToSingle(pi.MythicPercentile.GetValue(playerInfo)) : 0f;
                     if (percentile > 0f)
                         return $"Mythic {percentile:0}%";
 
@@ -274,13 +313,13 @@ namespace AccessibleArena.Core.Services
                     default: rankName = $"Rank {rankingClass}"; break;
                 }
 
-                int tier = _rankingTierField != null ? System.Convert.ToInt32(_rankingTierField.GetValue(playerInfo)) : 0;
+                int tier = pi.RankingTier != null ? Convert.ToInt32(pi.RankingTier.GetValue(playerInfo)) : 0;
                 if (tier > 0)
                     return $"{rankName} Tier {tier}";
 
                 return rankName;
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 Log.Nav("PlayerPortrait", $"Error getting rank: {ex.Message}");
                 return null;
@@ -350,81 +389,5 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
-        /// <summary>
-        /// Initializes reflection cache for rank data from MatchManager player info.
-        /// </summary>
-        private static void InitializeRankReflection(object gameManager)
-        {
-            try
-            {
-                var gmType = gameManager.GetType();
-                _matchManagerProp = gmType.GetProperty("MatchManager", PublicInstance);
-                if (_matchManagerProp == null)
-                {
-                    Log.Warn("PlayerPortrait", "Could not find MatchManager property on GameManager");
-                    return;
-                }
-
-                var matchManager = _matchManagerProp.GetValue(gameManager);
-                if (matchManager == null)
-                {
-                    Log.Warn("PlayerPortrait", "MatchManager is null");
-                    return;
-                }
-
-                var mmType = matchManager.GetType();
-                _localPlayerInfoProp = mmType.GetProperty("LocalPlayerInfo", PublicInstance);
-                _opponentInfoProp = mmType.GetProperty("OpponentInfo", PublicInstance);
-
-                if (_localPlayerInfoProp == null)
-                {
-                    Log.Warn("PlayerPortrait", "Could not find LocalPlayerInfo property on MatchManager");
-                    return;
-                }
-
-                // Get player info type from local player info
-                var playerInfo = _localPlayerInfoProp.GetValue(matchManager);
-                if (playerInfo == null)
-                {
-                    Log.Warn("PlayerPortrait", "LocalPlayerInfo is null");
-                    return;
-                }
-
-                var piType = playerInfo.GetType();
-                var allBindings = AllInstanceFlags;
-                _rankingClassField = piType.GetField("RankingClass", allBindings);
-                _rankingTierField = piType.GetField("RankingTier", allBindings);
-                _mythicPercentileField = piType.GetField("MythicPercentile", allBindings);
-                _mythicPlacementField = piType.GetField("MythicPlacement", allBindings);
-
-                if (_rankingClassField == null)
-                {
-                    // Try as properties instead
-                    var rcProp = piType.GetProperty("RankingClass", allBindings);
-                    if (rcProp != null)
-                    {
-                        Log.Msg("PlayerPortrait", "RankingClass is a property, not a field - logging all members for debugging");
-                    }
-                    Log.Warn("PlayerPortrait", "Could not find RankingClass field on player info type " + piType.Name);
-                    // Log available fields for debugging
-                    foreach (var f in piType.GetFields(allBindings))
-                    {
-                        Log.Msg("PlayerPortrait", $"  Field: {f.Name} ({f.FieldType.Name})");
-                    }
-                    foreach (var p in piType.GetProperties(allBindings))
-                    {
-                        Log.Msg("PlayerPortrait", $"  Property: {p.Name} ({p.PropertyType.Name})");
-                    }
-                    return;
-                }
-
-                _rankReflectionInitialized = true;
-                Log.Msg("PlayerPortrait", $"Rank reflection initialized: RankingClass={_rankingClassField.FieldType.Name}, RankingTier={_rankingTierField?.FieldType.Name ?? "null"}");
-            }
-            catch (System.Exception ex)
-            {
-                Log.Error("PlayerPortrait", $"Failed to initialize rank reflection: {ex.Message}");
-            }
-        }
     }
 }

@@ -154,19 +154,29 @@ Decisions above are final unless the pilot itself reveals an API gap.
     Decision 3); file 459 → 407 lines (−52, −11%). Awaiting user smoke
     test of E / Shift+E timer announcements in a duel before Phase 3.
 - [ ] Phase 3 files (batch order cheapest first):
-  - [ ] Accessors: `RecentPlayAccessor.cs`, `CardPoolAccessor.cs`, `EventAccessor.cs`
-  - [ ] Providers: `CardModelProvider.cs`, `CardStateProvider.cs`, `CardTextProvider.cs`,
-        `ExtendedCardInfoProvider.cs`, `DeckCardProvider.cs`, `DeckInfoProvider.cs`
+  - [x] Accessors: `RecentPlayAccessor.cs`, `CardPoolAccessor.cs`, `EventAccessor.cs`
+        (committed, smoke-tested OK 2026-04-21)
+  - [x] Providers (partial): `DeckInfoProvider.cs` (commit f14c21a, −52),
+        `CardStateProvider.cs` model-props cluster only (commit 3adcc1c, −8).
+        SKIPPED — not a fit for `ReflectionCache<THandles>`:
+        `CardTextProvider.cs` (runtime scene-discovered provider instance + method),
+        `ExtendedCardInfoProvider.cs` (10 `_xxxProviderSearched` scene-discovery fields),
+        `CardModelProvider.cs` (`_modelPropertyCache` dictionary, dynamic name-keyed),
+        `DeckCardProvider.cs` (single `_showUnCollectedField` lazy one-off).
+        CardStateProvider's `_attachedToIdField`, `_zoneTypePropCached`,
+        and `_instanceMemberCache` left alone (different lazy patterns).
+        Awaiting user smoke test of deck builder (card count / mana curve /
+        type breakdown) + zone type detection before Phase 3 navigators.
   - [ ] Navigator partials (one subsystem each):
-    - [ ] `PlayerPortraitNavigator.Life.cs` (walk-hierarchy case)
-    - [ ] `PlayerPortraitNavigator.Emotes.cs`
-    - [ ] `PlayerPortraitNavigator.Properties.cs`
+    - [x] `PlayerPortraitNavigator.Life.cs` (done earlier, entityCache + ReflectionWalk)
+    - [x] `PlayerPortraitNavigator.Emotes.cs` (done earlier, avatarCache)
+    - [x] `PlayerPortraitNavigator.Properties.cs` (pending commit — 3-chain rank cache)
     - [ ] `MasteryNavigator.Levels.cs` (~60 handles, chained discovery)
-    - [ ] `MasteryNavigator.PrizeWall.cs`
-    - [ ] `MasteryNavigator.ConfirmationModal.cs`
-    - [ ] `BrowserNavigator.Keyword.cs`, `BrowserNavigator.OrderCards.cs`
-    - [ ] `DuelAnnouncer.Commander.cs`, `DuelAnnouncer.NPE.cs`
-    - [ ] `UITextExtractor.Localization.cs`, `UITextExtractor.Objectives.cs`
+    - [x] `MasteryNavigator.PrizeWall.cs` (commit bdd1a0f)
+    - [x] `MasteryNavigator.ConfirmationModal.cs` (commit bdd1a0f)
+    - [x] `BrowserNavigator.Keyword.cs`, `BrowserNavigator.OrderCards.cs` (commit 02b2bf2)
+    - [x] `DuelAnnouncer.Commander.cs`, `DuelAnnouncer.NPE.cs` (commit 6b7d1af)
+    - [x] `UITextExtractor.Localization.cs`, `UITextExtractor.Objectives.cs` (commit 33c4809)
   - [ ] Other navigators: `ChooseXNavigator`, `HotHighlightNavigator`, `SpinnerNavigator`,
         `SpinnerNavigator`, `ManaColorPickerNavigator`, `ProfileNavigator`, `AchievementsNavigator`,
         `CodexNavigator`, `ChatMessageWatcher`, `ChatNavigator`, `DuelChatNavigator`,
