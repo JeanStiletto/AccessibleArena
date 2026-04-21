@@ -1,5 +1,4 @@
 using UnityEngine;
-using MelonLoader;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -28,56 +27,185 @@ namespace AccessibleArena.Core.Services
         private static MonoBehaviour _cachedCostsDetails;      // DeckCostsDetails
         private static MonoBehaviour _cachedTypesDetails;      // DeckTypesDetails
 
-        // Cached reflection members for DeckMainTitlePanel
-        private static FieldInfo _cardCountLabelField;         // _cardCountLabel (Localize component)
-        private static bool _titlePanelReflectionInit;
+        private sealed class TitlePanelHandles
+        {
+            public FieldInfo CardCountLabel;   // _cardCountLabel (Localize)
+        }
 
-        // Cached reflection members for DeckCostsDetails
-        private static FieldInfo[] _costBarFields;             // OneOrLessItem through SixOrGreaterItem (CostBarItem)
-        private static FieldInfo _costBarQuantityLabelField;   // CostBarItem.QuantityLabel (TMP_Text)
-        private static FieldInfo _averageTextField;            // AverageText (TMP_Text)
-        private static FieldInfo _creaturesItemField;          // CreaturesItem (TypeLineItem)
-        private static FieldInfo _othersItemField;             // OthersItem (TypeLineItem)
-        private static FieldInfo _landsItemField;              // LandsItem (TypeLineItem)
-        private static FieldInfo _typeLineQuantityField;       // TypeLineItem.Quantity (TMP_Text)
-        private static FieldInfo _typeLinePercentField;        // TypeLineItem.Percent (TMP_Text)
-        private static MethodInfo _setDeckMethod;              // DeckCostsDetails.SetDeck(IReadOnlyList<CardPrintingQuantity>)
-        private static bool _costsDetailsReflectionInit;
+        private sealed class CostsDetailsHandles
+        {
+            public FieldInfo[] CostBars;       // OneOrLessItem..SixOrGreaterItem (CostBarItem)
+            public FieldInfo CostBarQuantity;  // CostBarItem.QuantityLabel (TMP_Text)
+            public FieldInfo AverageText;      // AverageText (TMP_Text)
+            public FieldInfo CreaturesItem;    // CreaturesItem (TypeLineItem)
+            public FieldInfo OthersItem;       // OthersItem (TypeLineItem)
+            public FieldInfo LandsItem;        // LandsItem (TypeLineItem)
+            public FieldInfo TypeLineQuantity; // TypeLineItem.Quantity (TMP_Text)
+            public FieldInfo TypeLinePercent;  // TypeLineItem.Percent (TMP_Text)
+            public MethodInfo SetDeck;         // DeckCostsDetails.SetDeck(...)
+        }
 
-        // Cached reflection for Pantry.Get<DeckBuilderModelProvider>().Model.GetFilteredMainDeck()
-        private static MethodInfo _pantryGetModelProviderMethod;
-        private static PropertyInfo _modelProperty;            // DeckBuilderModelProvider.Model
-        private static MethodInfo _getFilteredMainDeckMethod;  // DeckBuilderModel.GetFilteredMainDeck()
-        private static bool _pantryReflectionInit;
+        private sealed class PantryHandles
+        {
+            public MethodInfo GetModelProvider;    // Pantry.Get<DeckBuilderModelProvider>()
+            public PropertyInfo Model;             // DeckBuilderModelProvider.Model
+            public MethodInfo GetFilteredMainDeck; // DeckBuilderModel.GetFilteredMainDeck()
+        }
 
-        // Cached reflection members for DeckTypesDetails
-        private static FieldInfo _typesItemParentField;        // ItemParent (Transform)
-        private static MethodInfo _typesSetDeckMethod;         // SetDeck(IReadOnlyList<CardPrintingQuantity>, IGreLocProvider)
-        private static Type _lineItemType;                     // DeckDetailsLineItem
-        private static FieldInfo _lineItemNameField;           // DeckDetailsLineItem.Name (TMP_Text)
-        private static FieldInfo _lineItemQuantityField;       // DeckDetailsLineItem.Quantity (TMP_Text)
-        private static bool _typesDetailsReflectionInit;
+        private sealed class TypesDetailsHandles
+        {
+            public FieldInfo ItemParent;      // ItemParent (Transform)
+            public MethodInfo SetDeck;        // SetDeck(deck, locProvider)
+            public Type LineItemType;         // DeckDetailsLineItem
+            public FieldInfo LineItemName;    // DeckDetailsLineItem.Name (TMP_Text)
+            public FieldInfo LineItemQuantity;// DeckDetailsLineItem.Quantity (TMP_Text)
+        }
 
-        // Cached reflection for Pantry.Get<CardDatabase>().GreLocProvider
-        private static MethodInfo _pantryGetCardDatabaseMethod;
-        private static PropertyInfo _greLocProviderProperty;   // CardDatabase.GreLocProvider
-        private static bool _cardDatabaseReflectionInit;
+        private sealed class CardDatabaseHandles
+        {
+            public MethodInfo GetCardDatabase;  // Pantry.Get<CardDatabase>()
+            public PropertyInfo GreLocProvider; // CardDatabase.GreLocProvider
+        }
 
-        // Cost bar field names matching DeckCostsDetails fields
+        // Cost bar / type-line field name tables used by both the cache builder and read sites.
         private static readonly string[] CostBarFieldNames = new[]
         {
             "OneOrLessItem", "TwoItem", "ThreeItem", "FourItem", "FiveItem", "SixOrGreaterItem"
         };
+
+        private static readonly ReflectionCache<TitlePanelHandles> _titlePanelCache = new ReflectionCache<TitlePanelHandles>(
+            builder: t => new TitlePanelHandles
+            {
+                CardCountLabel = t.GetField("_cardCountLabel", PrivateInstance),
+            },
+            validator: h => h.CardCountLabel != null,
+            logTag: "DeckInfoProvider",
+            logSubject: "DeckMainTitlePanel");
+
+        private static readonly ReflectionCache<CostsDetailsHandles> _costsDetailsCache = new ReflectionCache<CostsDetailsHandles>(
+            builder: t =>
+            {
+                var h = new CostsDetailsHandles { CostBars = new FieldInfo[CostBarFieldNames.Length] };
+
+                Type costBarItemType = null;
+                for (int i = 0; i < CostBarFieldNames.Length; i++)
+                {
+                    h.CostBars[i] = t.GetField(CostBarFieldNames[i], PublicInstance)
+                                 ?? t.GetField(CostBarFieldNames[i], PrivateInstance);
+                    if (costBarItemType == null && h.CostBars[i] != null)
+                        costBarItemType = h.CostBars[i].FieldType;
+                }
+                if (costBarItemType != null)
+                {
+                    h.CostBarQuantity = costBarItemType.GetField("QuantityLabel", PublicInstance)
+                                     ?? costBarItemType.GetField("QuantityLabel", PrivateInstance);
+                }
+
+                h.AverageText = t.GetField("AverageText", PublicInstance)
+                             ?? t.GetField("AverageText", PrivateInstance);
+
+                h.CreaturesItem = t.GetField("CreaturesItem", PublicInstance) ?? t.GetField("CreaturesItem", PrivateInstance);
+                h.OthersItem = t.GetField("OthersItem", PublicInstance) ?? t.GetField("OthersItem", PrivateInstance);
+                h.LandsItem = t.GetField("LandsItem", PublicInstance) ?? t.GetField("LandsItem", PrivateInstance);
+
+                Type typeLineItemType = h.CreaturesItem?.FieldType ?? h.OthersItem?.FieldType;
+                if (typeLineItemType != null)
+                {
+                    h.TypeLineQuantity = typeLineItemType.GetField("Quantity", PublicInstance)
+                                      ?? typeLineItemType.GetField("Quantity", PrivateInstance);
+                    h.TypeLinePercent = typeLineItemType.GetField("Percent", PublicInstance)
+                                     ?? typeLineItemType.GetField("Percent", PrivateInstance);
+                }
+
+                h.SetDeck = t.GetMethod("SetDeck", PublicInstance);
+                return h;
+            },
+            validator: h =>
+                h.CostBarQuantity != null && h.TypeLineQuantity != null
+                && h.CreaturesItem != null && h.OthersItem != null && h.LandsItem != null
+                && h.SetDeck != null,
+            logTag: "DeckInfoProvider",
+            logSubject: "DeckCostsDetails");
+
+        private static readonly ReflectionCache<PantryHandles> _pantryCache = new ReflectionCache<PantryHandles>(
+            builder: pantryType =>
+            {
+                var h = new PantryHandles();
+                Type modelProviderType = FindType("Core.Code.Decks.DeckBuilderModelProvider");
+                if (modelProviderType == null) return h;
+
+                var getMethod = pantryType.GetMethod("Get", BindingFlags.Public | BindingFlags.Static);
+                if (getMethod != null && getMethod.IsGenericMethod)
+                    h.GetModelProvider = getMethod.MakeGenericMethod(modelProviderType);
+
+                h.Model = modelProviderType.GetProperty("Model", PublicInstance)
+                       ?? modelProviderType.GetProperty("Model", PrivateInstance);
+
+                if (h.Model != null)
+                {
+                    var modelType = h.Model.PropertyType;
+                    h.GetFilteredMainDeck = modelType.GetMethod("GetFilteredMainDeck", PublicInstance)
+                                         ?? modelType.GetMethod("GetFilteredMainDeck", PrivateInstance);
+                }
+                return h;
+            },
+            validator: h => h.GetModelProvider != null && h.Model != null && h.GetFilteredMainDeck != null,
+            logTag: "DeckInfoProvider",
+            logSubject: "Pantry");
+
+        private static readonly ReflectionCache<TypesDetailsHandles> _typesDetailsCache = new ReflectionCache<TypesDetailsHandles>(
+            builder: t =>
+            {
+                var h = new TypesDetailsHandles
+                {
+                    ItemParent = t.GetField("ItemParent", PublicInstance),
+                };
+                foreach (var method in t.GetMethods(PublicInstance))
+                {
+                    if (method.Name == "SetDeck" && method.GetParameters().Length == 2)
+                    {
+                        h.SetDeck = method;
+                        break;
+                    }
+                }
+                var typePrefabField = t.GetField("TypePrefab", PublicInstance);
+                if (typePrefabField != null)
+                {
+                    h.LineItemType = typePrefabField.FieldType;
+                    h.LineItemName = h.LineItemType.GetField("Name", PublicInstance);
+                    h.LineItemQuantity = h.LineItemType.GetField("Quantity", PublicInstance);
+                }
+                return h;
+            },
+            validator: h =>
+                h.ItemParent != null && h.SetDeck != null && h.LineItemType != null
+                && h.LineItemName != null && h.LineItemQuantity != null,
+            logTag: "DeckInfoProvider",
+            logSubject: "DeckTypesDetails");
+
+        private static readonly ReflectionCache<CardDatabaseHandles> _cardDatabaseCache = new ReflectionCache<CardDatabaseHandles>(
+            builder: pantryType =>
+            {
+                var h = new CardDatabaseHandles();
+                Type cardDatabaseType = FindType("Wotc.Mtga.Cards.Database.CardDatabase");
+                if (cardDatabaseType == null) return h;
+
+                var getMethod = pantryType.GetMethod("Get", BindingFlags.Public | BindingFlags.Static);
+                if (getMethod != null && getMethod.IsGenericMethod)
+                    h.GetCardDatabase = getMethod.MakeGenericMethod(cardDatabaseType);
+
+                h.GreLocProvider = cardDatabaseType.GetProperty("GreLocProvider", PublicInstance);
+                return h;
+            },
+            validator: h => h.GetCardDatabase != null && h.GreLocProvider != null,
+            logTag: "DeckInfoProvider",
+            logSubject: "CardDatabase");
+
         private static readonly string[] CostBarLabels = new[]
         {
             "1 or less", "2", "3", "4", "5", "6 or more"
         };
 
-        // Type line item field names
-        private static readonly string[] TypeLineFieldNames = new[]
-        {
-            "CreaturesItem", "OthersItem", "LandsItem"
-        };
         private static readonly string[] TypeLineDisplayNames = new[]
         {
             "Creatures", "Others", "Lands"
@@ -104,10 +232,10 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                if (_cardCountLabelField == null) return null;
+                if (!_titlePanelCache.IsInitialized) return null;
 
                 // _cardCountLabel is a Localize component (MonoBehaviour)
-                var localizeComponent = _cardCountLabelField.GetValue(panel);
+                var localizeComponent = _titlePanelCache.Handles.CardCountLabel.GetValue(panel);
                 if (localizeComponent == null) return null;
 
                 // The Localize component is on a GameObject that also has TMP_Text
@@ -212,8 +340,10 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(cardCount))
                 entries.Add(cardCount);
 
-            if (details == null || _typeLineQuantityField == null)
+            if (details == null || !_costsDetailsCache.IsInitialized)
                 return entries;
+
+            var cdh = _costsDetailsCache.Handles;
 
             // Classify type groups into creature/others/land
             TypeGroup? creatureTypeGroup = null;
@@ -223,7 +353,7 @@ namespace AccessibleArena.Core.Services
             if (typeGroups != null && typeGroups.Count > 0)
                 ClassifyTypeGroups(details, typeGroups, out creatureTypeGroup, out othersTypeGroups, out landTypeGroup);
 
-            var typeFields = new FieldInfo[] { _creaturesItemField, _othersItemField, _landsItemField };
+            var typeFields = new FieldInfo[] { cdh.CreaturesItem, cdh.OthersItem, cdh.LandsItem };
             for (int i = 0; i < typeFields.Length; i++)
             {
                 if (typeFields[i] == null) continue;
@@ -232,7 +362,7 @@ namespace AccessibleArena.Core.Services
                     var typeLineItem = typeFields[i].GetValue(details);
                     if (typeLineItem == null) continue;
 
-                    string quantity = GetTmpTextValue(_typeLineQuantityField.GetValue(typeLineItem));
+                    string quantity = GetTmpTextValue(cdh.TypeLineQuantity.GetValue(typeLineItem));
                     if (string.IsNullOrEmpty(quantity) || quantity.Trim() == "0") continue;
 
                     var sb = new StringBuilder();
@@ -258,9 +388,9 @@ namespace AccessibleArena.Core.Services
                             sb.Append($", {sub.quantity} {sub.name}");
                     }
 
-                    if (_typeLinePercentField != null)
+                    if (cdh.TypeLinePercent != null)
                     {
-                        string percent = GetTmpTextValue(_typeLinePercentField.GetValue(typeLineItem));
+                        string percent = GetTmpTextValue(cdh.TypeLinePercent.GetValue(typeLineItem));
                         if (!string.IsNullOrEmpty(percent))
                             sb.Append($", {percent.Trim()}");
                     }
@@ -287,8 +417,11 @@ namespace AccessibleArena.Core.Services
 
             if (typeGroups.Count == 0) return;
 
-            int creatureCount = ReadTypeLineCount(costsDetails, _creaturesItemField);
-            int landCount = ReadTypeLineCount(costsDetails, _landsItemField);
+            if (!_costsDetailsCache.IsInitialized) return;
+            var cdh = _costsDetailsCache.Handles;
+
+            int creatureCount = ReadTypeLineCount(costsDetails, cdh.CreaturesItem);
+            int landCount = ReadTypeLineCount(costsDetails, cdh.LandsItem);
 
             int startIdx = 0;
             int endIdx = typeGroups.Count - 1;
@@ -312,13 +445,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static int ReadTypeLineCount(MonoBehaviour costsDetails, FieldInfo typeLineField)
         {
-            if (costsDetails == null || typeLineField == null || _typeLineQuantityField == null)
+            if (costsDetails == null || typeLineField == null || !_costsDetailsCache.IsInitialized)
                 return 0;
             try
             {
                 var typeLineItem = typeLineField.GetValue(costsDetails);
                 if (typeLineItem == null) return 0;
-                string qty = GetTmpTextValue(_typeLineQuantityField.GetValue(typeLineItem));
+                string qty = GetTmpTextValue(_costsDetailsCache.Handles.TypeLineQuantity.GetValue(typeLineItem));
                 if (string.IsNullOrEmpty(qty)) return 0;
                 return int.TryParse(qty.Trim(), out int val) ? val : 0;
             }
@@ -332,19 +465,21 @@ namespace AccessibleArena.Core.Services
         {
             var entries = new List<string>();
 
-            if (details == null || _costBarFields == null || _costBarQuantityLabelField == null)
+            if (details == null || !_costsDetailsCache.IsInitialized)
                 return entries;
+
+            var cdh = _costsDetailsCache.Handles;
 
             try
             {
-                for (int i = 0; i < _costBarFields.Length; i++)
+                for (int i = 0; i < cdh.CostBars.Length; i++)
                 {
-                    if (_costBarFields[i] == null) continue;
+                    if (cdh.CostBars[i] == null) continue;
 
-                    var barItem = _costBarFields[i].GetValue(details);
+                    var barItem = cdh.CostBars[i].GetValue(details);
                     if (barItem == null) continue;
 
-                    string text = GetTmpTextValue(_costBarQuantityLabelField.GetValue(barItem));
+                    string text = GetTmpTextValue(cdh.CostBarQuantity.GetValue(barItem));
                     if (string.IsNullOrEmpty(text)) text = "0";
 
                     entries.Add($"{CostBarLabels[i]}: {text.Trim()}");
@@ -374,9 +509,10 @@ namespace AccessibleArena.Core.Services
             if (!string.IsNullOrEmpty(cardCount))
                 sb.Append(cardCount);
 
-            if (details != null && _typeLineQuantityField != null)
+            if (details != null && _costsDetailsCache.IsInitialized)
             {
-                var typeFields = new FieldInfo[] { _creaturesItemField, _othersItemField, _landsItemField };
+                var cdh = _costsDetailsCache.Handles;
+                var typeFields = new FieldInfo[] { cdh.CreaturesItem, cdh.OthersItem, cdh.LandsItem };
                 for (int i = 0; i < typeFields.Length; i++)
                 {
                     if (typeFields[i] == null) continue;
@@ -385,15 +521,15 @@ namespace AccessibleArena.Core.Services
                         var typeLineItem = typeFields[i].GetValue(details);
                         if (typeLineItem == null) continue;
 
-                        string quantity = GetTmpTextValue(_typeLineQuantityField.GetValue(typeLineItem));
+                        string quantity = GetTmpTextValue(cdh.TypeLineQuantity.GetValue(typeLineItem));
                         if (string.IsNullOrEmpty(quantity) || quantity.Trim() == "0") continue;
 
                         if (sb.Length > 0) sb.Append(". ");
                         sb.Append($"{quantity.Trim()} {TypeLineDisplayNames[i]}");
 
-                        if (_typeLinePercentField != null)
+                        if (cdh.TypeLinePercent != null)
                         {
-                            string percent = GetTmpTextValue(_typeLinePercentField.GetValue(typeLineItem));
+                            string percent = GetTmpTextValue(cdh.TypeLinePercent.GetValue(typeLineItem));
                             if (!string.IsNullOrEmpty(percent))
                                 sb.Append($" ({percent.Trim()})");
                         }
@@ -411,22 +547,24 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static string BuildManaCurveText(MonoBehaviour details)
         {
-            if (details == null || _costBarFields == null || _costBarQuantityLabelField == null)
+            if (details == null || !_costsDetailsCache.IsInitialized)
                 return null;
+
+            var cdh = _costsDetailsCache.Handles;
 
             try
             {
                 var sb = new StringBuilder();
                 bool first = true;
 
-                for (int i = 0; i < _costBarFields.Length; i++)
+                for (int i = 0; i < cdh.CostBars.Length; i++)
                 {
-                    if (_costBarFields[i] == null) continue;
+                    if (cdh.CostBars[i] == null) continue;
 
-                    var barItem = _costBarFields[i].GetValue(details);
+                    var barItem = cdh.CostBars[i].GetValue(details);
                     if (barItem == null) continue;
 
-                    string text = GetTmpTextValue(_costBarQuantityLabelField.GetValue(barItem));
+                    string text = GetTmpTextValue(cdh.CostBarQuantity.GetValue(barItem));
                     if (string.IsNullOrEmpty(text)) text = "0";
 
                     if (!first) sb.Append(". ");
@@ -458,9 +596,9 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                if (_averageTextField == null) return null;
+                if (!_costsDetailsCache.IsInitialized || _costsDetailsCache.Handles.AverageText == null) return null;
 
-                var avgText = _averageTextField.GetValue(details);
+                var avgText = _costsDetailsCache.Handles.AverageText.GetValue(details);
                 string avg = GetTmpTextValue(avgText);
                 if (!string.IsNullOrEmpty(avg) && avg.Trim() != "0" && avg.Trim() != "0.0")
                     return avg.Trim();
@@ -501,8 +639,7 @@ namespace AccessibleArena.Core.Services
                 if (mb.GetType().Name == T.DeckMainTitlePanel)
                 {
                     _cachedTitlePanel = mb;
-                    if (!_titlePanelReflectionInit)
-                        InitializeTitlePanelReflection(mb.GetType());
+                    _titlePanelCache.EnsureInitialized(mb.GetType());
                     return _cachedTitlePanel;
                 }
             }
@@ -531,8 +668,7 @@ namespace AccessibleArena.Core.Services
                 if (mb.GetType().Name == T.DeckCostsDetails)
                 {
                     _cachedCostsDetails = mb;
-                    if (!_costsDetailsReflectionInit)
-                        InitializeCostsDetailsReflection(mb.GetType());
+                    _costsDetailsCache.EnsureInitialized(mb.GetType());
                     return _cachedCostsDetails;
                 }
             }
@@ -550,28 +686,28 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                if (!_pantryReflectionInit)
-                    InitializePantryReflection();
+                EnsurePantryInitialized();
 
-                if (_pantryGetModelProviderMethod == null || _modelProperty == null || _getFilteredMainDeckMethod == null)
-                    return;
+                if (!_pantryCache.IsInitialized) return;
+
+                var ph = _pantryCache.Handles;
 
                 // Pantry.Get<DeckBuilderModelProvider>()
-                var modelProvider = _pantryGetModelProviderMethod.Invoke(null, null);
+                var modelProvider = ph.GetModelProvider.Invoke(null, null);
                 if (modelProvider == null) return;
 
                 // .Model
-                var model = _modelProperty.GetValue(modelProvider);
+                var model = ph.Model.GetValue(modelProvider);
                 if (model == null) return;
 
                 // .GetFilteredMainDeck()
-                var deckData = _getFilteredMainDeckMethod.Invoke(model, null);
+                var deckData = ph.GetFilteredMainDeck.Invoke(model, null);
                 if (deckData == null) return;
 
                 // DeckCostsDetails.SetDeck(deckData)
-                if (_setDeckMethod != null)
+                if (_costsDetailsCache.IsInitialized && _costsDetailsCache.Handles.SetDeck != null)
                 {
-                    _setDeckMethod.Invoke(costsDetails, new object[] { deckData });
+                    _costsDetailsCache.Handles.SetDeck.Invoke(costsDetails, new object[] { deckData });
                 }
             }
             catch (Exception ex)
@@ -600,8 +736,7 @@ namespace AccessibleArena.Core.Services
                 if (mb.GetType().Name == T.DeckTypesDetails)
                 {
                     _cachedTypesDetails = mb;
-                    if (!_typesDetailsReflectionInit)
-                        InitializeTypesDetailsReflection(mb.GetType());
+                    _typesDetailsCache.EnsureInitialized(mb.GetType());
                     return _cachedTypesDetails;
                 }
             }
@@ -619,31 +754,33 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                if (_typesSetDeckMethod == null) return;
+                if (!_typesDetailsCache.IsInitialized) return;
+                var tdh = _typesDetailsCache.Handles;
+                if (tdh.SetDeck == null) return;
 
                 // Skip if already populated - the game's SetDeck uses Destroy() which is deferred,
                 // so calling it again would create duplicates readable in the same frame
-                if (_typesItemParentField != null)
+                if (tdh.ItemParent != null)
                 {
-                    var itemParent = _typesItemParentField.GetValue(typesDetails) as Transform;
+                    var itemParent = tdh.ItemParent.GetValue(typesDetails) as Transform;
                     if (itemParent != null && itemParent.childCount > 0)
                         return;
                 }
 
                 // Get deck data (reuse existing Pantry reflection)
-                if (!_pantryReflectionInit)
-                    InitializePantryReflection();
+                EnsurePantryInitialized();
 
-                if (_pantryGetModelProviderMethod == null || _modelProperty == null || _getFilteredMainDeckMethod == null)
-                    return;
+                if (!_pantryCache.IsInitialized) return;
 
-                var modelProvider = _pantryGetModelProviderMethod.Invoke(null, null);
+                var ph = _pantryCache.Handles;
+
+                var modelProvider = ph.GetModelProvider.Invoke(null, null);
                 if (modelProvider == null) return;
 
-                var model = _modelProperty.GetValue(modelProvider);
+                var model = ph.Model.GetValue(modelProvider);
                 if (model == null) return;
 
-                var deckData = _getFilteredMainDeckMethod.Invoke(model, null);
+                var deckData = ph.GetFilteredMainDeck.Invoke(model, null);
                 if (deckData == null) return;
 
                 // Get IGreLocProvider
@@ -651,7 +788,7 @@ namespace AccessibleArena.Core.Services
                 if (locProvider == null) return;
 
                 // DeckTypesDetails.SetDeck(deck, locMan)
-                _typesSetDeckMethod.Invoke(typesDetails, new object[] { deckData, locProvider });
+                tdh.SetDeck.Invoke(typesDetails, new object[] { deckData, locProvider });
             }
             catch (Exception ex)
             {
@@ -666,16 +803,17 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                if (!_cardDatabaseReflectionInit)
-                    InitializeCardDatabaseReflection();
+                EnsureCardDatabaseInitialized();
 
-                if (_pantryGetCardDatabaseMethod == null || _greLocProviderProperty == null)
+                if (!_cardDatabaseCache.IsInitialized)
                     return null;
 
-                var cardDatabase = _pantryGetCardDatabaseMethod.Invoke(null, null);
+                var cdh = _cardDatabaseCache.Handles;
+
+                var cardDatabase = cdh.GetCardDatabase.Invoke(null, null);
                 if (cardDatabase == null) return null;
 
-                return _greLocProviderProperty.GetValue(cardDatabase);
+                return cdh.GreLocProvider.GetValue(cardDatabase);
             }
             catch (Exception ex)
             {
@@ -693,12 +831,14 @@ namespace AccessibleArena.Core.Services
         {
             var groups = new List<TypeGroup>();
 
-            if (_typesItemParentField == null || _lineItemNameField == null || _lineItemQuantityField == null)
+            if (!_typesDetailsCache.IsInitialized)
                 return groups;
+
+            var tdh = _typesDetailsCache.Handles;
 
             try
             {
-                var itemParent = _typesItemParentField.GetValue(typesDetails) as Transform;
+                var itemParent = tdh.ItemParent.GetValue(typesDetails) as Transform;
                 if (itemParent == null) return groups;
 
                 TypeGroup currentGroup = default;
@@ -711,9 +851,9 @@ namespace AccessibleArena.Core.Services
 
                     // Try to find DeckDetailsLineItem component on this child
                     MonoBehaviour lineItem = null;
-                    if (_lineItemType != null)
+                    if (tdh.LineItemType != null)
                     {
-                        var comp = child.GetComponent(_lineItemType);
+                        var comp = child.GetComponent(tdh.LineItemType);
                         lineItem = comp as MonoBehaviour;
                     }
 
@@ -725,8 +865,8 @@ namespace AccessibleArena.Core.Services
                     }
 
                     // Read Name and Quantity
-                    string name = GetTmpTextValue(_lineItemNameField.GetValue(lineItem));
-                    string quantity = GetTmpTextValue(_lineItemQuantityField.GetValue(lineItem));
+                    string name = GetTmpTextValue(tdh.LineItemName.GetValue(lineItem));
+                    string quantity = GetTmpTextValue(tdh.LineItemQuantity.GetValue(lineItem));
 
                     if (string.IsNullOrEmpty(name)) continue;
                     name = name.Trim();
@@ -800,229 +940,37 @@ namespace AccessibleArena.Core.Services
 
         #region Reflection Initialization
 
-        private static void InitializeTitlePanelReflection(Type type)
+        /// <summary>
+        /// Initialize the Pantry reflection cache by seeding it with the Pantry type
+        /// (discovered at runtime via FindType). Idempotent — bails out if already
+        /// initialized or if the Pantry type cannot be located.
+        /// </summary>
+        private static void EnsurePantryInitialized()
         {
-            if (_titlePanelReflectionInit) return;
-            try
+            if (_pantryCache.IsInitialized) return;
+            Type pantryType = FindType("Wizards.Mtga.Pantry");
+            if (pantryType == null)
             {
-                _cardCountLabelField = type.GetField("_cardCountLabel", PrivateInstance);
-                _titlePanelReflectionInit = true;
-
-                Log.Msg("DeckInfoProvider", $"TitlePanel reflection: _cardCountLabel={_cardCountLabelField != null}");
+                Log.Warn("DeckInfoProvider", "Could not find Pantry type");
+                return;
             }
-            catch (Exception ex)
-            {
-                Log.Error("DeckInfoProvider", $"TitlePanel reflection failed: {ex.Message}");
-            }
+            _pantryCache.EnsureInitialized(pantryType);
         }
 
-        private static void InitializeCostsDetailsReflection(Type type)
+        /// <summary>
+        /// Initialize the CardDatabase reflection cache by seeding it with the Pantry type
+        /// (the CardDatabase type is resolved inside the builder via FindType).
+        /// </summary>
+        private static void EnsureCardDatabaseInitialized()
         {
-            if (_costsDetailsReflectionInit) return;
-            try
+            if (_cardDatabaseCache.IsInitialized) return;
+            Type pantryType = FindType("Wizards.Mtga.Pantry");
+            if (pantryType == null)
             {
-                // Get CostBarItem fields (OneOrLessItem through SixOrGreaterItem)
-                _costBarFields = new FieldInfo[CostBarFieldNames.Length];
-                Type costBarItemType = null;
-
-                for (int i = 0; i < CostBarFieldNames.Length; i++)
-                {
-                    _costBarFields[i] = type.GetField(CostBarFieldNames[i], PublicInstance)
-                                     ?? type.GetField(CostBarFieldNames[i], PrivateInstance);
-
-                    if (costBarItemType == null && _costBarFields[i] != null)
-                    {
-                        costBarItemType = _costBarFields[i].FieldType;
-                    }
-                }
-
-                // Get QuantityLabel from CostBarItem nested class
-                if (costBarItemType != null)
-                {
-                    _costBarQuantityLabelField = costBarItemType.GetField("QuantityLabel", PublicInstance)
-                                              ?? costBarItemType.GetField("QuantityLabel", PrivateInstance);
-                }
-
-                // Get AverageText (TMP_Text)
-                _averageTextField = type.GetField("AverageText", PublicInstance)
-                                 ?? type.GetField("AverageText", PrivateInstance);
-
-                // Get TypeLineItem fields
-                _creaturesItemField = type.GetField("CreaturesItem", PublicInstance)
-                                   ?? type.GetField("CreaturesItem", PrivateInstance);
-                _othersItemField = type.GetField("OthersItem", PublicInstance)
-                                ?? type.GetField("OthersItem", PrivateInstance);
-                _landsItemField = type.GetField("LandsItem", PublicInstance)
-                               ?? type.GetField("LandsItem", PrivateInstance);
-
-                // Get Quantity/Percent from TypeLineItem nested class
-                Type typeLineItemType = _creaturesItemField?.FieldType ?? _othersItemField?.FieldType;
-                if (typeLineItemType != null)
-                {
-                    _typeLineQuantityField = typeLineItemType.GetField("Quantity", PublicInstance)
-                                          ?? typeLineItemType.GetField("Quantity", PrivateInstance);
-                    _typeLinePercentField = typeLineItemType.GetField("Percent", PublicInstance)
-                                         ?? typeLineItemType.GetField("Percent", PrivateInstance);
-                }
-
-                // Get SetDeck method
-                _setDeckMethod = type.GetMethod("SetDeck", PublicInstance);
-
-                _costsDetailsReflectionInit = true;
-
-                Log.Msg("DeckInfoProvider", $"CostsDetails reflection: " +
-                    $"costBarItemType={costBarItemType?.Name ?? "null"}, " +
-                    $"quantityLabel={_costBarQuantityLabelField != null}, " +
-                    $"averageText={_averageTextField != null}, " +
-                    $"typeLineItemType={typeLineItemType?.Name ?? "null"}, " +
-                    $"typeQuantity={_typeLineQuantityField != null}, " +
-                    $"typePercent={_typeLinePercentField != null}, " +
-                    $"setDeck={_setDeckMethod != null}");
+                Log.Warn("DeckInfoProvider", "Could not find Pantry type for CardDatabase");
+                return;
             }
-            catch (Exception ex)
-            {
-                Log.Error("DeckInfoProvider", $"CostsDetails reflection failed: {ex.Message}");
-            }
-        }
-
-        private static void InitializePantryReflection()
-        {
-            if (_pantryReflectionInit) return;
-            _pantryReflectionInit = true;
-
-            try
-            {
-                // Find Pantry type
-                Type pantryType = FindType("Wizards.Mtga.Pantry");
-                if (pantryType == null)
-                {
-                    Log.Warn("DeckInfoProvider", "Could not find Pantry type");
-                    return;
-                }
-
-                // Find DeckBuilderModelProvider type
-                Type modelProviderType = FindType("Core.Code.Decks.DeckBuilderModelProvider");
-                if (modelProviderType == null)
-                {
-                    Log.Warn("DeckInfoProvider", "Could not find DeckBuilderModelProvider type");
-                    return;
-                }
-
-                // Pantry.Get<T>() is a generic method - make it specific for DeckBuilderModelProvider
-                var getMethod = pantryType.GetMethod("Get", BindingFlags.Public | BindingFlags.Static);
-                if (getMethod != null && getMethod.IsGenericMethod)
-                {
-                    _pantryGetModelProviderMethod = getMethod.MakeGenericMethod(modelProviderType);
-                }
-
-                // DeckBuilderModelProvider.Model property
-                _modelProperty = modelProviderType.GetProperty("Model", PublicInstance)
-                              ?? modelProviderType.GetProperty("Model", PrivateInstance);
-
-                // DeckBuilderModel.GetFilteredMainDeck()
-                if (_modelProperty != null)
-                {
-                    var modelType = _modelProperty.PropertyType;
-                    _getFilteredMainDeckMethod = modelType.GetMethod("GetFilteredMainDeck", PublicInstance)
-                                              ?? modelType.GetMethod("GetFilteredMainDeck", PrivateInstance);
-                }
-
-                Log.Msg("DeckInfoProvider", $"Pantry reflection: " +
-                    $"pantryGet={_pantryGetModelProviderMethod != null}, " +
-                    $"model={_modelProperty != null}, " +
-                    $"getFilteredMainDeck={_getFilteredMainDeckMethod != null}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("DeckInfoProvider", $"Pantry reflection failed: {ex.Message}");
-            }
-        }
-
-        private static void InitializeTypesDetailsReflection(Type type)
-        {
-            if (_typesDetailsReflectionInit) return;
-            try
-            {
-                // ItemParent (Transform) - public field
-                _typesItemParentField = type.GetField("ItemParent", PublicInstance);
-
-                // SetDeck(IReadOnlyList<CardPrintingQuantity>, IGreLocProvider) - 2 params
-                foreach (var method in type.GetMethods(PublicInstance))
-                {
-                    if (method.Name == "SetDeck" && method.GetParameters().Length == 2)
-                    {
-                        _typesSetDeckMethod = method;
-                        break;
-                    }
-                }
-
-                // Get DeckDetailsLineItem type from TypePrefab field
-                var typePrefabField = type.GetField("TypePrefab", PublicInstance);
-                if (typePrefabField != null)
-                {
-                    _lineItemType = typePrefabField.FieldType;
-
-                    // DeckDetailsLineItem.Name and .Quantity (public TMP_Text fields)
-                    _lineItemNameField = _lineItemType.GetField("Name", PublicInstance);
-                    _lineItemQuantityField = _lineItemType.GetField("Quantity", PublicInstance);
-                }
-
-                _typesDetailsReflectionInit = true;
-
-                Log.Msg("DeckInfoProvider", $"TypesDetails reflection: " +
-                    $"itemParent={_typesItemParentField != null}, " +
-                    $"setDeck={_typesSetDeckMethod != null}, " +
-                    $"lineItemType={_lineItemType?.Name ?? "null"}, " +
-                    $"name={_lineItemNameField != null}, " +
-                    $"quantity={_lineItemQuantityField != null}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("DeckInfoProvider", $"TypesDetails reflection failed: {ex.Message}");
-            }
-        }
-
-        private static void InitializeCardDatabaseReflection()
-        {
-            if (_cardDatabaseReflectionInit) return;
-            _cardDatabaseReflectionInit = true;
-
-            try
-            {
-                // Find Pantry type (may already have it from InitializePantryReflection)
-                Type pantryType = FindType("Wizards.Mtga.Pantry");
-                if (pantryType == null)
-                {
-                    Log.Warn("DeckInfoProvider", "Could not find Pantry type for CardDatabase");
-                    return;
-                }
-
-                // Find CardDatabase type (namespace: Wotc.Mtga.Cards.Database)
-                Type cardDatabaseType = FindType("Wotc.Mtga.Cards.Database.CardDatabase");
-                if (cardDatabaseType == null)
-                {
-                    Log.Warn("DeckInfoProvider", "Could not find CardDatabase type");
-                    return;
-                }
-
-                // Pantry.Get<CardDatabase>()
-                var getMethod = pantryType.GetMethod("Get", BindingFlags.Public | BindingFlags.Static);
-                if (getMethod != null && getMethod.IsGenericMethod)
-                {
-                    _pantryGetCardDatabaseMethod = getMethod.MakeGenericMethod(cardDatabaseType);
-                }
-
-                // CardDatabase.GreLocProvider property
-                _greLocProviderProperty = cardDatabaseType.GetProperty("GreLocProvider", PublicInstance);
-
-                Log.Msg("DeckInfoProvider", $"CardDatabase reflection: " +
-                    $"pantryGetCardDb={_pantryGetCardDatabaseMethod != null}, " +
-                    $"greLocProvider={_greLocProviderProperty != null}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("DeckInfoProvider", $"CardDatabase reflection failed: {ex.Message}");
-            }
+            _cardDatabaseCache.EnsureInitialized(pantryType);
         }
 
         #endregion
