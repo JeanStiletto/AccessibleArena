@@ -1,5 +1,4 @@
 using UnityEngine;
-using MelonLoader;
 using System;
 using System.Collections;
 using System.Reflection;
@@ -18,36 +17,115 @@ namespace AccessibleArena.Core.Services
     public static class EventAccessor
     {
 
-        // --- PlayBladeEventTile reflection cache ---
-        private static bool _tileReflectionInit;
-        private static FieldInfo _tileTitleTextField;       // _titleText (Localize component)
-        private static FieldInfo _tileRankImageField;       // _rankImage (Image)
-        private static FieldInfo _tileBo3IndicatorField;    // _bestOf3Indicator (RectTransform)
-        private static FieldInfo _tileAttractParentField;   // _attractParent (RectTransform)
-        private static FieldInfo _tileProgressPipsField;    // _eventProgressPips (RectTransform)
+        private sealed class TileHandles
+        {
+            public FieldInfo TitleText;       // _titleText (Localize)
+            public FieldInfo RankImage;       // _rankImage (Image, optional)
+            public FieldInfo Bo3Indicator;    // _bestOf3Indicator (RectTransform, optional)
+            public FieldInfo AttractParent;   // _attractParent (RectTransform, optional)
+            public FieldInfo ProgressPips;    // _eventProgressPips (RectTransform, optional)
+        }
 
-        // --- EventPageContentController reflection cache ---
-        private static bool _eventPageReflectionInit;
-        private static FieldInfo _currentEventContextField; // _currentEventContext (EventContext)
-        private static FieldInfo _playerEventField;           // EventContext.PlayerEvent (field, not property)
-        private static PropertyInfo _eventInfoProp;         // IPlayerEvent.EventInfo
-        private static PropertyInfo _eventUxInfoProp;       // IPlayerEvent.EventUXInfo
+        private sealed class EventPageHandles
+        {
+            public FieldInfo CurrentEventContext; // _currentEventContext (EventContext)
+        }
 
-        // --- PacketSelectContentController reflection cache ---
-        private static bool _packetReflectionInit;
-        private static FieldInfo _packetOptionsField;       // _packetOptions (List<JumpStartPacket>)
-        private static FieldInfo _selectedPackIdField;      // _selectedPackId (string)
-        private static FieldInfo _currentStateField;        // _currentState (ServiceState)
-        private static FieldInfo _packetToIdField;          // _packetToId (Dictionary<JumpStartPacket, string>)
-        private static FieldInfo _headerTextField;          // _headerText (Localize)
+        private sealed class EventContextHandles
+        {
+            public FieldInfo PlayerEvent;         // EventContext.PlayerEvent (field)
+        }
 
-        // --- JumpStartPacket reflection cache ---
-        private static bool _jumpStartReflectionInit;
-        private static FieldInfo _packTitleField;           // _packTitle (Localize)
+        private sealed class PlayerEventHandles
+        {
+            public PropertyInfo EventInfo;        // optional
+            public PropertyInfo EventUxInfo;      // optional
+        }
 
-        // --- CampaignGraphContentController reflection cache ---
-        private static bool _campaignGraphReflectionInit;
-        private static FieldInfo _campaignGraphStrategyField;   // _strategy (IColorChallengeStrategy)
+        private sealed class PacketHandles
+        {
+            public FieldInfo CurrentState;        // _currentState (ServiceState)
+            public FieldInfo PacketToId;          // _packetToId (Dictionary)
+        }
+
+        private sealed class JumpStartHandles
+        {
+            public FieldInfo PackTitle;           // _packTitle (Localize)
+        }
+
+        private sealed class CampaignGraphHandles
+        {
+            public FieldInfo Strategy;            // _strategy (IColorChallengeStrategy)
+        }
+
+        private static readonly ReflectionCache<TileHandles> _tileCache = new ReflectionCache<TileHandles>(
+            builder: t => new TileHandles
+            {
+                TitleText = t.GetField("_titleText", PrivateInstance),
+                RankImage = t.GetField("_rankImage", PrivateInstance),
+                Bo3Indicator = t.GetField("_bestOf3Indicator", PrivateInstance),
+                AttractParent = t.GetField("_attractParent", PrivateInstance),
+                ProgressPips = t.GetField("_eventProgressPips", PrivateInstance),
+            },
+            validator: h => h.TitleText != null,
+            logTag: "EventAccessor",
+            logSubject: "PlayBladeEventTile");
+
+        private static readonly ReflectionCache<EventPageHandles> _eventPageCache = new ReflectionCache<EventPageHandles>(
+            builder: t => new EventPageHandles
+            {
+                CurrentEventContext = t.GetField("_currentEventContext", PrivateInstance),
+            },
+            validator: h => h.CurrentEventContext != null,
+            logTag: "EventAccessor",
+            logSubject: "EventPageContentController");
+
+        private static readonly ReflectionCache<EventContextHandles> _eventContextCache = new ReflectionCache<EventContextHandles>(
+            builder: t => new EventContextHandles
+            {
+                PlayerEvent = t.GetField("PlayerEvent", PublicInstance),
+            },
+            validator: h => h.PlayerEvent != null,
+            logTag: "EventAccessor",
+            logSubject: "EventContext");
+
+        private static readonly ReflectionCache<PlayerEventHandles> _playerEventCache = new ReflectionCache<PlayerEventHandles>(
+            builder: t => new PlayerEventHandles
+            {
+                EventInfo = t.GetProperty("EventInfo", PublicInstance),
+                EventUxInfo = t.GetProperty("EventUXInfo", PublicInstance),
+            },
+            validator: _ => true,
+            logTag: "EventAccessor",
+            logSubject: "IPlayerEvent");
+
+        private static readonly ReflectionCache<PacketHandles> _packetCache = new ReflectionCache<PacketHandles>(
+            builder: t => new PacketHandles
+            {
+                CurrentState = t.GetField("_currentState", PrivateInstance),
+                PacketToId = t.GetField("_packetToId", PrivateInstance),
+            },
+            validator: h => h.CurrentState != null && h.PacketToId != null,
+            logTag: "EventAccessor",
+            logSubject: "PacketSelectContentController");
+
+        private static readonly ReflectionCache<JumpStartHandles> _jumpStartCache = new ReflectionCache<JumpStartHandles>(
+            builder: t => new JumpStartHandles
+            {
+                PackTitle = t.GetField("_packTitle", PrivateInstance),
+            },
+            validator: h => h.PackTitle != null,
+            logTag: "EventAccessor",
+            logSubject: "JumpStartPacket");
+
+        private static readonly ReflectionCache<CampaignGraphHandles> _campaignGraphCache = new ReflectionCache<CampaignGraphHandles>(
+            builder: t => new CampaignGraphHandles
+            {
+                Strategy = t.GetField("_strategy", PrivateInstance),
+            },
+            validator: h => h.Strategy != null,
+            logTag: "EventAccessor",
+            logSubject: "CampaignGraphContentController");
 
         // Cached component references (invalidated on scene change)
         private static MonoBehaviour _cachedEventPageController;
@@ -71,11 +149,13 @@ namespace AccessibleArena.Core.Services
                 var tile = FindParentComponent(element, "PlayBladeEventTile");
                 if (tile == null) return null;
 
-                if (!_tileReflectionInit)
-                    InitTileReflection(tile.GetType());
+                if (!_tileCache.EnsureInitialized(tile.GetType()))
+                    return null;
+
+                var th = _tileCache.Handles;
 
                 // Read title text from _titleText (Localize -> TMP_Text)
-                string title = ReadLocalizeText(_tileTitleTextField, tile);
+                string title = ReadLocalizeText(th.TitleText, tile);
                 if (string.IsNullOrEmpty(title)) return null;
 
                 // Build enriched label
@@ -83,10 +163,10 @@ namespace AccessibleArena.Core.Services
                 parts.Add(title);
 
                 // Check if in progress (_attractParent active)
-                if (IsRectTransformActive(tile, _tileAttractParentField))
+                if (IsRectTransformActive(tile, th.AttractParent))
                 {
                     // Check progress pips
-                    string progress = ReadProgressFromPips(tile);
+                    string progress = ReadProgressFromPips(tile, th.ProgressPips);
                     if (!string.IsNullOrEmpty(progress))
                         parts.Add(progress);
                     else
@@ -94,11 +174,11 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Check ranked
-                if (IsImageActive(tile, _tileRankImageField))
+                if (IsImageActive(tile, th.RankImage))
                     parts.Add(Strings.EventTileRanked);
 
                 // Check Bo3
-                if (IsRectTransformActive(tile, _tileBo3IndicatorField))
+                if (IsRectTransformActive(tile, th.Bo3Indicator))
                     parts.Add(Strings.EventTileBo3);
 
                 return string.Join(", ", parts);
@@ -108,24 +188,6 @@ namespace AccessibleArena.Core.Services
                 Log.Error("EventAccessor", $"GetEventTileLabel failed: {ex.Message}");
                 return null;
             }
-        }
-
-        private static void InitTileReflection(Type type)
-        {
-            if (_tileReflectionInit) return;
-
-            _tileTitleTextField = type.GetField("_titleText", PrivateInstance);
-            _tileRankImageField = type.GetField("_rankImage", PrivateInstance);
-            _tileBo3IndicatorField = type.GetField("_bestOf3Indicator", PrivateInstance);
-            _tileAttractParentField = type.GetField("_attractParent", PrivateInstance);
-            _tileProgressPipsField = type.GetField("_eventProgressPips", PrivateInstance);
-
-            _tileReflectionInit = true;
-
-            Log.Msg("EventAccessor", $"Tile reflection init: " +
-                $"title={_tileTitleTextField != null}, rank={_tileRankImageField != null}, " +
-                $"bo3={_tileBo3IndicatorField != null}, attract={_tileAttractParentField != null}, " +
-                $"pips={_tileProgressPipsField != null}");
         }
 
         private static bool IsRectTransformActive(MonoBehaviour tile, FieldInfo field)
@@ -147,11 +209,11 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Read progress from event progress pips. Counts active/filled pips.
         /// </summary>
-        private static string ReadProgressFromPips(MonoBehaviour tile)
+        private static string ReadProgressFromPips(MonoBehaviour tile, FieldInfo pipsField)
         {
-            if (_tileProgressPipsField == null) return null;
+            if (pipsField == null) return null;
 
-            var pipsParent = _tileProgressPipsField.GetValue(tile) as RectTransform;
+            var pipsParent = pipsField.GetValue(tile) as RectTransform;
             if (pipsParent == null || !pipsParent.gameObject.activeInHierarchy) return null;
 
             int total = 0;
@@ -192,10 +254,12 @@ namespace AccessibleArena.Core.Services
                 var playerEvent = GetPlayerEvent(controller);
                 if (playerEvent == null) return null;
 
+                var peh = _playerEventCache.Handles;
+
                 // Try EventUXInfo.PublicEventName first (localized display name)
-                if (_eventUxInfoProp != null)
+                if (peh?.EventUxInfo != null)
                 {
-                    var uxInfo = _eventUxInfoProp.GetValue(playerEvent);
+                    var uxInfo = peh.EventUxInfo.GetValue(playerEvent);
                     if (uxInfo != null)
                     {
                         var publicNameProp = uxInfo.GetType().GetProperty("PublicEventName", PublicInstance);
@@ -209,9 +273,9 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Fallback: EventInfo.InternalEventName
-                if (_eventInfoProp != null)
+                if (peh?.EventInfo != null)
                 {
-                    var eventInfo = _eventInfoProp.GetValue(playerEvent);
+                    var eventInfo = peh.EventInfo.GetValue(playerEvent);
                     if (eventInfo != null)
                     {
                         var internalNameProp = eventInfo.GetType().GetProperty("InternalEventName", PublicInstance);
@@ -234,46 +298,26 @@ namespace AccessibleArena.Core.Services
         }
 
         private static MonoBehaviour FindEventPageController()
-            => FindCachedController(ref _cachedEventPageController, T.EventPageContentController, InitEventPageReflection);
-
-        private static void InitEventPageReflection(Type type)
-        {
-            if (_eventPageReflectionInit) return;
-
-            _currentEventContextField = type.GetField("_currentEventContext", PrivateInstance);
-
-            _eventPageReflectionInit = true;
-
-            Log.Msg("EventAccessor", $"EventPage reflection init: " +
-                $"eventContext={_currentEventContextField != null}");
-        }
+            => FindCachedController(ref _cachedEventPageController, T.EventPageContentController, _eventPageCache);
 
         /// <summary>
         /// Get the IPlayerEvent from the active event page controller.
-        /// Also lazily initializes PlayerEvent/EventInfo/EventUxInfo property info.
+        /// Also initializes EventContext/PlayerEvent caches against their runtime types.
         /// </summary>
         private static object GetPlayerEvent(MonoBehaviour controller)
         {
-            if (_currentEventContextField == null) return null;
+            if (!_eventPageCache.IsInitialized) return null;
 
-            var eventContext = _currentEventContextField.GetValue(controller);
+            var eventContext = _eventPageCache.Handles.CurrentEventContext.GetValue(controller);
             if (eventContext == null) return null;
 
-            // Lazy init PlayerEvent field
-            if (_playerEventField == null)
-            {
-                _playerEventField = eventContext.GetType().GetField("PlayerEvent", PublicInstance);
-                if (_playerEventField == null) return null;
-            }
+            if (!_eventContextCache.EnsureInitialized(eventContext.GetType()))
+                return null;
 
-            var playerEvent = _playerEventField.GetValue(eventContext);
+            var playerEvent = _eventContextCache.Handles.PlayerEvent.GetValue(eventContext);
             if (playerEvent == null) return null;
 
-            // Lazy init EventInfo and EventUXInfo props
-            if (_eventInfoProp == null)
-                _eventInfoProp = playerEvent.GetType().GetProperty("EventInfo", PublicInstance);
-            if (_eventUxInfoProp == null)
-                _eventUxInfoProp = playerEvent.GetType().GetProperty("EventUXInfo", PublicInstance);
+            _playerEventCache.EnsureInitialized(playerEvent.GetType());
 
             return playerEvent;
         }
@@ -432,12 +476,11 @@ namespace AccessibleArena.Core.Services
                 var packet = FindParentComponent(element, "JumpStartPacket");
                 if (packet == null) return null;
 
-                // Initialize JumpStartPacket reflection if needed
-                if (!_jumpStartReflectionInit)
-                    InitJumpStartReflection(packet.GetType());
+                if (!_jumpStartCache.EnsureInitialized(packet.GetType()))
+                    return null;
 
                 // Read localized display name from _packTitle (Localize -> TMP_Text)
-                string displayName = ReadLocalizeText(_packTitleField, packet);
+                string displayName = ReadLocalizeText(_jumpStartCache.Handles.PackTitle, packet);
 
                 // Try to get color info from the controller's state
                 string colorInfo = GetPacketColorInfo(packet);
@@ -471,11 +514,11 @@ namespace AccessibleArena.Core.Services
                 var packet = FindParentComponent(element, "JumpStartPacket");
                 if (packet == null) return blocks;
 
-                if (!_jumpStartReflectionInit)
-                    InitJumpStartReflection(packet.GetType());
+                if (!_jumpStartCache.EnsureInitialized(packet.GetType()))
+                    return blocks;
 
                 // Block 1: Packet name
-                string displayName = ReadLocalizeText(_packTitleField, packet);
+                string displayName = ReadLocalizeText(_jumpStartCache.Handles.PackTitle, packet);
                 if (!string.IsNullOrEmpty(displayName))
                     blocks.Add(new CardInfoBlock(Strings.CardInfoName, displayName, isVerbose: false));
 
@@ -556,11 +599,13 @@ namespace AccessibleArena.Core.Services
             try
             {
                 var controller = FindPacketController();
-                if (controller == null || _packetToIdField == null || _currentStateField == null)
+                if (controller == null || !_packetCache.IsInitialized)
                     return 0;
 
+                var ph = _packetCache.Handles;
+
                 // Get packet ID from _packetToId dictionary
-                var dict = _packetToIdField.GetValue(controller);
+                var dict = ph.PacketToId.GetValue(controller);
                 if (dict == null) return 0;
 
                 // Use IDictionary to find the packet's ID
@@ -576,7 +621,7 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(packetId)) return 0;
 
                 // Get current state and look up PacketDetails
-                var state = _currentStateField.GetValue(controller);
+                var state = ph.CurrentState.GetValue(controller);
                 if (state == null) return 0;
 
                 // Access PacketOptions field on ServiceState struct
@@ -690,11 +735,9 @@ namespace AccessibleArena.Core.Services
             try
             {
                 var controller = FindPacketController();
-                if (controller == null) return null;
+                if (controller == null || !_packetCache.IsInitialized) return null;
 
-                if (_currentStateField == null) return null;
-
-                var state = _currentStateField.GetValue(controller);
+                var state = _packetCache.Handles.CurrentState.GetValue(controller);
                 if (state == null) return null;
 
                 // SubmissionCount() returns uint
@@ -736,37 +779,7 @@ namespace AccessibleArena.Core.Services
         }
 
         private static MonoBehaviour FindPacketController()
-            => FindCachedController(ref _cachedPacketController, T.PacketSelectContentController, InitPacketReflection);
-
-        private static void InitPacketReflection(Type type)
-        {
-            if (_packetReflectionInit) return;
-
-            _packetOptionsField = type.GetField("_packetOptions", PrivateInstance);
-            _selectedPackIdField = type.GetField("_selectedPackId", PrivateInstance);
-            _currentStateField = type.GetField("_currentState", PrivateInstance);
-            _packetToIdField = type.GetField("_packetToId", PrivateInstance);
-            _headerTextField = type.GetField("_headerText", PrivateInstance);
-
-            _packetReflectionInit = true;
-
-            Log.Msg("EventAccessor", $"Packet reflection init: " +
-                $"options={_packetOptionsField != null}, selected={_selectedPackIdField != null}, " +
-                $"state={_currentStateField != null}, toId={_packetToIdField != null}, " +
-                $"header={_headerTextField != null}");
-        }
-
-        private static void InitJumpStartReflection(Type type)
-        {
-            if (_jumpStartReflectionInit) return;
-
-            _packTitleField = type.GetField("_packTitle", PrivateInstance);
-
-            _jumpStartReflectionInit = true;
-
-            Log.Msg("EventAccessor", $"JumpStartPacket reflection init: " +
-                $"packTitle={_packTitleField != null}");
-        }
+            => FindCachedController(ref _cachedPacketController, T.PacketSelectContentController, _packetCache);
 
         /// <summary>
         /// Get color info for a JumpStartPacket by looking up its PacketDetails
@@ -775,13 +788,15 @@ namespace AccessibleArena.Core.Services
         private static string GetPacketColorInfo(MonoBehaviour packet)
         {
             var controller = FindPacketController();
-            if (controller == null || _packetToIdField == null || _currentStateField == null)
+            if (controller == null || !_packetCache.IsInitialized)
                 return null;
+
+            var ph = _packetCache.Handles;
 
             try
             {
                 // Get the packet ID from _packetToId dictionary
-                var packetToId = _packetToIdField.GetValue(controller);
+                var packetToId = ph.PacketToId.GetValue(controller);
                 if (packetToId == null) return null;
 
                 // Use IDictionary to access the dictionary generically
@@ -800,7 +815,7 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(packetId)) return null;
 
                 // Get PacketDetails from _currentState
-                var state = _currentStateField.GetValue(controller);
+                var state = ph.CurrentState.GetValue(controller);
                 if (state == null) return null;
 
                 var getDetailsMethod = state.GetType().GetMethod("GetDetailsById", PublicInstance);
@@ -864,9 +879,9 @@ namespace AccessibleArena.Core.Services
             try
             {
                 var controller = FindCampaignGraphController();
-                if (controller == null || _campaignGraphStrategyField == null) return result;
+                if (controller == null || !_campaignGraphCache.IsInitialized) return result;
 
-                var strategy = _campaignGraphStrategyField.GetValue(controller);
+                var strategy = _campaignGraphCache.Handles.Strategy.GetValue(controller);
                 if (strategy == null) return result;
 
                 var tracksDict = strategy.GetType()
@@ -965,19 +980,7 @@ namespace AccessibleArena.Core.Services
         }
 
         private static MonoBehaviour FindCampaignGraphController()
-            => FindCachedController(ref _cachedCampaignGraphController, T.CampaignGraphContentController, InitCampaignGraphReflection);
-
-        private static void InitCampaignGraphReflection(Type type)
-        {
-            if (_campaignGraphReflectionInit) return;
-
-            _campaignGraphStrategyField = type.GetField("_strategy", PrivateInstance);
-
-            _campaignGraphReflectionInit = true;
-
-            Log.Msg("EventAccessor", $"CampaignGraph reflection init: " +
-                $"strategy={_campaignGraphStrategyField != null}");
-        }
+            => FindCachedController(ref _cachedCampaignGraphController, T.CampaignGraphContentController, _campaignGraphCache);
 
         #endregion
 
@@ -986,14 +989,13 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Find an active scene MonoBehaviour by its type name, caching the result.
         /// Validates the cache (destroyed objects are cleared). On first discovery,
-        /// invokes <paramref name="initReflection"/> so callers can lazily bind
-        /// FieldInfo/PropertyInfo to the concrete type. Init methods are expected
-        /// to be idempotent (gate their own double-invocation).
+        /// initializes the associated <see cref="ReflectionCache{THandles}"/> against
+        /// the concrete type.
         /// </summary>
-        private static MonoBehaviour FindCachedController(
+        private static MonoBehaviour FindCachedController<THandles>(
             ref MonoBehaviour cache,
             string typeName,
-            Action<Type> initReflection)
+            ReflectionCache<THandles> reflectionCache) where THandles : class, new()
         {
             if (cache != null)
             {
@@ -1012,7 +1014,7 @@ namespace AccessibleArena.Core.Services
                 if (mb.GetType().Name == typeName)
                 {
                     cache = mb;
-                    initReflection(mb.GetType());
+                    reflectionCache.EnsureInitialized(mb.GetType());
                     return mb;
                 }
             }
