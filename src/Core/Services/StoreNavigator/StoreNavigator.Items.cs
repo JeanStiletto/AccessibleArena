@@ -16,10 +16,10 @@ namespace AccessibleArena.Core.Services
         {
             _items.Clear();
 
-            if (_controller == null || _storeItemBaseType == null) return;
+            if (_controller == null || _storeCache.Handles.StoreItemBaseType == null) return;
 
             // Find all active StoreItemBase children of the controller
-            var storeItems = _controllerGameObject.GetComponentsInChildren(_storeItemBaseType, false);
+            var storeItems = _controllerGameObject.GetComponentsInChildren(_storeCache.Handles.StoreItemBaseType, false);
 
             foreach (var item in storeItems)
             {
@@ -135,10 +135,10 @@ namespace AccessibleArena.Core.Services
         {
             var options = new List<PurchaseOption>();
 
-            AddPurchaseOption(options, storeItemBase, _blueButtonField, Strings.CurrencyGems);
-            AddPurchaseOption(options, storeItemBase, _orangeButtonField, Strings.CurrencyGold);
-            AddPurchaseOption(options, storeItemBase, _clearButtonField, "");
-            AddPurchaseOption(options, storeItemBase, _greenButtonField, "");
+            AddPurchaseOption(options, storeItemBase, _storeCache.Handles.BlueButton, Strings.CurrencyGems);
+            AddPurchaseOption(options, storeItemBase, _storeCache.Handles.OrangeButton, Strings.CurrencyGold);
+            AddPurchaseOption(options, storeItemBase, _storeCache.Handles.ClearButton, "");
+            AddPurchaseOption(options, storeItemBase, _storeCache.Handles.GreenButton, "");
 
             return options;
         }
@@ -146,7 +146,7 @@ namespace AccessibleArena.Core.Services
         private void AddPurchaseOption(List<PurchaseOption> options, MonoBehaviour storeItemBase,
             FieldInfo buttonField, string currencyName)
         {
-            if (buttonField == null || _purchaseButtonType == null) return;
+            if (buttonField == null || _storeCache.Handles.PurchaseButtonType == null) return;
 
             try
             {
@@ -154,7 +154,7 @@ namespace AccessibleArena.Core.Services
                 if (buttonStruct == null) return;
 
                 // Get the CustomButton from the PurchaseButton struct
-                var customButton = _pbButtonField?.GetValue(buttonStruct);
+                var customButton = _storeCache.Handles.PbButton?.GetValue(buttonStruct);
                 if (customButton == null) return;
 
                 var buttonMb = customButton as MonoBehaviour;
@@ -170,7 +170,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Also check the ButtonContainer visibility
-                var container = _pbContainerField?.GetValue(buttonStruct) as GameObject;
+                var container = _storeCache.Handles.PbContainer?.GetValue(buttonStruct) as GameObject;
                 if (container != null && !container.activeInHierarchy)
                     return;
 

@@ -113,84 +113,208 @@ namespace AccessibleArena.Core.Services
             "Bundles", "Cosmetics", "Decks", "Prize Wall"
         };
 
-        // Cached reflection members
-        private Type _controllerType;
-        private FieldInfo _itemDisplayQueueField;
-        private FieldInfo _currentTabField;
-        private FieldInfo _confirmationModalField;
-        private PropertyInfo _isOpenProp;
-        private PropertyInfo _isReadyToShowProp;
-        private FieldInfo[] _tabFields;
-        private FieldInfo _storeTabTypeLookupField;
-
-        // Utility element fields on controller
-        private FieldInfo _paymentInfoButtonField;
-        private FieldInfo _redeemCodeInputField;
-        private FieldInfo _dropRatesLinkField;
-
-        // Cached StoreItemBase reflection
-        private Type _storeItemBaseType;
-        private FieldInfo _storeItemField;      // _storeItem (public)
-        private FieldInfo _blueButtonField;      // BlueButton
-        private FieldInfo _orangeButtonField;    // OrangeButton
-        private FieldInfo _clearButtonField;     // ClearButton
-        private FieldInfo _greenButtonField;     // GreenButton
-        private FieldInfo _descriptionField;     // _description (OptionalObject)
-        private FieldInfo _tooltipTriggerField;  // _tooltipTrigger (TooltipTrigger)
-
-        // PurchaseButton struct fields
-        private Type _purchaseButtonType;
-        private FieldInfo _pbButtonField;        // Button (CustomButton)
-        private FieldInfo _pbContainerField;     // ButtonContainer (GameObject)
-
-        // Tab class
-        private Type _tabType;
-        private MethodInfo _tabOnClickedMethod;   // OnClicked()
-
-        // Controller utility methods
-        private MethodInfo _onButtonPaymentSetupMethod;
-
-        // Set filter reflection (StoreSetFilterToggles on controller)
-        private FieldInfo _setFiltersComponentField;        // _setFilters on controller (StoreSetFilterToggles)
-        private Type _setFilterTogglesType;
-        private FieldInfo _setFilterListField;              // _setFilters on StoreSetFilterToggles (List<StoreSetFilterModel>)
-        private PropertyInfo _selectedIndexProp;            // SelectedIndex
-        private MethodInfo _onValueSelectedMethod;          // OnValueSelected(StoreSetFilterModel)
-        private Type _setFilterModelType;
-        private FieldInfo _setSymbolField;                  // SetSymbol (string)
-
-        // Store display types for details view
-        private Type _storeItemDisplayType;
-        private Type _storeDisplayPreconDeckType;
-        private Type _storeDisplayCardViewBundleType;
-        private FieldInfo _itemDisplayField;              // StoreItemBase._itemDisplay (private field)
-        private PropertyInfo _preconCardDataProp;       // StoreDisplayPreconDeck.CardData (public)
-        private PropertyInfo _bundleCardViewsProp;      // StoreDisplayCardViewBundle.BundleCardViews (public)
-        private Type _cardDataForTileType;
-        private PropertyInfo _cardDataForTileCardProp;  // CardDataForTile.Card
-        private PropertyInfo _cardDataForTileQuantityProp; // CardDataForTile.Quantity
-        private Type _cardDataType;
-        private PropertyInfo _cardDataGrpIdProp;        // CardData.GrpId
-        private PropertyInfo _cardDataManaTextProp;     // CardData.OldSchoolManaText
-        // TooltipTrigger -> LocalizedString
-        private Type _localizedStringType;
-        private FieldInfo _locStringField;              // TooltipTrigger.LocString (public)
-        private FieldInfo _locStringMTermField;         // LocalizedString.mTerm (public)
-        private MethodInfo _locStringToStringMethod;    // LocalizedString.ToString()
-
-        // Cached StoreConfirmationModal reflection
-        private Type _confirmationModalType;
         private static readonly string[] ModalPurchaseButtonFields = new[]
         {
             "_buttonGemPurchase", "_buttonCoinPurchase", "_buttonCashPurchase", "_buttonFreePurchase"
         };
-        private FieldInfo[] _modalButtonFields;
-        private Type _modalPurchaseButtonType;
-        private FieldInfo _modalPbButtonField;    // Button (CustomButton)
-        private FieldInfo _modalPbLabelField;     // Label (TMP_Text)
-        private MethodInfo _modalCloseMethod;
 
-        private bool _reflectionInitialized;
+        private sealed class StoreHandles
+        {
+            // ContentController_StoreCarousel
+            public PropertyInfo IsOpen;
+            public PropertyInfo IsReadyToShow;
+            public FieldInfo ItemDisplayQueue;
+            public FieldInfo CurrentTab;
+            public FieldInfo ConfirmationModal;
+            public FieldInfo StoreTabTypeLookup;
+            public FieldInfo PaymentInfoButton;
+            public FieldInfo RedeemCodeInput;
+            public FieldInfo DropRatesLink;
+            public MethodInfo OnButtonPaymentSetup;
+            public FieldInfo[] TabFields;
+
+            // Tab class
+            public Type TabType;
+            public MethodInfo TabOnClicked;
+
+            // Set filter
+            public FieldInfo SetFiltersComponent;
+            public Type SetFilterTogglesType;
+            public FieldInfo SetFilterList;
+            public PropertyInfo SelectedIndex;
+            public MethodInfo OnValueSelected;
+            public Type SetFilterModelType;
+            public FieldInfo SetSymbol;
+
+            // StoreItemBase
+            public Type StoreItemBaseType;
+            public FieldInfo StoreItem;
+            public FieldInfo BlueButton;
+            public FieldInfo OrangeButton;
+            public FieldInfo ClearButton;
+            public FieldInfo GreenButton;
+            public FieldInfo Description;
+            public FieldInfo TooltipTrigger;
+            public FieldInfo ItemDisplay;
+
+            // PurchaseButton
+            public Type PurchaseButtonType;
+            public FieldInfo PbButton;
+            public FieldInfo PbContainer;
+
+            // Confirmation modal
+            public Type ConfirmationModalType;
+            public FieldInfo[] ModalButtonFields;
+            public Type ModalPurchaseButtonType;
+            public FieldInfo ModalPbButton;
+            public FieldInfo ModalPbLabel;
+            public MethodInfo ModalClose;
+
+            // Display types for details view
+            public Type StoreItemDisplayType;
+            public Type StoreDisplayPreconDeckType;
+            public Type StoreDisplayCardViewBundleType;
+            public Type CardDataForTileType;
+            public Type CardDataType;
+            public Type LocalizedStringType;
+            public PropertyInfo PreconCardData;
+            public PropertyInfo BundleCardViews;
+            public PropertyInfo CardDataForTileCard;
+            public PropertyInfo CardDataForTileQuantity;
+            public PropertyInfo CardDataGrpId;
+            public PropertyInfo CardDataManaText;
+
+            // TooltipTrigger / LocalizedString
+            public FieldInfo LocString;
+            public FieldInfo LocStringMTerm;
+            public MethodInfo LocStringToString;
+        }
+
+        private static readonly ReflectionCache<StoreHandles> _storeCache = new ReflectionCache<StoreHandles>(
+            builder: t =>
+            {
+                var flags = AllInstanceFlags;
+                var h = new StoreHandles
+                {
+                    IsOpen = t.GetProperty("IsOpen", flags),
+                    IsReadyToShow = t.GetProperty("IsReadyToShow", flags),
+                    ItemDisplayQueue = t.GetField("_itemDisplayQueue", flags),
+                    CurrentTab = t.GetField("_currentTab", flags),
+                    ConfirmationModal = t.GetField("_confirmationModal", flags),
+                    StoreTabTypeLookup = t.GetField("_storeTabTypeLookup", flags),
+                    PaymentInfoButton = t.GetField("_paymentInfoButton", flags),
+                    RedeemCodeInput = t.GetField("_redeemCodeInput", flags),
+                    DropRatesLink = t.GetField("_dropRatesLink", flags),
+                    OnButtonPaymentSetup = t.GetMethod("OnButton_PaymentSetup", PublicInstance),
+                    SetFiltersComponent = t.GetField("_setFilters", flags),
+                };
+
+                if (h.SetFiltersComponent != null)
+                {
+                    h.SetFilterTogglesType = h.SetFiltersComponent.FieldType;
+                    h.SetFilterList = h.SetFilterTogglesType.GetField("_setFilters", flags);
+                    h.SelectedIndex = h.SetFilterTogglesType.GetProperty("SelectedIndex", PublicInstance);
+                    h.OnValueSelected = h.SetFilterTogglesType.GetMethod("OnValueSelected", PublicInstance);
+
+                    if (h.SetFilterList != null && h.SetFilterList.FieldType.IsGenericType)
+                    {
+                        h.SetFilterModelType = h.SetFilterList.FieldType.GetGenericArguments()[0];
+                        h.SetSymbol = h.SetFilterModelType?.GetField("SetSymbol", PublicInstance);
+                    }
+                }
+
+                h.TabFields = new FieldInfo[TabFieldNames.Length];
+                for (int i = 0; i < TabFieldNames.Length; i++)
+                {
+                    h.TabFields[i] = t.GetField(TabFieldNames[i], flags);
+                }
+
+                if (h.CurrentTab != null)
+                {
+                    h.TabType = h.CurrentTab.FieldType;
+                    h.TabOnClicked = h.TabType.GetMethod("OnClicked", PublicInstance);
+                }
+
+                h.StoreItemBaseType = FindType("StoreItemBase");
+                if (h.StoreItemBaseType != null)
+                {
+                    h.StoreItem = h.StoreItemBaseType.GetField("_storeItem", flags);
+                    h.BlueButton = h.StoreItemBaseType.GetField("BlueButton", flags);
+                    h.OrangeButton = h.StoreItemBaseType.GetField("OrangeButton", flags);
+                    h.ClearButton = h.StoreItemBaseType.GetField("ClearButton", flags);
+                    h.GreenButton = h.StoreItemBaseType.GetField("GreenButton", flags);
+                    h.Description = h.StoreItemBaseType.GetField("_description", flags);
+                    h.TooltipTrigger = h.StoreItemBaseType.GetField("_tooltipTrigger", flags);
+                    h.ItemDisplay = h.StoreItemBaseType.GetField("_itemDisplay", flags);
+
+                    if (h.BlueButton != null)
+                    {
+                        h.PurchaseButtonType = h.BlueButton.FieldType;
+                        h.PbButton = h.PurchaseButtonType.GetField("Button", flags);
+                        h.PbContainer = h.PurchaseButtonType.GetField("ButtonContainer", flags);
+                    }
+                }
+
+                h.ConfirmationModalType = FindType("StoreConfirmationModal");
+                if (h.ConfirmationModalType != null)
+                {
+                    h.ModalButtonFields = new FieldInfo[ModalPurchaseButtonFields.Length];
+                    for (int i = 0; i < ModalPurchaseButtonFields.Length; i++)
+                    {
+                        h.ModalButtonFields[i] = h.ConfirmationModalType.GetField(ModalPurchaseButtonFields[i], flags);
+                    }
+                    h.ModalClose = h.ConfirmationModalType.GetMethod("Close", PublicInstance);
+
+                    if (h.ModalButtonFields[0] != null)
+                    {
+                        h.ModalPurchaseButtonType = h.ModalButtonFields[0].FieldType;
+                        h.ModalPbButton = h.ModalPurchaseButtonType.GetField("Button", flags);
+                        h.ModalPbLabel = h.ModalPurchaseButtonType.GetField("Label", flags);
+                    }
+                }
+
+                h.StoreItemDisplayType = FindType("StoreItemDisplay");
+                h.StoreDisplayPreconDeckType = FindType("Core.Meta.MainNavigation.Store.StoreDisplayPreconDeck");
+                h.StoreDisplayCardViewBundleType = FindType("StoreDisplayCardViewBundle");
+                h.CardDataForTileType = FindType("Wizards.MDN.Store.CardDataForTile");
+                h.CardDataType = FindType("GreClient.CardData.CardData");
+                h.LocalizedStringType = FindType("Wotc.Mtga.Loc.LocalizedString");
+
+                if (h.StoreDisplayPreconDeckType != null)
+                    h.PreconCardData = h.StoreDisplayPreconDeckType.GetProperty("CardData", PublicInstance);
+
+                if (h.StoreDisplayCardViewBundleType != null)
+                    h.BundleCardViews = h.StoreDisplayCardViewBundleType.GetProperty("BundleCardViews", PublicInstance);
+
+                if (h.CardDataForTileType != null)
+                {
+                    h.CardDataForTileCard = h.CardDataForTileType.GetProperty("Card", PublicInstance);
+                    h.CardDataForTileQuantity = h.CardDataForTileType.GetProperty("Quantity", PublicInstance);
+                }
+
+                if (h.CardDataType != null)
+                {
+                    h.CardDataGrpId = h.CardDataType.GetProperty("GrpId", PublicInstance);
+                    h.CardDataManaText = h.CardDataType.GetProperty("OldSchoolManaText", PublicInstance);
+                }
+
+                if (h.TooltipTrigger != null)
+                {
+                    var ttType = h.TooltipTrigger.FieldType;
+                    h.LocString = ttType.GetField("LocString", PublicInstance);
+                }
+
+                if (h.LocalizedStringType != null)
+                {
+                    h.LocStringMTerm = h.LocalizedStringType.GetField("mTerm", PublicInstance);
+                    h.LocStringToString = h.LocalizedStringType.GetMethod("ToString", PublicInstance, null, Type.EmptyTypes, null);
+                }
+
+                return h;
+            },
+            validator: h => h.ItemDisplayQueue != null && h.CurrentTab != null,
+            logTag: "Store",
+            logSubject: "ContentController_StoreCarousel");
 
         #endregion
 
@@ -282,21 +406,21 @@ namespace AccessibleArena.Core.Services
             var type = controller.GetType();
             EnsureReflectionCached(type);
 
-            if (_isOpenProp != null)
+            if (_storeCache.Handles.IsOpen != null)
             {
                 try
                 {
-                    bool isOpen = (bool)_isOpenProp.GetValue(controller);
+                    bool isOpen = (bool)_storeCache.Handles.IsOpen.GetValue(controller);
                     if (!isOpen) return false;
                 }
                 catch { return false; }
             }
 
-            if (_isReadyToShowProp != null)
+            if (_storeCache.Handles.IsReadyToShow != null)
             {
                 try
                 {
-                    bool isReady = (bool)_isReadyToShowProp.GetValue(controller);
+                    bool isReady = (bool)_storeCache.Handles.IsReadyToShow.GetValue(controller);
                     if (!isReady) return false;
                 }
                 catch { return false; }
@@ -415,161 +539,7 @@ namespace AccessibleArena.Core.Services
 
         private void EnsureReflectionCached(Type controllerType)
         {
-            if (_reflectionInitialized && _controllerType == controllerType) return;
-
-            _controllerType = controllerType;
-            var flags = AllInstanceFlags;
-
-            // Controller properties
-            _isOpenProp = controllerType.GetProperty("IsOpen", flags);
-            _isReadyToShowProp = controllerType.GetProperty("IsReadyToShow", flags);
-
-            // Controller fields
-            _itemDisplayQueueField = controllerType.GetField("_itemDisplayQueue", flags);
-            _currentTabField = controllerType.GetField("_currentTab", flags);
-            _confirmationModalField = controllerType.GetField("_confirmationModal", flags);
-            _storeTabTypeLookupField = controllerType.GetField("_storeTabTypeLookup", flags);
-
-            // Utility element fields
-            _paymentInfoButtonField = controllerType.GetField("_paymentInfoButton", flags);
-            _redeemCodeInputField = controllerType.GetField("_redeemCodeInput", flags);
-            _dropRatesLinkField = controllerType.GetField("_dropRatesLink", flags);
-
-            // Controller utility methods
-            _onButtonPaymentSetupMethod = controllerType.GetMethod("OnButton_PaymentSetup", PublicInstance);
-
-            // Set filter reflection
-            _setFiltersComponentField = controllerType.GetField("_setFilters", flags);
-            if (_setFiltersComponentField != null)
-            {
-                _setFilterTogglesType = _setFiltersComponentField.FieldType;
-                _setFilterListField = _setFilterTogglesType.GetField("_setFilters", flags);
-                _selectedIndexProp = _setFilterTogglesType.GetProperty("SelectedIndex", PublicInstance);
-                _onValueSelectedMethod = _setFilterTogglesType.GetMethod("OnValueSelected", PublicInstance);
-
-                // Get StoreSetFilterModel type from the list's generic argument
-                if (_setFilterListField != null && _setFilterListField.FieldType.IsGenericType)
-                {
-                    _setFilterModelType = _setFilterListField.FieldType.GetGenericArguments()[0];
-                    _setSymbolField = _setFilterModelType?.GetField("SetSymbol", PublicInstance);
-                }
-            }
-
-            // Tab fields
-            _tabFields = new FieldInfo[TabFieldNames.Length];
-            for (int i = 0; i < TabFieldNames.Length; i++)
-            {
-                _tabFields[i] = controllerType.GetField(TabFieldNames[i], flags);
-            }
-
-            // Tab class reflection
-            if (_currentTabField != null)
-            {
-                _tabType = _currentTabField.FieldType;
-                _tabOnClickedMethod = _tabType.GetMethod("OnClicked", PublicInstance);
-            }
-
-            // StoreItemBase type
-            _storeItemBaseType = FindType("StoreItemBase");
-
-            if (_storeItemBaseType != null)
-            {
-                _storeItemField = _storeItemBaseType.GetField("_storeItem", flags);
-                _blueButtonField = _storeItemBaseType.GetField("BlueButton", flags);
-                _orangeButtonField = _storeItemBaseType.GetField("OrangeButton", flags);
-                _clearButtonField = _storeItemBaseType.GetField("ClearButton", flags);
-                _greenButtonField = _storeItemBaseType.GetField("GreenButton", flags);
-                _descriptionField = _storeItemBaseType.GetField("_description", flags);
-                _tooltipTriggerField = _storeItemBaseType.GetField("_tooltipTrigger", flags);
-
-                // PurchaseButton struct type from BlueButton field
-                if (_blueButtonField != null)
-                {
-                    _purchaseButtonType = _blueButtonField.FieldType;
-                    _pbButtonField = _purchaseButtonType.GetField("Button", flags);
-                    _pbContainerField = _purchaseButtonType.GetField("ButtonContainer", flags);
-                }
-            }
-
-            // StoreConfirmationModal type
-            _confirmationModalType = FindType("StoreConfirmationModal");
-            if (_confirmationModalType != null)
-            {
-                _modalButtonFields = new FieldInfo[ModalPurchaseButtonFields.Length];
-                for (int i = 0; i < ModalPurchaseButtonFields.Length; i++)
-                {
-                    _modalButtonFields[i] = _confirmationModalType.GetField(ModalPurchaseButtonFields[i], flags);
-                }
-                _modalCloseMethod = _confirmationModalType.GetMethod("Close", PublicInstance);
-
-                // Modal's PurchaseButton struct (different from StoreItemBase's PurchaseCostUtils.PurchaseButton)
-                if (_modalButtonFields[0] != null)
-                {
-                    _modalPurchaseButtonType = _modalButtonFields[0].FieldType;
-                    _modalPbButtonField = _modalPurchaseButtonType.GetField("Button", flags);
-                    _modalPbLabelField = _modalPurchaseButtonType.GetField("Label", flags);
-                }
-            }
-
-            // Store display types for details view
-            _storeItemDisplayType = FindType("StoreItemDisplay");
-            _storeDisplayPreconDeckType = FindType("Core.Meta.MainNavigation.Store.StoreDisplayPreconDeck");
-            _storeDisplayCardViewBundleType = FindType("StoreDisplayCardViewBundle");
-            _cardDataForTileType = FindType("Wizards.MDN.Store.CardDataForTile");
-            _cardDataType = FindType("GreClient.CardData.CardData");
-            _localizedStringType = FindType("Wotc.Mtga.Loc.LocalizedString");
-
-            if (_storeItemBaseType != null)
-            {
-                _itemDisplayField = _storeItemBaseType.GetField("_itemDisplay", flags);
-            }
-
-            if (_storeDisplayPreconDeckType != null)
-            {
-                _preconCardDataProp = _storeDisplayPreconDeckType.GetProperty("CardData",
-                    PublicInstance);
-            }
-
-            if (_storeDisplayCardViewBundleType != null)
-            {
-                _bundleCardViewsProp = _storeDisplayCardViewBundleType.GetProperty("BundleCardViews",
-                    PublicInstance);
-            }
-
-            if (_cardDataForTileType != null)
-            {
-                _cardDataForTileCardProp = _cardDataForTileType.GetProperty("Card",
-                    PublicInstance);
-                _cardDataForTileQuantityProp = _cardDataForTileType.GetProperty("Quantity",
-                    PublicInstance);
-            }
-
-            if (_cardDataType != null)
-            {
-                _cardDataGrpIdProp = _cardDataType.GetProperty("GrpId",
-                    PublicInstance);
-                _cardDataManaTextProp = _cardDataType.GetProperty("OldSchoolManaText",
-                    PublicInstance);
-            }
-
-            // TooltipTrigger fields: LocString is a public LocalizedString field
-            if (_tooltipTriggerField != null)
-            {
-                var ttType = _tooltipTriggerField.FieldType;
-                _locStringField = ttType.GetField("LocString",
-                    PublicInstance);
-            }
-
-            if (_localizedStringType != null)
-            {
-                _locStringMTermField = _localizedStringType.GetField("mTerm",
-                    PublicInstance);
-                _locStringToStringMethod = _localizedStringType.GetMethod("ToString",
-                    PublicInstance, null, Type.EmptyTypes, null);
-            }
-
-            _reflectionInitialized = true;
-            Log.Msg("Store", $"Reflection cached. StoreItemBase={_storeItemBaseType != null}, Tab={_tabType != null}, PurchaseButton={_purchaseButtonType != null}, PreconDeck={_storeDisplayPreconDeckType != null}, CardViewBundle={_storeDisplayCardViewBundleType != null}");
+            _storeCache.EnsureInitialized(controllerType);
         }
 
         #endregion
@@ -730,7 +700,6 @@ namespace AccessibleArena.Core.Services
             // Clear cached controller on scene change
             _controller = null;
             _controllerGameObject = null;
-            _reflectionInitialized = false;
 
             base.OnSceneChanged(sceneName);
         }

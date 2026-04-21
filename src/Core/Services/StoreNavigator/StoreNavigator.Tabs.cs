@@ -16,15 +16,15 @@ namespace AccessibleArena.Core.Services
         {
             _tabs.Clear();
 
-            if (_controller == null || _tabFields == null) return;
+            if (_controller == null || _storeCache.Handles.TabFields == null) return;
 
-            for (int i = 0; i < _tabFields.Length; i++)
+            for (int i = 0; i < _storeCache.Handles.TabFields.Length; i++)
             {
-                if (_tabFields[i] == null) continue;
+                if (_storeCache.Handles.TabFields[i] == null) continue;
 
                 try
                 {
-                    var tabObj = _tabFields[i].GetValue(_controller);
+                    var tabObj = _storeCache.Handles.TabFields[i].GetValue(_controller);
                     if (tabObj == null) continue;
 
                     var tabMb = tabObj as MonoBehaviour;
@@ -63,12 +63,12 @@ namespace AccessibleArena.Core.Services
 
         private int FindActiveTabIndex()
         {
-            if (_controller == null || _currentTabField == null || _storeTabTypeLookupField == null)
+            if (_controller == null || _storeCache.Handles.CurrentTab == null || _storeCache.Handles.StoreTabTypeLookup == null)
                 return -1;
 
             try
             {
-                var currentTab = _currentTabField.GetValue(_controller);
+                var currentTab = _storeCache.Handles.CurrentTab.GetValue(_controller);
                 if (currentTab == null) return -1;
 
                 for (int i = 0; i < _tabs.Count; i++)
@@ -99,11 +99,11 @@ namespace AccessibleArena.Core.Services
 
         private bool IsTabActive(TabInfo tab)
         {
-            if (_currentTabField == null || _controller == null) return false;
+            if (_storeCache.Handles.CurrentTab == null || _controller == null) return false;
 
             try
             {
-                var currentTab = _currentTabField.GetValue(_controller);
+                var currentTab = _storeCache.Handles.CurrentTab.GetValue(_controller);
                 if (currentTab == null) return false;
                 return (MonoBehaviour)currentTab == tab.TabComponent;
             }
@@ -167,11 +167,11 @@ namespace AccessibleArena.Core.Services
             // Activate the tab via OnClicked()
             Log.Msg("Store", $"Activating tab: {tab.DisplayName}");
 
-            if (_tabOnClickedMethod != null)
+            if (_storeCache.Handles.TabOnClicked != null)
             {
                 try
                 {
-                    _tabOnClickedMethod.Invoke(tab.TabComponent, null);
+                    _storeCache.Handles.TabOnClicked.Invoke(tab.TabComponent, null);
                 }
                 catch (Exception ex)
                 {
@@ -198,11 +198,11 @@ namespace AccessibleArena.Core.Services
 
         private bool IsLoadingComplete()
         {
-            if (_controller == null || _itemDisplayQueueField == null) return true;
+            if (_controller == null || _storeCache.Handles.ItemDisplayQueue == null) return true;
 
             try
             {
-                var queue = _itemDisplayQueueField.GetValue(_controller);
+                var queue = _storeCache.Handles.ItemDisplayQueue.GetValue(_controller);
                 if (queue == null) return true;
 
                 // Queue<T> has a Count property

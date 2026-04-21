@@ -14,11 +14,11 @@ namespace AccessibleArena.Core.Services
 
         private bool IsConfirmationModalOpen(MonoBehaviour controller)
         {
-            if (_confirmationModalField == null) return false;
+            if (_storeCache.Handles.ConfirmationModal == null) return false;
 
             try
             {
-                var modal = _confirmationModalField.GetValue(controller);
+                var modal = _storeCache.Handles.ConfirmationModal.GetValue(controller);
                 if (modal == null) return false;
 
                 // StoreConfirmationModal is a MonoBehaviour - check gameObject.activeSelf
@@ -35,11 +35,11 @@ namespace AccessibleArena.Core.Services
 
         private GameObject GetConfirmationModalGameObject()
         {
-            if (_confirmationModalField == null || _controller == null) return null;
+            if (_storeCache.Handles.ConfirmationModal == null || _controller == null) return null;
 
             try
             {
-                var modal = _confirmationModalField.GetValue(_controller) as MonoBehaviour;
+                var modal = _storeCache.Handles.ConfirmationModal.GetValue(_controller) as MonoBehaviour;
                 if (modal != null && modal.gameObject != null)
                     return modal.gameObject;
             }
@@ -50,10 +50,10 @@ namespace AccessibleArena.Core.Services
 
         private MonoBehaviour GetConfirmationModalMb()
         {
-            if (_confirmationModalField == null || _controller == null) return null;
+            if (_storeCache.Handles.ConfirmationModal == null || _controller == null) return null;
             try
             {
-                return _confirmationModalField.GetValue(_controller) as MonoBehaviour;
+                return _storeCache.Handles.ConfirmationModal.GetValue(_controller) as MonoBehaviour;
             }
             catch { return null; }
         }
@@ -67,14 +67,14 @@ namespace AccessibleArena.Core.Services
             _modalElements.Clear();
             _modalElementIndex = 0;
 
-            if (_confirmationModalMb == null || _modalButtonFields == null) return;
+            if (_confirmationModalMb == null || _storeCache.Handles.ModalButtonFields == null) return;
 
             Log.Msg("Store", $"Discovering confirmation modal elements");
 
             var flags = AllInstanceFlags;
 
             // Get the modal's own purchase buttons (not the reparented item widget's)
-            foreach (var field in _modalButtonFields)
+            foreach (var field in _storeCache.Handles.ModalButtonFields)
             {
                 if (field == null) continue;
                 try
@@ -83,7 +83,7 @@ namespace AccessibleArena.Core.Services
                     if (buttonStruct == null) continue;
 
                     // Get CustomButton from the struct
-                    var customButton = _modalPbButtonField?.GetValue(buttonStruct) as MonoBehaviour;
+                    var customButton = _storeCache.Handles.ModalPbButton?.GetValue(buttonStruct) as MonoBehaviour;
                     if (customButton == null || !customButton.gameObject.activeInHierarchy) continue;
 
                     // Check Interactable property
@@ -95,7 +95,7 @@ namespace AccessibleArena.Core.Services
                     }
 
                     // Get price text from Label (TMP_Text)
-                    var labelTmp = _modalPbLabelField?.GetValue(buttonStruct) as TMPro.TMP_Text;
+                    var labelTmp = _storeCache.Handles.ModalPbLabel?.GetValue(buttonStruct) as TMPro.TMP_Text;
                     string priceText = labelTmp?.text?.Trim() ?? "";
 
                     // Also try getting text from button children as fallback
@@ -133,7 +133,7 @@ namespace AccessibleArena.Core.Services
                 var flags = AllInstanceFlags;
 
                 // Get _label (Localize) -> TMP_Text
-                var labelField = _confirmationModalType?.GetField("_label", flags);
+                var labelField = _storeCache.Handles.ConfirmationModalType?.GetField("_label", flags);
                 if (labelField != null)
                 {
                     try
@@ -150,7 +150,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Get product list text from _productListContainer children
-                var productField = _confirmationModalType?.GetField("_productListContainer", flags);
+                var productField = _storeCache.Handles.ConfirmationModalType?.GetField("_productListContainer", flags);
                 if (productField != null)
                 {
                     try
@@ -290,12 +290,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DismissConfirmationModal()
         {
-            if (_confirmationModalMb != null && _modalCloseMethod != null)
+            if (_confirmationModalMb != null && _storeCache.Handles.ModalClose != null)
             {
                 try
                 {
                     Log.Msg("Store", "Closing confirmation modal via Close()");
-                    _modalCloseMethod.Invoke(_confirmationModalMb, null);
+                    _storeCache.Handles.ModalClose.Invoke(_confirmationModalMb, null);
                     _announcer.Announce(Strings.Cancelled, AnnouncementPriority.High);
                     return;
                 }

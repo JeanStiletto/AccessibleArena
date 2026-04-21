@@ -16,18 +16,18 @@ namespace AccessibleArena.Core.Services
             _setFilterTogglesComponent = null;
             _currentSetFilterIndex = 0;
 
-            if (_controller == null || _setFiltersComponentField == null) return;
+            if (_controller == null || _storeCache.Handles.SetFiltersComponent == null) return;
 
             try
             {
-                var togglesObj = _setFiltersComponentField.GetValue(_controller);
+                var togglesObj = _storeCache.Handles.SetFiltersComponent.GetValue(_controller);
                 _setFilterTogglesComponent = togglesObj as MonoBehaviour;
                 if (_setFilterTogglesComponent == null) return;
 
                 // Read the list of set filter models
-                if (_setFilterListField != null)
+                if (_storeCache.Handles.SetFilterList != null)
                 {
-                    var list = _setFilterListField.GetValue(_setFilterTogglesComponent);
+                    var list = _storeCache.Handles.SetFilterList.GetValue(_setFilterTogglesComponent);
                     if (list is System.Collections.IList iList)
                     {
                         for (int i = 0; i < iList.Count; i++)
@@ -39,9 +39,9 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Read current selected index
-                if (_selectedIndexProp != null)
+                if (_storeCache.Handles.SelectedIndex != null)
                 {
-                    _currentSetFilterIndex = (int)_selectedIndexProp.GetValue(_setFilterTogglesComponent);
+                    _currentSetFilterIndex = (int)_storeCache.Handles.SelectedIndex.GetValue(_setFilterTogglesComponent);
                     if (_currentSetFilterIndex < 0 || _currentSetFilterIndex >= _setFilterModels.Count)
                         _currentSetFilterIndex = 0;
                 }
@@ -60,9 +60,9 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                if (_setSymbolField != null)
+                if (_storeCache.Handles.SetSymbol != null)
                 {
-                    string setCode = _setSymbolField.GetValue(_setFilterModels[index]) as string;
+                    string setCode = _storeCache.Handles.SetSymbol.GetValue(_setFilterModels[index]) as string;
                     if (!string.IsNullOrEmpty(setCode))
                         return UITextExtractor.MapSetCodeToName(setCode);
                 }
@@ -159,11 +159,11 @@ namespace AccessibleArena.Core.Services
             _currentSetFilterIndex = index;
 
             // Call OnValueSelected on the StoreSetFilterToggles to trigger set change
-            if (_onValueSelectedMethod != null && _setFilterTogglesComponent != null)
+            if (_storeCache.Handles.OnValueSelected != null && _setFilterTogglesComponent != null)
             {
                 try
                 {
-                    _onValueSelectedMethod.Invoke(_setFilterTogglesComponent,
+                    _storeCache.Handles.OnValueSelected.Invoke(_setFilterTogglesComponent,
                         new object[] { _setFilterModels[_currentSetFilterIndex] });
 
                     // Wait for the set change to reload items (result announced in OnTabLoadComplete)

@@ -14,14 +14,14 @@ namespace AccessibleArena.Core.Services
         private void DiscoverUtilityElements()
         {
             // Payment info button
-            AddUtilityElement(_paymentInfoButtonField, "Change payment method");
+            AddUtilityElement(_storeCache.Handles.PaymentInfoButton, "Change payment method");
 
             // Redeem code input
-            if (_redeemCodeInputField != null)
+            if (_storeCache.Handles.RedeemCodeInput != null)
             {
                 try
                 {
-                    var redeemObj = _redeemCodeInputField.GetValue(_controller);
+                    var redeemObj = _storeCache.Handles.RedeemCodeInput.GetValue(_controller);
                     if (redeemObj != null)
                     {
                         var redeemMb = redeemObj as MonoBehaviour;
@@ -46,7 +46,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Drop rates link
-            AddUtilityElement(_dropRatesLinkField, "Drop rates");
+            AddUtilityElement(_storeCache.Handles.DropRatesLink, "Drop rates");
 
             // Pack progress meter (bonus pack progress info)
             AddPackProgressElement();
@@ -144,12 +144,12 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
-                if (_onButtonPaymentSetupMethod != null && _controller != null)
+                if (_storeCache.Handles.OnButtonPaymentSetup != null && _controller != null)
                 {
                     try
                     {
                         Log.Msg("Store", "Calling OnButton_PaymentSetup() via reflection");
-                        _onButtonPaymentSetupMethod.Invoke(_controller, null);
+                        _storeCache.Handles.OnButtonPaymentSetup.Invoke(_controller, null);
                         return;
                     }
                     catch (Exception ex)

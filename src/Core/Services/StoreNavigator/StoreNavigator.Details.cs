@@ -20,14 +20,14 @@ namespace AccessibleArena.Core.Services
                 return true;
 
             // Check for StoreDisplayPreconDeck or StoreDisplayCardViewBundle child
-            if (_storeItemDisplayType != null)
+            if (_storeCache.Handles.StoreItemDisplayType != null)
             {
                 var display = GetItemDisplay(storeItemBase);
                 if (display != null)
                 {
                     var displayType = display.GetType();
-                    if ((_storeDisplayPreconDeckType != null && _storeDisplayPreconDeckType.IsAssignableFrom(displayType)) ||
-                        (_storeDisplayCardViewBundleType != null && _storeDisplayCardViewBundleType.IsAssignableFrom(displayType)))
+                    if ((_storeCache.Handles.StoreDisplayPreconDeckType != null && _storeCache.Handles.StoreDisplayPreconDeckType.IsAssignableFrom(displayType)) ||
+                        (_storeCache.Handles.StoreDisplayCardViewBundleType != null && _storeCache.Handles.StoreDisplayCardViewBundleType.IsAssignableFrom(displayType)))
                     {
                         return true;
                     }
@@ -39,18 +39,18 @@ namespace AccessibleArena.Core.Services
 
         private bool HasTooltipText(MonoBehaviour storeItemBase)
         {
-            if (_tooltipTriggerField == null || _locStringField == null || _locStringMTermField == null)
+            if (_storeCache.Handles.TooltipTrigger == null || _storeCache.Handles.LocString == null || _storeCache.Handles.LocStringMTerm == null)
                 return false;
 
             try
             {
-                var tooltip = _tooltipTriggerField.GetValue(storeItemBase);
+                var tooltip = _storeCache.Handles.TooltipTrigger.GetValue(storeItemBase);
                 if (tooltip == null) return false;
 
-                var locString = _locStringField.GetValue(tooltip);
+                var locString = _storeCache.Handles.LocString.GetValue(tooltip);
                 if (locString == null) return false;
 
-                string mTerm = _locStringMTermField.GetValue(locString) as string;
+                string mTerm = _storeCache.Handles.LocStringMTerm.GetValue(locString) as string;
                 return !string.IsNullOrEmpty(mTerm) && mTerm != "MainNav/General/Empty_String";
             }
             catch { return false; }
@@ -58,10 +58,10 @@ namespace AccessibleArena.Core.Services
 
         private MonoBehaviour GetItemDisplay(MonoBehaviour storeItemBase)
         {
-            if (_itemDisplayField == null) return null;
+            if (_storeCache.Handles.ItemDisplay == null) return null;
             try
             {
-                return _itemDisplayField.GetValue(storeItemBase) as MonoBehaviour;
+                return _storeCache.Handles.ItemDisplay.GetValue(storeItemBase) as MonoBehaviour;
             }
             catch { return null; }
         }
@@ -132,24 +132,24 @@ namespace AccessibleArena.Core.Services
 
         private string ExtractTooltipDescription(MonoBehaviour storeItemBase)
         {
-            if (_tooltipTriggerField == null || _locStringField == null ||
-                _locStringMTermField == null || _locStringToStringMethod == null)
+            if (_storeCache.Handles.TooltipTrigger == null || _storeCache.Handles.LocString == null ||
+                _storeCache.Handles.LocStringMTerm == null || _storeCache.Handles.LocStringToString == null)
                 return null;
 
             try
             {
-                var tooltip = _tooltipTriggerField.GetValue(storeItemBase);
+                var tooltip = _storeCache.Handles.TooltipTrigger.GetValue(storeItemBase);
                 if (tooltip == null) return null;
 
-                var locString = _locStringField.GetValue(tooltip);
+                var locString = _storeCache.Handles.LocString.GetValue(tooltip);
                 if (locString == null) return null;
 
-                string mTerm = _locStringMTermField.GetValue(locString) as string;
+                string mTerm = _storeCache.Handles.LocStringMTerm.GetValue(locString) as string;
                 if (string.IsNullOrEmpty(mTerm) || mTerm == "MainNav/General/Empty_String")
                     return null;
 
                 // Call ToString() on the LocalizedString struct which resolves the term
-                string resolved = _locStringToStringMethod.Invoke(locString, null) as string;
+                string resolved = _storeCache.Handles.LocStringToString.Invoke(locString, null) as string;
                 if (!string.IsNullOrEmpty(resolved) && !resolved.StartsWith("$"))
                 {
                     // Clean rich text tags
@@ -175,20 +175,20 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // PreconDeck path: CardData property returns List<CardDataForTile>
-                if (_storeDisplayPreconDeckType != null &&
-                    _storeDisplayPreconDeckType.IsAssignableFrom(displayType) &&
-                    _preconCardDataProp != null)
+                if (_storeCache.Handles.StoreDisplayPreconDeckType != null &&
+                    _storeCache.Handles.StoreDisplayPreconDeckType.IsAssignableFrom(displayType) &&
+                    _storeCache.Handles.PreconCardData != null)
                 {
-                    var cardDataList = _preconCardDataProp.GetValue(display);
+                    var cardDataList = _storeCache.Handles.PreconCardData.GetValue(display);
                     if (cardDataList is System.Collections.IList list)
                         ExtractFromCardDataList(list, entries);
                 }
                 // CardViewBundle path: BundleCardViews returns List<StoreCardView>
-                else if (_storeDisplayCardViewBundleType != null &&
-                         _storeDisplayCardViewBundleType.IsAssignableFrom(displayType) &&
-                         _bundleCardViewsProp != null)
+                else if (_storeCache.Handles.StoreDisplayCardViewBundleType != null &&
+                         _storeCache.Handles.StoreDisplayCardViewBundleType.IsAssignableFrom(displayType) &&
+                         _storeCache.Handles.BundleCardViews != null)
                 {
-                    var cardViews = _bundleCardViewsProp.GetValue(display);
+                    var cardViews = _storeCache.Handles.BundleCardViews.GetValue(display);
                     if (cardViews is System.Collections.IList viewList)
                         ExtractFromBundleCardViews(viewList, entries);
                 }
@@ -201,28 +201,28 @@ namespace AccessibleArena.Core.Services
 
         private void ExtractFromCardDataList(System.Collections.IList list, List<DetailCardEntry> entries)
         {
-            if (_cardDataForTileCardProp == null || _cardDataForTileQuantityProp == null || _cardDataGrpIdProp == null)
+            if (_storeCache.Handles.CardDataForTileCard == null || _storeCache.Handles.CardDataForTileQuantity == null || _storeCache.Handles.CardDataGrpId == null)
                 return;
 
             foreach (var item in list)
             {
                 try
                 {
-                    var cardData = _cardDataForTileCardProp.GetValue(item);
+                    var cardData = _storeCache.Handles.CardDataForTileCard.GetValue(item);
                     if (cardData == null) continue;
 
-                    uint grpId = (uint)_cardDataGrpIdProp.GetValue(cardData);
+                    uint grpId = (uint)_storeCache.Handles.CardDataGrpId.GetValue(cardData);
                     if (grpId == 0) continue;
 
-                    int quantity = (int)_cardDataForTileQuantityProp.GetValue(item);
+                    int quantity = (int)_storeCache.Handles.CardDataForTileQuantity.GetValue(item);
                     string name = CardModelProvider.GetNameFromGrpId(grpId);
                     if (string.IsNullOrEmpty(name))
                         name = $"Card #{grpId}";
 
                     string manaCost = null;
-                    if (_cardDataManaTextProp != null)
+                    if (_storeCache.Handles.CardDataManaText != null)
                     {
-                        try { manaCost = _cardDataManaTextProp.GetValue(cardData) as string; }
+                        try { manaCost = _storeCache.Handles.CardDataManaText.GetValue(cardData) as string; }
                         catch { /* Property may not exist on all types */ }
                     }
 
@@ -241,7 +241,7 @@ namespace AccessibleArena.Core.Services
 
         private void ExtractFromBundleCardViews(System.Collections.IList viewList, List<DetailCardEntry> entries)
         {
-            if (_cardDataGrpIdProp == null) return;
+            if (_storeCache.Handles.CardDataGrpId == null) return;
 
             foreach (var view in viewList)
             {
@@ -257,7 +257,7 @@ namespace AccessibleArena.Core.Services
                     var cardData = cardProp.GetValue(viewMb);
                     if (cardData == null) continue;
 
-                    uint grpId = (uint)_cardDataGrpIdProp.GetValue(cardData);
+                    uint grpId = (uint)_storeCache.Handles.CardDataGrpId.GetValue(cardData);
                     if (grpId == 0) continue;
 
                     string name = CardModelProvider.GetNameFromGrpId(grpId);
@@ -265,9 +265,9 @@ namespace AccessibleArena.Core.Services
                         name = $"Card #{grpId}";
 
                     string manaCost = null;
-                    if (_cardDataManaTextProp != null)
+                    if (_storeCache.Handles.CardDataManaText != null)
                     {
-                        try { manaCost = _cardDataManaTextProp.GetValue(cardData) as string; }
+                        try { manaCost = _storeCache.Handles.CardDataManaText.GetValue(cardData) as string; }
                         catch { /* Property may not exist on all types */ }
                     }
 
