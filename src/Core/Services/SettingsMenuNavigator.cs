@@ -369,18 +369,34 @@ namespace AccessibleArena.Core.Services
             if (_elements.Any(e => e.GameObject != null && e.GameObject.GetInstanceID() == instanceId))
                 return;
 
-            // Find the Account submenu button to anchor our insertion
-            int accountIndex = -1;
+            // Insertion anchor: place Mod Settings after the last real submenu button
+            // (Gameplay/Audio/Graphics), which equals "before Button_ExitGame" — ExitGame always
+            // sits directly below the submenu buttons in the MainMenu panel. If ExitGame isn't
+            // found, fall back to "after the last IsSettingsSubmenuButton hit". If neither works,
+            // append at the end.
+            int insertIndex = -1;
             for (int i = 0; i < _elements.Count; i++)
             {
                 var go = _elements[i].GameObject;
                 if (go == null) continue;
-                if (go.name.IndexOf("Account", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
-                    IsSettingsSubmenuButton(go))
+                if (go.name.IndexOf("ExitGame", System.StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    accountIndex = i;
+                    insertIndex = i;
                     break;
                 }
+            }
+
+            if (insertIndex < 0)
+            {
+                int lastSubmenuIdx = -1;
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    var go = _elements[i].GameObject;
+                    if (go != null && IsSettingsSubmenuButton(go))
+                        lastSubmenuIdx = i;
+                }
+                if (lastSubmenuIdx >= 0)
+                    insertIndex = lastSubmenuIdx + 1;
             }
 
             string label = BuildLabel(Models.Strings.SettingsMenuTitle,
@@ -393,12 +409,12 @@ namespace AccessibleArena.Core.Services
                 Role = UIElementClassifier.ElementRole.Button
             };
 
-            if (accountIndex >= 0)
-                _elements.Insert(accountIndex, entry);
+            if (insertIndex >= 0)
+                _elements.Insert(insertIndex, entry);
             else
                 _elements.Add(entry);
 
-            Log.Msg("{NavigatorId}", $"Injected Mod Settings entry at index {(accountIndex >= 0 ? accountIndex : _elements.Count - 1)}");
+            Log.Msg("{NavigatorId}", $"Injected Mod Settings entry at index {(insertIndex >= 0 ? insertIndex : _elements.Count - 1)}");
         }
 
         /// <summary>
