@@ -17,10 +17,36 @@ namespace AccessibleArena.Core.Services
         private bool _isOrderCards;
         private int _orderGrabbedIndex = -1; // Index of card being moved (-1 = none grabbed)
 
-        // OrderCards reflection cache
-        private static MethodInfo _shiftCardsMethod;
-        private static PropertyInfo _cardViewsProp;
-        private static PropertyInfo _instanceIdProp;
+        // OrderCards reflection caches
+        private sealed class HolderHandles
+        {
+            public MethodInfo ShiftCards;    // CardBrowserCardHolder.ShiftCards(int,int)
+            public PropertyInfo CardViews;   // CardBrowserCardHolder.CardViews
+        }
+
+        private static readonly ReflectionCache<HolderHandles> _holderCache = new ReflectionCache<HolderHandles>(
+            builder: holderType => new HolderHandles
+            {
+                ShiftCards = holderType.GetMethod("ShiftCards", PublicInstance),
+                CardViews = holderType.GetProperty("CardViews", PublicInstance | BindingFlags.FlattenHierarchy),
+            },
+            validator: _ => true,
+            logTag: "BrowserNavigator",
+            logSubject: "CardBrowserCardHolder");
+
+        private sealed class CdcHandles
+        {
+            public PropertyInfo InstanceId;  // DuelSceneCDC.InstanceId
+        }
+
+        private static readonly ReflectionCache<CdcHandles> _cdcCache = new ReflectionCache<CdcHandles>(
+            builder: cdcType => new CdcHandles
+            {
+                InstanceId = cdcType.GetProperty("InstanceId", PublicInstance),
+            },
+            validator: _ => true,
+            logTag: "BrowserNavigator",
+            logSubject: "DuelSceneCDC");
 
         /// <summary>
         /// Filters out placeholder cards (InstanceId == 0) from the browser cards list.
@@ -35,12 +61,11 @@ namespace AccessibleArena.Core.Services
                 var cdc = CardDetector.GetDuelSceneCDC(card);
                 if (cdc == null) continue;
 
-                if (_instanceIdProp == null)
-                    _instanceIdProp = cdc.GetType().GetProperty("InstanceId", PublicInstance);
-
-                if (_instanceIdProp != null)
+                _cdcCache.EnsureInitialized(cdc.GetType());
+                var instanceIdProp = _cdcCache.Handles?.InstanceId;
+                if (instanceIdProp != null)
                 {
-                    var id = _instanceIdProp.GetValue(cdc);
+                    var id = instanceIdProp.GetValue(cdc);
                     if ((id is uint uid && uid == 0) || (id is int iid && iid == 0))
                     {
                         Log.Msg("BrowserNavigator", $"Filtered placeholder card at index {i}");
@@ -139,12 +164,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Call ShiftCards on the holder
-            if (_shiftCardsMethod == null)
-                _shiftCardsMethod = holderComp.GetType().GetMethod("ShiftCards", PublicInstance);
-
-            if (_shiftCardsMethod != null)
+            _holderCache.EnsureInitialized(holderComp.GetType());
+            var shiftCards = _holderCache.Handles?.ShiftCards;
+            if (shiftCards != null)
             {
-                _shiftCardsMethod.Invoke(holderComp, new object[] { holderFromIndex, holderToIndex });
+                shiftCards.Invoke(holderComp, new object[] { holderFromIndex, holderToIndex });
                 Log.Msg("BrowserNavigator", $"OrderCards: ShiftCards({holderFromIndex}, {holderToIndex})");
             }
             else
@@ -175,11 +199,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private int GetHolderCardViewIndex(Component holderComp, GameObject card)
         {
-            if (_cardViewsProp == null)
-                _cardViewsProp = holderComp.GetType().GetProperty("CardViews",
-                    PublicInstance | BindingFlags.FlattenHierarchy);
-
-            var cardViewsList = _cardViewsProp?.GetValue(holderComp) as System.Collections.IList;
+            _holderCache.EnsureInitialized(holderComp.GetType());
+            var cardViewsList = _holderCache.Handles?.CardViews?.GetValue(holderComp) as System.Collections.IList;
             if (cardViewsList == null) return -1;
 
             var cdc = CardDetector.GetDuelSceneCDC(card);
@@ -223,11 +244,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void RefreshOrderCardsFromHolder(Component holderComp)
         {
-            if (_cardViewsProp == null)
-                _cardViewsProp = holderComp.GetType().GetProperty("CardViews",
-                    PublicInstance | BindingFlags.FlattenHierarchy);
-
-            var cardViewsList = _cardViewsProp?.GetValue(holderComp) as System.Collections.IList;
+            _holderCache.EnsureInitialized(holderComp.GetType());
+            var cardViewsList = _holderCache.Handles?.CardViews?.GetValue(holderComp) as System.Collections.IList;
             if (cardViewsList == null) return;
 
             _browserCards.Clear();
@@ -237,12 +255,11 @@ namespace AccessibleArena.Core.Services
                 if (cdcComp == null) continue;
 
                 // Skip placeholder cards (InstanceId == 0)
-                if (_instanceIdProp == null)
-                    _instanceIdProp = cdcComp.GetType().GetProperty("InstanceId", PublicInstance);
-
-                if (_instanceIdProp != null)
+                _cdcCache.EnsureInitialized(cdcComp.GetType());
+                var instanceIdProp = _cdcCache.Handles?.InstanceId;
+                if (instanceIdProp != null)
                 {
-                    var id = _instanceIdProp.GetValue(cdcComp);
+                    var id = instanceIdProp.GetValue(cdcComp);
                     if ((id is uint uid && uid == 0) || (id is int iid && iid == 0))
                         continue;
                 }

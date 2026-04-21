@@ -20,56 +20,58 @@ namespace AccessibleArena.Core.Services
         // Letter-jump (menu-style A-Z) for KeywordSelection's show-all phase
         private readonly LetterSearchHandler _keywordLetterSearch = new LetterSearchHandler();
 
-        // KeywordFilter reflection cache
+        // KeywordFilter/ChoiceFilter reflection cache
+        // Game renamed KeywordFilter → ChoiceFilter (nested Keyword → Choice)
         private static Type _keywordFilterType;
-        private static FieldInfo _kf_filteredKeywords;
-        private static FieldInfo _kf_selectedKeywords;
-        private static FieldInfo _kf_filterInput;
-        private static FieldInfo _kf_showAllField;
-        private static FieldInfo _keyword_DisplayText;
-        private static FieldInfo _keyword_SearchText;
-        private static MethodInfo _kf_onFilterSubmitted;
-        private static bool _keywordReflectionInit;
+
+        private sealed class KeywordHandles
+        {
+            public FieldInfo FilteredKeywords;     // _filteredChoices
+            public FieldInfo SelectedKeywords;     // _selectedChoices
+            public FieldInfo FilterInput;          // FilterInput
+            public FieldInfo ShowAll;              // _showAllChoices
+            public MethodInfo OnFilterSubmitted;
+            public FieldInfo KeywordDisplayText;   // nested Choice.DisplayText
+            public FieldInfo KeywordSearchText;    // nested Choice.SearchText
+        }
+
+        private static readonly ReflectionCache<KeywordHandles> _keywordCache = new ReflectionCache<KeywordHandles>(
+            builder: filterType =>
+            {
+                var h = new KeywordHandles
+                {
+                    FilteredKeywords = filterType.GetField("_filteredChoices", PrivateInstance),
+                    SelectedKeywords = filterType.GetField("_selectedChoices", PrivateInstance),
+                    FilterInput = filterType.GetField("FilterInput", PrivateInstance),
+                    ShowAll = filterType.GetField("_showAllChoices", PrivateInstance),
+                    OnFilterSubmitted = filterType.GetMethod("OnFilterSubmitted", PrivateInstance),
+                };
+                var choiceType = filterType.GetNestedType("Choice", BindingFlags.Public);
+                if (choiceType != null)
+                {
+                    h.KeywordDisplayText = choiceType.GetField("DisplayText", PublicInstance);
+                    h.KeywordSearchText = choiceType.GetField("SearchText", PublicInstance);
+                }
+                return h;
+            },
+            validator: _ => true,
+            logTag: "BrowserNavigator",
+            logSubject: "ChoiceFilter");
 
         /// <summary>
-        /// One-time initialization of KeywordFilter reflection cache.
+        /// One-time initialization of ChoiceFilter type + reflection cache.
         /// </summary>
         private static void InitKeywordReflection()
         {
-            if (_keywordReflectionInit) return;
-            _keywordReflectionInit = true;
+            if (_keywordCache.IsInitialized) return;
 
-            try
+            _keywordFilterType = FindType("Wotc.Mtga.DuelScene.Interactions.ChoiceFilter");
+            if (_keywordFilterType == null)
             {
-                // Game renamed KeywordFilter → ChoiceFilter (nested Keyword → Choice)
-                _keywordFilterType = FindType("Wotc.Mtga.DuelScene.Interactions.ChoiceFilter");
-                if (_keywordFilterType == null)
-                {
-                    Log.Warn("BrowserNavigator", "ChoiceFilter type not found");
-                    return;
-                }
-
-                _kf_filteredKeywords = _keywordFilterType.GetField("_filteredChoices", PrivateInstance);
-                _kf_selectedKeywords = _keywordFilterType.GetField("_selectedChoices", PrivateInstance);
-                _kf_filterInput = _keywordFilterType.GetField("FilterInput", PrivateInstance);
-                _kf_showAllField = _keywordFilterType.GetField("_showAllChoices", PrivateInstance);
-                _kf_onFilterSubmitted = _keywordFilterType.GetMethod("OnFilterSubmitted", PrivateInstance);
-
-                var keywordType = _keywordFilterType.GetNestedType("Choice", BindingFlags.Public);
-                if (keywordType != null)
-                {
-                    _keyword_DisplayText = keywordType.GetField("DisplayText", PublicInstance);
-                    _keyword_SearchText = keywordType.GetField("SearchText", PublicInstance);
-                }
-
-                Log.Msg("BrowserNavigator", $"ChoiceFilter reflection initialized: " +
-                    $"filtered={_kf_filteredKeywords != null}, selected={_kf_selectedKeywords != null}, " +
-                    $"filterInput={_kf_filterInput != null}, displayText={_keyword_DisplayText != null}");
+                Log.Warn("BrowserNavigator", "ChoiceFilter type not found");
+                return;
             }
-            catch (Exception ex)
-            {
-                Log.Error("BrowserNavigator", $"KeywordFilter reflection error: {ex.Message}");
-            }
+            _keywordCache.EnsureInitialized(_keywordFilterType);
         }
 
         /// <summary>
@@ -137,11 +139,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void DeactivateKeywordInputField()
         {
-            if (_keywordFilterRef == null || _kf_filterInput == null) return;
+            var h = _keywordCache.Handles;
+            if (_keywordFilterRef == null || h?.FilterInput == null) return;
 
             try
             {
-                var filterInput = _kf_filterInput.GetValue(_keywordFilterRef);
+                var filterInput = h.FilterInput.GetValue(_keywordFilterRef);
                 if (filterInput == null) return;
 
                 var deactivateMethod = filterInput.GetType().GetMethod("DeactivateInputField",
@@ -163,11 +166,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsKeywordShowAllActive()
         {
-            if (!_isKeywordSelection || _keywordFilterRef == null || _kf_showAllField == null)
+            var h = _keywordCache.Handles;
+            if (!_isKeywordSelection || _keywordFilterRef == null || h?.ShowAll == null)
                 return false;
             try
             {
-                return _kf_showAllField.GetValue(_keywordFilterRef) is bool b && b;
+                return h.ShowAll.GetValue(_keywordFilterRef) is bool b && b;
             }
             catch
             {
@@ -180,8 +184,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private int GetKeywordCount()
         {
-            if (_keywordFilterRef == null || _kf_filteredKeywords == null) return 0;
-            var list = _kf_filteredKeywords.GetValue(_keywordFilterRef) as IList;
+            var h = _keywordCache.Handles;
+            if (_keywordFilterRef == null || h?.FilteredKeywords == null) return 0;
+            var list = h.FilteredKeywords.GetValue(_keywordFilterRef) as IList;
             return list?.Count ?? 0;
         }
 
@@ -190,14 +195,15 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string GetKeywordDisplayText(int index)
         {
-            if (_keywordFilterRef == null || _kf_filteredKeywords == null || _keyword_DisplayText == null)
+            var h = _keywordCache.Handles;
+            if (_keywordFilterRef == null || h?.FilteredKeywords == null || h.KeywordDisplayText == null)
                 return null;
 
-            var list = _kf_filteredKeywords.GetValue(_keywordFilterRef) as IList;
+            var list = h.FilteredKeywords.GetValue(_keywordFilterRef) as IList;
             if (list == null || index < 0 || index >= list.Count) return null;
 
             var keyword = list[index]; // boxed struct
-            return _keyword_DisplayText.GetValue(keyword) as string;
+            return h.KeywordDisplayText.GetValue(keyword) as string;
         }
 
         /// <summary>
@@ -205,11 +211,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsKeywordSelected(int index)
         {
-            if (_keywordFilterRef == null || _kf_filteredKeywords == null || _kf_selectedKeywords == null)
+            var h = _keywordCache.Handles;
+            if (_keywordFilterRef == null || h?.FilteredKeywords == null || h.SelectedKeywords == null)
                 return false;
 
-            var filteredList = _kf_filteredKeywords.GetValue(_keywordFilterRef) as IList;
-            var selectedList = _kf_selectedKeywords.GetValue(_keywordFilterRef) as IList;
+            var filteredList = h.FilteredKeywords.GetValue(_keywordFilterRef) as IList;
+            var selectedList = h.SelectedKeywords.GetValue(_keywordFilterRef) as IList;
             if (filteredList == null || selectedList == null) return false;
             if (index < 0 || index >= filteredList.Count) return false;
 
@@ -225,8 +232,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ToggleCurrentKeyword()
         {
-            if (_keywordFilterRef == null || _kf_filterInput == null ||
-                _kf_onFilterSubmitted == null || _keyword_SearchText == null)
+            var h = _keywordCache.Handles;
+            if (_keywordFilterRef == null || h?.FilterInput == null ||
+                h.OnFilterSubmitted == null || h.KeywordSearchText == null)
                 return;
 
             int count = GetKeywordCount();
@@ -235,16 +243,16 @@ namespace AccessibleArena.Core.Services
             try
             {
                 // Get the keyword's SearchText for filtering
-                var filteredList = _kf_filteredKeywords.GetValue(_keywordFilterRef) as IList;
+                var filteredList = h.FilteredKeywords.GetValue(_keywordFilterRef) as IList;
                 if (filteredList == null || _currentKeywordIndex >= filteredList.Count) return;
 
                 var keyword = filteredList[_currentKeywordIndex];
-                string searchText = _keyword_SearchText.GetValue(keyword) as string;
-                string displayText = _keyword_DisplayText.GetValue(keyword) as string;
+                string searchText = h.KeywordSearchText.GetValue(keyword) as string;
+                string displayText = h.KeywordDisplayText?.GetValue(keyword) as string;
                 if (string.IsNullOrEmpty(searchText)) return;
 
                 // Get the filter input and save current text
-                var filterInput = _kf_filterInput.GetValue(_keywordFilterRef);
+                var filterInput = h.FilterInput.GetValue(_keywordFilterRef);
                 if (filterInput == null) return;
 
                 var textProp = filterInput.GetType().GetProperty("text", PublicInstance);
@@ -258,7 +266,7 @@ namespace AccessibleArena.Core.Services
                 textProp.SetValue(filterInput, searchText);
 
                 // Now call OnFilterSubmitted which finds the best match and toggles it
-                _kf_onFilterSubmitted.Invoke(_keywordFilterRef, new object[] { searchText });
+                h.OnFilterSubmitted.Invoke(_keywordFilterRef, new object[] { searchText });
 
                 // Restore the original filter to bring back the full list
                 textProp.SetValue(filterInput, savedFilter);
