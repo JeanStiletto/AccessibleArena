@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 using MelonLoader;
@@ -295,6 +297,282 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Clicks the SelectCards/SelectCardsMultiZone scaffold button identified by
+        /// its logical key ("DoneButton" for confirm, "CancelButton" for decline) in
+        /// the provider's GetButtonStateData() dict.
+        ///
+        /// Why logical-key lookup, not ButtonStyle.StyleType.Main:
+        /// When 0 cards are selected, the game collapses to a 1-button layout whose
+        /// sole entry ("CancelButton") carries StyleType.Main — so a Main-based
+        /// heuristic wrongly treats Cancel as Confirm. The dict key is authoritative.
+        ///
+        /// ButtonStateData.BrowserElementKey names the scaffold slot ("SingleButton",
+        /// "2Button_Left", "2Button_Right"); we resolve it via BrowserBase.GetBrowserElement.
+        /// Respects Enabled (e.g. DoneButton disabled when no valid selection).
+        /// </summary>
+        private bool TryClickProviderLogicalButton(string logicalKey, string logTag)
+        {
+            try
+            {
+                var currentBrowser = GetCurrentBrowser();
+                if (currentBrowser == null)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: no current browser");
+                    return false;
+                }
+
+                var dict = GetProviderButtonStateData(currentBrowser);
+                if (dict == null)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: provider returned no button state data");
+                    return false;
+                }
+
+                if (!dict.Contains(logicalKey))
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: no '{logicalKey}' in dict (keys: {DictKeysToString(dict)})");
+                    return false;
+                }
+
+                var stateData = dict[logicalKey];
+                if (stateData == null)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: '{logicalKey}' state data is null");
+                    return false;
+                }
+
+                var stateType = stateData.GetType();
+                var elementKeyField = stateType.GetField("BrowserElementKey", PublicInstance);
+                var scaffoldKey = elementKeyField?.GetValue(stateData) as string;
+                if (string.IsNullOrEmpty(scaffoldKey))
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: '{logicalKey}' has no BrowserElementKey");
+                    return false;
+                }
+
+                var enabledField = stateType.GetField("Enabled", PublicInstance);
+                var isActiveField = stateType.GetField("IsActive", PublicInstance);
+                bool enabled = enabledField == null || (bool)enabledField.GetValue(stateData);
+                bool isActive = isActiveField == null || (bool)isActiveField.GetValue(stateData);
+                if (!isActive)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: '{logicalKey}' not active");
+                    return false;
+                }
+                if (!enabled)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: '{logicalKey}' not enabled");
+                    return false;
+                }
+
+                var element = GetBrowserElementByKey(currentBrowser, scaffoldKey);
+                if (element == null)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: scaffold '{scaffoldKey}' not found");
+                    DumpBrowserScaffoldDiagnostics(currentBrowser, dict, scaffoldKey, logTag);
+                    return false;
+                }
+                if (!element.activeInHierarchy)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: scaffold '{scaffoldKey}' inactive");
+                    return false;
+                }
+                var selectable = element.GetComponent<Selectable>();
+                if (selectable != null && !selectable.interactable)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: scaffold '{scaffoldKey}' not interactable");
+                    return false;
+                }
+
+                var result = UIActivator.SimulatePointerClick(element);
+                if (result.Success)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}: clicked '{scaffoldKey}' (logical='{logicalKey}')");
+                    return true;
+                }
+                Log.Msg("BrowserNavigator", $"{logTag}: click failed on '{scaffoldKey}'");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("BrowserNavigator", $"{logTag} error: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static string DictKeysToString(IDictionary dict)
+        {
+            var keys = new List<string>();
+            foreach (var k in dict.Keys) keys.Add(k?.ToString() ?? "<null>");
+            return string.Join(",", keys);
+        }
+
+        /// <summary>
+        /// Invokes IDuelSceneBrowserProvider.GetButtonStateData() on the browser's
+        /// protected _duelSceneBrowserProvider field (declared on BrowserBase).
+        /// Walks the type hierarchy since NonPublic|Instance reflection doesn't find
+        /// inherited private/protected fields on derived types.
+        /// </summary>
+        private IDictionary GetProviderButtonStateData(object browser)
+        {
+            var providerField = FindFieldWalkingHierarchy(browser.GetType(), "_duelSceneBrowserProvider");
+            if (providerField == null) return null;
+            var provider = providerField.GetValue(browser);
+            if (provider == null) return null;
+
+            var method = provider.GetType().GetMethod("GetButtonStateData", PublicInstance, null, Type.EmptyTypes, null);
+            if (method == null) return null;
+            return method.Invoke(provider, null) as IDictionary;
+        }
+
+        private static FieldInfo FindFieldWalkingHierarchy(Type type, string name)
+        {
+            for (var t = type; t != null; t = t.BaseType)
+            {
+                var f = t.GetField(name, PrivateInstance);
+                if (f != null) return f;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC: when GetBrowserElement returns null for a scaffold key the
+        /// provider's ButtonStateData points to, dump enough state to figure out why.
+        /// Emits: browser concrete type, provider concrete type, ContainsKey result,
+        /// and the full uiElementData key set with per-entry GameObject liveness.
+        /// Remove once modal/kicker scaffold behaviour is understood.
+        /// </summary>
+        private void DumpBrowserScaffoldDiagnostics(object browser, IDictionary buttonDict, string missingKey, string logTag)
+        {
+            try
+            {
+                var browserType = browser.GetType();
+                Log.Msg("BrowserNavigator", $"{logTag}[diag] browser.Type={browserType.FullName}");
+
+                var providerField = FindFieldWalkingHierarchy(browserType, "_duelSceneBrowserProvider");
+                var provider = providerField?.GetValue(browser);
+                Log.Msg("BrowserNavigator", $"{logTag}[diag] provider.Type={provider?.GetType().FullName ?? "<null>"}");
+
+                // Log each button dict entry with its BrowserElementKey
+                if (buttonDict != null)
+                {
+                    foreach (var k in buttonDict.Keys)
+                    {
+                        var sd = buttonDict[k];
+                        var bekField = sd?.GetType().GetField("BrowserElementKey", PublicInstance);
+                        var styleField = sd?.GetType().GetField("StyleType", PublicInstance);
+                        var enabledField = sd?.GetType().GetField("Enabled", PublicInstance);
+                        var isActiveField = sd?.GetType().GetField("IsActive", PublicInstance);
+                        Log.Msg("BrowserNavigator",
+                            $"{logTag}[diag] dict['{k}'] BrowserElementKey='{bekField?.GetValue(sd)}' " +
+                            $"Style={styleField?.GetValue(sd)} Enabled={enabledField?.GetValue(sd)} IsActive={isActiveField?.GetValue(sd)}");
+                    }
+                }
+
+                // Dump uiElementData (protected field on BrowserBase)
+                var uiField = FindFieldWalkingHierarchy(browserType, "uiElementData");
+                if (uiField == null)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}[diag] uiElementData field not found on hierarchy");
+                    return;
+                }
+                var ui = uiField.GetValue(browser) as IDictionary;
+                if (ui == null)
+                {
+                    Log.Msg("BrowserNavigator", $"{logTag}[diag] uiElementData is null");
+                    return;
+                }
+
+                Log.Msg("BrowserNavigator", $"{logTag}[diag] uiElementData.Count={ui.Count} ContainsKey('{missingKey}')={ui.Contains(missingKey)}");
+
+                foreach (var k in ui.Keys)
+                {
+                    var entry = ui[k];
+                    var goField = entry?.GetType().GetField("GameObject", PublicInstance);
+                    var goProp = entry?.GetType().GetProperty("GameObject", PublicInstance);
+                    var go = (goField?.GetValue(entry) ?? goProp?.GetValue(entry)) as GameObject;
+                    string state;
+                    if (go == null)
+                        state = "go=<null/destroyed>";
+                    else
+                        state = $"go.name='{go.name}' active={go.activeInHierarchy}";
+                    Log.Msg("BrowserNavigator", $"{logTag}[diag] ui['{k}'] -> {state}");
+                }
+
+                // Also report scene-level GameObjects that share the missing name, so
+                // we can compare against what _browserButtons discovered.
+                int sceneHits = 0;
+                foreach (var mb in GameObject.FindObjectsOfType<Transform>())
+                {
+                    if (mb != null && mb.name == missingKey)
+                    {
+                        sceneHits++;
+                        Log.Msg("BrowserNavigator", $"{logTag}[diag] scene '{missingKey}' at path={GetTransformPath(mb)} active={mb.gameObject.activeInHierarchy}");
+                        if (sceneHits >= 5) break;
+                    }
+                }
+                Log.Msg("BrowserNavigator", $"{logTag}[diag] scene Transforms named '{missingKey}': total_logged={sceneHits}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("BrowserNavigator", $"{logTag}[diag] error: {ex.Message}");
+            }
+        }
+
+        private static string GetTransformPath(Transform t)
+        {
+            var parts = new List<string>();
+            for (var cur = t; cur != null; cur = cur.parent) parts.Add(cur.name);
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
+
+        private object GetCurrentBrowser()
+        {
+            var gm = FindGameManagerInstance();
+            if (gm == null) return null;
+
+            var bmProp = gm.GetType().GetProperty("BrowserManager", AllInstanceFlags);
+            var browserManager = bmProp?.GetValue(gm);
+            if (browserManager == null) return null;
+
+            var cbProp = browserManager.GetType().GetProperty("CurrentBrowser", AllInstanceFlags);
+            return cbProp?.GetValue(browserManager);
+        }
+
+        /// <summary>
+        /// Reads BrowserBase.uiElementData[key].GameObject directly. The public
+        /// BrowserBase.GetBrowserElement(string) method exists, but invoking it
+        /// via reflection across the BrowserBase → SelectCardsBrowser hierarchy
+        /// was returning null even when the key was present (diagnostic confirmed
+        /// uiElementData contains the key with a live GameObject). Walking to the
+        /// protected uiElementData field is the reliable path.
+        /// </summary>
+        private GameObject GetBrowserElementByKey(object browser, string key)
+        {
+            var uiField = FindFieldWalkingHierarchy(browser.GetType(), "uiElementData");
+            var ui = uiField?.GetValue(browser) as IDictionary;
+            if (ui == null || !ui.Contains(key)) return null;
+            var entry = ui[key];
+            if (entry == null) return null;
+            var entryType = entry.GetType();
+            var goProp = entryType.GetProperty("GameObject", PublicInstance);
+            if (goProp != null) return goProp.GetValue(entry) as GameObject;
+            var goField = entryType.GetField("GameObject", PublicInstance);
+            return goField?.GetValue(entry) as GameObject;
+        }
+
+        private MonoBehaviour FindGameManagerInstance()
+        {
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "GameManager")
+                    return mb;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Clicks the confirm/primary button.
         /// </summary>
         private void ClickConfirmButton()
@@ -389,8 +667,24 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // SelectCards/SelectCardsMultiZone: click the provider's "DoneButton" directly.
+            // Needed when the provider isn't on WorkflowController.CurrentInteraction
+            // (e.g. activated-ability cost-payment like Rubble Rouser "{T}, exile a card").
+            // Uses the logical key from GetButtonStateData() rather than StyleType.Main,
+            // because 1-button layouts flag Cancel as Main when nothing is selected.
+            if (_isHighlightFilteredBrowser && TryClickProviderLogicalButton("DoneButton", "BrowserConfirm"))
+            {
+                _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // Try discovered buttons by name pattern (SubmitButton, ConfirmButton, etc.)
-            if (TryClickButtonByPatterns(BrowserDetector.ConfirmPatterns, out clickedLabel))
+            // Skip for SelectCards/SelectCardsMultiZone: ConfirmPatterns contains "Single",
+            // which wrongly matches "SingleButton". On kicker/modal scaffolds (e.g. Burst
+            // Lightning), the sole SingleButton is logically the CancelButton — matching
+            // it here would silently cancel the spell on Space.
+            if (!_isHighlightFilteredBrowser && TryClickButtonByPatterns(BrowserDetector.ConfirmPatterns, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update
@@ -408,9 +702,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Fallback: PromptButton_Primary (scene search)
-            // Skip for OptionalAction, choice-list, and SelectGroup browsers — their buttons are choices,
-            // not confirm/cancel, and the global PromptButtons would click unrelated duel phase buttons
-            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
+            // Skip for OptionalAction, choice-list, SelectGroup, and SelectCards* browsers —
+            // their buttons are choices, not confirm/cancel, and the global PromptButtons
+            // would click unrelated duel phase buttons (observed: clicked duel-level "Cancel"
+            // during an activated-ability cost-payment SelectCards prompt).
+            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && !_isHighlightFilteredBrowser && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
             {
                 // PromptButton_Primary is a duel-level button (pass/submit), not browser-internal.
                 // Clicking it advances the game, which will destroy the scaffold.
@@ -462,10 +758,13 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // SelectCards/SelectCardsMultiZone: SingleButton is the Decline option (see 5046b62)
-            if (_isHighlightFilteredBrowser && TryClickButtonByName(BrowserDetector.ButtonSingle, out clickedLabel))
+            // SelectCards/SelectCardsMultiZone: click the provider's "CancelButton" directly.
+            // The logical key is authoritative — in 1-button layouts (0 selected),
+            // SingleButton carries StyleType.Main but its logical key is "CancelButton",
+            // so this correctly clicks decline without needing a Main/non-Main heuristic.
+            if (_isHighlightFilteredBrowser && TryClickProviderLogicalButton("CancelButton", "BrowserCancel"))
             {
-                _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
+                _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache();
                 return;
             }
