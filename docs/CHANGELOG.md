@@ -12,7 +12,14 @@ After just over three months of development across 44 point releases, the mod is
 
 ### Changes since 0.9.4 (release candidate)
 
-No behavioral changes. Documentation and release-process updates only:
+Bug fixes:
+
+- Registration page improvements: fixes for dropdowns and input fields (tooltips read on icon-glyph buttons, hover-help password rules, localized labels from sibling Localize / TMP_Text, feedback deduplication, panel-load artifact suppression)
+- Improved localisation and error messages across registration and account flows
+- Fixed problems with cancelling of some browsers (SelectCards scaffolds — cancel and Space handling)
+- Fixed Prepare-mechanic cards appearing in mulligans as a spurious 8th card (the attached spell CDC glued to the creature was being counted as a separate hand card)
+
+Documentation and release process:
 
 - README rewritten for public 1.0
 - Added SECURITY.md and GitHub issue / pull request templates

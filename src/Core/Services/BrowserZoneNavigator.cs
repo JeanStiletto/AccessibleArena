@@ -709,6 +709,14 @@ namespace AccessibleArena.Core.Services
                                         Log.Msg("BrowserZoneNavigator", $"Skipping {cardName} from London hand - actual zone: {modelZone}");
                                         continue;
                                     }
+                                    // Filter out Prepare-attached spells (sighted players don't see a separate tile)
+                                    var londonCdc = CardModelProvider.GetDuelSceneCDC(go);
+                                    var londonModel = londonCdc != null ? CardModelProvider.GetCardModel(londonCdc) : null;
+                                    if (londonModel != null && CardStateProvider.GetAttachedToId(londonModel) != 0)
+                                    {
+                                        Log.Msg("BrowserZoneNavigator", $"Skipping {cardName} from London hand - attached to another card");
+                                        continue;
+                                    }
                                     _topCards.Add(go);
                                 }
                             }

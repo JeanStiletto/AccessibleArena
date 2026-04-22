@@ -894,6 +894,13 @@ namespace AccessibleArena.Core.Services
                 _browserCards.Reverse();
             }
 
+            // Mulligan: the scaffold holder contains a CDC #0 entry for each Prepare-attached spell
+            // glued to a creature in hand. Sighted players don't see these as separate tiles.
+            if (_browserInfo.IsMulligan)
+            {
+                FilterPlaceholderCards();
+            }
+
             // Scope button discovery to the scaffold when available.
             // Global search picks up unrelated duel UI buttons (PromptButton_Primary/Secondary)
             // that show phase info like "Opponent's turn" or "Cancel attacks".
@@ -1232,6 +1239,17 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(modelZone) && modelZone != "Hand")
                 {
                     Log.Msg("BrowserNavigator", $"Skipping {cardInfo.Name} - actual zone: {modelZone}");
+                    continue;
+                }
+
+                // Filter out cards attached to another card (e.g., Prepare spells glued to their creature).
+                // The game instantiates a CDC for the prepared spell in the hand holder; sighted players
+                // only see the creature tile, so announcing it as a separate card is wrong.
+                var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                var model = cdc != null ? CardModelProvider.GetCardModel(cdc) : null;
+                if (model != null && CardStateProvider.GetAttachedToId(model) != 0)
+                {
+                    Log.Msg("BrowserNavigator", $"Skipping {cardInfo.Name} - attached to another card");
                     continue;
                 }
 

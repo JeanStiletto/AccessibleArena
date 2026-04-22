@@ -41,6 +41,12 @@ Room cards (Duskmourn) have two independently unlockable sides, each with its ow
 
 ---
 
+### Mana Cost of Linked Cards Not Shown in I Menu
+
+For cards with linked faces (Prepare mechanic, transform cards, double-sided cards), the I (extended info) menu does not show the mana cost of the linked card. Players currently hear the linked card's text but have to infer its cost. Needs polish so the linked face's mana cost is announced alongside its text.
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Steam Overlay Inaccessible to Screen Readers
