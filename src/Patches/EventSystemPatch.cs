@@ -149,6 +149,42 @@ namespace AccessibleArena.Patches
                 }
             }
 
+            // Patch UIWidget_InputField_Registration.SetFeedbackText (both overloads) to
+            // announce client-side validation errors. RegistrationPanel writes these
+            // directly onto the field's FeedbackText (password too short, emails don't
+            // match, password contains email, display name length, etc.) and disables
+            // the submit button — the failure never reaches OnRegisterError, so without
+            // this patch the user hears nothing and the submit button just silently
+            // refuses to activate.
+            var regFieldType = FindType("UIWidget_InputField_Registration");
+            if (regFieldType != null)
+            {
+                var postfix = typeof(EventSystemPatch).GetMethod(nameof(SetFeedbackText_Postfix),
+                    BindingFlags.Static | BindingFlags.Public);
+                foreach (var m in regFieldType.GetMethods(PublicInstance))
+                {
+                    if (m.Name != "SetFeedbackText") continue;
+                    harmony.Patch(m, postfix: new HarmonyMethod(postfix));
+                    Log.Msg("EventSystemPatch",
+                        $"Patched UIWidget_InputField_Registration.SetFeedbackText({m.GetParameters().Length} args)");
+                }
+
+                // Reset the dedup state when the field clears feedback (user re-selects
+                // or successfully validates). Without this, the user would be silenced
+                // on a legitimate re-occurrence of the same error after a fix attempt.
+                var clearMethod = regFieldType.GetMethod("ClearFeedbackText", PublicInstance);
+                if (clearMethod != null)
+                {
+                    var clearPostfix = typeof(EventSystemPatch).GetMethod(nameof(ClearFeedbackText_Postfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(clearMethod, postfix: new HarmonyMethod(clearPostfix));
+                }
+            }
+            else
+            {
+                Log.Warn("EventSystemPatch", "Could not find UIWidget_InputField_Registration type");
+            }
+
             // Patch cTMP_Dropdown.OnTextInput and OnNavigate to ignore keystrokes when
             // the dropdown is not visually expanded. cTMP_Dropdown.Hide() only destroys
             // its list after a 0.15s coroutine and only if IsActive() at the time.
@@ -272,6 +308,7 @@ namespace AccessibleArena.Patches
         {
             string errorTypeName = "Generic";
             string serverMessage = null;
+            int httpCode = 0;
             try
             {
                 if (error != null)
@@ -279,6 +316,8 @@ namespace AccessibleArena.Patches
                     var errorType = error.GetType();
                     errorTypeName = ReadMember(error, errorType, "ErrorType")?.ToString() ?? "Generic";
                     serverMessage = ReadMember(error, errorType, "LocalizedErrorMessage") as string;
+                    var httpCodeObj = ReadMember(error, errorType, "HttpCode");
+                    if (httpCodeObj is int hc) httpCode = hc;
                 }
             }
             catch (System.Exception ex)
@@ -287,11 +326,31 @@ namespace AccessibleArena.Patches
             }
 
             Log.Msg("EventSystemPatch",
-                $"Registration rejected by server: ErrorType={errorTypeName}, Message='{serverMessage}'");
+                $"Registration error from server: ErrorType={errorTypeName}, HttpCode={httpCode}, Message='{serverMessage}'");
 
             var announcer = AccessibleArenaMod.Instance?.Announcer;
             if (announcer == null)
                 return;
+
+            // Known MelonLoader quirk: the RegisterAsFullAccount HTTP call returns 403
+            // and routes down the Promise's error branch, but the server actually
+            // created the account (validation email goes out). The localized message
+            // the game shows ("unexpected problem, error code 403") is misleading —
+            // announce the "submitted, check your inbox" guidance instead.
+            // HttpCode is often 0 at runtime (WASUtils.ToAccountError doesn't populate
+            // it), so also fall back to matching "403" in the localized message —
+            // the digits are the same across all locales.
+            bool is403 = httpCode == 403
+                || (!string.IsNullOrEmpty(serverMessage) && serverMessage.Contains("403"));
+            if (is403)
+            {
+                Log.Msg("EventSystemPatch",
+                    "403 on RegisterAsFullAccount — account likely created despite error path. Announcing submitted guidance.");
+                string guidance = LocaleManager.Instance?.Get("RegistrationSubmitted")
+                    ?? "Registration submitted. Please check your email to activate your account, then press Backspace to return to the login screen.";
+                announcer.Announce(guidance, AnnouncementPriority.High);
+                return;
+            }
 
             string announcement;
             if (!string.IsNullOrWhiteSpace(serverMessage))
@@ -313,6 +372,51 @@ namespace AccessibleArena.Patches
             }
 
             announcer.Announce(announcement, AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Last feedback text announced, to suppress duplicates when RegistrationPanel
+        /// calls ClearFeedbackText + SetFeedbackText with the same message on every
+        /// onEndEdit for an unchanged invalid field.
+        /// </summary>
+        private static string _lastAnnouncedFeedbackText;
+
+        /// <summary>
+        /// Postfix for UIWidget_InputField_Registration.SetFeedbackText(string[, bool]).
+        /// Reads the trimmed feedback text the game just wrote and announces it with
+        /// an "input error" prefix. The message is already localized by the game.
+        /// </summary>
+        public static void ClearFeedbackText_Postfix()
+        {
+            _lastAnnouncedFeedbackText = null;
+        }
+
+        public static void SetFeedbackText_Postfix(object __instance)
+        {
+            if (__instance == null) return;
+            try
+            {
+                var feedbackProp = __instance.GetType().GetProperty("FeedbackText", PublicInstance);
+                var tmpText = feedbackProp?.GetValue(__instance);
+                if (tmpText == null) return;
+
+                var textProp = tmpText.GetType().GetProperty("text");
+                string text = textProp?.GetValue(tmpText) as string;
+                if (string.IsNullOrWhiteSpace(text)) return;
+                if (text == _lastAnnouncedFeedbackText) return;
+                _lastAnnouncedFeedbackText = text;
+
+                var announcer = AccessibleArenaMod.Instance?.Announcer;
+                if (announcer == null) return;
+
+                string prefix = LocaleManager.Instance?.Get("InputErrorPrefix")
+                    ?? "Input error";
+                announcer.Announce($"{prefix}: {text}", AnnouncementPriority.High);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warn("EventSystemPatch", $"SetFeedbackText_Postfix: {ex.Message}");
+            }
         }
 
         /// <summary>

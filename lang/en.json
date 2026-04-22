@@ -1142,6 +1142,7 @@
   "RegistrationError_Token": "Registration failed: this social identity is already linked to another account.",
   "RegistrationError_Age": "Registration failed: age requirement not met.",
   "RegistrationError_Generic": "Registration failed. Please check your input and try again.",
+  "InputErrorPrefix": "Input error",
   "UpdateAvailable_Format": "Update available: v{0}. Press F5 in a menu to update.",
   "UpdateDownloading": "Downloading update...",
   "UpdateDownloaded": "Update downloaded. Restarting game...",

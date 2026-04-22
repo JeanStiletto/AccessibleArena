@@ -1140,6 +1140,7 @@
   "RegistrationError_Token": "Registrierung fehlgeschlagen: Diese soziale Identität ist bereits mit einem anderen Konto verknüpft.",
   "RegistrationError_Age": "Registrierung fehlgeschlagen: Altersanforderung nicht erfüllt.",
   "RegistrationError_Generic": "Registrierung fehlgeschlagen. Bitte prüfe deine Eingaben und versuche es erneut.",
+  "InputErrorPrefix": "Eingabefehler",
   "UpdateAvailable_Format": "Update verfügbar: v{0}. F5 im Menü drücken zum Aktualisieren.",
   "UpdateDownloading": "Update wird heruntergeladen...",
   "UpdateDownloaded": "Update heruntergeladen. Spiel wird neu gestartet...",
