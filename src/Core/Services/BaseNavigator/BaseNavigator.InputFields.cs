@@ -1,10 +1,14 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Models;
 using System;
+using System.Collections;
 using System.Reflection;
 using AccessibleArena.Core.Utils;
+using SceneNames = AccessibleArena.Core.Constants.SceneNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -115,6 +119,16 @@ namespace AccessibleArena.Core.Services
                     MovePrevious();
                 else
                     MoveNext();
+
+                // Login scene only: RegistrationPanel's onEndEdit handlers disable the previous
+                // input field synchronously (see RegistrationPanel._displayName_endEdit →
+                // Coroutine_ValidateUsername sets InputField.enabled = false). Unity then
+                // auto-advances focus to the next Selectable, overriding our target. Re-assert
+                // selection on the next frame to hold the user on the element we navigated to.
+                if (SceneManager.GetActiveScene().name == SceneNames.Login && IsValidIndex)
+                {
+                    MelonCoroutines.Start(ReassertLoginSelectionNextFrame(_elements[_currentIndex].GameObject));
+                }
                 return;
             }
 
@@ -174,6 +188,36 @@ namespace AccessibleArena.Core.Services
         protected void ForceExitFieldEditMode()
         {
             _inputFieldHelper.ExitEditMode();
+        }
+
+        /// <summary>
+        /// Re-assert EventSystem selection one frame after a Login-scene Tab navigation.
+        /// Counters Unity's auto-advance that occurs when RegistrationPanel's onEndEdit
+        /// disables the previous input field synchronously.
+        /// </summary>
+        private static IEnumerator ReassertLoginSelectionNextFrame(GameObject target)
+        {
+            yield return null; // wait one frame so Unity has already processed its auto-nav
+            if (target == null || !target.activeInHierarchy) yield break;
+
+            var es = EventSystem.current;
+            if (es == null) yield break;
+
+            if (es.currentSelectedGameObject == target) yield break;
+
+            es.SetSelectedGameObject(target);
+            var tmpInput = target.GetComponent<TMP_InputField>();
+            if (tmpInput != null && tmpInput.isFocused)
+            {
+                // Match normal Tab behavior: select but don't leave the field auto-edited
+                tmpInput.DeactivateInputField();
+            }
+            else
+            {
+                var legacyInput = target.GetComponent<UnityEngine.UI.InputField>();
+                if (legacyInput != null && legacyInput.isFocused)
+                    legacyInput.DeactivateInputField();
+            }
         }
 
         /// <summary>

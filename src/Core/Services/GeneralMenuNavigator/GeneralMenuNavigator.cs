@@ -1061,8 +1061,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool ShouldShowElement(GameObject obj)
         {
-            // Exclude Options_Button globally - it's the settings gear icon, always reachable via Escape
-            if (obj.name == "Options_Button")
+            // Exclude the settings-gear icon globally - always reachable via F2 / Escape.
+            // Historical MainNav prefab names it "Options_Button"; the Login-scene variant is
+            // a plain "Button" inside SettingsButton_Desktop_*(Clone)/SettingsButtonRoot.
+            if (obj.name == "Options_Button" || IsSettingsGearButton(obj))
                 return false;
 
             // Exclude Leave button in challenge screen - Backspace shortcut handles this
@@ -1261,6 +1263,30 @@ namespace AccessibleArena.Core.Services
                 levels++;
             }
 
+            return false;
+        }
+
+        /// <summary>
+        /// Detect the scene-level settings-gear button. Login-scene variant lives under
+        /// SettingsButtonRoot/SettingsButton_Desktop_*(Clone) and has the bare GO name
+        /// "Button", so matching on name alone is insufficient. Walk up a few levels.
+        /// </summary>
+        private static bool IsSettingsGearButton(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            Transform current = obj.transform;
+            int levels = 0;
+            const int maxLevels = 4;
+            while (current != null && levels < maxLevels)
+            {
+                string name = current.name;
+                if (name.StartsWith("SettingsButton_", StringComparison.Ordinal)
+                    || name == "SettingsButtonRoot")
+                    return true;
+                current = current.parent;
+                levels++;
+            }
             return false;
         }
 

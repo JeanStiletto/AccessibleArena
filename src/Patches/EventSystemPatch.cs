@@ -86,6 +86,18 @@ namespace AccessibleArena.Patches
                     harmony.Patch(onPreviousMethod, prefix: new HarmonyMethod(prefix));
                     Log.Msg("EventSystemPatch", "Patched NewInputHandler.OnPrevious()");
                 }
+
+                // OnEscape fires Back?.Invoke() → Panel.OnBack → OnButton_GoBack, which
+                // closes the panel and navigates back. On Login scene our mod owns Escape
+                // (exits input-field edit mode, closes dropdowns), so block the game path.
+                var onEscapeMethod = newInputType.GetMethod("OnEscape", PublicInstance);
+                if (onEscapeMethod != null)
+                {
+                    var prefix = typeof(EventSystemPatch).GetMethod(nameof(NewInputHandlerOnEscape_Prefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onEscapeMethod, prefix: new HarmonyMethod(prefix));
+                    Log.Msg("EventSystemPatch", "Patched NewInputHandler.OnEscape()");
+                }
             }
 
             // Patch RegistrationPanel.OnButton_SubmitRegistration to log calls and announce
@@ -128,6 +140,28 @@ namespace AccessibleArena.Patches
         public static bool NewInputHandlerOnNextPrevious_Prefix()
         {
             if (SceneManager.GetActiveScene().name == SceneNames.Login)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Block NewInputHandler.OnEscape() on the Login scene when the user is editing
+        /// an input field, open on a dropdown, or otherwise in a mod-owned UI mode.
+        /// Without this, Escape closes the active Panel via Panel.OnBack instead of
+        /// just exiting edit mode.
+        /// </summary>
+        public static bool NewInputHandlerOnEscape_Prefix()
+        {
+            if (SceneManager.GetActiveScene().name != SceneNames.Login)
+                return true;
+
+            if (UIFocusTracker.IsAnyInputFieldFocused()
+                || UIFocusTracker.IsEditingInputField()
+                || UIFocusTracker.IsEditingDropdown()
+                || InputManager.ModMenuActive
+                || InputManager.PopupModeActive)
             {
                 return false;
             }
