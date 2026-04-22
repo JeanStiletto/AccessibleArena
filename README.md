@@ -195,7 +195,9 @@ The mod is only tested on Windows with NVDA and JAWS and still relies on the unm
 For the current list of known issues, see [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
 <h2>Disclaimers</h2>
-
+<h3> Company contact: 
+Sadly i wasn't able to able to get reliable insights into the Arena team or informal   developer contacts. So I decided to miss out theier official communication channels for the moment. In 3 months of building and playing i never hit any bot protection system so i don't think they can detect us as mod users. But I didn't wanted to take the risk to communicate on official channels as a single person to them. So spread the worth about the mod and lets build a big valuable community. This will give me a better position in contacting them. Just don't try to write them with out communicating with me before. Especially don't send them requests for native accessibility or integraton of my mod into theier code base. Both won't happen in any case. 
+ 
 <h3>Other accessibilities</h3>
 
 This mod calls itself Accessible Arena mostly cause it sounds good. But at the moment this is only a screen reader accessibility mod. I am absolutely interested in covering more disabilities with this mod, visual impairments, motoric disabilities etc. But I am only experienced in screen reader accessibility. As fully blind person for example questions of coloring and fonts are fully abstract to me. So if you want something in this kind implemented please don't hesitate to contact me if you can clearly describe what your needs are and are willing to help me test the results.
@@ -203,7 +205,8 @@ Then I am happy to give the name of this mod more truth.
 
 <h3>In-game purchases</h3>
 
-Arena has some real money mechanics and you can buy an in-game currency. Those payment methods are mostly accessible except for PayPal cause they included illegal captchas without audio alternatives. I and others tested in-game purchasing of things and it should be safe to use the system. But it is absolutely possible that there will occur bugs or even that the mod will mislead you. Could click on the wrong things, show you wrong or incomplete information, do the wrong things due to internal changes of Arena. I could test it but I cannot 100% guarantee that you could buy the wrong things with your real money. I won't take responsibility for this and due to the fact that this is no official Arena product the game company won't do this as well. Please don't even try to get refunds in this case they won't give you those.
+Arena has some real money mechanics and you can buy an in-game currency. Those payment methods are mostly accessible except for PayPal cause they included captcha protection of their login. You can try to uninstall the mod for payment method registration and ask sighted help but even this is unreliable due to their accessibility nightmare of a captcha further absolutely broken and badly implemented by Wizards of the Coast. 
+But other payment methods work stable. I and others tested in-game purchasing of things and it should be safe to use the system. But it is absolutely possible that there will occur bugs or even that the mod will mislead you. Could click on the wrong things, show you wrong or incomplete information, do the wrong things due to internal changes of Arena. I could test it but I cannot 100% guarantee that you could buy the wrong things with your real money. I won't take responsibility for this and due to the fact that this is no official Arena product the game company won't do this as well. Please don't even try to get refunds in this case they won't give you those.
 
 <h3>AI use</h3>
 
