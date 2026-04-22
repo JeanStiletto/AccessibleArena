@@ -171,22 +171,6 @@ Fixed `ExtractBrowserHeaderText()` to read the subheader from the `BrowserHeader
 
 ---
 
-### ZFBrowser Overlay Detection (Mailbox Reward Promos)
-
-Claiming certain mailbox rewards (e.g. TMNT promo) opens a `FullscreenZFBrowserCanvas` (embedded Chromium web page) instead of the standard rewards popup. Previously, OverlayNavigator misclassified this as "WhatsNew" (found unrelated home page NavPips), presenting non-functional page dots and a broken Back button.
-
-**Fix applied:** `DetermineOverlayType()` now checks for `FullscreenZFBrowserCanvas(Clone)` before the NavPip check. When detected (active, visible via CanvasGroup alpha, contains Browser component), delegates to `WebBrowserAccessibility` which extracts page elements via JavaScript and provides full keyboard navigation. Backspace clicks the "Back to Arena" Unity button outside the browser.
-
-**Untested:** The fix compiles and follows the same WBA pattern used successfully by StoreNavigator for payment popups, but has not been tested with an actual mailbox reward browser overlay. Monitor whether:
-- WBA correctly extracts headings, text, and buttons from the promo web page
-- Navigation with Up/Down works through extracted elements
-- Backspace correctly dismisses the overlay and returns to the mailbox
-- Normal overlays (What's New, announcements, reward popups) still detect and work unchanged
-
-**Files:** `OverlayNavigator.cs` (DetermineOverlayType, DiscoverWebBrowserElements, HandleEarlyInput, ValidateElements, Update, OnDeactivating), `WebBrowserAccessibility.cs` (Activate contextLabel parameter)
-
----
-
 ### Off-Screen Cards in Open All Pack Opening May Lack Full Card Info
 
 When opening many packs at once (Open All), the game's virtualized scroll list only renders ~12 physical card slots. Cards beyond the viewport are represented as text-only entries with name and type from GrpId lookup. Arrow Up/Down card info (mana cost, rules text, P/T, etc.) is now provided via GrpId-based lookup for these off-screen cards, but this has not been tested in-game yet.

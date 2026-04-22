@@ -5,7 +5,6 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
-using ZenFulcrum.EmbeddedBrowser;
 using AccessibleArena.Core.Utils;
 
 namespace AccessibleArena.Core.Services
@@ -19,8 +18,6 @@ namespace AccessibleArena.Core.Services
     {
         private GameObject _overlayBlocker;
         private string _overlayType;
-        private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
-        private GameObject _browserCanvas;
         private float _nextTypeRecheckTime;
         private const float TypeRecheckInterval = 0.5f;
 
@@ -34,7 +31,6 @@ namespace AccessibleArena.Core.Services
         {
             return _overlayType switch
             {
-                "WebBrowser" => Strings.WebBrowser_WebContent,
                 "WhatsNew" => Strings.ScreenWhatsNew,
                 "Announcement" => Strings.ScreenAnnouncement,
                 "Reward" => Strings.ScreenRewardPopup,
@@ -71,23 +67,6 @@ namespace AccessibleArena.Core.Services
 
         private void DetermineOverlayType()
         {
-            // Check for embedded browser overlay (e.g. mailbox reward promo pages)
-            var canvas = GameObject.Find("FullscreenZFBrowserCanvas(Clone)");
-            if (canvas != null && canvas.activeInHierarchy)
-            {
-                // Verify it's visible (CanvasGroup alpha > 0) and contains a Browser
-                var canvasGroup = canvas.GetComponent<CanvasGroup>();
-                bool isVisible = canvasGroup == null || canvasGroup.alpha > 0;
-                var browser = canvas.GetComponentInChildren<Browser>(true);
-
-                if (isVisible && browser != null)
-                {
-                    _overlayType = "WebBrowser";
-                    _browserCanvas = canvas;
-                    return;
-                }
-            }
-
             // Check for What's New carousel (has NavPip pagination dots).
             // Exclude pips that belong to the home page banner carousel
             // (Home_Desktop_16x9/SafeZone/Banners/NavDots/...) — those are always
@@ -137,9 +116,6 @@ namespace AccessibleArena.Core.Services
 
             switch (_overlayType)
             {
-                case "WebBrowser":
-                    DiscoverWebBrowserElements();
-                    return; // WBA manages its own elements
                 case "WhatsNew":
                     DiscoverWhatsNewElements(addedObjects);
                     break;
@@ -152,36 +128,13 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private void DiscoverWebBrowserElements()
-        {
-            _webBrowser.Activate(_browserCanvas, _announcer, Strings.WebBrowser_WebContent);
-            // Add placeholder element so TryActivate passes the Count > 0 check
-            AddElement(_browserCanvas, "Web browser");
-        }
-
-        protected override bool HandleEarlyInput()
-        {
-            if (_overlayType == "WebBrowser" && _webBrowser.IsActive)
-            {
-                _webBrowser.HandleInput();
-                return true;
-            }
-            return false;
-        }
-
         public override void Update()
         {
-            if (_isActive && _overlayType == "WebBrowser")
-            {
-                _webBrowser.Update();
-            }
-
-            // Re-evaluate overlay type periodically while active. The ZFBrowser
-            // canvas can take a second or more to become active after the overlay
-            // opens (e.g. mailbox reward promo pages), so the initial DetectScreen
-            // call may commit to WhatsNew/Announcement before the canvas is ready.
-            // Without this, the navigator stays locked on the wrong type.
-            if (_isActive && _overlayType != "WebBrowser" && Time.time >= _nextTypeRecheckTime)
+            // Re-evaluate overlay type periodically while active. Some overlay
+            // signals (e.g. late-loading canvases) aren't present on the first
+            // DetectScreen call, so we rescan every TypeRecheckInterval and
+            // force an element rescan if the type changes.
+            if (_isActive && Time.time >= _nextTypeRecheckTime)
             {
                 _nextTypeRecheckTime = Time.time + TypeRecheckInterval;
                 string previous = _overlayType;
@@ -198,11 +151,6 @@ namespace AccessibleArena.Core.Services
 
         protected override void OnDeactivating()
         {
-            if (_webBrowser.IsActive)
-            {
-                _webBrowser.Deactivate();
-            }
-            _browserCanvas = null;
             _nextTypeRecheckTime = 0f;
         }
 
@@ -485,10 +433,6 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            // WBA provides its own announcement immediately
-            if (_overlayType == "WebBrowser")
-                return "";
-
             string countInfo = _elements.Count > 1 ? $" {_elements.Count} items." : "";
 
             // Try to include content summary for What's New
@@ -523,17 +467,6 @@ namespace AccessibleArena.Core.Services
             {
                 Log.Msg("{NavigatorId}", $"Overlay dismissed");
                 return false;
-            }
-
-            // WebBrowser: check canvas + WBA validity instead of base element validation
-            if (_overlayType == "WebBrowser")
-            {
-                if (_browserCanvas == null || !_browserCanvas.activeInHierarchy || !_webBrowser.IsActive)
-                {
-                    Log.Msg("{NavigatorId}", $"Web browser dismissed");
-                    return false;
-                }
-                return true;
             }
 
             return base.ValidateElements();
