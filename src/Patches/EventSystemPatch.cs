@@ -135,6 +135,21 @@ namespace AccessibleArena.Patches
                 // check inbox" guidance when ConnectToFrontDoor hangs on 403 (known
                 // MelonLoader issue — account was created, but auto-login fails, so the
                 // user stays on Login and must validate via email + log in manually).
+                // Patch RegistrationPanel.Show to note when the panel just opened.
+                // The game's init/auto-focus chain can trigger _displayName_endEdit
+                // on an empty field (length < 3), setting the feedback text before
+                // the user has done anything. Suppress field-feedback announcements
+                // for a brief window after Show() so the user isn't greeted with
+                // "input error: display name must be 3-23 chars" on arrival.
+                var showMethod = regPanelType.GetMethod("Show", PublicInstance);
+                if (showMethod != null)
+                {
+                    var postfix = typeof(EventSystemPatch).GetMethod(nameof(RegistrationPanelShow_Postfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(showMethod, postfix: new HarmonyMethod(postfix));
+                    Log.Msg("EventSystemPatch", "Patched RegistrationPanel.Show()");
+                }
+
                 var onRegisterSuccessMethod = regPanelType.GetMethod("OnRegisterSuccess", PrivateInstance);
                 if (onRegisterSuccessMethod != null)
                 {
@@ -167,17 +182,6 @@ namespace AccessibleArena.Patches
                     harmony.Patch(m, postfix: new HarmonyMethod(postfix));
                     Log.Msg("EventSystemPatch",
                         $"Patched UIWidget_InputField_Registration.SetFeedbackText({m.GetParameters().Length} args)");
-                }
-
-                // Reset the dedup state when the field clears feedback (user re-selects
-                // or successfully validates). Without this, the user would be silenced
-                // on a legitimate re-occurrence of the same error after a fix attempt.
-                var clearMethod = regFieldType.GetMethod("ClearFeedbackText", PublicInstance);
-                if (clearMethod != null)
-                {
-                    var clearPostfix = typeof(EventSystemPatch).GetMethod(nameof(ClearFeedbackText_Postfix),
-                        BindingFlags.Static | BindingFlags.Public);
-                    harmony.Patch(clearMethod, postfix: new HarmonyMethod(clearPostfix));
                 }
             }
             else
@@ -375,22 +379,42 @@ namespace AccessibleArena.Patches
         }
 
         /// <summary>
-        /// Last feedback text announced, to suppress duplicates when RegistrationPanel
+        /// Last feedback text announced + timestamp, to suppress duplicates from
+        /// onValueChanged (fires on every keystroke — e.g. _passwords_onValueChanged
         /// calls ClearFeedbackText + SetFeedbackText with the same message on every
-        /// onEndEdit for an unchanged invalid field.
+        /// character typed, producing 10+ identical announcements per second).
+        /// Dedup is time-windowed so a genuine re-occurrence after the user actually
+        /// tried to fix the input is still announced.
         /// </summary>
         private static string _lastAnnouncedFeedbackText;
+        private static float _lastAnnouncedFeedbackTime;
+        private const float FeedbackDedupWindowSeconds = 2f;
+
+        /// <summary>
+        /// Timestamp (realtimeSinceStartup) when RegistrationPanel.Show last ran.
+        /// Used to suppress feedback announcements that fire during the panel's
+        /// auto-focus / init chain before the user has had a chance to interact.
+        /// </summary>
+        private static float _registrationPanelShownTime = -999f;
+        private const float PanelLoadSuppressionSeconds = 1.5f;
+
+        /// <summary>
+        /// Postfix for RegistrationPanel.Show(). Records the panel-open timestamp
+        /// so SetFeedbackText_Postfix can skip announcements during the init chain.
+        /// </summary>
+        public static void RegistrationPanelShow_Postfix()
+        {
+            _registrationPanelShownTime = Time.realtimeSinceStartup;
+        }
 
         /// <summary>
         /// Postfix for UIWidget_InputField_Registration.SetFeedbackText(string[, bool]).
         /// Reads the trimmed feedback text the game just wrote and announces it with
         /// an "input error" prefix. The message is already localized by the game.
+        /// Skips 403 messages — LoginScene.HandleAccountError writes the "Fehlercode 403"
+        /// text into the email field's FeedbackText before OnRegisterError fires, and
+        /// we announce the correct "submitted, check your inbox" guidance from there.
         /// </summary>
-        public static void ClearFeedbackText_Postfix()
-        {
-            _lastAnnouncedFeedbackText = null;
-        }
-
         public static void SetFeedbackText_Postfix(object __instance)
         {
             if (__instance == null) return;
@@ -403,8 +427,24 @@ namespace AccessibleArena.Patches
                 var textProp = tmpText.GetType().GetProperty("text");
                 string text = textProp?.GetValue(tmpText) as string;
                 if (string.IsNullOrWhiteSpace(text)) return;
-                if (text == _lastAnnouncedFeedbackText) return;
+
+                // The 403 case is handled by OnRegisterError_Postfix with the correct
+                // guidance. Don't also announce the misleading raw feedback text.
+                if (text.Contains("403")) return;
+
+                float now = Time.realtimeSinceStartup;
+
+                // Suppress the auto-focus/init-chain endEdit that fires on an empty
+                // display name right after the panel opens. After the window expires,
+                // real user-driven validation errors announce normally.
+                if (now - _registrationPanelShownTime < PanelLoadSuppressionSeconds)
+                    return;
+
+                if (text == _lastAnnouncedFeedbackText
+                    && now - _lastAnnouncedFeedbackTime < FeedbackDedupWindowSeconds)
+                    return;
                 _lastAnnouncedFeedbackText = text;
+                _lastAnnouncedFeedbackTime = now;
 
                 var announcer = AccessibleArenaMod.Instance?.Announcer;
                 if (announcer == null) return;
