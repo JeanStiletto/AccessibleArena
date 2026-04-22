@@ -30,6 +30,9 @@ namespace AccessibleArena.Core.Services
 
         // Label constraints
         private const int MaxLabelLength = 120;
+        // TooltipTrigger text (e.g., RegistrationPanel password-rules hover) is authored as
+        // descriptive help copy and can legitimately exceed MaxLabelLength.
+        private const int MaxTooltipLabelLength = 500;
 
         // Simple name patterns that always filter (case-insensitive Contains check)
         private static readonly string[] FilteredContainsPatterns = new[]
@@ -441,11 +444,26 @@ namespace AccessibleArena.Core.Services
             string effectiveName = GetEffectiveButtonName(obj, objName);
             bool isLink = IsLinkElement(objName, text);
 
+            // Image-only hover helpers (e.g., password rules) carry their label on a
+            // TooltipTrigger; allow longer text so full tooltip copy isn't truncated.
+            int maxLen = HasTooltipTrigger(obj) ? MaxTooltipLabelLength : MaxLabelLength;
+
             return CreateResult(
                 isLink ? ElementRole.Link : ElementRole.Button,
-                GetCleanLabel(text, effectiveName),
+                GetCleanLabel(text, effectiveName, maxLen),
                 isLink ? Models.Strings.RoleLink : Models.Strings.RoleButton,
                 true, true);
+        }
+
+        private static bool HasTooltipTrigger(GameObject obj)
+        {
+            if (obj == null) return false;
+            foreach (var comp in obj.GetComponents<MonoBehaviour>())
+            {
+                if (comp != null && comp.GetType().Name == "TooltipTrigger")
+                    return true;
+            }
+            return false;
         }
 
         private static ClassificationResult TryClassifyAsLabel(GameObject obj, string objName, string text)
@@ -1629,6 +1647,9 @@ namespace AccessibleArena.Core.Services
             => GetEffectiveElementName(obj, objName);
 
         private static string GetCleanLabel(string text, string objName)
+            => GetCleanLabel(text, objName, MaxLabelLength);
+
+        private static string GetCleanLabel(string text, string objName, int maxLength)
         {
             // Special case: Clear Search Button picks up placeholder text from sibling input field
             // Force use of cleaned object name instead
@@ -1638,8 +1659,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Prefer text content if available and meaningful (not too short or too long)
-            // Text over MaxLabelLength is likely paragraph content, fall back to object name
-            if (!string.IsNullOrEmpty(text) && text.Length > 1 && text.Length < MaxLabelLength)
+            // Text over maxLength is likely paragraph content, fall back to object name
+            if (!string.IsNullOrEmpty(text) && text.Length > 1 && text.Length < maxLength)
             {
                 // Clean up the text using compiled regex
                 text = HtmlTagPattern.Replace(text, "").Trim();

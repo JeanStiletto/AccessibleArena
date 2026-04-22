@@ -18,6 +18,13 @@ namespace AccessibleArena.Core.Services
         {
             if (inputField == null) return "text field";
 
+            // Prefer a localized label found via a Localize/TMP_Text sibling inside the
+            // wrapping "*_inputField" container. Covers registration-panel inputs whose own
+            // name is a non-localized "Input Field - Password 1" / "Input Field - Displayname".
+            string parentLabel = TryGetInputFieldLabel(inputField);
+            if (!string.IsNullOrEmpty(parentLabel))
+                return parentLabel;
+
             string name = inputField.name;
 
             // Try to extract meaningful label from name
@@ -124,6 +131,10 @@ namespace AccessibleArena.Core.Services
                 // localized label in their name (we'd extract "Password 1"). Prefer a localized
                 // label from a sibling TMP_Text / Localize component inside the wrapper — skipping
                 // the input field's own subtree so we don't pick up placeholder or user text.
+                // Do NOT widen to the wrapper's parent: the RegistrationPanel places multiple
+                // wrappers inside a shared "Group - Content"/"Group - PasswordObjects" and the
+                // parent subtree contains the panel heading plus the neighbouring field — which
+                // cross-pollinates labels (Password 1 ↔ Password 2) and leaks the heading.
                 if (isInputFieldContainer)
                 {
                     string localized = FindLocalizedLabelInContainer(current.gameObject, inputFieldObj);
@@ -333,12 +344,13 @@ namespace AccessibleArena.Core.Services
 
             // Parent-subtree fallback: the label TMP_Text for toggles like the RegistrationPanel
             // checkboxes (OffersToggle, TermsConditionsToggle, ...) is a sibling of the inner
-            // "Toggle" GO, not a descendant. Scan the parent's subtree while excluding the toggle
-            // itself so we don't re-check what we already checked.
+            // "Toggle" GO, not a descendant. Scan the immediate parent's subtree only — walking
+            // further up leaks sibling controls' text (e.g. Data Toggle picking up adjacent
+            // checkbox labels in a shared group).
             var parent = toggle.transform.parent;
             if (parent != null)
             {
-                string parentLocalizeText = TryGetLocalizeText(parent.gameObject);
+                string parentLocalizeText = TryGetLocalizeTextExcluding(parent.gameObject, toggle.gameObject);
                 if (!string.IsNullOrEmpty(parentLocalizeText))
                 {
                     if (parentLocalizeText.Contains("POSITION"))

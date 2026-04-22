@@ -236,6 +236,15 @@ namespace AccessibleArena.Core.Services
                 string cleaned = CleanText(tmpText.text);
                 if (!string.IsNullOrWhiteSpace(cleaned))
                 {
+                    // For icon-glyph text (1-2 chars), a TooltipTrigger on this element provides
+                    // a richer label (e.g., "?" hover button → "Password must be 8+ characters...").
+                    // Prefer tooltip text over the glyph in that case.
+                    if (cleaned.Length <= 2)
+                    {
+                        string tooltipOverride = TryGetTooltipText(gameObject);
+                        if (!string.IsNullOrEmpty(tooltipOverride))
+                            return tooltipOverride;
+                    }
                     return cleaned;
                 }
             }
@@ -430,17 +439,37 @@ namespace AccessibleArena.Core.Services
 
         private static string ReadTooltipDataText(object tooltipTrigger, Type triggerType)
         {
-            var dataField = triggerType.GetField("TooltipData", PublicInstance);
-            if (dataField == null) return null;
+            string text = null;
 
-            var data = dataField.GetValue(tooltipTrigger);
-            if (data == null) return null;
+            // Prefer TooltipTrigger.GetTooltipText() — mirrors the game's own pre-hover
+            // resolution: copies LocString.mTerm into TooltipData.Text (if set), then returns
+            // the localized string. Without this call, TooltipData._text is "UNSET" and the
+            // Text getter returns "" for hover helpers that only have LocString wired up.
+            var getTooltipText = triggerType.GetMethod("GetTooltipText", PublicInstance, null, Type.EmptyTypes, null);
+            if (getTooltipText != null)
+            {
+                try { text = getTooltipText.Invoke(tooltipTrigger, null) as string; }
+                catch { text = null; }
+            }
 
-            var textProp = data.GetType().GetProperty("Text", PublicInstance);
-            if (textProp == null) return null;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                var dataField = triggerType.GetField("TooltipData", PublicInstance);
+                if (dataField == null) return null;
 
-            string text = textProp.GetValue(data) as string;
+                var data = dataField.GetValue(tooltipTrigger);
+                if (data == null) return null;
+
+                var textProp = data.GetType().GetProperty("Text", PublicInstance);
+                if (textProp == null) return null;
+
+                text = textProp.GetValue(data) as string;
+            }
+
             if (string.IsNullOrWhiteSpace(text)) return null;
+
+            // Unset marker or tilde-wrapped obsolete TooltipText — treat as no text.
+            if (text == "UNSET" || (text.StartsWith("~") && text.EndsWith("~"))) return null;
 
             // Strip any <style=...> / </style> tags (wildcard tooltip pattern)
             text = System.Text.RegularExpressions.Regex.Replace(text, @"</?style[^>]*>", "");
