@@ -43,7 +43,17 @@ namespace AccessibleArena.Core.Services
         /// Localize component that hasn't fired DoLocalize yet).
         /// </summary>
         private static string TryGetLocalizeText(GameObject gameObject)
+            => TryGetLocalizeTextExcluding(gameObject, null);
+
+        /// <summary>
+        /// Same as <see cref="TryGetLocalizeText"/> but skips any Localize component inside
+        /// <paramref name="excludeSubtree"/>. Used to look up a sibling label while ignoring
+        /// a wrapped widget's own Localize (e.g., an input field's placeholder).
+        /// </summary>
+        private static string TryGetLocalizeTextExcluding(GameObject gameObject, GameObject excludeSubtree)
         {
+            if (gameObject == null) return null;
+
             if (_localizeType == null)
                 _localizeType = FindType("Wotc.Mtga.Loc.Localize");
             if (_localizeType == null) return null;
@@ -51,11 +61,16 @@ namespace AccessibleArena.Core.Services
             if (!_localizeCache.EnsureInitialized(_localizeType)) return null;
             var h = _localizeCache.Handles;
 
+            Transform excludeRoot = excludeSubtree != null ? excludeSubtree.transform : null;
+
             // Search element and children (including inactive) for Localize components
             var behaviours = gameObject.GetComponentsInChildren<MonoBehaviour>(true);
             foreach (var mb in behaviours)
             {
                 if (mb == null || mb.GetType() != _localizeType)
+                    continue;
+
+                if (excludeRoot != null && mb.transform.IsChildOf(excludeRoot))
                     continue;
 
                 var textTarget = h.TextTarget.GetValue(mb);

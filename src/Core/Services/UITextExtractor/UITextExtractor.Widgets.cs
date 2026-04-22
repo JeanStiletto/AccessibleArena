@@ -116,6 +116,20 @@ namespace AccessibleArena.Core.Services
             while (current != null && maxLevels > 0)
             {
                 string name = current.name;
+                bool isInputFieldContainer =
+                    name.IndexOf("_inputField", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    name.StartsWith("inputField_", System.StringComparison.OrdinalIgnoreCase);
+
+                // Registration panel wrappers like "Login_inputField Password 1" don't carry the
+                // localized label in their name (we'd extract "Password 1"). Prefer a localized
+                // label from a sibling TMP_Text / Localize component inside the wrapper — skipping
+                // the input field's own subtree so we don't pick up placeholder or user text.
+                if (isInputFieldContainer)
+                {
+                    string localized = FindLocalizedLabelInContainer(current.gameObject, inputFieldObj);
+                    if (!string.IsNullOrEmpty(localized))
+                        return localized;
+                }
 
                 // Pattern: Something_inputField → "Something"
                 if (name.EndsWith("_inputField", System.StringComparison.OrdinalIgnoreCase))
@@ -152,6 +166,31 @@ namespace AccessibleArena.Core.Services
 
                 current = current.parent;
                 maxLevels--;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Search a container's subtree for a localized label (Localize component first, then
+        /// TMP_Text fallback), skipping anything inside the excluded subtree. Used to pick up
+        /// sibling label TMP_Texts that wrap input fields in the RegistrationPanel.
+        /// </summary>
+        private static string FindLocalizedLabelInContainer(GameObject container, GameObject excludeSubtree)
+        {
+            if (container == null) return null;
+
+            string localized = TryGetLocalizeTextExcluding(container, excludeSubtree);
+            if (!string.IsNullOrEmpty(localized))
+                return localized;
+
+            foreach (var tmp in container.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp == null) continue;
+                if (excludeSubtree != null && tmp.transform.IsChildOf(excludeSubtree.transform)) continue;
+                string cleaned = CleanText(tmp.text);
+                if (string.IsNullOrWhiteSpace(cleaned) || cleaned.Length <= 1 || cleaned.Length > 60) continue;
+                return cleaned;
             }
 
             return null;
@@ -290,6 +329,33 @@ namespace AccessibleArena.Core.Services
             {
                 if (tmp != null && tmp.text != null && tmp.text.Contains("POSITION"))
                     return Models.Strings.Bo3Toggle();
+            }
+
+            // Parent-subtree fallback: the label TMP_Text for toggles like the RegistrationPanel
+            // checkboxes (OffersToggle, TermsConditionsToggle, ...) is a sibling of the inner
+            // "Toggle" GO, not a descendant. Scan the parent's subtree while excluding the toggle
+            // itself so we don't re-check what we already checked.
+            var parent = toggle.transform.parent;
+            if (parent != null)
+            {
+                string parentLocalizeText = TryGetLocalizeText(parent.gameObject);
+                if (!string.IsNullOrEmpty(parentLocalizeText))
+                {
+                    if (parentLocalizeText.Contains("POSITION"))
+                        return Models.Strings.Bo3Toggle();
+                    return parentLocalizeText;
+                }
+
+                foreach (var tmp in parent.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (tmp == null) continue;
+                    if (tmp.transform.IsChildOf(toggle.transform)) continue;
+                    string cleaned = CleanText(tmp.text);
+                    if (string.IsNullOrWhiteSpace(cleaned) || cleaned.Length <= 1) continue;
+                    if (cleaned.Contains("POSITION"))
+                        return Models.Strings.Bo3Toggle();
+                    return cleaned;
+                }
             }
 
             // Return empty - UIElementClassifier will use object name as fallback
