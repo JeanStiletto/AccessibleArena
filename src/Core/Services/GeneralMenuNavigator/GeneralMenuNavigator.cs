@@ -1613,6 +1613,17 @@ namespace AccessibleArena.Core.Services
             // Announce the change
             string announcement = GetActivationAnnouncement();
             _announcer.Announce(announcement, Models.AnnouncementPriority.High);
+
+            // Non-grouped screens (Login/Register/Birth/Mail/Home) would otherwise stop at
+            // just the menu name — follow up with the first element so the user knows where
+            // focus landed without having to press an arrow key. Grouped navigation already
+            // includes the first element in its activation announcement.
+            if (!(_groupedNavigationEnabled && _groupedNavigator.IsActive))
+            {
+                string first = GetElementAnnouncement(_currentIndex);
+                if (!string.IsNullOrEmpty(first))
+                    _announcer.Announce(first, Models.AnnouncementPriority.High);
+            }
         }
 
         protected override bool DetectScreen()
