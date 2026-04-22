@@ -195,13 +195,14 @@ The mod is only tested on Windows with NVDA and JAWS and still relies on the unm
 For the current list of known issues, see [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
 <h2>Disclaimers</h2>
-<h3> Company contact: 
-Sadly i wasn't able to able to get reliable insights into the Arena team or informal   developer contacts. So I decided to miss out theier official communication channels for the moment. In 3 months of building and playing i never hit any bot protection system so i don't think they can detect us as mod users. But I didn't wanted to take the risk to communicate on official channels as a single person to them. So spread the worth about the mod and lets build a big valuable community. This will give me a better position in contacting them. Just don't try to write them with out communicating with me before. Especially don't send them requests for native accessibility or integraton of my mod into theier code base. Both won't happen in any case. 
- 
 <h3>Other accessibilities</h3>
 
 This mod calls itself Accessible Arena mostly cause it sounds good. But at the moment this is only a screen reader accessibility mod. I am absolutely interested in covering more disabilities with this mod, visual impairments, motoric disabilities etc. But I am only experienced in screen reader accessibility. As fully blind person for example questions of coloring and fonts are fully abstract to me. So if you want something in this kind implemented please don't hesitate to contact me if you can clearly describe what your needs are and are willing to help me test the results.
 Then I am happy to give the name of this mod more truth.
+
+<h3>Company contact</h3>
+
+Sadly I wasn't able to get reliable insights into the Arena team or informal developer contacts. So I decided to skip their official communication channels for the moment. In 3 months of building and playing I never hit any bot protection system, so I don't think they can detect us as mod users. But I didn't want to take the risk of communicating on official channels as a single person. So spread the word about the mod and let's build a big, valuable community. Then we will have a much better position if we decide to reach out directly. Just don't try to write to them without communicating with me first. Especially don't send them requests for native accessibility or integration of my mod into their code base. Neither will happen in any case.
 
 <h3>In-game purchases</h3>
 
