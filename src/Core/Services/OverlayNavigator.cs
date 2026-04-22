@@ -21,6 +21,8 @@ namespace AccessibleArena.Core.Services
         private string _overlayType;
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
         private GameObject _browserCanvas;
+        private float _nextTypeRecheckTime;
+        private const float TypeRecheckInterval = 0.5f;
 
         public override string NavigatorId => "Overlay";
         public override string ScreenName => GetOverlayScreenName();
@@ -50,6 +52,16 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
+            // Defer to RewardPopupNavigator while a reward claim is revealing.
+            // That navigator has content-gated activation and may take several
+            // frames to become ready — without this yield, we'd grab the
+            // click-blocker first and block its preemption path.
+            var rewardNav = NavigatorManager.Instance?.GetNavigator<RewardPopupNavigator>();
+            if (rewardNav != null && rewardNav.IsClaimInProgress)
+            {
+                return false;
+            }
+
             // Determine overlay type by checking for specific elements
             DetermineOverlayType();
 
@@ -76,9 +88,14 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Check for What's New carousel (has NavPip pagination dots)
+            // Check for What's New carousel (has NavPip pagination dots).
+            // Exclude pips that belong to the home page banner carousel
+            // (Home_Desktop_16x9/SafeZone/Banners/NavDots/...) — those are always
+            // active behind any modal and would cause a false WhatsNew match.
             var navPips = GameObject.FindObjectsOfType<Button>()
-                .Where(b => b.gameObject.activeInHierarchy && b.gameObject.name.Contains("NavPip"))
+                .Where(b => b.gameObject.activeInHierarchy
+                    && b.gameObject.name.Contains("NavPip")
+                    && !IsUnderHomePageBanners(b.transform))
                 .ToList();
 
             if (navPips.Count > 0)
@@ -101,6 +118,17 @@ namespace AccessibleArena.Core.Services
             }
 
             _overlayType = "Announcement";
+        }
+
+        private static bool IsUnderHomePageBanners(Transform t)
+        {
+            for (var p = t; p != null; p = p.parent)
+            {
+                string n = p.name;
+                if (n.StartsWith("Home_Desktop_") || n == "Banners" || n == "NavDots")
+                    return true;
+            }
+            return false;
         }
 
         protected override void DiscoverElements()
@@ -147,6 +175,24 @@ namespace AccessibleArena.Core.Services
             {
                 _webBrowser.Update();
             }
+
+            // Re-evaluate overlay type periodically while active. The ZFBrowser
+            // canvas can take a second or more to become active after the overlay
+            // opens (e.g. mailbox reward promo pages), so the initial DetectScreen
+            // call may commit to WhatsNew/Announcement before the canvas is ready.
+            // Without this, the navigator stays locked on the wrong type.
+            if (_isActive && _overlayType != "WebBrowser" && Time.time >= _nextTypeRecheckTime)
+            {
+                _nextTypeRecheckTime = Time.time + TypeRecheckInterval;
+                string previous = _overlayType;
+                DetermineOverlayType();
+                if (_overlayType != previous)
+                {
+                    Log.Msg("{NavigatorId}", $"Overlay type changed: {previous} -> {_overlayType}");
+                    ForceRescan();
+                }
+            }
+
             base.Update();
         }
 
@@ -157,6 +203,7 @@ namespace AccessibleArena.Core.Services
                 _webBrowser.Deactivate();
             }
             _browserCanvas = null;
+            _nextTypeRecheckTime = 0f;
         }
 
         private void DiscoverWhatsNewElements(HashSet<GameObject> addedObjects)

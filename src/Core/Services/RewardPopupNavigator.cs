@@ -58,6 +58,16 @@ namespace AccessibleArena.Core.Services
 
         public RewardPopupNavigator(IAnnouncementService announcer) : base(announcer) { }
 
+        /// <summary>
+        /// True while the game's reward reveal coroutine is in progress for the
+        /// current popup (i.e. _stillDisplayingSubpagesForRewardItem was observed
+        /// as true). Other navigators should defer to this one while claiming is
+        /// underway — DetectScreen keeps returning false until the reveal finishes
+        /// and content is ready, so lower-priority navigators would otherwise grab
+        /// the overlay-blocker state in the meantime.
+        /// </summary>
+        public bool IsClaimInProgress => _revealingWasSeen;
+
         #region Detection - Copied from OverlayDetector
 
         protected override bool DetectScreen()
@@ -111,21 +121,22 @@ namespace AccessibleArena.Core.Services
                     return HasActiveSeasonDisplay();
                 }
 
-                // State 2 (Rewards) or 0 (None): gate on controller's revealing flag
+                // State 2 (Rewards) or 0 (None): activate as soon as reward prefabs exist.
+                // Do NOT gate purely on _stillDisplayingSubpagesForRewardItem — that flag
+                // stays true across multi-page reveals (turtle packs, SOS Strixhaven)
+                // while prefabs are already on screen and the user clicks "Mehr" between
+                // pages. Gating on it would keep us inactive for the entire sequence.
                 bool? stillRevealing = ReadStillRevealingFlag();
 
                 if (stillRevealing == true)
                 {
-                    // Coroutine is actively revealing rewards — wait
-                    // Extract pack names now while ToAdd queue is still populated
-                    // (queue is cleared after a 1-frame delay inside RevealRewards)
+                    // Coroutine is active — extract pack names while ToAdd queue is
+                    // still populated (queue is cleared 1 frame after RevealRewards starts).
                     _revealingWasSeen = true;
                     ExtractPackSetNames();
-                    _popupDetectedTime = -1f;
-                    continue;
                 }
 
-                // Flag is false or unavailable — check if content actually exists
+                // Check for actual reward content
                 bool hasContent = false;
                 foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
                 {
@@ -139,20 +150,28 @@ namespace AccessibleArena.Core.Services
 
                 if (hasContent)
                 {
+                    // Prefabs visible — activate regardless of coroutine state.
                     _popupDetectedTime = -1f;
                     _timeoutFallbackFired = false;
                     return true;
                 }
 
-                // No content yet. Only use the timeout fallback if we previously saw
-                // the revealing flag (_stillDisplayingSubpagesForRewardItem == true),
-                // meaning the game actually started a reward reveal cycle.
-                // Without this gate, the preloaded empty Rewards controller (always
-                // active at startup / during Prize Wall) causes false positives.
+                // No content yet. If the coroutine is still setting up, just wait —
+                // don't start the timeout clock until the flag drops or fails to appear.
+                if (stillRevealing == true)
+                {
+                    _popupDetectedTime = -1f;
+                    continue;
+                }
+
+                // Flag is false/unavailable and no content. Only use the timeout fallback
+                // if we previously saw the revealing flag, meaning the game actually
+                // started a reward reveal cycle. Without this gate, the preloaded empty
+                // Rewards controller (always active at startup / during Prize Wall)
+                // would cause false positives.
                 if (!_revealingWasSeen)
                 {
-                    // Controller is active but never started revealing — it's just the
-                    // preloaded shell. Don't start a timeout, don't activate.
+                    // Preloaded shell — don't start a timeout, don't activate.
                     continue;
                 }
 
@@ -163,7 +182,7 @@ namespace AccessibleArena.Core.Services
                     return false;
                 }
 
-                // Start/check timeout for fallback (revealing was seen, prefabs may be slow)
+                // Start/check timeout for fallback (revealing was seen, prefabs may be slow).
                 if (_popupDetectedTime < 0f)
                     _popupDetectedTime = Time.time;
 
