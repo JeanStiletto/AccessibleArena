@@ -455,6 +455,15 @@ namespace AccessibleArena.Core.Services
         {
             // Note: Settings check removed - handled by SettingsMenuNavigator
 
+            // Mail detail view: label the screen as Mail, not the underlying Home page.
+            // Otherwise reactivations (e.g. when a reward popup closes) announce
+            // "Home with Color Challenge" over a mail screen.
+            if (_isInMailDetailView && _overlayDetector != null &&
+                _overlayDetector.GetActiveOverlay() == ElementGroup.MailboxContent)
+            {
+                return LocaleManager.Instance.Get("GroupMail");
+            }
+
             // Check if Social/Friends panel is open
             if (IsSocialPanelOpen())
             {
