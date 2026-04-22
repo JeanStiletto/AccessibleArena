@@ -369,9 +369,11 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Tries to extract label text from a TooltipTrigger's LocString field.
-        /// Used as a last-resort fallback for image-only buttons (e.g., Nav_Settings, Nav_Learn)
-        /// that have no text content but have a localized tooltip.
+        /// Tries to extract label text from a TooltipTrigger component.
+        /// First tries the short <c>LocString</c> field (used by nav icons like Nav_Settings),
+        /// then falls back to <c>TooltipData.Text</c> (used by descriptive hover helpers like
+        /// the RegistrationPanel's password-rules hover button). The TooltipData.Text branch
+        /// strips style tags and joins newlines with ", " so NVDA reads the rules linearly.
         /// </summary>
         private static string TryGetTooltipText(GameObject gameObject)
         {
@@ -401,19 +403,55 @@ namespace AccessibleArena.Core.Services
             {
                 if (comp == null || comp.GetType().Name != "TooltipTrigger") continue;
 
-                var locStringField = comp.GetType().GetField("LocString",
-                    PublicInstance);
-                if (locStringField == null) continue;
+                var triggerType = comp.GetType();
 
-                var locString = locStringField.GetValue(comp);
-                if (locString == null) continue;
+                // Short tooltip via LocString (image-only nav icons)
+                var locStringField = triggerType.GetField("LocString", PublicInstance);
+                if (locStringField != null)
+                {
+                    var locString = locStringField.GetValue(comp);
+                    if (locString != null)
+                    {
+                        string text = locString.ToString();
+                        if (!string.IsNullOrWhiteSpace(text) && text.Length > 1 && text.Length < 60)
+                            return text;
+                    }
+                }
 
-                string text = locString.ToString();
-                if (!string.IsNullOrWhiteSpace(text) && text.Length > 1 && text.Length < 60)
-                    return text;
+                // Descriptive tooltip via TooltipData.Text (e.g., RegistrationPanel's
+                // HoverButton - Password Help → "MainNav/Login/PasswordRules" with multi-line rules).
+                string descriptive = ReadTooltipDataText(comp, triggerType);
+                if (!string.IsNullOrEmpty(descriptive))
+                    return descriptive;
             }
 
             return null;
+        }
+
+        private static string ReadTooltipDataText(object tooltipTrigger, Type triggerType)
+        {
+            var dataField = triggerType.GetField("TooltipData", PublicInstance);
+            if (dataField == null) return null;
+
+            var data = dataField.GetValue(tooltipTrigger);
+            if (data == null) return null;
+
+            var textProp = data.GetType().GetProperty("Text", PublicInstance);
+            if (textProp == null) return null;
+
+            string text = textProp.GetValue(data) as string;
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            // Strip any <style=...> / </style> tags (wildcard tooltip pattern)
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"</?style[^>]*>", "");
+            // Join newlines with ", " for screen-reader flow
+            text = text.Replace("\r\n", ", ").Replace("\n", ", ").Replace("\r", ", ");
+            // Collapse repeated commas from blank lines
+            while (text.Contains(",  ,") || text.Contains(",,"))
+                text = text.Replace(",  ,", ",").Replace(",,", ",");
+            text = text.Trim().TrimEnd(',').Trim();
+
+            return string.IsNullOrEmpty(text) ? null : text;
         }
 
         private static string GetParentPath(GameObject gameObject)
