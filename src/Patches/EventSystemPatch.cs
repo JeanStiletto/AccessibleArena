@@ -148,6 +148,41 @@ namespace AccessibleArena.Patches
                     Log.Warn("EventSystemPatch", "Could not find RegistrationPanel.OnRegisterSuccess method");
                 }
             }
+
+            // Patch cTMP_Dropdown.OnTextInput and OnNavigate to ignore keystrokes when
+            // the dropdown is not visually expanded. cTMP_Dropdown.Hide() only destroys
+            // its list after a 0.15s coroutine and only if IsActive() at the time.
+            // If a containing panel hides (e.g. BirthLanguagePanel -> RegistrationPanel)
+            // before the coroutine runs, the destroy is aborted — the DropdownList
+            // GameObject lingers, parented to the root Canvas, with m_Items still alive.
+            // Its alphabet-jump handler fires on any typed letter anywhere in the scene,
+            // stealing EventSystem focus (e.g. 'n' jumps to "November", hijacking typing
+            // into the Displayname input field on the Registration panel).
+            var customDropdownType = FindType("cTMP.cTMP_Dropdown");
+            if (customDropdownType != null)
+            {
+                var onTextInputMethod = customDropdownType.GetMethod("OnTextInput", PublicInstance);
+                if (onTextInputMethod != null)
+                {
+                    var prefix = typeof(EventSystemPatch).GetMethod(nameof(CustomDropdownOnTextInput_Prefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onTextInputMethod, prefix: new HarmonyMethod(prefix));
+                    Log.Msg("EventSystemPatch", "Patched cTMP_Dropdown.OnTextInput()");
+                }
+
+                var onNavigateMethod = customDropdownType.GetMethod("OnNavigate", PublicInstance);
+                if (onNavigateMethod != null)
+                {
+                    var prefix = typeof(EventSystemPatch).GetMethod(nameof(CustomDropdownOnNavigate_Prefix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onNavigateMethod, prefix: new HarmonyMethod(prefix));
+                    Log.Msg("EventSystemPatch", "Patched cTMP_Dropdown.OnNavigate()");
+                }
+            }
+            else
+            {
+                Log.Warn("EventSystemPatch", "Could not find cTMP.cTMP_Dropdown type");
+            }
         }
 
         /// <summary>
@@ -278,6 +313,52 @@ namespace AccessibleArena.Patches
             }
 
             announcer.Announce(announcement, AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Cached FieldInfo for cTMP_Dropdown._expanded (resolved lazily on first use,
+        /// then reused). Null means the field was not found (prefix will fall through).
+        /// </summary>
+        private static FieldInfo _customDropdownExpandedField;
+        private static bool _customDropdownExpandedResolved;
+
+        /// <summary>
+        /// Returns true if the cTMP_Dropdown instance is currently visually expanded.
+        /// Reads the private _expanded field. If the field can't be resolved, returns
+        /// true (safe fallback — lets the game's handler run normally).
+        /// </summary>
+        private static bool IsCustomDropdownExpanded(object dropdown)
+        {
+            if (dropdown == null) return false;
+            if (!_customDropdownExpandedResolved)
+            {
+                _customDropdownExpandedField = dropdown.GetType().GetField("_expanded", PrivateInstance);
+                _customDropdownExpandedResolved = true;
+            }
+            if (_customDropdownExpandedField == null) return true;
+            try { return (bool)_customDropdownExpandedField.GetValue(dropdown); }
+            catch { return true; }
+        }
+
+        /// <summary>
+        /// Prefix for cTMP_Dropdown.OnTextInput(char). Skips the alphabet-jump handler
+        /// when the dropdown list is not visually expanded. Prevents lingering (invisible)
+        /// dropdown lists from hijacking keystrokes on unrelated UI (e.g. typing into an
+        /// input field on a different panel).
+        /// </summary>
+        public static bool CustomDropdownOnTextInput_Prefix(object __instance)
+        {
+            return IsCustomDropdownExpanded(__instance);
+        }
+
+        /// <summary>
+        /// Prefix for cTMP_Dropdown.OnNavigate(Direction). Same guard as OnTextInput —
+        /// arrow-key navigation through a non-visible dropdown's items would also steal
+        /// focus from whatever the user is actually interacting with.
+        /// </summary>
+        public static bool CustomDropdownOnNavigate_Prefix(object __instance)
+        {
+            return IsCustomDropdownExpanded(__instance);
         }
 
         /// <summary>
