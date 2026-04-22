@@ -113,6 +113,40 @@ namespace AccessibleArena.Patches
                     harmony.Patch(submitMethod, prefix: new HarmonyMethod(prefix));
                     Log.Msg("EventSystemPatch", "Patched RegistrationPanel.OnButton_SubmitRegistration() (diagnostic)");
                 }
+
+                // Patch RegistrationPanel.OnRegisterError to announce server-side validation
+                // failures (invalid email, password rejected, display name taken, etc.).
+                // Without this, the user only sees visual feedback text on the input field,
+                // which is unreadable by screen readers.
+                var onRegisterErrorMethod = regPanelType.GetMethod("OnRegisterError", PrivateInstance);
+                if (onRegisterErrorMethod != null)
+                {
+                    var postfix = typeof(EventSystemPatch).GetMethod(nameof(OnRegisterError_Postfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onRegisterErrorMethod, postfix: new HarmonyMethod(postfix));
+                    Log.Msg("EventSystemPatch", "Patched RegistrationPanel.OnRegisterError()");
+                }
+                else
+                {
+                    Log.Warn("EventSystemPatch", "Could not find RegistrationPanel.OnRegisterError method");
+                }
+
+                // Patch RegistrationPanel.OnRegisterSuccess to announce the "submitted,
+                // check inbox" guidance when ConnectToFrontDoor hangs on 403 (known
+                // MelonLoader issue — account was created, but auto-login fails, so the
+                // user stays on Login and must validate via email + log in manually).
+                var onRegisterSuccessMethod = regPanelType.GetMethod("OnRegisterSuccess", PrivateInstance);
+                if (onRegisterSuccessMethod != null)
+                {
+                    var postfix = typeof(EventSystemPatch).GetMethod(nameof(OnRegisterSuccess_Postfix),
+                        BindingFlags.Static | BindingFlags.Public);
+                    harmony.Patch(onRegisterSuccessMethod, postfix: new HarmonyMethod(postfix));
+                    Log.Msg("EventSystemPatch", "Patched RegistrationPanel.OnRegisterSuccess()");
+                }
+                else
+                {
+                    Log.Warn("EventSystemPatch", "Could not find RegistrationPanel.OnRegisterSuccess method");
+                }
             }
         }
 
@@ -170,28 +204,106 @@ namespace AccessibleArena.Patches
 
         /// <summary>
         /// Prefix for RegistrationPanel.OnButton_SubmitRegistration().
-        /// Logs the call for diagnostics and starts a delayed guidance announcement
-        /// in case the post-registration auto-login fails (known 403 issue with MelonLoader).
+        /// Diagnostic log only. The actual user-facing announcement is deferred until
+        /// the promise resolves: OnRegisterSuccess_Postfix or OnRegisterError_Postfix.
         /// </summary>
         public static void SubmitRegistrationDiagnostic_Prefix()
         {
             Log.Msg("EventSystemPatch", ">>> OnButton_SubmitRegistration CALLED <<<");
             Log.Msg("EventSystemPatch", $"Stack: {System.Environment.StackTrace}");
+        }
 
-            // Start a coroutine that waits and then announces guidance if the game
-            // hasn't auto-advanced (ConnectToFrontDoor returns 403 with MelonLoader present).
+        /// <summary>
+        /// Postfix for RegistrationPanel.OnRegisterSuccess(string).
+        /// Account was created on the server. The game now calls ConnectToFrontDoor to
+        /// auto-login — which 403s under MelonLoader, leaving the user stuck on the
+        /// Login scene. Start a short timer: if we haven't left Login, announce the
+        /// "submitted, validate via email, go back and log in" guidance.
+        /// </summary>
+        public static void OnRegisterSuccess_Postfix()
+        {
+            Log.Msg("EventSystemPatch", "OnRegisterSuccess fired — account created. Starting 403-detection timer.");
             MelonCoroutines.Start(AnnounceRegistrationGuidanceAfterDelay());
         }
 
         /// <summary>
-        /// Wait after registration submission. If the game hasn't left the Login scene
-        /// (indicating the auto-login failed), announce guidance to the user.
+        /// Postfix for RegistrationPanel.OnRegisterError(AccountError).
+        /// Reads the server-localized error string from AccountError.LocalizedErrorMessage
+        /// — the same text the game writes onto the input field's feedback label — and
+        /// announces it. Falls back to a per-error-type mapping if the server string is
+        /// missing. Also flags the guidance coroutine to suppress the "submitted" message.
+        /// </summary>
+        public static void OnRegisterError_Postfix(object error)
+        {
+            string errorTypeName = "Generic";
+            string serverMessage = null;
+            try
+            {
+                if (error != null)
+                {
+                    var errorType = error.GetType();
+                    errorTypeName = ReadMember(error, errorType, "ErrorType")?.ToString() ?? "Generic";
+                    serverMessage = ReadMember(error, errorType, "LocalizedErrorMessage") as string;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warn("EventSystemPatch", $"OnRegisterError: failed to read AccountError: {ex.Message}");
+            }
+
+            Log.Msg("EventSystemPatch",
+                $"Registration rejected by server: ErrorType={errorTypeName}, Message='{serverMessage}'");
+
+            var announcer = AccessibleArenaMod.Instance?.Announcer;
+            if (announcer == null)
+                return;
+
+            string announcement;
+            if (!string.IsNullOrWhiteSpace(serverMessage))
+            {
+                // Prefix the real game message so the user knows registration failed
+                // and hears the exact localized reason the game shows on screen.
+                string prefix = LocaleManager.Instance?.Get("RegistrationErrorPrefix")
+                    ?? "Registration failed";
+                announcement = $"{prefix}: {serverMessage}";
+            }
+            else
+            {
+                string localeKey = "RegistrationError_" + errorTypeName;
+                string mapped = LocaleManager.Instance?.Get(localeKey);
+                announcement = (!string.IsNullOrEmpty(mapped) && mapped != localeKey)
+                    ? mapped
+                    : (LocaleManager.Instance?.Get("RegistrationError_Generic")
+                        ?? "Registration failed. Please check your input and try again.");
+            }
+
+            announcer.Announce(announcement, AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Read a member (property or field) from an object via reflection, preferring
+        /// property over field. Returns null if missing or on failure.
+        /// </summary>
+        private static object ReadMember(object target, System.Type type, string name)
+        {
+            var prop = type.GetProperty(name, AllInstanceFlags);
+            if (prop != null && prop.CanRead)
+                return prop.GetValue(target);
+            var field = type.GetField(name, AllInstanceFlags);
+            return field?.GetValue(target);
+        }
+
+        /// <summary>
+        /// Started after OnRegisterSuccess fires (account created). If ConnectToFrontDoor
+        /// succeeds, the scene changes and we stay quiet. If it 403s under MelonLoader,
+        /// the scene stays on Login — announce the guidance so the user knows registration
+        /// actually worked and what to do next (validate via email, go back, log in).
         /// </summary>
         private static IEnumerator AnnounceRegistrationGuidanceAfterDelay()
         {
             yield return new WaitForSeconds(8f);
 
-            // If the game auto-advanced to a different scene, no guidance needed
+            // Game auto-advanced → ConnectToFrontDoor succeeded → nothing to say
             if (SceneManager.GetActiveScene().name != SceneNames.Login)
                 yield break;
 
@@ -202,7 +314,7 @@ namespace AccessibleArena.Patches
             string message = LocaleManager.Instance?.Get("RegistrationSubmitted")
                 ?? "Registration submitted. Please check your email to activate your account, then press Backspace to return to the login screen.";
 
-            Log.Msg("EventSystemPatch", $"Registration did not auto-advance, announcing guidance");
+            Log.Msg("EventSystemPatch", "ConnectToFrontDoor did not auto-advance (likely 403), announcing submitted guidance");
             announcer.Announce(message, AnnouncementPriority.High);
         }
 

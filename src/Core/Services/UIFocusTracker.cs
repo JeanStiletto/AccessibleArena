@@ -271,7 +271,8 @@ namespace AccessibleArena.Core.Services
                 // Invoke onEndEdit event to notify listeners (e.g., search filter)
                 if (tmpInput.onEndEdit != null)
                 {
-                    Log.Focus("FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
+                    string logText = tmpInput.inputType == TMPro.TMP_InputField.InputType.Password ? "***" : currentText;
+                    Log.Focus("FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{logText}'");
                     tmpInput.onEndEdit.Invoke(currentText);
                 }
 
@@ -298,7 +299,8 @@ namespace AccessibleArena.Core.Services
                 // Invoke onEndEdit event to notify listeners
                 if (legacyInput.onEndEdit != null)
                 {
-                    Log.Focus("FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{currentText}'");
+                    string logText = legacyInput.inputType == UnityEngine.UI.InputField.InputType.Password ? "***" : currentText;
+                    Log.Focus("FocusTracker", $"Invoking onEndEdit for {selected.name} with text: '{logText}'");
                     legacyInput.onEndEdit.Invoke(currentText);
                 }
 
