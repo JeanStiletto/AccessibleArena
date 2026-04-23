@@ -156,11 +156,13 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        // All zone holder names for cross-zone card lookups
+        // All zone holder names for cross-zone card lookups.
+        // ExileCardHolder and CommandCardHolder are shared wrappers whose descendants include
+        // every player's sub-holder, so a single lookup covers both sides for those zones.
         private static readonly string[] AllZoneHolders = {
             "BattlefieldCardHolder", "StackCardHolder", "LocalHand",
             "LocalGraveyard", "ExileCardHolder", "CommandCardHolder",
-            "OpponentGraveyard", "OpponentExile"
+            "OpponentGraveyard"
         };
 
         /// <summary>

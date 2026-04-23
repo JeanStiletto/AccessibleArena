@@ -17,6 +17,10 @@ namespace AccessibleArena.Core.Services
             public ZoneType Zone;
         }
 
+        // ExileCardHolder and CommandCardHolder are shared wrappers whose descendants include
+        // both players' sub-holders ("Exile PlayerId: #<id>", "Command PlayerId: #<id>"), so a
+        // single scan catches opponent-owned cards in those zones too. The reported zone will
+        // be the local-player variant for those two — acceptable for the J jump lookup.
         private static readonly (string Holder, ZoneType Zone)[] HolderScan = new[]
         {
             ("BattlefieldCardHolder", ZoneType.Battlefield),
@@ -24,7 +28,6 @@ namespace AccessibleArena.Core.Services
             ("LocalGraveyard", ZoneType.Graveyard),
             ("OpponentGraveyard", ZoneType.OpponentGraveyard),
             ("ExileCardHolder", ZoneType.Exile),
-            ("OpponentExile", ZoneType.OpponentExile),
             ("LocalHand", ZoneType.Hand),
             ("OpponentHand", ZoneType.OpponentHand),
             ("CommandCardHolder", ZoneType.Command),

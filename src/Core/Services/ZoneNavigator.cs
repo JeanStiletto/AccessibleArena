@@ -49,21 +49,27 @@ namespace AccessibleArena.Core.Services
         private bool _dirty;
         private bool _browserReturnHintPending;
 
-        // Known zone holder names from game code (discovered via log analysis)
+        // Known zone holder names from game code (discovered via log analysis).
+        // NOTE: Exile and Command have no separate "Opponent*" GameObjects. The game creates a single
+        // shared wrapper (ExileCardHolder / GlobalCommandCardHolder) with per-player sub-holders
+        // named "Exile PlayerId: #<id>" and "Command PlayerId: #<id>". Those are resolved later in
+        // DiscoverPerPlayerSubHolders() using the local player id.
         private static readonly Dictionary<string, ZoneType> ZoneHolderPatterns = new Dictionary<string, ZoneType>
         {
             { "LocalHand", ZoneType.Hand },
             { "BattlefieldCardHolder", ZoneType.Battlefield },
             { "LocalGraveyard", ZoneType.Graveyard },
-            { "ExileCardHolder", ZoneType.Exile },
             { "StackCardHolder", ZoneType.Stack },
             { "LocalLibrary", ZoneType.Library },
-            { "CommandCardHolder", ZoneType.Command },
             { "OpponentHand", ZoneType.OpponentHand },
             { "OpponentGraveyard", ZoneType.OpponentGraveyard },
-            { "OpponentLibrary", ZoneType.OpponentLibrary },
-            { "OpponentExile", ZoneType.OpponentExile }
+            { "OpponentLibrary", ZoneType.OpponentLibrary }
         };
+
+        // Matches sub-holder GameObjects created by CardHolderProvider (Core.dll).
+        // Example names: "Exile PlayerId: #1", "Command PlayerId: #2".
+        private static readonly Regex SubHolderNamePattern =
+            new Regex(@"^(Exile|Command) PlayerId:\s*#(\d+)$", RegexOptions.Compiled);
 
         public bool IsActive => _isActive;
         public ZoneType CurrentZone => _currentZone;
@@ -491,9 +497,62 @@ namespace AccessibleArena.Core.Services
                 _zones[zoneType] = zoneInfo;
             }
 
+            // Exile and Command each have a single shared wrapper but the real cards live in
+            // per-player sub-holders ("Exile PlayerId: #<id>", "Command PlayerId: #<id>"). Resolve
+            // those into Exile/OpponentExile/Command/OpponentCommand entries.
+            DiscoverPerPlayerSubHolders();
+
             // MTGA places commanders visually in the hand holder, not CommandCardHolder.
             // Populate the Command zone from hand cards whose model ZoneType is "Command".
             PopulateCommandZoneFromHand();
+        }
+
+        /// <summary>
+        /// Exile and Command are architecturally like Battlefield: a single shared wrapper with
+        /// per-player sub-holders. The sub-holders are named "Exile PlayerId: #<id>" /
+        /// "Command PlayerId: #<id>" (see CardHolderProvider in Core.dll). Map them onto the
+        /// local/opponent zone types so X/Shift+X and commander navigation find the right cards.
+        /// </summary>
+        private void DiscoverPerPlayerSubHolders()
+        {
+            int localId = 0;
+            if (_zones.TryGetValue(ZoneType.Hand, out var hand) && hand.OwnerId > 0)
+                localId = hand.OwnerId;
+            else if (_zones.TryGetValue(ZoneType.Library, out var lib) && lib.OwnerId > 0)
+                localId = lib.OwnerId;
+
+            // Scene scan — these sub-holders are re-parented on creation, so there's no stable
+            // ancestor we could descend from without losing generality. Names are stable though.
+            foreach (var go in GameObject.FindObjectsOfType<GameObject>())
+            {
+                if (go == null || !go.activeInHierarchy) continue;
+
+                var match = SubHolderNamePattern.Match(go.name);
+                if (!match.Success) continue;
+
+                string kind = match.Groups[1].Value; // "Exile" or "Command"
+                if (!int.TryParse(match.Groups[2].Value, out int playerId)) continue;
+
+                bool isLocal = localId > 0 && playerId == localId;
+                ZoneType zoneType = kind == "Exile"
+                    ? (isLocal ? ZoneType.Exile : ZoneType.OpponentExile)
+                    : (isLocal ? ZoneType.Command : ZoneType.OpponentCommand);
+
+                // If we've already seen a sub-holder for this zone type, skip — first match wins.
+                if (_zones.ContainsKey(zoneType)) continue;
+
+                var zoneInfo = new ZoneInfo
+                {
+                    Type = zoneType,
+                    Holder = go,
+                    ZoneId = 0,
+                    OwnerId = playerId
+                };
+                DiscoverCardsInZone(zoneInfo);
+                _zones[zoneType] = zoneInfo;
+                Log.Msg("ZoneNavigator",
+                    $"Sub-holder '{go.name}' → {zoneType} ({zoneInfo.Cards.Count} cards, local={isLocal})");
+            }
         }
 
         /// <summary>
@@ -609,6 +668,8 @@ namespace AccessibleArena.Core.Services
         public void NavigateToZone(ZoneType zone)
         {
             DiscoverZones();
+
+            if (zone == ZoneType.OpponentExile) LogOpponentExileSubHolder();
 
             if (!_zones.ContainsKey(zone))
             {
@@ -1085,6 +1146,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void AnnounceOpponentCommander()
         {
+            // Diagnostic: Arena renders opp's commander as a CommanderLayout overlay on the portrait,
+            // not a card GameObject in 'Command PlayerId: #<opp>'. Logged to catch any future change.
+            LogOpponentCommandSubHolder();
+
             var duelAnnouncer = DuelAnnouncer.Instance;
             if (duelAnnouncer == null)
             {
@@ -1154,6 +1219,71 @@ namespace AccessibleArena.Core.Services
                     cardNavigator?.PrepareForCardInfo(blocks, names[0]);
                 }
             }
+        }
+
+        private void LogOpponentCommandSubHolder()
+        {
+            if (!_zones.TryGetValue(ZoneType.OpponentCommand, out var zone))
+            {
+                Log.Msg("ZoneNavigator", "OpponentCommand sub-holder: not discovered");
+                return;
+            }
+            string names = zone.Cards.Count == 0
+                ? "(empty)"
+                : string.Join(", ", zone.Cards.ConvertAll(c => CardDetector.GetCardName(c) ?? "?"));
+            Log.Msg("ZoneNavigator",
+                $"OpponentCommand sub-holder '{zone.Holder?.name}': {zone.Cards.Count} cards [{names}]");
+        }
+
+        /// <summary>
+        /// Diagnostic for Shift+X "Gegners Exil, leer" — determines whether opp's exiled cards
+        /// are truly absent or rendered somewhere we don't scan (inactive child, different holder,
+        /// opp-hand overlay, RevealCardHolder panel). Fires once per Shift+X press.
+        /// </summary>
+        private void LogOpponentExileSubHolder()
+        {
+            if (_zones.TryGetValue(ZoneType.OpponentExile, out var zone) && zone.Holder != null)
+            {
+                int active = 0, inactive = 0;
+                var samples = new List<string>();
+                foreach (Transform t in zone.Holder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t == null || t.gameObject == zone.Holder) continue;
+                    var go = t.gameObject;
+                    if (!CardDetector.IsCard(go)) continue;
+                    if (go.activeInHierarchy) active++; else inactive++;
+                    if (samples.Count < 4)
+                        samples.Add($"{CardDetector.GetCardName(go) ?? go.name}:active={go.activeInHierarchy}");
+                }
+                Log.Msg("ZoneNavigator",
+                    $"OpponentExile sub-holder '{zone.Holder.name}': {active} active, {inactive} inactive card GOs"
+                    + (samples.Count == 0 ? "" : $" [{string.Join(", ", samples)}]"));
+            }
+            else
+            {
+                Log.Msg("ZoneNavigator", "OpponentExile sub-holder: not discovered");
+            }
+
+            // Scene-wide: any CDC whose Model.Zone is Exile, regardless of holder/active state.
+            // Catches cards parked in a different holder (opp hand overlay, RevealCardHolder, etc.).
+            int sceneCount = 0;
+            var sceneSamples = new List<string>();
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb == null || mb.GetType().Name != "DuelScene_CDC") continue;
+                var go = mb.gameObject;
+                string modelZone = CardStateProvider.GetCardZoneTypeName(go);
+                if (modelZone != "Exile") continue;
+                sceneCount++;
+                if (sceneSamples.Count < 4)
+                {
+                    string parent = go.transform.parent != null ? go.transform.parent.name : "(root)";
+                    sceneSamples.Add($"{CardDetector.GetCardName(go) ?? "?"} parent='{parent}' active={go.activeInHierarchy}");
+                }
+            }
+            Log.Msg("ZoneNavigator",
+                $"Scene Exile-zone CDC scan: {sceneCount} cards"
+                + (sceneSamples.Count == 0 ? " (none)" : $" [{string.Join(" | ", sceneSamples)}]"));
         }
 
         #endregion
