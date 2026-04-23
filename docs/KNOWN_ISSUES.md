@@ -29,12 +29,6 @@ The buy button for Spheres (mastery/cosmetics store) is announced twice when foc
 
 ---
 
-### Opponent's Exile Zone Not Visible
-
-Shift+X does not surface the opponent's Exile when it contains cards. The zone navigator needs to detect and announce opponent-side exile contents like it does for the graveyard.
-
----
-
 ### Room Cards: Per-Side Mana Costs Not Announced Correctly
 
 Room cards (Duskmourn) have two independently unlockable sides, each with its own mana cost. The mod currently does not display the per-side mana costs correctly — both sides need to be announced with their individual costs so the player can decide which door to unlock.
@@ -267,7 +261,6 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 1. Display emblems in command zone and modified player properties (max hand size, extra turns, etc.)
 2. Sylvan Library support — the card has a unique draw-then-choose UI that needs accessible navigation. Planned for when Strixhaven Remastered releases on Arena. Reference: https://magic.wizards.com/en/news/mtg-arena/dev-diary-sylvan-library
 3. Emote system improvements — fix and improve the emote system so emotes can be sent and received correctly, with proper screen reader announcements for incoming opponent emotes. Add the ability to mute the opponent's emotes.
-4. Surface cards revealed in the opponent's hand — when a card is revealed (by effects like Thoughtseize, Duress, Telepathy), the revealed card should be visible and readable without exposing the rest of the hand. Needs a similar implementation to the opponent library (which shows known top cards from scry/surveil without allowing cheating): only the revealed cards become inspectable, the rest stays hidden.
 
 ### Polish
 
