@@ -94,6 +94,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpMLandSummary,
                 Strings.HelpETimer,
                 Strings.HelpKCounters,
+                Strings.HelpJJumpRelated,
 
                 // Card navigation in zone
                 Strings.HelpCategoryCardNavigation,

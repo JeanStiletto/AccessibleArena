@@ -421,6 +421,12 @@ namespace AccessibleArena.Core.Models
                        : L.Format("Duel_CounterEntryPlural_Format", count, type);
         public static string Duel_Loyalty(int value) => L.Format("Duel_Loyalty_Format", value);
 
+        // J key (jump to related card)
+        public static string Duel_NoJumpTarget => L.Get("Duel_NoJumpTarget");
+        public static string Duel_JumpTargetGone(string name) => L.Format("Duel_JumpTargetGone_Format", name);
+        public static string Duel_JumpTargetGoneUnknown => L.Get("Duel_JumpTargetGoneUnknown");
+        public static string Duel_JumpUnreachable(string name, string zone) => L.Format("Duel_JumpUnreachable_Format", name, zone);
+
         // Game end
         public static string Duel_Victory => L.Get("Duel_Victory");
         public static string Duel_Defeat => L.Get("Duel_Defeat");
@@ -992,6 +998,7 @@ namespace AccessibleArena.Core.Models
         public static string HelpMLandSummary => L.Get("HelpMLandSummary");
         public static string HelpETimer => L.Get("HelpETimer");
         public static string HelpKCounters => L.Get("HelpKCounters");
+        public static string HelpJJumpRelated => L.Get("HelpJJumpRelated");
 
         // Card navigation
         public static string HelpLeftRightCards => L.Get("HelpLeftRightCards");

@@ -205,6 +205,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Gets the InstanceId from a card GameObject by chaining CDC → Model.
+        /// Returns 0 if the card has no resolvable model.
+        /// </summary>
+        public static uint GetCardInstanceId(GameObject card)
+        {
+            if (card == null) return 0;
+            var cdc = CardModelProvider.GetDuelSceneCDC(card);
+            if (cdc == null) return 0;
+            var model = CardModelProvider.GetCardModel(cdc);
+            return GetModelInstanceId(model);
+        }
+
+        /// <summary>
         /// Gets the GrpId from a card's model. Uses cached PropertyInfo.
         /// </summary>
         private static uint GetModelGrpId(object model)

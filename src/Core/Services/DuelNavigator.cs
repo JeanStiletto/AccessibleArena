@@ -43,6 +43,13 @@ namespace AccessibleArena.Core.Services
         private DuelChatNavigator _duelChatNavigator;
         private List<GameObject> _deactivatedSocialObjects = new List<GameObject>();
 
+        // J key cycle state. The cycle keeps running while focus is on the original
+        // source or on the last card we jumped to. Any other focus change rebuilds it.
+        private uint _jumpCycleSourceId;
+        private uint _jumpCycleLastDestId;
+        private List<uint> _jumpCycleIds;
+        private int _jumpCycleIndex;
+
         public override string NavigatorId => "Duel";
         public override string ScreenName => Strings.ScreenDuel;
         public override int Priority => 70; // Lower than PreBattle so it activates after
@@ -642,6 +649,14 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // J key: Jump focus to attachment parent / attachments / targets / targeted-by.
+            // Cycles through the related-card list; resets when the source card changes.
+            if (Input.GetKeyDown(KeyCode.J))
+            {
+                JumpToRelatedCard();
+                return true;
+            }
+
             // E key: Timer and timeouts (E = your timer, Shift+E = opponent timer)
             if (Input.GetKeyDown(KeyCode.E))
             {
@@ -685,6 +700,91 @@ namespace AccessibleArena.Core.Services
 
             return base.HandleCustomInput();
         }
+
+        #region Related-card jump (J key)
+
+        /// <summary>
+        /// Returns the card the user is currently focused on, using the same lookup
+        /// order as the K-key counter handler: extended card info → battlefield →
+        /// zone → browser.
+        /// </summary>
+        private GameObject GetFocusedDuelCard()
+        {
+            var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
+            if (cardNav != null && cardNav.IsActive && cardNav.CurrentCard != null)
+                return cardNav.CurrentCard;
+            var bfCard = _battlefieldNavigator.GetCurrentCard();
+            if (bfCard != null) return bfCard;
+            return _zoneNavigator.GetCurrentCard() ?? _browserNavigator.GetCurrentCard();
+        }
+
+        private void JumpToRelatedCard()
+        {
+            var focus = GetFocusedDuelCard();
+            if (focus == null)
+            {
+                _announcer.AnnounceInterrupt(Strings.NoCardToInspect);
+                return;
+            }
+
+            uint focusId = CardStateProvider.GetCardInstanceId(focus);
+
+            // Continue the existing cycle only if focus is still on the source or
+            // on the last destination we jumped to. Any other card means the user
+            // navigated away, so start fresh.
+            bool continueCycle = _jumpCycleSourceId != 0
+                                 && _jumpCycleIds != null
+                                 && _jumpCycleIds.Count > 0
+                                 && focusId != 0
+                                 && (focusId == _jumpCycleSourceId || focusId == _jumpCycleLastDestId);
+
+            if (!continueCycle)
+            {
+                _jumpCycleSourceId = focusId;
+                _jumpCycleIds = CardJumpService.GetRelatedInstanceIds(focus);
+                _jumpCycleIndex = 0;
+                _jumpCycleLastDestId = 0;
+
+                if (focusId == 0 || _jumpCycleIds.Count == 0)
+                {
+                    _jumpCycleSourceId = 0;
+                    _announcer.AnnounceInterrupt(Strings.Duel_NoJumpTarget);
+                    return;
+                }
+            }
+
+            int idx = _jumpCycleIndex % _jumpCycleIds.Count;
+            _jumpCycleIndex = (idx + 1) % _jumpCycleIds.Count;
+            uint targetId = _jumpCycleIds[idx];
+
+            var location = CardJumpService.ResolveInstanceId(targetId);
+            if (location == null)
+            {
+                string missingName = CardStateProvider.ResolveInstanceIdToNameExtended(targetId);
+                if (!string.IsNullOrEmpty(missingName))
+                    _announcer.AnnounceInterrupt(Strings.Duel_JumpTargetGone(missingName));
+                else
+                    _announcer.AnnounceInterrupt(Strings.Duel_JumpTargetGoneUnknown);
+                return;
+            }
+
+            bool navigated = location.Value.Zone == ZoneType.Battlefield
+                ? _battlefieldNavigator.NavigateToSpecificCard(location.Value.Card, announceRowChange: true)
+                : _zoneNavigator.NavigateToSpecificCard(location.Value.Zone, location.Value.Card, announceZoneChange: true);
+
+            if (navigated)
+            {
+                _jumpCycleLastDestId = CardStateProvider.GetCardInstanceId(location.Value.Card);
+            }
+            else
+            {
+                string name = CardDetector.GetCardName(location.Value.Card);
+                string zoneName = Strings.GetZoneName(location.Value.Zone);
+                _announcer.AnnounceInterrupt(Strings.Duel_JumpUnreachable(name, zoneName));
+            }
+        }
+
+        #endregion
 
         #region Chat
 
