@@ -7,6 +7,7 @@ All notable changes to Accessible Arena.
 Bug fixes:
 
 - System message popups during game loading (e.g. "Arena must be restarted") are now announced. Previously the scene-loading gate suppressed alpha-detected popups during the AssetPrep screen and was only cleared for the MatchEnd survey popup; the gate is now also cleared in GameLoading mode so `LoadingScreenNavigator` picks up these popups.
+- Game loading status steps ("Daten-Manifest wird abgefragt", "Formatdaten werden angefordert", "Suche nach aktiven Partien", …) are now spoken once each. Previously all intermediate steps were silenced; the navigator now hands the bare status label to the announcer at Normal priority, so the built-in same-text dedup swallows repeats while distinct steps get announced.
 
 ## v1.0.0
 

@@ -1064,17 +1064,26 @@ namespace AccessibleArena.Core.Services
                     if (_elements.Count > 0)
                         UpdateEventSystemSelection();
 
-                    // GameLoading: track status text for logging but do not announce each step.
-                    // The initial "Loading." announcement on activation is sufficient feedback;
-                    // intermediate steps ("Retrieving asset manifest" etc.) are not milestones
-                    // the user needs to hear. The main menu navigator announces when loading ends.
-                    // PreGame: same — the initial "Suche nach Gegner" is enough; element count
-                    // changes (tips/timer appearing) don't warrant re-announcing the screen name.
-                    if (_currentMode == ScreenMode.GameLoading || _currentMode == ScreenMode.PreGame)
+                    // GameLoading: announce bare status label at polite priority. Same-text
+                    // dedup in AnnouncementService swallows repeats of the same status
+                    // (e.g. "Kartendatenbank wird geladen" ticking for many seconds), while
+                    // distinct boot steps get spoken once each. Skip the screen-name prefix
+                    // and interrupt path — those would defeat the dedup.
+                    // PreGame: stay silent — the initial "Suche nach Gegner" is enough;
+                    // tips/timer churn doesn't warrant re-announcing the screen name.
+                    if (_currentMode == ScreenMode.GameLoading)
                     {
                         if (_elements.Count > 0)
                         {
-                            _lastLoadingStatusText = _elements.Count > 0 ? _elements[0].Label : "";
+                            _lastLoadingStatusText = _elements[0].Label;
+                            _announcer.Announce(_lastLoadingStatusText, AnnouncementPriority.Normal);
+                        }
+                    }
+                    else if (_currentMode == ScreenMode.PreGame)
+                    {
+                        if (_elements.Count > 0)
+                        {
+                            _lastLoadingStatusText = _elements[0].Label;
                             Log.Nav(NavigatorId, $"Status update (silent): {_lastLoadingStatusText}");
                         }
                     }
@@ -1085,12 +1094,11 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (_currentMode == ScreenMode.GameLoading && _elements.Count > 0)
                 {
-                    // Track status silently — no speech for intermediate GameLoading steps.
                     string currentLabel = _elements[0].Label;
                     if (currentLabel != _lastLoadingStatusText)
                     {
                         _lastLoadingStatusText = currentLabel;
-                        Log.Nav(NavigatorId, $"Loading status changed (silent): {currentLabel}");
+                        _announcer.Announce(currentLabel, AnnouncementPriority.Normal);
                     }
                 }
 
