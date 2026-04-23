@@ -4,8 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v1.0.1
 
+Duel:
+
+- New J hotkey on a focused card jumps between attachments and targets — cycles through the card's attachment parent, attached children, targets, and things targeting it. Cycle state persists across the jumps themselves (focus on source or last destination continues the cycle); any other focus change rebuilds it. Falls back to "no longer in play" or "{name} in {zone}" announcements when the target can't be focused.
+
 Bug fixes:
 
+- Browser confirm with a non-zero selection (e.g. Starfield Shepherd's "search your library for a 1-cost creature or land" — select a card, Space, Space) now actually submits. Previously the second Space silently did nothing and the browser reappeared with the card still selected; the game collapses to a single button whose dict entry still names the two-button slot, so our scaffold-click hit a stale callback. Fix invokes the browser's `OnButtonCallback` directly with the logical key.
 - System message popups during game loading (e.g. "Arena must be restarted") are now announced. Previously the scene-loading gate suppressed alpha-detected popups during the AssetPrep screen and was only cleared for the MatchEnd survey popup; the gate is now also cleared in GameLoading mode so `LoadingScreenNavigator` picks up these popups.
 - Game loading status steps ("Daten-Manifest wird abgefragt", "Formatdaten werden angefordert", "Suche nach aktiven Partien", …) are now spoken once each. Previously all intermediate steps were silenced; the navigator now hands the bare status label to the announcer at Normal priority, so the built-in same-text dedup swallows repeats while distinct steps get announced.
 

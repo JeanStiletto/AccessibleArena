@@ -384,6 +384,21 @@ namespace AccessibleArena.Core.Services
                     return false;
                 }
 
+                // Direct invoke: BrowserBase.OnButtonCallback(string) fires
+                // ButtonPressedHandlers with the logical key and bypasses the scaffold
+                // click. Necessary because in single-button collapse the dict's
+                // BrowserElementKey ("2Button_Left") doesn't match the slot the game
+                // actually wired the callback to ("SingleButton") — clicking the named
+                // scaffold reaches a StyledButton whose _model.ButtonCallback is stale.
+                var callbackMethod = FindMethodWalkingHierarchy(currentBrowser.GetType(), "OnButtonCallback", new[] { typeof(string) });
+                if (callbackMethod != null)
+                {
+                    callbackMethod.Invoke(currentBrowser, new object[] { logicalKey });
+                    Log.Msg("BrowserNavigator", $"{logTag}: invoked OnButtonCallback('{logicalKey}') directly");
+                    return true;
+                }
+
+                Log.Msg("BrowserNavigator", $"{logTag}: OnButtonCallback not found, falling back to scaffold click on '{scaffoldKey}'");
                 var result = UIActivator.SimulatePointerClick(element);
                 if (result.Success)
                 {
@@ -431,6 +446,16 @@ namespace AccessibleArena.Core.Services
             {
                 var f = t.GetField(name, PrivateInstance);
                 if (f != null) return f;
+            }
+            return null;
+        }
+
+        private static MethodInfo FindMethodWalkingHierarchy(Type type, string name, Type[] argTypes)
+        {
+            for (var t = type; t != null; t = t.BaseType)
+            {
+                var m = t.GetMethod(name, PrivateInstance, null, argTypes, null);
+                if (m != null) return m;
             }
             return null;
         }
