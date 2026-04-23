@@ -919,11 +919,12 @@ namespace AccessibleArena.Core.Services
         protected override void OnActivated()
         {
             StartPolling();
-            if (_currentMode == ScreenMode.MatchEnd)
+            if (_currentMode == ScreenMode.MatchEnd || _currentMode == ScreenMode.GameLoading)
             {
                 EnablePopupDetection();
-                // MatchEnd has no non-popup panels, so IsSceneLoading never clears
-                // naturally. Clear it so AlphaDetector can detect the survey popup.
+                // Neither MatchEnd nor GameLoading have non-popup panels, so IsSceneLoading
+                // never clears naturally. Clear it so AlphaDetector can detect popups
+                // (MatchEnd survey, GameLoading SystemMessageView for forced-restart etc).
                 PanelStateManager.Instance?.ClearSceneLoadingGate();
             }
         }

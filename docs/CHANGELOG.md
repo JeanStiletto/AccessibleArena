@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v1.0.1
+
+Bug fixes:
+
+- System message popups during game loading (e.g. "Arena must be restarted") are now announced. Previously the scene-loading gate suppressed alpha-detected popups during the AssetPrep screen and was only cleared for the MatchEnd survey popup; the gate is now also cleared in GameLoading mode so `LoadingScreenNavigator` picks up these popups.
+
 ## v1.0.0
 
 First stable release. Accessible Arena 1.0 makes Magic: The Gathering Arena playable end-to-end by blind users — login, tutorial, deck builder, store, duels, draft, events, mastery, and social features — through full keyboard navigation and screen reader integration.
