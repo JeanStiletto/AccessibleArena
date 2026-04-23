@@ -295,8 +295,8 @@ namespace AccessibleArena.Core.Services
             {
                 if (shift)
                 {
-                    // Shift+C: Opponent's hand count
-                    AnnounceOpponentHandCount();
+                    // Shift+C: Opponent's hand — count + navigate revealed cards if any
+                    NavigateToOpponentHand();
                 }
                 else
                 {
@@ -614,14 +614,13 @@ namespace AccessibleArena.Core.Services
             else
                 zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
-            // Library is a hidden zone - ONLY include cards visible to sighted players.
-            // HotHighlight = playable from library (creature with Vizier, any with Future Sight)
-            // IsDisplayedFaceUp = revealed face-up but not necessarily playable (e.g., Courser of Kruphix)
-            // Showing hidden cards would be cheating.
-            if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary)
+            // Hidden zones — ONLY include cards visible to sighted players. Showing the rest
+            // would be cheating. Library: revealed via Vizier/Future Sight/Courser. OpponentHand:
+            // revealed via Duress/Inquisitor (face-up) or playable-from-exile (Plot/Foretell).
+            // HotHighlight = playable from here; IsDisplayedFaceUp = revealed but not necessarily playable.
+            if (zone.Type == ZoneType.Library || zone.Type == ZoneType.OpponentLibrary
+                || zone.Type == ZoneType.OpponentHand)
             {
-                // Only log when the count changes — discovery runs on every zone refresh
-                // and the unfiltered library size is stable most of the time.
                 int count = zone.Cards.Count;
                 if (!_lastLoggedLibraryCount.TryGetValue(zone.Type, out var prev) || prev != count)
                 {
@@ -668,8 +667,6 @@ namespace AccessibleArena.Core.Services
         public void NavigateToZone(ZoneType zone)
         {
             DiscoverZones();
-
-            if (zone == ZoneType.OpponentExile) LogOpponentExileSubHolder();
 
             if (!_zones.ContainsKey(zone))
             {
@@ -1025,7 +1022,9 @@ namespace AccessibleArena.Core.Services
 
             if (GameZoneToModZone.TryGetValue(modelZoneName, out var modelZoneType))
             {
-                if (modelZoneType != _currentZone)
+                // When viewing opp hand, the model zone "Hand" is the native zone (no annotation).
+                bool nativeHandInOppHand = _currentZone == ZoneType.OpponentHand && modelZoneType == ZoneType.Hand;
+                if (modelZoneType != _currentZone && !nativeHandInOppHand)
                 {
                     return $", {Strings.GetZoneName(modelZoneType)}";
                 }
@@ -1123,20 +1122,61 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Announces the opponent's hand card count.
+        /// Navigates to opponent's hand (Shift+C). Always announces total count.
+        /// If any cards are revealed (Duress/Inquisitor) or playable-from-exile (Plot/Foretell),
+        /// enters zone navigation so the user can inspect them. Otherwise announces count only.
+        /// Mirrors <see cref="NavigateToLibraryZone"/>.
         /// </summary>
-        private void AnnounceOpponentHandCount()
+        private void NavigateToOpponentHand()
         {
-            int count = GetZoneCardCount(ZoneType.OpponentHand);
-            if (count >= 0)
+            DiscoverZones();
+
+            int totalCount = GetOpponentHandTotalCount();
+            string countText = totalCount >= 0
+                ? Strings.OpponentHandCount(totalCount)
+                : Strings.OpponentHandCountNotAvailable;
+
+            if (!_zones.TryGetValue(ZoneType.OpponentHand, out var zoneInfo) || zoneInfo.Cards.Count == 0)
             {
-                // High priority: user explicitly pressed Shift+C — always re-announce
-                _announcer.Announce(Strings.OpponentHandCount(count), AnnouncementPriority.High);
+                // No revealed cards — keep the original count-only announcement
+                _announcer.Announce(countText, AnnouncementPriority.High);
+                return;
             }
-            else
+
+            SetCurrentZone(ZoneType.OpponentHand, "NavigateToOpponentHand");
+            _cardIndexInZone = 0;
+
+            var card = zoneInfo.Cards[0];
+            string cardName = CardDetector.GetCardName(card);
+            string pos = Strings.PositionOf(1, zoneInfo.Cards.Count, force: true);
+            _announcer.Announce(
+                $"{countText}. {cardName}{GetOriginZoneText(card)}" + (pos != "" ? $", {pos}" : ""),
+                AnnouncementPriority.High);
+
+            SetFocusedGameObject(card, "ZoneNavigator");
+            var cardNavigator = AccessibleArenaMod.Instance?.CardNavigator;
+            if (cardNavigator != null && CardDetector.IsCard(card))
+                cardNavigator.PrepareForCard(card, ZoneType.OpponentHand);
+        }
+
+        /// <summary>
+        /// Unfiltered card-GO count in the OpponentHand holder — bypasses the reveal filter
+        /// so the Shift+C announcement reports the true hand size, not just visible cards.
+        /// </summary>
+        private int GetOpponentHandTotalCount()
+        {
+            var holder = DuelHolderCache.GetHolder("OpponentHand");
+            if (holder == null) return -1;
+
+            int count = 0;
+            foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
             {
-                _announcer.Announce(Strings.OpponentHandCountNotAvailable, AnnouncementPriority.Normal);
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+                if (child.gameObject == holder) continue;
+                if (CardDetector.IsCard(child.gameObject))
+                    count++;
             }
+            return count;
         }
 
         /// <summary>
@@ -1233,57 +1273,6 @@ namespace AccessibleArena.Core.Services
                 : string.Join(", ", zone.Cards.ConvertAll(c => CardDetector.GetCardName(c) ?? "?"));
             Log.Msg("ZoneNavigator",
                 $"OpponentCommand sub-holder '{zone.Holder?.name}': {zone.Cards.Count} cards [{names}]");
-        }
-
-        /// <summary>
-        /// Diagnostic for Shift+X "Gegners Exil, leer" — determines whether opp's exiled cards
-        /// are truly absent or rendered somewhere we don't scan (inactive child, different holder,
-        /// opp-hand overlay, RevealCardHolder panel). Fires once per Shift+X press.
-        /// </summary>
-        private void LogOpponentExileSubHolder()
-        {
-            if (_zones.TryGetValue(ZoneType.OpponentExile, out var zone) && zone.Holder != null)
-            {
-                int active = 0, inactive = 0;
-                var samples = new List<string>();
-                foreach (Transform t in zone.Holder.GetComponentsInChildren<Transform>(true))
-                {
-                    if (t == null || t.gameObject == zone.Holder) continue;
-                    var go = t.gameObject;
-                    if (!CardDetector.IsCard(go)) continue;
-                    if (go.activeInHierarchy) active++; else inactive++;
-                    if (samples.Count < 4)
-                        samples.Add($"{CardDetector.GetCardName(go) ?? go.name}:active={go.activeInHierarchy}");
-                }
-                Log.Msg("ZoneNavigator",
-                    $"OpponentExile sub-holder '{zone.Holder.name}': {active} active, {inactive} inactive card GOs"
-                    + (samples.Count == 0 ? "" : $" [{string.Join(", ", samples)}]"));
-            }
-            else
-            {
-                Log.Msg("ZoneNavigator", "OpponentExile sub-holder: not discovered");
-            }
-
-            // Scene-wide: any CDC whose Model.Zone is Exile, regardless of holder/active state.
-            // Catches cards parked in a different holder (opp hand overlay, RevealCardHolder, etc.).
-            int sceneCount = 0;
-            var sceneSamples = new List<string>();
-            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-            {
-                if (mb == null || mb.GetType().Name != "DuelScene_CDC") continue;
-                var go = mb.gameObject;
-                string modelZone = CardStateProvider.GetCardZoneTypeName(go);
-                if (modelZone != "Exile") continue;
-                sceneCount++;
-                if (sceneSamples.Count < 4)
-                {
-                    string parent = go.transform.parent != null ? go.transform.parent.name : "(root)";
-                    sceneSamples.Add($"{CardDetector.GetCardName(go) ?? "?"} parent='{parent}' active={go.activeInHierarchy}");
-                }
-            }
-            Log.Msg("ZoneNavigator",
-                $"Scene Exile-zone CDC scan: {sceneCount} cards"
-                + (sceneSamples.Count == 0 ? " (none)" : $" [{string.Join(" | ", sceneSamples)}]"));
         }
 
         #endregion
