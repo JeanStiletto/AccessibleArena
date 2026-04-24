@@ -1222,15 +1222,17 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(info.Name) && cardGrpId > 0)
                     info.Name = GetNameFromGrpId(cardGrpId);
 
-                // Mana Cost - try PrintedCastingCost (ManaQuantity[]) first, fall back to string
-                var castingCost = GetModelPropertyValue(dataObj, objType, "PrintedCastingCost");
+                // Mana Cost - try structured ManaQuantity list first, fall back to string.
+                // CardData exposes PrintedCastingCost, CardPrintingData exposes CastingCost (both are the same list).
+                var castingCost = GetModelPropertyValue(dataObj, objType, "PrintedCastingCost")
+                    ?? GetModelPropertyValue(dataObj, objType, "CastingCost");
                 if (castingCost != null && castingCost is IEnumerable costEnum && !(castingCost is string))
                 {
                     info.ManaCost = ManaTextFormatter.ParseManaQuantityArray(costEnum);
                 }
                 if (string.IsNullOrEmpty(info.ManaCost))
                 {
-                    var manaCostProp = objType.GetProperty("ManaCost") ?? objType.GetProperty("CastingCost");
+                    var manaCostProp = objType.GetProperty("ManaCost") ?? objType.GetProperty("CastingCostText");
                     if (manaCostProp != null)
                     {
                         var manaCostVal = manaCostProp.GetValue(dataObj);

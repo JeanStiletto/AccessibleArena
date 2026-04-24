@@ -209,9 +209,31 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets linked face info for a card identified by GrpId (no GameObject needed).
+        /// Returns true if the given LinkedFace enum value represents a face whose mana cost
+        /// is actually paid by the player (adventure, prepared spell, split half, MDFC back,
+        /// room half, omen, etc.). Returns false for transform-style faces where the cost is
+        /// printed but never paid (DFC back, meld halves, meld result, specialize child).
         /// </summary>
-        public static (string label, CardInfo faceInfo)? GetLinkedFaceInfo(uint grpId)
+        public static bool LinkedFaceHasPayableCost(int linkedFaceType)
+        {
+            switch (linkedFaceType)
+            {
+                case 2:  // DfcBack — transform creature back, no cost ever paid
+                case 3:  // MeldCard — meld piece, joins via meld trigger
+                case 4:  // MeldedPermanent — the melded result
+                case 12: // SpecializeChild — specialize triggers, doesn't cast
+                    return false;
+                default:
+                    return true;
+            }
+        }
+
+        /// <summary>
+        /// Gets linked face info for a card identified by GrpId (no GameObject needed).
+        /// Tuple: display label, CardInfo for the linked face, and the raw LinkedFace enum int
+        /// (so callers can decide whether to surface fields like ManaCost).
+        /// </summary>
+        public static (string label, CardInfo faceInfo, int linkedFaceType)? GetLinkedFaceInfo(uint grpId)
         {
             if (grpId == 0) return null;
 
@@ -266,7 +288,7 @@ namespace AccessibleArena.Core.Services
                 var faceInfo = CardModelProvider.ExtractCardInfoFromObject(faceData);
                 if (!faceInfo.IsValid) return null;
 
-                return (GetLinkedFaceLabel(linkedFaceInt), faceInfo);
+                return (GetLinkedFaceLabel(linkedFaceInt), faceInfo, linkedFaceInt);
             }
             catch (Exception ex)
             {
@@ -809,7 +831,7 @@ namespace AccessibleArena.Core.Services
         /// Gets linked face information for double-faced, split, adventure, and room cards.
         /// Extracts GrpId from the card and delegates to the GrpId-based overload.
         /// </summary>
-        public static (string label, CardInfo faceInfo)? GetLinkedFaceInfo(GameObject card)
+        public static (string label, CardInfo faceInfo, int linkedFaceType)? GetLinkedFaceInfo(GameObject card)
         {
             if (card == null) return null;
             return GetLinkedFaceInfo(GetGrpIdFromCard(card));

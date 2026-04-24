@@ -70,7 +70,7 @@ namespace AccessibleArena.Core.Services
         private void BuildAndOpen(
             List<string> keywords,
             CardInfo? cardInfo,
-            (string label, CardInfo faceInfo)? linkedFace,
+            (string label, CardInfo faceInfo, int linkedFaceType)? linkedFace,
             List<CardInfo> tokenInfos,
             string logSuffix)
         {
@@ -98,10 +98,13 @@ namespace AccessibleArena.Core.Services
 
             if (linkedFace.HasValue)
             {
-                var (label, faceInfo) = linkedFace.Value;
+                var (label, faceInfo, linkedFaceType) = linkedFace.Value;
                 if (!string.IsNullOrEmpty(faceInfo.Name))
                     _items.Add($"{label}: {faceInfo.Name}");
-                if (!string.IsNullOrEmpty(faceInfo.ManaCost))
+                // Mana cost only for faces where the player actually pays it
+                // (adventure/prepared/split/MDFC-back/room/omen). Skip for transform backs, meld, specialize child.
+                if (!string.IsNullOrEmpty(faceInfo.ManaCost)
+                    && ExtendedCardInfoProvider.LinkedFaceHasPayableCost(linkedFaceType))
                     _items.Add($"{Strings.CardInfoManaCost}: {faceInfo.ManaCost}");
                 if (!string.IsNullOrEmpty(faceInfo.TypeLine))
                     _items.Add($"{Strings.CardInfoType}: {faceInfo.TypeLine}");
