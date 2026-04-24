@@ -1,235 +1,233 @@
-> **Note:** This page has not yet been translated into this language. The English version is shown below. A translation will follow in a future release.
-
 <h1>Accessible Arena</h1>
 
-<h2>What is this mod</h2>
+<h2>Что это за мод</h2>
 
-This mod allows you to play Arena, the most popular and beginner-friendly digital representation of the TCG Magic: The Gathering. It adds full screen reader support and keyboard navigation to nearly every aspect of the game.
+Этот мод позволяет играть в Arena — самую популярную и удобную для новичков цифровую версию коллекционной карточной игры Magic: The Gathering. Он добавляет полную поддержку программ экранного доступа и клавиатурную навигацию практически во все аспекты игры.
 
-The mod supports all languages the game is translated in. Additionally, a few languages that the game itself does not support are partially covered: in those, mod-specific announcements like help texts and UI hints are translated, while card and game data remain in the game's default language.
+Мод поддерживает все языки, на которые переведена игра. Дополнительно частично покрыты несколько языков, которые сама игра не поддерживает: в этих языках переводятся специфичные для мода сообщения, такие как тексты справки и подсказки интерфейса, а данные карт и игры остаются на языке по умолчанию.
 
-<h2>What is Magic: The Gathering</h2>
+<h2>Что такое Magic: The Gathering</h2>
 
-Magic is a trading card game trademarked by Wizards of the Coast that allows to play as a mage against other mages, casting spells represented by the cards. There exist 5 colours in Magic that represent different identities of gameplay and flavour. If you are familiar with Hearthstone or Yu-Gi-Oh you will recognize a lot of concepts cause Magic is the ancestor of all those games.
-If you want to learn more about Magic in general, the game's website as well as a lot of content creators will help you out.
+Magic — это коллекционная карточная игра, зарегистрированная Wizards of the Coast, которая позволяет играть магом против других магов, произнося заклинания, представленные картами. В Magic существует 5 цветов, которые отражают разные идентичности геймплея и атмосферы. Если вы знакомы с Hearthstone или Yu-Gi-Oh, вы узнаете многие концепции, поскольку Magic — предок всех этих игр.
+Если вы хотите узнать больше о Magic в целом, вам помогут официальный сайт игры, а также многочисленные авторы контента.
 
-<h2>Requirements</h2>
+<h2>Требования</h2>
 
-- Windows 10 or later
-- Magic: The Gathering Arena (installed via the official Wizards installer or Steam)
-- A screen reader (only NVDA and JAWS are tested)
-- MelonLoader (the installer handles this automatically)
+- Windows 10 или новее
+- Magic: The Gathering Arena (установленный через официальный установщик Wizards или Steam)
+- Программа экранного доступа (протестированы только NVDA и JAWS)
+- MelonLoader (установщик ставит его автоматически)
 
-<h2>Installation</h2>
+<h2>Установка</h2>
 
-<h3>Using the installer (recommended)</h3>
+<h3>С помощью установщика (рекомендуется)</h3>
 
-1. [Download AccessibleArenaInstaller.exe](https://github.com/JeanStiletto/AccessibleArena/releases/latest/download/AccessibleArenaInstaller.exe) from the latest release on GitHub
-2. Close MTG Arena if it is running
-3. Run the installer. It will detect your MTGA installation, install MelonLoader if needed, and deploy the mod
-4. Launch MTG Arena. You should hear "Accessible Arena v... launched" through your screen reader
+1. [Скачайте AccessibleArenaInstaller.exe](https://github.com/JeanStiletto/AccessibleArena/releases/latest/download/AccessibleArenaInstaller.exe) из последнего релиза на GitHub
+2. Закройте MTG Arena, если она запущена
+3. Запустите установщик. Он определит вашу установку MTGA, при необходимости установит MelonLoader и развернёт мод
+4. Запустите MTG Arena. Вы должны услышать "Accessible Arena v... launched" через программу экранного доступа
 
-<h3>Manual installation</h3>
+<h3>Ручная установка</h3>
 
-1. Install [MelonLoader](https://github.com/LavaGang/MelonLoader) into your MTGA folder
-2. Download `AccessibleArena.dll` from the latest release
-3. Copy the DLL to your MTGA Mods folder:
-   - WotC install: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
-   - Steam install: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. Ensure `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder
-5. Launch MTG Arena
+1. Установите [MelonLoader](https://github.com/LavaGang/MelonLoader) в папку MTGA
+2. Скачайте `AccessibleArena.dll` из последнего релиза
+3. Скопируйте DLL в папку Mods MTGA:
+   - Установка WotC: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
+   - Установка Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
+4. Убедитесь, что `Tolk.dll` и `nvdaControllerClient64.dll` находятся в корневой папке MTGA
+5. Запустите MTG Arena
 
-<h2>Uninstallation</h2>
+<h2>Удаление</h2>
 
-Run the installer again. If the mod is already installed, it will offer an uninstall option. You can optionally remove MelonLoader as well. To uninstall manually, delete `AccessibleArena.dll` from the `Mods\` folder and remove `Tolk.dll` and `nvdaControllerClient64.dll` from the MTGA root folder.
+Запустите установщик заново. Если мод уже установлен, он предложит опцию удаления. При желании можно также удалить MelonLoader. Для ручного удаления удалите `AccessibleArena.dll` из папки `Mods\` и удалите `Tolk.dll` и `nvdaControllerClient64.dll` из корневой папки MTGA.
 
-<h2>If you come from Hearthstone</h2>
+<h2>Если вы пришли из Hearthstone</h2>
 
-If you have played Hearthstone Access you will recognize a lot of things for good reasons, cause not just game principles are close to each other but cause I followed a lot of design principles. Still some things are different.
+Если вы играли в Hearthstone Access, по уважительным причинам вы узнаете много вещей, ведь не только игровые принципы близки, но и я следовал многим принципам дизайна. Тем не менее, некоторые вещи отличаются.
 
-First you have more zones to navigate, cause Magic knows graveyard, exile and some extra zones. Your battlefield isn't limited in size and has additional sorting rows to make the mass of things that can appear more manageable.
+Во-первых, у вас больше зон для навигации, ведь в Magic есть кладбище, изгнание и несколько дополнительных зон. Ваше поле битвы не ограничено по размеру и имеет дополнительные ряды сортировки, чтобы сделать массу того, что может появиться, более управляемой.
 
-Your mana isn't rising automatically but comes from different colored land cards you have actively to play. Regarding this mana costs have colorless and colored parts that added together give the full cost requirements of a card you have to fulfill.
+Ваша мана не растёт автоматически, а поступает с разноцветных карт земель, которые вы должны активно играть. В связи с этим стоимость маны имеет бесцветные и цветные части, которые в сумме дают полные требования к стоимости карты, которые вы должны выполнить.
 
-You can not attack creatures directly, only opponents and some very specific cards (planeswalkers and battles) can be targeted by attackers. As defender you have to decide if you want to block an attack to make creatures fight. If you don't block the damage will hit your player avatar but your creatures can live untouched. Further damage doesn't accumulate on creatures but is healed at the end of each turn, so as well at the end of your and the opponent's turn. To interact with opponent's creatures that refuse to fight with you, you must play specific cards or pressure life total of your opponent so hard they have no choice to sacrifice valuable creatures to survive.
+Вы не можете атаковать существ напрямую; целями атакующих могут быть только оппоненты и некоторые очень специфические карты (планесуокеры и битвы). Как защитник вы должны решить, хотите ли блокировать атаку, чтобы заставить существ сражаться. Если не блокировать, урон попадёт по вашему аватару игрока, но существа могут остаться нетронутыми. Кроме того, урон не накапливается на существах, а лечится в конце каждого хода — как вашего, так и оппонента. Чтобы взаимодействовать с существами оппонента, которые отказываются с вами сражаться, вы должны разыгрывать специфичные карты или давить на очки жизни оппонента так сильно, чтобы у него не оставалось выбора, кроме как жертвовать ценными существами, чтобы выжить.
 
-The game has very distinguished battle phases that allow specific actions like drawing, casting spells or fighting. Regarding this Magic allows and empowers you to do things on opponent's turns. No longer sit there and wait while things happen. Play an interactive deck and destroy enemy plans on the fly.
+В игре есть очень чётко выделенные фазы сражения, которые позволяют выполнять конкретные действия, такие как взятие карт, разыгрывание заклинаний или бой. В связи с этим Magic позволяет и поощряет действовать в ходы оппонента. Больше не нужно сидеть и ждать, пока что-то происходит. Играйте интерактивную колоду и разрушайте планы врага на лету.
 
-<h2>First steps</h2>
+<h2>Первые шаги</h2>
 
-The game first asks you to give some data about you and to register a character. This should work via game internals but if it doesn't you can alternatively use the game's website to do this, it is fully accessible.
+Сначала игра просит указать некоторые данные о вас и зарегистрировать персонажа. Это должно работать через внутренние механизмы игры, но если не работает, вы можете воспользоваться веб-сайтом игры, он полностью доступен.
 
-The game starts with a tutorial where you learn the basics of Magic: The Gathering. The mod adds custom tutorial hints for screen reader users alongside the standard tutorial. After finishing the tutorial, you get rewarded with 5 starter decks, one for each color.
+Игра начинается с туториала, в котором вы узнаёте основы Magic: The Gathering. Мод добавляет пользовательские подсказки туториала для пользователей программ экранного доступа параллельно со стандартным туториалом. После завершения туториала вы получите в награду 5 стартовых колод, по одной на каждый цвет.
 
-From there, you have several options to unlock more cards and learn the game:
+Отсюда у вас есть несколько вариантов разблокировать больше карт и изучить игру:
 
-- **Color Challenges:** Play through the color challenge for each of the five Magic colors. Each challenge has you fight 4 NPC opponents, followed by a match against a real player at the end.
-- **Starter Deck Events:** Play one of 10 two-colored decks against real humans who have the same deck choices available.
-- **Jump In:** Choose two 20-card packages of different colors and themes, combine them into a deck, and play against real humans with similar choices. You get free tokens for this event and keep the cards you chose.
-- **Spark Ladder:** At some point the spark ladder unlocks, where you play your first ranked matches against real opponents.
+- **Цветовые испытания:** Сыграйте цветовое испытание для каждого из пяти цветов Magic. Каждое испытание заставляет вас сражаться с 4 NPC-оппонентами, а в конце — с настоящим игроком.
+- **События стартовых колод:** Сыграйте одной из 10 двухцветных колод против настоящих людей, у которых доступны те же варианты колод.
+- **Jump In:** Выберите два пакета по 20 карт разных цветов и тематики, соедините их в колоду и играйте против настоящих людей с похожими выборами. Вы получаете бесплатные жетоны для этого события и оставляете себе выбранные карты.
+- **Spark Ladder:** В какой-то момент откроется Spark Ladder, где вы сыграете первые рейтинговые матчи против настоящих оппонентов.
 
-Check your mail under the social menu as those contain a lot of rewards and card packs.
+Проверяйте почту в социальном меню, так как она содержит много наград и бустеров карт.
 
-The game unlocks modes gradually based on what and how much you play. It gives you hints and quests in the progress and objectives menu, and highlights relevant modes for you under the play menu. Once you finish enough of the new player content, all different modes and events become fully available.
+Игра постепенно открывает режимы в зависимости от того, во что и сколько вы играете. Она даёт подсказки и квесты в меню прогресса и целей и выделяет для вас подходящие режимы в меню игры. После того как вы пройдёте достаточно контента для новых игроков, все различные режимы и события станут полностью доступными.
 
-In the Codex of the Multiverse you can learn about game modes and mechanics. It extends with growing progress in the NPE experience.
+В Кодексе Мультивселенной вы можете узнать о режимах игры и механиках. Он расширяется с ростом прогресса в опыте NPE.
 
-Under settings account you can skip all tutorial experiences and force-unlock everything to have full freedom from the very beginning. However, playing the new player events gives you a lot of cards and is recommended for new players. Only unlock everything early if you already know what you are doing. Otherwise the beginner content provides plenty of fun and learning while guiding you well.
+В настройках аккаунта можно пропустить все туториальные опыты и принудительно разблокировать всё, чтобы с самого начала иметь полную свободу. Однако игра в события для новых игроков даёт много карт и рекомендуется новичкам. Открывайте всё рано только если уже знаете, что делаете. Иначе контент для новичков обеспечит много удовольствия и обучения, хорошо направляя вас.
 
-<h2>Keyboard shortcuts</h2>
+<h2>Сочетания клавиш</h2>
 
-Navigation follows standard conventions throughout: Arrow keys to move, Home/End to jump to first/last, Enter to select, Space to confirm, Backspace to go back or cancel. Tab/Shift+Tab also works for navigation. Page Up/Page Down changes pages.
+Навигация повсюду следует стандартным соглашениям: стрелки для перемещения, Home/End для перехода к первому/последнему, Enter для выбора, Space для подтверждения, Backspace для возврата или отмены. Tab/Shift+Tab также работают для навигации. Page Up/Page Down меняет страницы.
 
-<h3>Global</h3>
+<h3>Глобальные</h3>
 
-- F1: Help menu (lists all shortcuts for the current screen)
-- Ctrl+F1: Announce shortcuts for the current screen
-- F2: Mod settings
-- F3: Announce current screen
-- F4: Friends panel (from menus) / Duel chat (during duels)
-- F5: Check for / start update
-- Ctrl+R: Repeat last announcement
+- F1: Меню справки (список всех сочетаний для текущего экрана)
+- Ctrl+F1: Озвучить сочетания для текущего экрана
+- F2: Настройки мода
+- F3: Озвучить текущий экран
+- F4: Панель друзей (в меню) / Чат дуэли (во время дуэлей)
+- F5: Проверить / запустить обновление
+- Ctrl+R: Повторить последнее сообщение
 
-<h3>Duels - Zones</h3>
+<h3>Дуэли - Зоны</h3>
 
-Your zones: C (Hand), G (Graveyard), X (Exile), S (Stack), W (Command Zone)
-Opponent zones: Shift+G, Shift+X, Shift+W
-Battlefield: B / Shift+B (Creatures), A / Shift+A (Lands), R / Shift+R (Non-creatures)
-Within zones: Left/Right to navigate, Up/Down to read card details, I for extended info
-Shift+Up/Down: Switch battlefield rows
+Ваши зоны: C (Рука), G (Кладбище), X (Изгнание), S (Стек), W (Командная зона)
+Зоны оппонента: Shift+G, Shift+X, Shift+W
+Поле битвы: B / Shift+B (Существа), A / Shift+A (Земли), R / Shift+R (Несущества)
+Внутри зон: Влево/Вправо для навигации, Вверх/Вниз для чтения деталей карты, I для расширенной информации
+Shift+Вверх/Вниз: Переключение рядов поля битвы
 
-<h3>Duels - Information</h3>
+<h3>Дуэли - Информация</h3>
 
-- T: Turn/Phase
-- L: Life totals
-- V: Player info zone
-- D / Shift+D: Library counts
-- Shift+C: Opponent hand count
-- M / Shift+M: Your / opponent land summary
-- K: Counter info on focused card
-- O: Game log (recent duel announcements)
-- E / Shift+E: Your / opponent timer
+- T: Ход/Фаза
+- L: Очки жизни
+- V: Зона информации игрока
+- D / Shift+D: Количество карт в библиотеке
+- Shift+C: Количество карт в руке оппонента
+- M / Shift+M: Сводка ваших / оппонентских земель
+- K: Информация о счётчиках на выделенной карте
+- O: Журнал партии (последние сообщения дуэли)
+- E / Shift+E: Ваш / оппонентский таймер
 
-<h3>Duels - Targeting and actions</h3>
+<h3>Дуэли - Цели и действия</h3>
 
-- Tab / Ctrl+Tab: Cycle targets (all / opponent only)
-- Enter: Select target
-- Space: Pass priority, confirm attackers/blockers, advance phase
+- Tab / Ctrl+Tab: Циклический выбор целей (все / только оппонент)
+- Enter: Выбрать цель
+- Space: Передать приоритет, подтвердить атакующих/блокирующих, перейти к следующей фазе
 
-<h3>Duels - Full control and phase stops</h3>
+<h3>Дуэли - Full control и остановки фаз</h3>
 
-- P: Toggle full control (temporary, resets on phase change)
-- Shift+P: Toggle locked full control (permanent)
-- Shift+Backspace: Toggle pass until opponent action (soft skip)
-- Ctrl+Backspace: Toggle skip turn (force skip entire turn)
-- 1-0: Toggle phase stops (1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers, 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step)
+- P: Переключить full control (временно, сбрасывается при смене фазы)
+- Shift+P: Переключить заблокированный full control (постоянно)
+- Shift+Backspace: Переключить пасс до действия оппонента (мягкий пропуск)
+- Ctrl+Backspace: Переключить пропуск хода (принудительный пропуск всего хода)
+- 1-0: Переключить остановки фаз (1=Поддержка, 2=Взятие, 3=Первая главная, 4=Начало боя, 5=Объявление атакующих, 6=Объявление блокирующих, 7=Боевой урон, 8=Конец боя, 9=Вторая главная, 0=Конечный шаг)
 
-<h3>Duels - Browsers (Scry, Surveil, Mulligan)</h3>
+<h3>Дуэли - Браузеры (Scry, Surveil, Mulligan)</h3>
 
-- Tab: Navigate all cards
-- C/D: Jump between top/bottom zones
-- Enter: Toggle card placement
+- Tab: Навигация по всем картам
+- C/D: Переход между верхней/нижней зонами
+- Enter: Переключить размещение карты
 
-<h2>Troubleshooting</h2>
+<h2>Устранение неполадок</h2>
 
-<h3>No speech output after launching the game</h3>
+<h3>Нет речи после запуска игры</h3>
 
-- Make sure your screen reader is running before launching MTG Arena
-- Check that `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder (the installer places them automatically)
-- Check the MelonLoader log in your MTGA folder (`MelonLoader\Latest.log`) for errors
+- Убедитесь, что ваша программа экранного доступа запущена до запуска MTG Arena
+- Проверьте, что `Tolk.dll` и `nvdaControllerClient64.dll` находятся в корневой папке MTGA (установщик размещает их автоматически)
+- Проверьте журнал MelonLoader в папке MTGA (`MelonLoader\Latest.log`) на наличие ошибок
 
-<h3>Game crashes on startup or mod not loading</h3>
+<h3>Игра падает при запуске или мод не загружается</h3>
 
-- Make sure MelonLoader is installed.
-- If the game updated recently, MelonLoader or the mod may need to be reinstalled. Run the installer again.
-- Check that `AccessibleArena.dll` is in the `Mods\` folder inside your MTGA installation
+- Убедитесь, что MelonLoader установлен.
+- Если игра недавно обновилась, MelonLoader или мод могут потребовать переустановки. Запустите установщик снова.
+- Проверьте, что `AccessibleArena.dll` находится в папке `Mods\` внутри вашей установки MTGA
 
-<h3>Mod was working but stopped after a game update</h3>
+<h3>Мод работал, но перестал после обновления игры</h3>
 
-- MTG Arena updates can overwrite MelonLoader files. Run the installer again to reinstall both MelonLoader and the mod.
-- If the game changed its internal structure significantly, the mod may need an update. Check for new releases on GitHub.
+- Обновления MTG Arena могут перезаписать файлы MelonLoader. Запустите установщик снова, чтобы переустановить как MelonLoader, так и мод.
+- Если игра значительно изменила свою внутреннюю структуру, моду может потребоваться обновление. Проверьте новые релизы на GitHub.
 
-<h3>Keyboard shortcuts not working</h3>
+<h3>Сочетания клавиш не работают</h3>
 
-- Make sure the game window is focused (click on it or Alt+Tab to it)
-- Press F1 to check if the mod is active. If you hear the help menu, the mod is running.
-- Some shortcuts only work in specific contexts (duel shortcuts only work during a duel)
+- Убедитесь, что окно игры в фокусе (щёлкните по нему или переключитесь с помощью Alt+Tab)
+- Нажмите F1, чтобы проверить, активен ли мод. Если вы слышите меню справки, мод работает.
+- Некоторые сочетания работают только в определённых контекстах (сочетания дуэли работают только во время дуэли)
 
-<h3>Wrong language</h3>
+<h3>Неправильный язык</h3>
 
-- Press F2 to open the settings menu, then use Enter to cycle through languages
+- Нажмите F2, чтобы открыть меню настроек, затем используйте Enter для циклического переключения языков
 
-<h3>Windows warns about the installer or the DLL being unsafe</h3>
+<h3>Windows предупреждает, что установщик или DLL небезопасны</h3>
 
-The installer and the mod DLL are not code-signed. Code-signing certificates cost a few hundred euros per year, which is not realistic for a free accessibility project. As a result, Windows SmartScreen and some antivirus tools will warn you when running the installer for the first time, or flag the DLL as "unknown publisher."
+Установщик и DLL мода не подписаны цифровой подписью. Сертификаты подписи кода стоят несколько сотен евро в год, что нереально для бесплатного проекта доступности. В результате Windows SmartScreen и некоторые антивирусы будут предупреждать вас при первом запуске установщика или помечать DLL как "неизвестный издатель".
 
-To verify the file you downloaded matches the one published on GitHub, each release lists a SHA256 checksum for both `AccessibleArenaInstaller.exe` and `AccessibleArena.dll`. You can compute the hash of your downloaded file and compare:
+Чтобы проверить, соответствует ли скачанный файл опубликованному на GitHub, каждый релиз указывает контрольную сумму SHA256 как для `AccessibleArenaInstaller.exe`, так и для `AccessibleArena.dll`. Вы можете вычислить хеш скачанного файла и сравнить:
 
-- PowerShell: `Get-FileHash <filename> -Algorithm SHA256`
-- Command Prompt: `certutil -hashfile <filename> SHA256`
+- PowerShell: `Get-FileHash <имяфайла> -Algorithm SHA256`
+- Командная строка: `certutil -hashfile <имяфайла> SHA256`
 
-If the hash matches the one in the release notes, the file is genuine. To run the installer past the SmartScreen warning, choose "More info" and then "Run anyway."
+Если хеш совпадает с указанным в примечаниях к релизу, файл подлинный. Чтобы запустить установщик, несмотря на предупреждение SmartScreen, выберите "Подробнее", а затем "Выполнить в любом случае".
 
-<h2>Reporting bugs</h2>
+<h2>Сообщение об ошибках</h2>
 
-If you find a bug, you can post in the place you found the mod published, or [open an issue on GitHub](https://github.com/JeanStiletto/AccessibleArena/issues).
+Если вы нашли ошибку, вы можете опубликовать сообщение там, где нашли мод, или [открыть issue на GitHub](https://github.com/JeanStiletto/AccessibleArena/issues).
 
-Include the following information:
+Укажите следующую информацию:
 
-- What you were doing when the bug occurred
-- What you expected to happen
-- What actually happened
-- If you want to attach a game log, close the game and share the MelonLoader log file from your MTGA folder:
+- Что вы делали, когда произошла ошибка
+- Что вы ожидали увидеть
+- Что произошло на самом деле
+- Если хотите приложить игровой лог, закройте игру и поделитесь файлом лога MelonLoader из папки MTGA:
   - WotC: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
   - Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\MelonLoader\Latest.log`
 
-<h2>Known issues</h2>
-The game should cover nearly every screen in the game but there might be some edge cases not fully functioning. PayPal blocks blind users with an illegal non-audio captcha so you have to use sighted help or other payment methods if you wanna spend real money on the game.
-Some specific events might not be fully working. Drafting with real players has a lobby screen not supported yet, but in quickdraft you pick cards against bots before you face human opponents, this is functional and a recommended mode for everyone who likes this kind of experience. Cube mode is untouched. I don't even really know what this is about and it costs a lot of in-game resources. So I will do this if I have time or on request.
-The cosmetics system of the game with Emotes, Pets, card styles and titles is only partly supported yet.
-The mod is only tested on Windows with NVDA and JAWS and still relies on the unmodified Tolk library. I cannot test Mac or Linux compatibility here, and cross-platform libraries like Prism didn't fully support the old .NET versions the game depends on at this point. So I will only switch to a broader library if people can help out with testing for either other platforms or Asian screen readers that aren't fully supported by unmodified Tolk. So don't hesitate to contact me if you want me working on this.
+<h2>Известные проблемы</h2>
+Игра должна покрывать практически каждый экран в игре, но могут встречаться некоторые краевые случаи, работающие не полностью. PayPal блокирует незрячих пользователей незаконной беззвуковой капчей, поэтому вам придётся использовать помощь зрячих или другие способы оплаты, если хотите тратить реальные деньги в игре.
+Некоторые конкретные события могут быть не полностью работоспособными. В драфте с реальными игроками есть экран лобби, ещё не поддерживаемый, но в quickdraft вы выбираете карты против ботов перед тем, как встретиться с человеческими соперниками; этот режим функционирует и рекомендуется всем, кто любит такой вид опыта. Режим Cube не затронут. Я даже не знаю толком, о чём он, а он стоит много игровых ресурсов. Поэтому я сделаю это, если будет время или по запросу.
+Система косметики игры с эмоциями, питомцами, стилями карт и титулами пока поддерживается лишь частично.
+Мод тестируется только на Windows с NVDA и JAWS и всё ещё полагается на неизменённую библиотеку Tolk. Я не могу здесь тестировать совместимость с Mac или Linux, а кросс-платформенные библиотеки, такие как Prism, на данный момент не полностью поддерживают старые версии .NET, от которых зависит игра. Поэтому я перейду на более широкую библиотеку только если люди смогут помочь с тестированием либо других платформ, либо азиатских программ экранного доступа, которые не поддерживаются полностью неизменённой библиотекой Tolk. Так что не стесняйтесь связаться со мной, если хотите, чтобы я этим занимался.
 
-For the current list of known issues, see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+Актуальный список известных проблем см. в [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-<h2>Disclaimers</h2>
-<h3>Other accessibilities</h3>
+<h2>Оговорки</h2>
+<h3>Другие виды доступности</h3>
 
-This mod calls itself Accessible Arena mostly cause it sounds good. But at the moment this is only a screen reader accessibility mod. I am absolutely interested in covering more disabilities with this mod, visual impairments, motoric disabilities etc. But I am only experienced in screen reader accessibility. As fully blind person for example questions of coloring and fonts are fully abstract to me. So if you want something in this kind implemented please don't hesitate to contact me if you can clearly describe what your needs are and are willing to help me test the results.
-Then I am happy to give the name of this mod more truth.
+Этот мод называется Accessible Arena в основном потому, что это звучит хорошо. Но на данный момент это только мод доступности для программ экранного доступа. Я абсолютно заинтересован в охвате этим модом большего числа видов инвалидности, нарушений зрения, двигательных нарушений и т. д. Но я опытен только в доступности для программ экранного доступа. Будучи, например, полностью незрячим человеком, вопросы цвета и шрифтов для меня совершенно абстрактны. Поэтому если вы хотите, чтобы что-то такого рода было реализовано, пожалуйста, не стесняйтесь связаться со мной, если можете чётко описать свои потребности и готовы помочь мне тестировать результаты.
+Тогда я буду рад сделать имя этого мода более правдивым.
 
-<h3>Company contact</h3>
+<h3>Контакт с компанией</h3>
 
-Sadly I wasn't able to get reliable insights into the Arena team or informal developer contacts. So I decided to skip their official communication channels for the moment. In 3 months of building and playing I never hit any bot protection system, so I don't think they can detect us as mod users. But I didn't want to take the risk of communicating on official channels as a single person. So spread the word about the mod and let's build a big, valuable community. Then we will have a much better position if we decide to reach out directly. Just don't try to write to them without communicating with me first. Especially don't send them requests for native accessibility or integration of my mod into their code base. Neither will happen in any case.
+К сожалению, мне не удалось получить надёжных сведений о команде Arena или неформальных контактов разработчиков. Поэтому я решил пока пропустить их официальные каналы коммуникации. За 3 месяца создания и игры я ни разу не натолкнулся на систему защиты от ботов, поэтому не думаю, что они могут обнаружить нас как пользователей мода. Но я не хотел рисковать, общаясь по официальным каналам в одиночку. Так что распространяйте слово о моде, и давайте построим большое и ценное сообщество. Тогда у нас будет гораздо лучшая позиция, если мы решим связаться напрямую. Только не пытайтесь им писать, не пообщавшись сначала со мной. В особенности не отправляйте им запросы на нативную доступность или интеграцию моего мода в их кодовую базу. Ни того, ни другого в любом случае не будет.
 
-<h3>In-game purchases</h3>
+<h3>Внутриигровые покупки</h3>
 
-Arena has some real money mechanics and you can buy an in-game currency. Those payment methods are mostly accessible except for PayPal cause they included captcha protection of their login. You can try to uninstall the mod for payment method registration and ask sighted help but even this is unreliable due to their accessibility nightmare of a captcha further absolutely broken and badly implemented by Wizards of the Coast. 
-But other payment methods work stable. I and others tested in-game purchasing of things and it should be safe to use the system. But it is absolutely possible that there will occur bugs or even that the mod will mislead you. Could click on the wrong things, show you wrong or incomplete information, do the wrong things due to internal changes of Arena. I could test it but I cannot 100% guarantee that you could buy the wrong things with your real money. I won't take responsibility for this and due to the fact that this is no official Arena product the game company won't do this as well. Please don't even try to get refunds in this case they won't give you those.
+В Arena есть некоторые механики с реальными деньгами, и вы можете покупать внутриигровую валюту. Эти способы оплаты в основном доступны, за исключением PayPal, потому что они включили защиту капчей при входе. Можно попробовать удалить мод на время регистрации способа оплаты и попросить помощи у зрячего, но даже это ненадёжно из-за их кошмарной с точки зрения доступности капчи, ещё более сломанной и плохо реализованной Wizards of the Coast.
+Но другие способы оплаты работают стабильно. Я и другие тестировали внутриигровую покупку вещей, и использование системы должно быть безопасным. Но вполне возможно возникновение ошибок или даже то, что мод может ввести вас в заблуждение. Может кликнуть не туда, показать неверную или неполную информацию, сделать что-то не то из-за внутренних изменений Arena. Я могу тестировать, но не могу на 100% гарантировать, что вы не купите что-то не то за реальные деньги. Я не возьму за это ответственность, а учитывая, что это не официальный продукт Arena, компания игры тоже не возьмёт. Пожалуйста, даже не пытайтесь в таком случае вернуть деньги — их не вернут.
 
-<h3>AI use</h3>
+<h3>Использование ИИ</h3>
 
-The code of this mod is 100% created with the help of Anthropic's Claude agent using the Opus models: it started on 4.5, most of the development happened on 4.6, and the final steps toward release were done on 4.7. And thanks to my biggest contributor a bit of Codex as well. I am aware of the problems with AI use. But in a time where everyone uses those software to do a lot of way more shady things while gaming industry couldn't give us the accessibility we want in terms of quality or quantity I still decided to use the tools.
+Код этого мода создан на 100% с помощью агента Claude от Anthropic с использованием моделей Opus: началось с 4.5, большая часть разработки велась на 4.6, а последние шаги к релизу были сделаны на 4.7. И благодаря моему самому большому соавтору немного Codex тоже. Я осознаю проблемы использования ИИ. Но во времена, когда все используют эти программы, чтобы делать множество куда более сомнительных вещей, а игровая индустрия не смогла дать нам доступность, которую мы хотим, с точки зрения качества или количества, я всё же решил использовать инструменты.
 
-<h2>How to contribute</h2>
+<h2>Как внести вклад</h2>
 
-I am happy to take contributions and with [blindndangerous](https://github.com/blindndangerous) already a lot of helpful work of another person is part of this mod. I am especially interested in improvement and fixes for things I cannot test like different system configurations, fixing languages I don't speak etc. But take feature requests as well. Before you work on something check known issues.
+Я рад принимать вклад, и благодаря [blindndangerous](https://github.com/blindndangerous) большое количество полезной работы другого человека уже является частью этого мода. Особенно меня интересуют улучшения и исправления для вещей, которые я не могу тестировать, таких как разные конфигурации систем, исправления языков, которыми я не владею, и т. д. Но принимаются и запросы функций. Перед тем как работать над чем-то, проверьте известные проблемы.
 
-- For general contribution guidelines, see [CONTRIBUTING.md](../CONTRIBUTING.md)
-- For translation help, see [CONTRIBUTING_TRANSLATIONS.md](CONTRIBUTING_TRANSLATIONS.md)
+- Общие рекомендации по участию см. в [CONTRIBUTING.md](../CONTRIBUTING.md)
+- По поводу помощи с переводами см. [CONTRIBUTING_TRANSLATIONS.md](CONTRIBUTING_TRANSLATIONS.md)
 
-<h2>Credits</h2>
+<h2>Благодарности</h2>
 
-And now I want to thank a whole lot of people, cause thankfully this was not just me and the AI in a black box but a whole network around me, helping out, empowering, just being social and nice.
-Please DM me if I forgot you or if you want to be known under a different name or not mentioned.
+А теперь я хочу поблагодарить огромное количество людей, потому что, к счастью, это не был просто я и ИИ в чёрном ящике, а целая сеть вокруг меня, помогающая, укрепляющая, просто общительная и добрая.
+Пожалуйста, напишите мне в личку, если я вас забыл или если вы хотите быть известным под другим именем или не быть упомянутым.
 
-First this work is grounded very much on the work of other people who did the pioneer things I just have to redo for accessible arena.
-In terms of design this is Hearthstone Access I could inherit a lot not just cause it's well known for everyone who played the game but cause it's really good UI design.
-In terms of modding I want to thank the members of Zax's modding Discord. You not just figured all the stuff out all the tools and procedures out I just had to install and use. You taught me everything I have to know about AI modding either directly or by discussing things in public or helping other newbies out. Further you gave me a platform and community I and my project can exist in.
+Во-первых, эта работа сильно опирается на работу других людей, которые сделали первопроходческие вещи, которые мне просто пришлось переделать для Accessible Arena.
+В плане дизайна это Hearthstone Access, от которого я смог унаследовать многое — не только потому, что он хорошо известен всем, кто играл в игру, но и потому, что это действительно хороший дизайн интерфейса.
+В плане моддинга я хочу поблагодарить участников Discord моддинга Zax. Вы не только разобрались во всей этой всячине, во всех инструментах и процедурах, которые мне осталось только установить и использовать. Вы научили меня всему, что нужно знать о моддинге с ИИ, либо напрямую, либо через обсуждение вещей публично или помощь другим новичкам. Кроме того, вы дали платформу и сообщество, в которых я и мой проект можем существовать.
 
-For huge code contributions I want to thank [blindndangerous](https://github.com/blindndangerous) who did a lot of work on this project as well. Over the project lifespan I think I got like 50 PRs and more from him regarding all types of problems from small annoying stuff to work out up to bigger UI suggestions and accessibility for whole screens of the game.
-Further thanks to Ahix who created [refactoring prompts for large AI-coded projects](https://github.com/ahicks92/llm-mod-refactoring-prompts) I ran on top of my own refactorings to ensure code quality and maintainability.
+За огромный вклад в код я хочу поблагодарить [blindndangerous](https://github.com/blindndangerous), который также проделал много работы над этим проектом. За всё время жизни проекта я получил от него, кажется, около 50 PR и более, касающихся всех типов проблем — от мелких раздражающих вещей до более крупных предложений по UI и доступности целых экранов игры.
+Дальнейшая благодарность Ahix, который создал [рефакторинг-промпты для крупных проектов на основе ИИ-кода](https://github.com/ahicks92/llm-mod-refactoring-prompts), которые я запускал поверх своих собственных рефакторингов, чтобы обеспечить качество и поддерживаемость кода.
 
-For testing the betas, feedback and ideas I want to thank:
+За тестирование бет, отзывы и идеи я хочу поблагодарить:
 - Alfi
 - Plüschyoda
 - Firefly92
@@ -246,37 +244,37 @@ For testing the betas, feedback and ideas I want to thank:
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 
-For sighted testing to understand visual workflows and confirming some things I want to thank:
+За тестирование зрячими для понимания визуальных процессов и подтверждения некоторых вещей я хочу поблагодарить:
 - [mauriceKA](https://github.com/mauriceKA)
 - VeganWolf
 - Lea Holstein
 
-<h3>Tools used</h3>
+<h3>Используемые инструменты</h3>
 
-- Claude with all included models
+- Claude со всеми включёнными моделями
 - MelonLoader
-- Harmony for IL patching
-- Tolk for screen reader communication
-- ILSpy for decompiling game code
+- Harmony для IL-патчинга
+- Tolk для общения с программами экранного доступа
+- ILSpy для декомпиляции кода игры
 
-<h2>Support your modder</h2>
+<h2>Поддержите своего моддера</h2>
 
-Creating this mod was not just a lot of fun and empowerment for me but cost me really a lot of time and real money for Claude subscriptions. I will keep those to work on further improvements and keep maintenance of the project over the next years.
-So if you are willing and able to afford a one-time or even monthly donation you can look over here.
-I would highly appreciate this recognition of my work and it gives me a stable base to keep working on Arena and, hopefully, other large projects in the future.
+Создание этого мода было для меня не только большим удовольствием и эмансипацией, но и обошлось во много времени и реальных денег за подписки Claude. Я буду держать их, чтобы работать над дальнейшими улучшениями и поддерживать проект на протяжении следующих лет.
+Так что если вы хотите и в состоянии сделать разовое или даже ежемесячное пожертвование, можете заглянуть сюда.
+Я был бы очень признателен за такое признание моей работы, и это даст мне стабильную базу, чтобы продолжать работать над Arena и, надеюсь, другими крупными проектами в будущем.
 
 [Ko-fi: ko-fi.com/jeanstiletto](https://ko-fi.com/jeanstiletto)
 
-<h2>License</h2>
+<h2>Лицензия</h2>
 
-This project is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
+Этот проект лицензирован по GNU General Public License v3.0. Подробности см. в файле LICENSE.
 
-<h2>Links</h2>
+<h2>Ссылки</h2>
 
 - [GitHub](https://github.com/JeanStiletto/AccessibleArena)
 - [MelonLoader](https://github.com/LavaGang/MelonLoader)
 - [MTG Arena](https://magic.wizards.com/mtgarena)
 
-<h2>Other languages</h2>
+<h2>Другие языки</h2>
 
 [English](../README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Polski](README.pl.md) | [Português (Brasil)](README.pt-BR.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)

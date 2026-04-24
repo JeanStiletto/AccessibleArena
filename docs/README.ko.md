@@ -1,235 +1,233 @@
-> **Note:** This page has not yet been translated into this language. The English version is shown below. A translation will follow in a future release.
-
 <h1>Accessible Arena</h1>
 
-<h2>What is this mod</h2>
+<h2>이 모드는 무엇인가</h2>
 
-This mod allows you to play Arena, the most popular and beginner-friendly digital representation of the TCG Magic: The Gathering. It adds full screen reader support and keyboard navigation to nearly every aspect of the game.
+이 모드는 트레이딩 카드 게임 Magic: The Gathering의 가장 인기 있고 초보자 친화적인 디지털 구현인 Arena를 플레이할 수 있게 해줍니다. 게임의 거의 모든 측면에 스크린 리더 전체 지원과 키보드 내비게이션을 추가합니다.
 
-The mod supports all languages the game is translated in. Additionally, a few languages that the game itself does not support are partially covered: in those, mod-specific announcements like help texts and UI hints are translated, while card and game data remain in the game's default language.
+이 모드는 게임이 번역된 모든 언어를 지원합니다. 또한 게임 자체가 지원하지 않는 일부 언어도 부분적으로 커버됩니다. 이러한 언어에서는 도움말 텍스트나 UI 힌트와 같은 모드 전용 안내가 번역되며, 카드 및 게임 데이터는 게임의 기본 언어로 유지됩니다.
 
-<h2>What is Magic: The Gathering</h2>
+<h2>Magic: The Gathering이란</h2>
 
-Magic is a trading card game trademarked by Wizards of the Coast that allows to play as a mage against other mages, casting spells represented by the cards. There exist 5 colours in Magic that represent different identities of gameplay and flavour. If you are familiar with Hearthstone or Yu-Gi-Oh you will recognize a lot of concepts cause Magic is the ancestor of all those games.
-If you want to learn more about Magic in general, the game's website as well as a lot of content creators will help you out.
+Magic은 Wizards of the Coast의 상표로 등록된 트레이딩 카드 게임으로, 자신이 마법사가 되어 다른 마법사들에 맞서 카드로 표현된 주문을 시전하며 플레이할 수 있습니다. Magic에는 서로 다른 게임 플레이와 분위기의 정체성을 대표하는 5가지 색이 있습니다. Hearthstone이나 Yu-Gi-Oh를 알고 있다면 많은 개념을 알아볼 수 있을 겁니다. Magic이 그 모든 게임의 조상이기 때문입니다.
+Magic 전반에 대해 더 알고 싶다면 게임 공식 사이트와 많은 콘텐츠 크리에이터들이 도움이 될 것입니다.
 
-<h2>Requirements</h2>
+<h2>요구 사항</h2>
 
-- Windows 10 or later
-- Magic: The Gathering Arena (installed via the official Wizards installer or Steam)
-- A screen reader (only NVDA and JAWS are tested)
-- MelonLoader (the installer handles this automatically)
+- Windows 10 이상
+- Magic: The Gathering Arena (공식 Wizards 설치 프로그램 또는 Steam을 통해 설치)
+- 스크린 리더 (NVDA와 JAWS만 테스트됨)
+- MelonLoader (설치 프로그램이 자동으로 처리)
 
-<h2>Installation</h2>
+<h2>설치</h2>
 
-<h3>Using the installer (recommended)</h3>
+<h3>설치 프로그램 사용 (권장)</h3>
 
-1. [Download AccessibleArenaInstaller.exe](https://github.com/JeanStiletto/AccessibleArena/releases/latest/download/AccessibleArenaInstaller.exe) from the latest release on GitHub
-2. Close MTG Arena if it is running
-3. Run the installer. It will detect your MTGA installation, install MelonLoader if needed, and deploy the mod
-4. Launch MTG Arena. You should hear "Accessible Arena v... launched" through your screen reader
+1. GitHub의 최신 릴리스에서 [AccessibleArenaInstaller.exe 다운로드](https://github.com/JeanStiletto/AccessibleArena/releases/latest/download/AccessibleArenaInstaller.exe)
+2. MTG Arena가 실행 중이면 닫기
+3. 설치 프로그램을 실행. MTGA 설치를 감지하고, 필요한 경우 MelonLoader를 설치한 후 모드를 배포합니다
+4. MTG Arena를 실행. 스크린 리더를 통해 "Accessible Arena v... launched"가 들려야 합니다
 
-<h3>Manual installation</h3>
+<h3>수동 설치</h3>
 
-1. Install [MelonLoader](https://github.com/LavaGang/MelonLoader) into your MTGA folder
-2. Download `AccessibleArena.dll` from the latest release
-3. Copy the DLL to your MTGA Mods folder:
-   - WotC install: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
-   - Steam install: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. Ensure `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder
-5. Launch MTG Arena
+1. MTGA 폴더에 [MelonLoader](https://github.com/LavaGang/MelonLoader) 설치
+2. 최신 릴리스에서 `AccessibleArena.dll` 다운로드
+3. DLL을 MTGA Mods 폴더로 복사:
+   - WotC 설치: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
+   - Steam 설치: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
+4. `Tolk.dll`과 `nvdaControllerClient64.dll`이 MTGA 루트 폴더에 있는지 확인
+5. MTG Arena 실행
 
-<h2>Uninstallation</h2>
+<h2>제거</h2>
 
-Run the installer again. If the mod is already installed, it will offer an uninstall option. You can optionally remove MelonLoader as well. To uninstall manually, delete `AccessibleArena.dll` from the `Mods\` folder and remove `Tolk.dll` and `nvdaControllerClient64.dll` from the MTGA root folder.
+설치 프로그램을 다시 실행하세요. 모드가 이미 설치되어 있다면 제거 옵션이 제공됩니다. 선택적으로 MelonLoader도 제거할 수 있습니다. 수동으로 제거하려면 `Mods\` 폴더에서 `AccessibleArena.dll`을 삭제하고 MTGA 루트 폴더에서 `Tolk.dll`과 `nvdaControllerClient64.dll`을 제거하세요.
 
-<h2>If you come from Hearthstone</h2>
+<h2>Hearthstone에서 온 경우</h2>
 
-If you have played Hearthstone Access you will recognize a lot of things for good reasons, cause not just game principles are close to each other but cause I followed a lot of design principles. Still some things are different.
+Hearthstone Access를 해본 적이 있다면 타당한 이유로 많은 것들을 알아볼 수 있을 겁니다. 게임 원리가 서로 가깝기 때문만이 아니라, 제가 많은 디자인 원칙을 따랐기 때문이죠. 그래도 몇 가지는 다릅니다.
 
-First you have more zones to navigate, cause Magic knows graveyard, exile and some extra zones. Your battlefield isn't limited in size and has additional sorting rows to make the mass of things that can appear more manageable.
+먼저 탐색해야 할 영역이 더 많습니다. Magic에는 무덤, 추방 그리고 몇몇 추가 영역이 있기 때문입니다. 여러분의 전장은 크기가 제한되어 있지 않으며, 나타날 수 있는 많은 요소들을 보다 다루기 쉽게 만드는 추가 정렬 행이 있습니다.
 
-Your mana isn't rising automatically but comes from different colored land cards you have actively to play. Regarding this mana costs have colorless and colored parts that added together give the full cost requirements of a card you have to fulfill.
+마나는 자동으로 증가하지 않고, 직접 적극적으로 내야 하는 다양한 색의 대지 카드에서 나옵니다. 그에 따라 마나 비용에는 무색 부분과 유색 부분이 있으며, 이를 합친 것이 카드에 대해 충족해야 하는 전체 비용 요구 사항이 됩니다.
 
-You can not attack creatures directly, only opponents and some very specific cards (planeswalkers and battles) can be targeted by attackers. As defender you have to decide if you want to block an attack to make creatures fight. If you don't block the damage will hit your player avatar but your creatures can live untouched. Further damage doesn't accumulate on creatures but is healed at the end of each turn, so as well at the end of your and the opponent's turn. To interact with opponent's creatures that refuse to fight with you, you must play specific cards or pressure life total of your opponent so hard they have no choice to sacrifice valuable creatures to survive.
+생물을 직접 공격할 수는 없으며, 오직 상대와 매우 특정한 일부 카드(플레인즈워커와 전투)만이 공격자의 대상이 될 수 있습니다. 방어자로서 전투를 위해 공격을 방어해 생물끼리 싸우게 할지 결정해야 합니다. 방어하지 않으면 피해는 플레이어 아바타에 들어오지만, 생물은 무사히 남을 수 있습니다. 나아가 피해는 생물에 누적되지 않고 각 턴이 끝날 때, 즉 자신의 턴과 상대의 턴이 끝날 때 회복됩니다. 싸움에 응하지 않는 상대의 생물과 상호 작용하려면 특정 카드를 플레이하거나, 상대의 생명력을 강하게 압박해 생존을 위해 귀중한 생물을 희생하도록 해야 합니다.
 
-The game has very distinguished battle phases that allow specific actions like drawing, casting spells or fighting. Regarding this Magic allows and empowers you to do things on opponent's turns. No longer sit there and wait while things happen. Play an interactive deck and destroy enemy plans on the fly.
+게임에는 드로우, 주문 시전, 전투와 같은 특정 행동을 허용하는 매우 구분된 전투 페이즈가 있습니다. 그에 따라 Magic은 상대의 턴에도 행동할 수 있도록 허용하고 권장합니다. 더 이상 앉아서 일이 일어나기를 기다릴 필요가 없습니다. 상호작용형 덱을 플레이하고 적의 계획을 즉석에서 무너뜨리세요.
 
-<h2>First steps</h2>
+<h2>첫걸음</h2>
 
-The game first asks you to give some data about you and to register a character. This should work via game internals but if it doesn't you can alternatively use the game's website to do this, it is fully accessible.
+게임은 먼저 여러분에 대한 일부 데이터를 입력하고 캐릭터를 등록하도록 요구합니다. 이것은 게임 내부를 통해 작동해야 하지만, 그렇지 않은 경우 게임의 웹사이트를 대신 사용할 수 있습니다. 웹사이트는 완전히 접근 가능합니다.
 
-The game starts with a tutorial where you learn the basics of Magic: The Gathering. The mod adds custom tutorial hints for screen reader users alongside the standard tutorial. After finishing the tutorial, you get rewarded with 5 starter decks, one for each color.
+게임은 Magic: The Gathering의 기초를 배우는 튜토리얼로 시작합니다. 모드는 표준 튜토리얼과 함께 스크린 리더 사용자를 위한 사용자 정의 튜토리얼 힌트를 추가합니다. 튜토리얼을 마치면 각 색에 하나씩 총 5개의 스타터 덱을 보상으로 받습니다.
 
-From there, you have several options to unlock more cards and learn the game:
+여기서부터 더 많은 카드를 잠금 해제하고 게임을 배우는 여러 옵션이 있습니다:
 
-- **Color Challenges:** Play through the color challenge for each of the five Magic colors. Each challenge has you fight 4 NPC opponents, followed by a match against a real player at the end.
-- **Starter Deck Events:** Play one of 10 two-colored decks against real humans who have the same deck choices available.
-- **Jump In:** Choose two 20-card packages of different colors and themes, combine them into a deck, and play against real humans with similar choices. You get free tokens for this event and keep the cards you chose.
-- **Spark Ladder:** At some point the spark ladder unlocks, where you play your first ranked matches against real opponents.
+- **색 챌린지:** Magic의 다섯 가지 색 각각에 대한 색 챌린지를 플레이하세요. 각 챌린지는 4명의 NPC 상대와 싸우고, 마지막에 실제 플레이어와의 매치로 이어집니다.
+- **스타터 덱 이벤트:** 같은 덱 선택지를 가진 실제 사람과 10개의 이색 덱 중 하나로 대결하세요.
+- **Jump In:** 서로 다른 색과 테마의 20장 카드 패키지 두 개를 골라 덱으로 결합하고, 비슷한 선택지를 가진 실제 사람들과 대결하세요. 이 이벤트에서는 무료 토큰을 얻고 선택한 카드를 보관하게 됩니다.
+- **Spark Ladder:** 언젠가 Spark Ladder가 해제되며, 실제 상대와의 첫 랭크 매치를 하게 됩니다.
 
-Check your mail under the social menu as those contain a lot of rewards and card packs.
+소셜 메뉴에서 메일을 확인하세요. 많은 보상과 카드 팩이 들어있습니다.
 
-The game unlocks modes gradually based on what and how much you play. It gives you hints and quests in the progress and objectives menu, and highlights relevant modes for you under the play menu. Once you finish enough of the new player content, all different modes and events become fully available.
+게임은 무엇을 얼마나 플레이했는지에 따라 점진적으로 모드를 해제합니다. 진행 및 목표 메뉴에서 힌트와 퀘스트를 주고, 플레이 메뉴에서는 여러분에게 관련된 모드를 강조 표시합니다. 새로운 플레이어 콘텐츠를 충분히 끝내면, 다양한 모드와 이벤트가 완전히 사용 가능해집니다.
 
-In the Codex of the Multiverse you can learn about game modes and mechanics. It extends with growing progress in the NPE experience.
+다원 우주의 코덱스에서 게임 모드와 메커니즘에 대해 배울 수 있습니다. NPE 경험의 진행과 함께 확장됩니다.
 
-Under settings account you can skip all tutorial experiences and force-unlock everything to have full freedom from the very beginning. However, playing the new player events gives you a lot of cards and is recommended for new players. Only unlock everything early if you already know what you are doing. Otherwise the beginner content provides plenty of fun and learning while guiding you well.
+설정 계정 아래에서 모든 튜토리얼 경험을 건너뛰고 모든 것을 강제로 잠금 해제하여 처음부터 완전한 자유를 누릴 수 있습니다. 그러나 새로운 플레이어 이벤트를 플레이하면 많은 카드를 얻을 수 있으며 신규 플레이어에게 권장됩니다. 이미 무엇을 하고 있는지 알 때만 일찍 모든 것을 해제하세요. 그렇지 않다면 초보자 콘텐츠는 충분한 재미와 학습을 제공하며 잘 안내해 줍니다.
 
-<h2>Keyboard shortcuts</h2>
+<h2>키보드 단축키</h2>
 
-Navigation follows standard conventions throughout: Arrow keys to move, Home/End to jump to first/last, Enter to select, Space to confirm, Backspace to go back or cancel. Tab/Shift+Tab also works for navigation. Page Up/Page Down changes pages.
+내비게이션은 어디서나 표준 관례를 따릅니다: 방향키로 이동, Home/End로 처음/마지막으로 점프, Enter로 선택, Space로 확정, Backspace로 돌아가거나 취소. Tab/Shift+Tab도 내비게이션에 작동합니다. Page Up/Page Down으로 페이지를 변경합니다.
 
-<h3>Global</h3>
+<h3>전역</h3>
 
-- F1: Help menu (lists all shortcuts for the current screen)
-- Ctrl+F1: Announce shortcuts for the current screen
-- F2: Mod settings
-- F3: Announce current screen
-- F4: Friends panel (from menus) / Duel chat (during duels)
-- F5: Check for / start update
-- Ctrl+R: Repeat last announcement
+- F1: 도움말 메뉴 (현재 화면의 모든 단축키 나열)
+- Ctrl+F1: 현재 화면의 단축키 읽기
+- F2: 모드 설정
+- F3: 현재 화면 읽기
+- F4: 친구 패널 (메뉴에서) / 듀얼 채팅 (듀얼 중)
+- F5: 업데이트 확인 / 시작
+- Ctrl+R: 마지막 알림 반복
 
-<h3>Duels - Zones</h3>
+<h3>듀얼 - 영역</h3>
 
-Your zones: C (Hand), G (Graveyard), X (Exile), S (Stack), W (Command Zone)
-Opponent zones: Shift+G, Shift+X, Shift+W
-Battlefield: B / Shift+B (Creatures), A / Shift+A (Lands), R / Shift+R (Non-creatures)
-Within zones: Left/Right to navigate, Up/Down to read card details, I for extended info
-Shift+Up/Down: Switch battlefield rows
+내 영역: C (손), G (무덤), X (추방), S (스택), W (사령관 지대)
+상대 영역: Shift+G, Shift+X, Shift+W
+전장: B / Shift+B (생물), A / Shift+A (대지), R / Shift+R (비생물)
+영역 내: 좌/우로 이동, 상/하로 카드 상세 읽기, I로 확장 정보
+Shift+상/하: 전장 행 전환
 
-<h3>Duels - Information</h3>
+<h3>듀얼 - 정보</h3>
 
-- T: Turn/Phase
-- L: Life totals
-- V: Player info zone
-- D / Shift+D: Library counts
-- Shift+C: Opponent hand count
-- M / Shift+M: Your / opponent land summary
-- K: Counter info on focused card
-- O: Game log (recent duel announcements)
-- E / Shift+E: Your / opponent timer
+- T: 턴/페이즈
+- L: 생명력
+- V: 플레이어 정보 영역
+- D / Shift+D: 서고 장수
+- Shift+C: 상대 손패 장수
+- M / Shift+M: 내 / 상대 대지 요약
+- K: 포커스된 카드의 카운터 정보
+- O: 게임 로그 (최근 듀얼 알림)
+- E / Shift+E: 내 / 상대 타이머
 
-<h3>Duels - Targeting and actions</h3>
+<h3>듀얼 - 타겟팅과 행동</h3>
 
-- Tab / Ctrl+Tab: Cycle targets (all / opponent only)
-- Enter: Select target
-- Space: Pass priority, confirm attackers/blockers, advance phase
+- Tab / Ctrl+Tab: 대상 순환 (전체 / 상대만)
+- Enter: 대상 선택
+- Space: 우선권 넘기기, 공격자/방어자 확정, 페이즈 진행
 
-<h3>Duels - Full control and phase stops</h3>
+<h3>듀얼 - 풀 컨트롤과 페이즈 정지</h3>
 
-- P: Toggle full control (temporary, resets on phase change)
-- Shift+P: Toggle locked full control (permanent)
-- Shift+Backspace: Toggle pass until opponent action (soft skip)
-- Ctrl+Backspace: Toggle skip turn (force skip entire turn)
-- 1-0: Toggle phase stops (1=Upkeep, 2=Draw, 3=First Main, 4=Begin Combat, 5=Declare Attackers, 6=Declare Blockers, 7=Combat Damage, 8=End Combat, 9=Second Main, 0=End Step)
+- P: 풀 컨트롤 토글 (임시, 페이즈 변경 시 초기화)
+- Shift+P: 잠긴 풀 컨트롤 토글 (영구)
+- Shift+Backspace: 상대 행동 시까지 패스 토글 (소프트 스킵)
+- Ctrl+Backspace: 턴 스킵 토글 (전체 턴 강제 스킵)
+- 1-0: 페이즈 정지 토글 (1=유지, 2=뽑기, 3=첫 번째 본단, 4=전투 시작, 5=공격자 선언, 6=방어자 선언, 7=전투 피해, 8=전투 종료, 9=두 번째 본단, 0=종료 단계)
 
-<h3>Duels - Browsers (Scry, Surveil, Mulligan)</h3>
+<h3>듀얼 - 브라우저 (점술, 감시, 멀리건)</h3>
 
-- Tab: Navigate all cards
-- C/D: Jump between top/bottom zones
-- Enter: Toggle card placement
+- Tab: 모든 카드 탐색
+- C/D: 상단/하단 영역 간 이동
+- Enter: 카드 배치 전환
 
-<h2>Troubleshooting</h2>
+<h2>문제 해결</h2>
 
-<h3>No speech output after launching the game</h3>
+<h3>게임 실행 후 음성 출력이 없음</h3>
 
-- Make sure your screen reader is running before launching MTG Arena
-- Check that `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder (the installer places them automatically)
-- Check the MelonLoader log in your MTGA folder (`MelonLoader\Latest.log`) for errors
+- MTG Arena를 실행하기 전에 스크린 리더가 실행 중인지 확인하세요
+- `Tolk.dll`과 `nvdaControllerClient64.dll`이 MTGA 루트 폴더에 있는지 확인하세요 (설치 프로그램이 자동으로 배치함)
+- 오류에 대해서는 MTGA 폴더의 MelonLoader 로그(`MelonLoader\Latest.log`)를 확인하세요
 
-<h3>Game crashes on startup or mod not loading</h3>
+<h3>게임이 시작 시 충돌하거나 모드가 로드되지 않음</h3>
 
-- Make sure MelonLoader is installed.
-- If the game updated recently, MelonLoader or the mod may need to be reinstalled. Run the installer again.
-- Check that `AccessibleArena.dll` is in the `Mods\` folder inside your MTGA installation
+- MelonLoader가 설치되어 있는지 확인하세요.
+- 게임이 최근에 업데이트되었다면 MelonLoader 또는 모드를 다시 설치해야 할 수 있습니다. 설치 프로그램을 다시 실행하세요.
+- `AccessibleArena.dll`이 MTGA 설치 내 `Mods\` 폴더에 있는지 확인하세요
 
-<h3>Mod was working but stopped after a game update</h3>
+<h3>모드가 작동했지만 게임 업데이트 후 중단됨</h3>
 
-- MTG Arena updates can overwrite MelonLoader files. Run the installer again to reinstall both MelonLoader and the mod.
-- If the game changed its internal structure significantly, the mod may need an update. Check for new releases on GitHub.
+- MTG Arena 업데이트는 MelonLoader 파일을 덮어쓸 수 있습니다. 설치 프로그램을 다시 실행하여 MelonLoader와 모드를 모두 다시 설치하세요.
+- 게임이 내부 구조를 크게 변경했다면 모드 업데이트가 필요할 수 있습니다. GitHub에서 새 릴리스를 확인하세요.
 
-<h3>Keyboard shortcuts not working</h3>
+<h3>키보드 단축키가 작동하지 않음</h3>
 
-- Make sure the game window is focused (click on it or Alt+Tab to it)
-- Press F1 to check if the mod is active. If you hear the help menu, the mod is running.
-- Some shortcuts only work in specific contexts (duel shortcuts only work during a duel)
+- 게임 창이 포커스되어 있는지 확인하세요 (클릭하거나 Alt+Tab으로 전환)
+- F1을 눌러 모드가 활성화되었는지 확인하세요. 도움말 메뉴가 들리면 모드가 실행 중입니다.
+- 일부 단축키는 특정 컨텍스트에서만 작동합니다 (듀얼 단축키는 듀얼 중에만 작동)
 
-<h3>Wrong language</h3>
+<h3>잘못된 언어</h3>
 
-- Press F2 to open the settings menu, then use Enter to cycle through languages
+- F2를 눌러 설정 메뉴를 열고, Enter를 사용해 언어를 순환하세요
 
-<h3>Windows warns about the installer or the DLL being unsafe</h3>
+<h3>Windows가 설치 프로그램이나 DLL을 안전하지 않다고 경고함</h3>
 
-The installer and the mod DLL are not code-signed. Code-signing certificates cost a few hundred euros per year, which is not realistic for a free accessibility project. As a result, Windows SmartScreen and some antivirus tools will warn you when running the installer for the first time, or flag the DLL as "unknown publisher."
+설치 프로그램과 모드 DLL은 코드 서명이 되어 있지 않습니다. 코드 서명 인증서는 연간 수백 유로가 들며, 무료 접근성 프로젝트에는 현실적이지 않습니다. 그 결과 Windows SmartScreen과 일부 백신 도구는 설치 프로그램을 처음 실행할 때 경고하거나 DLL을 "알 수 없는 게시자"로 표시합니다.
 
-To verify the file you downloaded matches the one published on GitHub, each release lists a SHA256 checksum for both `AccessibleArenaInstaller.exe` and `AccessibleArena.dll`. You can compute the hash of your downloaded file and compare:
+다운로드한 파일이 GitHub에 게시된 것과 일치하는지 확인하기 위해, 각 릴리스에는 `AccessibleArenaInstaller.exe`와 `AccessibleArena.dll` 모두에 대한 SHA256 체크섬이 나열되어 있습니다. 다운로드한 파일의 해시를 계산하여 비교할 수 있습니다:
 
-- PowerShell: `Get-FileHash <filename> -Algorithm SHA256`
-- Command Prompt: `certutil -hashfile <filename> SHA256`
+- PowerShell: `Get-FileHash <파일명> -Algorithm SHA256`
+- 명령 프롬프트: `certutil -hashfile <파일명> SHA256`
 
-If the hash matches the one in the release notes, the file is genuine. To run the installer past the SmartScreen warning, choose "More info" and then "Run anyway."
+해시가 릴리스 노트의 해시와 일치하면 파일은 진본입니다. SmartScreen 경고를 넘어 설치 프로그램을 실행하려면 "추가 정보"를 선택한 다음 "실행"을 선택하세요.
 
-<h2>Reporting bugs</h2>
+<h2>버그 신고</h2>
 
-If you find a bug, you can post in the place you found the mod published, or [open an issue on GitHub](https://github.com/JeanStiletto/AccessibleArena/issues).
+버그를 발견하면, 모드가 게시된 곳에 글을 올리거나 [GitHub에 이슈를 등록](https://github.com/JeanStiletto/AccessibleArena/issues)할 수 있습니다.
 
-Include the following information:
+다음 정보를 포함하세요:
 
-- What you were doing when the bug occurred
-- What you expected to happen
-- What actually happened
-- If you want to attach a game log, close the game and share the MelonLoader log file from your MTGA folder:
+- 버그가 발생했을 때 무엇을 하고 있었는지
+- 무엇이 일어날 것으로 예상했는지
+- 실제로 무엇이 일어났는지
+- 게임 로그를 첨부하고 싶다면 게임을 닫고 MTGA 폴더의 MelonLoader 로그 파일을 공유하세요:
   - WotC: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
   - Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\MelonLoader\Latest.log`
 
-<h2>Known issues</h2>
-The game should cover nearly every screen in the game but there might be some edge cases not fully functioning. PayPal blocks blind users with an illegal non-audio captcha so you have to use sighted help or other payment methods if you wanna spend real money on the game.
-Some specific events might not be fully working. Drafting with real players has a lobby screen not supported yet, but in quickdraft you pick cards against bots before you face human opponents, this is functional and a recommended mode for everyone who likes this kind of experience. Cube mode is untouched. I don't even really know what this is about and it costs a lot of in-game resources. So I will do this if I have time or on request.
-The cosmetics system of the game with Emotes, Pets, card styles and titles is only partly supported yet.
-The mod is only tested on Windows with NVDA and JAWS and still relies on the unmodified Tolk library. I cannot test Mac or Linux compatibility here, and cross-platform libraries like Prism didn't fully support the old .NET versions the game depends on at this point. So I will only switch to a broader library if people can help out with testing for either other platforms or Asian screen readers that aren't fully supported by unmodified Tolk. So don't hesitate to contact me if you want me working on this.
+<h2>알려진 문제</h2>
+게임은 거의 모든 화면을 다루어야 하지만, 완전히 작동하지 않는 일부 엣지 케이스가 있을 수 있습니다. PayPal은 시각 장애인 사용자를 비음성 불법 캡챠로 차단하기 때문에, 게임에 실제 돈을 쓰고 싶다면 정안자의 도움을 받거나 다른 결제 방식을 사용해야 합니다.
+일부 특정 이벤트는 완전히 작동하지 않을 수 있습니다. 실제 플레이어와의 드래프트는 아직 지원되지 않는 로비 화면이 있지만, 퀵드래프트에서는 인간 상대와 맞서기 전에 봇에 맞서 카드를 고르는데, 이는 작동하며 이런 유형의 경험을 좋아하는 모든 이에게 권장되는 모드입니다. 큐브 모드는 손대지 않았습니다. 그게 무엇에 관한 것인지도 잘 모르고, 게임 내 자원을 많이 소비합니다. 그래서 시간이 있거나 요청이 있을 때 작업할 예정입니다.
+이모트, 펫, 카드 스타일, 칭호가 있는 게임의 코스메틱 시스템은 현재 부분적으로만 지원됩니다.
+이 모드는 Windows에서 NVDA와 JAWS로만 테스트되었으며, 여전히 수정되지 않은 Tolk 라이브러리에 의존하고 있습니다. 여기서 Mac이나 Linux 호환성을 테스트할 수 없으며, Prism과 같은 크로스 플랫폼 라이브러리는 현 시점에 게임이 의존하는 구 .NET 버전을 완전히 지원하지 않았습니다. 그래서 다른 플랫폼이나 수정되지 않은 Tolk에서 완전히 지원되지 않는 아시아 스크린 리더의 테스트를 도와줄 수 있는 사람이 있어야만 더 넓은 라이브러리로 전환할 예정입니다. 그러니 이 작업을 해주길 원한다면 주저 없이 연락해 주세요.
 
-For the current list of known issues, see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+현재 알려진 문제 목록은 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)를 참조하세요.
 
-<h2>Disclaimers</h2>
-<h3>Other accessibilities</h3>
+<h2>면책 조항</h2>
+<h3>다른 종류의 접근성</h3>
 
-This mod calls itself Accessible Arena mostly cause it sounds good. But at the moment this is only a screen reader accessibility mod. I am absolutely interested in covering more disabilities with this mod, visual impairments, motoric disabilities etc. But I am only experienced in screen reader accessibility. As fully blind person for example questions of coloring and fonts are fully abstract to me. So if you want something in this kind implemented please don't hesitate to contact me if you can clearly describe what your needs are and are willing to help me test the results.
-Then I am happy to give the name of this mod more truth.
+이 모드는 주로 어감이 좋기 때문에 Accessible Arena라고 부릅니다. 그러나 현재로서는 스크린 리더 접근성 모드일 뿐입니다. 저는 시각 장애, 운동 장애 등 더 많은 장애를 이 모드로 다루는 것에 절대적으로 관심이 있습니다. 그러나 저는 스크린 리더 접근성에만 경험이 있습니다. 예를 들어 전맹인으로서 색상이나 글꼴에 관한 질문은 저에게 완전히 추상적입니다. 그러니 그런 종류의 것을 구현해 달라고 원한다면, 자신의 필요를 명확하게 설명할 수 있고 결과를 테스트하는 데 도움을 줄 의사가 있을 때 주저 없이 연락해 주세요.
+그러면 이 모드의 이름에 더 많은 진실을 주는 것을 기쁘게 생각할 것입니다.
 
-<h3>Company contact</h3>
+<h3>회사 연락처</h3>
 
-Sadly I wasn't able to get reliable insights into the Arena team or informal developer contacts. So I decided to skip their official communication channels for the moment. In 3 months of building and playing I never hit any bot protection system, so I don't think they can detect us as mod users. But I didn't want to take the risk of communicating on official channels as a single person. So spread the word about the mod and let's build a big, valuable community. Then we will have a much better position if we decide to reach out directly. Just don't try to write to them without communicating with me first. Especially don't send them requests for native accessibility or integration of my mod into their code base. Neither will happen in any case.
+아쉽게도 Arena 팀이나 비공식 개발자 연락처에 대한 신뢰할 만한 정보를 얻지 못했습니다. 그래서 당분간 그들의 공식 커뮤니케이션 채널을 건너뛰기로 결정했습니다. 개발과 플레이를 한 3개월 동안 저는 봇 방지 시스템에 걸린 적이 없어서 그들이 우리를 모드 사용자로 감지할 수 있다고 생각하지 않습니다. 그러나 저는 단 한 사람으로서 공식 채널에서 소통하는 위험을 감수하고 싶지 않았습니다. 그러니 모드에 대해 퍼뜨리고 크고 가치 있는 커뮤니티를 만듭시다. 그러면 직접 연락을 취하기로 결정할 때 훨씬 더 나은 위치에 있게 될 것입니다. 저와 먼저 소통하지 않고 그들에게 글을 쓰려고 하지 말아 주세요. 특히 네이티브 접근성이나 제 모드를 그들의 코드베이스에 통합해 달라는 요청은 보내지 말아 주세요. 어쨌든 둘 다 일어나지 않을 것입니다.
 
-<h3>In-game purchases</h3>
+<h3>인게임 구매</h3>
 
-Arena has some real money mechanics and you can buy an in-game currency. Those payment methods are mostly accessible except for PayPal cause they included captcha protection of their login. You can try to uninstall the mod for payment method registration and ask sighted help but even this is unreliable due to their accessibility nightmare of a captcha further absolutely broken and badly implemented by Wizards of the Coast. 
-But other payment methods work stable. I and others tested in-game purchasing of things and it should be safe to use the system. But it is absolutely possible that there will occur bugs or even that the mod will mislead you. Could click on the wrong things, show you wrong or incomplete information, do the wrong things due to internal changes of Arena. I could test it but I cannot 100% guarantee that you could buy the wrong things with your real money. I won't take responsibility for this and due to the fact that this is no official Arena product the game company won't do this as well. Please don't even try to get refunds in this case they won't give you those.
+Arena에는 실제 돈과 관련된 메커니즘이 일부 있고 게임 내 통화를 구매할 수 있습니다. 이 결제 수단들은 로그인에 캡챠 보호를 포함시킨 PayPal을 제외하고는 대부분 접근 가능합니다. 결제 수단 등록을 위해 모드를 제거하고 정안자의 도움을 요청해 볼 수 있지만, Wizards of the Coast가 더욱 망가지고 잘못 구현한 접근성 악몽 같은 그들의 캡챠 때문에 이것조차 신뢰할 수 없습니다.
+그러나 다른 결제 수단들은 안정적으로 작동합니다. 저와 다른 사람들은 인게임 구매를 테스트했으며 시스템 사용은 안전해야 합니다. 그러나 버그가 발생하거나 모드가 여러분을 오도할 가능성도 절대적으로 있습니다. 잘못된 것을 클릭하거나, 틀리거나 불완전한 정보를 보여주거나, Arena의 내부 변경으로 잘못된 일을 할 수 있습니다. 저는 테스트할 수 있지만, 여러분이 실제 돈으로 잘못된 것을 사지 않을 것이라고 100% 보장할 수는 없습니다. 저는 이에 대한 책임을 지지 않을 것이며, 이것이 공식 Arena 제품이 아니라는 사실 때문에 게임 회사도 그렇게 하지 않을 것입니다. 이 경우 환불을 받으려 하지 마세요. 그들은 환불해 주지 않을 것입니다.
 
-<h3>AI use</h3>
+<h3>AI 사용</h3>
 
-The code of this mod is 100% created with the help of Anthropic's Claude agent using the Opus models: it started on 4.5, most of the development happened on 4.6, and the final steps toward release were done on 4.7. And thanks to my biggest contributor a bit of Codex as well. I am aware of the problems with AI use. But in a time where everyone uses those software to do a lot of way more shady things while gaming industry couldn't give us the accessibility we want in terms of quality or quantity I still decided to use the tools.
+이 모드의 코드는 Anthropic의 Claude 에이전트의 도움으로 100% 생성되었으며, Opus 모델을 사용했습니다: 4.5에서 시작하여 대부분의 개발은 4.6에서 이루어졌고, 릴리스를 향한 마지막 단계는 4.7에서 이루어졌습니다. 그리고 제 최대 공헌자 덕분에 Codex도 약간 사용했습니다. 저는 AI 사용의 문제점을 알고 있습니다. 그러나 모두가 이러한 소프트웨어를 훨씬 더 수상한 많은 일에 사용하는 시대이면서, 게임 업계는 우리가 원하는 품질이나 양의 접근성을 제공하지 못하고 있는 가운데, 저는 그래도 이 도구들을 사용하기로 결정했습니다.
 
-<h2>How to contribute</h2>
+<h2>기여 방법</h2>
 
-I am happy to take contributions and with [blindndangerous](https://github.com/blindndangerous) already a lot of helpful work of another person is part of this mod. I am especially interested in improvement and fixes for things I cannot test like different system configurations, fixing languages I don't speak etc. But take feature requests as well. Before you work on something check known issues.
+기여를 받는 것이 기쁩니다. [blindndangerous](https://github.com/blindndangerous) 덕분에 이미 다른 사람의 많은 유용한 작업이 이 모드의 일부가 되었습니다. 특히 다른 시스템 구성이나 제가 말하지 못하는 언어 수정처럼 제가 테스트할 수 없는 것들에 대한 개선과 수정에 관심이 있습니다. 그러나 기능 요청도 받습니다. 작업하기 전에 알려진 문제를 확인하세요.
 
-- For general contribution guidelines, see [CONTRIBUTING.md](../CONTRIBUTING.md)
-- For translation help, see [CONTRIBUTING_TRANSLATIONS.md](CONTRIBUTING_TRANSLATIONS.md)
+- 일반 기여 가이드라인은 [CONTRIBUTING.md](../CONTRIBUTING.md)를 참조
+- 번역 도움은 [CONTRIBUTING_TRANSLATIONS.md](CONTRIBUTING_TRANSLATIONS.md)를 참조
 
-<h2>Credits</h2>
+<h2>크레딧</h2>
 
-And now I want to thank a whole lot of people, cause thankfully this was not just me and the AI in a black box but a whole network around me, helping out, empowering, just being social and nice.
-Please DM me if I forgot you or if you want to be known under a different name or not mentioned.
+이제 많은 사람에게 감사 인사를 전하고 싶습니다. 다행히 이것은 저와 AI만이 블랙박스 안에서 한 일이 아니라 저를 둘러싼 네트워크 전체가 도와주고, 힘을 실어주고, 사회적이고 친절하게 대해 주었기 때문입니다.
+제가 여러분을 잊었거나 다른 이름으로 알려지거나 언급되지 않길 원한다면 DM을 보내주세요.
 
-First this work is grounded very much on the work of other people who did the pioneer things I just have to redo for accessible arena.
-In terms of design this is Hearthstone Access I could inherit a lot not just cause it's well known for everyone who played the game but cause it's really good UI design.
-In terms of modding I want to thank the members of Zax's modding Discord. You not just figured all the stuff out all the tools and procedures out I just had to install and use. You taught me everything I have to know about AI modding either directly or by discussing things in public or helping other newbies out. Further you gave me a platform and community I and my project can exist in.
+먼저 이 작업은 제가 Accessible Arena를 위해 그저 다시 해야 했던 개척 작업을 해낸 다른 사람들의 작업에 매우 근거하고 있습니다.
+디자인 면에서는 Hearthstone Access로부터 많은 것을 물려받을 수 있었습니다. 게임을 해본 모두에게 잘 알려져 있기 때문만이 아니라, 정말로 좋은 UI 디자인이기 때문입니다.
+모딩 면에서는 Zax의 모딩 Discord 멤버들에게 감사하고 싶습니다. 제가 그저 설치하고 사용하기만 하면 되었던 모든 도구와 절차를 다 알아낸 것뿐만 아니라, AI 모딩에 대해 제가 알아야 할 모든 것을 직접 또는 공공장소에서 토론하거나 다른 초보자를 도우면서 가르쳐 주셨습니다. 또한 저와 제 프로젝트가 존재할 수 있는 플랫폼과 커뮤니티를 제공해 주셨습니다.
 
-For huge code contributions I want to thank [blindndangerous](https://github.com/blindndangerous) who did a lot of work on this project as well. Over the project lifespan I think I got like 50 PRs and more from him regarding all types of problems from small annoying stuff to work out up to bigger UI suggestions and accessibility for whole screens of the game.
-Further thanks to Ahix who created [refactoring prompts for large AI-coded projects](https://github.com/ahicks92/llm-mod-refactoring-prompts) I ran on top of my own refactorings to ensure code quality and maintainability.
+대규모 코드 기여에 대해 이 프로젝트에 많은 작업을 해 준 [blindndangerous](https://github.com/blindndangerous)에게 감사하고 싶습니다. 프로젝트 수명 동안 그에게서 작고 성가신 것부터 더 큰 UI 제안과 게임의 전체 화면 접근성에 이르기까지 모든 종류의 문제에 대해 약 50건의 PR과 그 이상을 받은 것 같습니다.
+또한 코드 품질과 유지관리성을 보장하기 위해 제 자체 리팩토링 위에 실행한 [대규모 AI 코드 프로젝트용 리팩토링 프롬프트](https://github.com/ahicks92/llm-mod-refactoring-prompts)를 만든 Ahix에게도 감사드립니다.
 
-For testing the betas, feedback and ideas I want to thank:
+베타 테스트, 피드백, 아이디어에 대해 감사하고 싶은 분들:
 - Alfi
 - Plüschyoda
 - Firefly92
@@ -246,37 +244,37 @@ For testing the betas, feedback and ideas I want to thank:
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 
-For sighted testing to understand visual workflows and confirming some things I want to thank:
+시각적 워크플로를 이해하고 몇 가지를 확인하기 위한 정안자 테스트에 감사하고 싶은 분들:
 - [mauriceKA](https://github.com/mauriceKA)
 - VeganWolf
 - Lea Holstein
 
-<h3>Tools used</h3>
+<h3>사용된 도구</h3>
 
-- Claude with all included models
+- 포함된 모든 모델의 Claude
 - MelonLoader
-- Harmony for IL patching
-- Tolk for screen reader communication
-- ILSpy for decompiling game code
+- IL 패치용 Harmony
+- 스크린 리더 통신용 Tolk
+- 게임 코드 역컴파일용 ILSpy
 
-<h2>Support your modder</h2>
+<h2>당신의 모더를 후원하세요</h2>
 
-Creating this mod was not just a lot of fun and empowerment for me but cost me really a lot of time and real money for Claude subscriptions. I will keep those to work on further improvements and keep maintenance of the project over the next years.
-So if you are willing and able to afford a one-time or even monthly donation you can look over here.
-I would highly appreciate this recognition of my work and it gives me a stable base to keep working on Arena and, hopefully, other large projects in the future.
+이 모드를 만드는 것은 저에게 많은 재미와 힘이 되었을 뿐만 아니라, Claude 구독을 위한 많은 시간과 실제 돈이 들었습니다. 향후 몇 년간 더 나은 개선 작업을 위해 이를 유지하고 프로젝트 유지관리를 계속할 것입니다.
+그래서 일회성 또는 매월 기부를 할 의사와 능력이 있다면 여기를 확인해 보세요.
+제 작업에 대한 이 인정을 매우 감사히 여기며, 이는 제가 Arena와, 바라건대 미래의 다른 대규모 프로젝트에 계속 작업할 수 있는 안정적인 기반을 제공합니다.
 
 [Ko-fi: ko-fi.com/jeanstiletto](https://ko-fi.com/jeanstiletto)
 
-<h2>License</h2>
+<h2>라이선스</h2>
 
-This project is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
+이 프로젝트는 GNU General Public License v3.0에 따라 라이선스됩니다. 자세한 내용은 LICENSE 파일을 참조하세요.
 
-<h2>Links</h2>
+<h2>링크</h2>
 
 - [GitHub](https://github.com/JeanStiletto/AccessibleArena)
 - [MelonLoader](https://github.com/LavaGang/MelonLoader)
 - [MTG Arena](https://magic.wizards.com/mtgarena)
 
-<h2>Other languages</h2>
+<h2>다른 언어</h2>
 
 [English](../README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [日本語](README.ja.md) | [Polski](README.pl.md) | [Português (Brasil)](README.pt-BR.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
