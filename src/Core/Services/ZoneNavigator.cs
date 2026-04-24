@@ -959,6 +959,34 @@ namespace AccessibleArena.Core.Services
                     }
                 }
             }
+            else if (_currentZone == ZoneType.Hand)
+            {
+                // Cards from other zones (flashback/foretell/commander) are visually placed
+                // in the hand holder. Exclude them from the hand size and index so the
+                // announced count reflects the real hand size. For a non-hand-origin card,
+                // suppress the position — the origin zone annotation already tells the user
+                // it's not actually in hand.
+                if (IsRealHandCard(card))
+                {
+                    int handPosition = 0;
+                    int handTotal = 0;
+                    for (int i = 0; i < zoneInfo.Cards.Count; i++)
+                    {
+                        if (IsRealHandCard(zoneInfo.Cards[i]))
+                        {
+                            handTotal++;
+                            if (i <= _cardIndexInZone)
+                                handPosition = handTotal;
+                        }
+                    }
+                    position = handPosition;
+                    total = handTotal;
+                }
+                else
+                {
+                    total = 0;
+                }
+            }
 
             // Add combat state if in declare attackers/blockers phase (battlefield only)
             string combatState = "";
@@ -977,7 +1005,7 @@ namespace AccessibleArena.Core.Services
             }
 
             string prefix = includeZoneName ? $"{GetZoneName(_currentZone)}, " : "";
-            string pos = Strings.PositionOf(position, total, force: true);
+            string pos = total > 0 ? Strings.PositionOf(position, total, force: true) : "";
             _announcer.Announce($"{prefix}{cardName}{originZoneText}{selectionState}{combatState}{attachmentText}{targetingText}" + (pos != "" ? $", {pos}" : ""), priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
@@ -1009,6 +1037,17 @@ namespace AccessibleArena.Core.Services
             { "Library", ZoneType.Library },
             { "Command", ZoneType.Command }
         };
+
+        /// <summary>
+        /// Returns true if the card's model zone is Hand (or unknown). Castable cards from
+        /// other zones (flashback/foretell/commander) sit in the hand holder but report a
+        /// different ZoneType — we treat those as non-hand so they don't inflate hand size.
+        /// </summary>
+        private static bool IsRealHandCard(GameObject card)
+        {
+            string modelZoneName = CardStateProvider.GetCardZoneTypeName(card);
+            return string.IsNullOrEmpty(modelZoneName) || modelZoneName == "Hand";
+        }
 
         /// <summary>
         /// Gets origin zone annotation for cards whose game zone differs from UI zone.
