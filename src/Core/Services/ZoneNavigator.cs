@@ -1199,8 +1199,9 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Unfiltered card-GO count in the OpponentHand holder — bypasses the reveal filter
-        /// so the Shift+C announcement reports the true hand size, not just visible cards.
+        /// True hand size for the opponent: counts card GOs in the OpponentHand holder
+        /// whose model zone is Hand. Cards castable from other zones (Plot/Foretell etc.)
+        /// may be visually placed in the hand holder but are not actually in the hand.
         /// </summary>
         private int GetOpponentHandTotalCount()
         {
@@ -1212,7 +1213,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (child == null || !child.gameObject.activeInHierarchy) continue;
                 if (child.gameObject == holder) continue;
-                if (CardDetector.IsCard(child.gameObject))
+                if (CardDetector.IsCard(child.gameObject) && IsRealHandCard(child.gameObject))
                     count++;
             }
             return count;
