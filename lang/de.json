@@ -273,6 +273,8 @@
   "SettingManaColorlessLabelDesc": "Sagt 3 Farblos statt nur 3 für generisches Mana in Kartenkosten",
   "SettingManaGroupColors": "Manafarben gruppieren",
   "SettingManaGroupColorsDesc": "Sagt 2 Weiß statt Weiß, Weiß für wiederholte Manasymbole in Kartenkosten",
+  "SettingBattlefieldStacking": "Kartenstapel im Spielfeld",
+  "SettingBattlefieldStackingDesc": "Fasst identische Spielfeldkarten zu einem Eintrag zusammen, angesagt als Name mal N — spiegelt die visuelle Stapelung des Spiels",
   "SettingOn": "An",
   "SettingOff": "Aus",
   "SettingChanged_Format": "{0} auf {1} gesetzt",

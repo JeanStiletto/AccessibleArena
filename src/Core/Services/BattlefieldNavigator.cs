@@ -345,6 +345,23 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // When BattlefieldStacking is on, collapse stacks of identical tokens/cards:
+            // keep the StackParent, drop the stacked-behind copies from the flat list.
+            bool stacking = AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking == true;
+            if (stacking)
+            {
+                BattlefieldStackProvider.BuildStackIndex();
+                var childIds = BattlefieldStackProvider.StackChildIds;
+                if (childIds.Count > 0)
+                {
+                    cards.RemoveAll(go =>
+                    {
+                        uint id = CardStateProvider.GetCardInstanceId(go);
+                        return id != 0 && childIds.Contains(id);
+                    });
+                }
+            }
+
             // Categorize each card into appropriate row
             foreach (var card in cards)
             {
@@ -366,6 +383,11 @@ namespace AccessibleArena.Core.Services
                 {
                     MelonLogger.Msg($"  {kvp.Key}: {kvp.Value.Count} cards");
                 }
+            }
+
+            if (stacking)
+            {
+                BattlefieldStackProvider.LogStackStructure();
             }
         }
 
@@ -705,6 +727,15 @@ namespace AccessibleArena.Core.Services
 
             var card = cards[_currentIndex];
             string cardName = CardDetector.GetCardName(card);
+
+            // When stacking is on, collapsed stacks get a "×N" suffix (e.g. "Tentakel ×5").
+            if (AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking == true)
+            {
+                uint id = CardStateProvider.GetCardInstanceId(card);
+                if (id != 0 && BattlefieldStackProvider.TryGetStackSize(id, out int stackSize) && stackSize > 1)
+                    cardName = $"{cardName} ×{stackSize}";
+            }
+
             int position = _currentIndex + 1;
             int total = cards.Count;
 

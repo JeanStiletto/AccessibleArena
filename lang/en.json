@@ -273,6 +273,8 @@
   "SettingManaColorlessLabelDesc": "Says 3 colorless instead of just 3 for generic mana in card costs",
   "SettingManaGroupColors": "Group mana colors",
   "SettingManaGroupColorsDesc": "Says 2 White instead of White, White for repeated mana symbols in card costs",
+  "SettingBattlefieldStacking": "Battlefield stacking",
+  "SettingBattlefieldStackingDesc": "Groups identical battlefield cards into one entry announced as Name times N, matching the game's visual stacking",
   "SettingOn": "On",
   "SettingOff": "Off",
   "SettingChanged_Format": "{0} set to {1}",

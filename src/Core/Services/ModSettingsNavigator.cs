@@ -128,6 +128,13 @@ namespace AccessibleArena.Core.Services
                 },
                 new SettingItem
                 {
+                    Name = Strings.SettingBattlefieldStacking,
+                    GetValue = () => _settings.BattlefieldStacking ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.BattlefieldStacking = !_settings.BattlefieldStacking,
+                    Description = Strings.SettingBattlefieldStackingDesc
+                },
+                new SettingItem
+                {
                     Name = Strings.SettingCheckForUpdates,
                     GetValue = () => _settings.CheckForUpdates ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.CheckForUpdates = !_settings.CheckForUpdates,

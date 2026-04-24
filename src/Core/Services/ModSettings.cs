@@ -30,6 +30,7 @@ namespace AccessibleArena.Core.Services
         public bool PositionCounts { get; set; } = true;
         public bool ManaColorlessLabel { get; set; } = true;
         public bool ManaGroupColors { get; set; } = true;
+        public bool BattlefieldStacking { get; set; } = false;
         public bool CheckForUpdates { get; set; } = true;
 
         /// <summary>
@@ -49,7 +50,7 @@ namespace AccessibleArena.Core.Services
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, CheckForUpdates={settings.CheckForUpdates}");
+                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, BattlefieldStacking={settings.BattlefieldStacking}, CheckForUpdates={settings.CheckForUpdates}");
             }
             catch (Exception ex)
             {
@@ -148,6 +149,7 @@ namespace AccessibleArena.Core.Services
                    $"  \"PositionCounts\": {(PositionCounts ? "true" : "false")},\n" +
                    $"  \"ManaColorlessLabel\": {(ManaColorlessLabel ? "true" : "false")},\n" +
                    $"  \"ManaGroupColors\": {(ManaGroupColors ? "true" : "false")},\n" +
+                   $"  \"BattlefieldStacking\": {(BattlefieldStacking ? "true" : "false")},\n" +
                    $"  \"CheckForUpdates\": {(CheckForUpdates ? "true" : "false")}\n" +
                    "}";
         }
@@ -164,6 +166,7 @@ namespace AccessibleArena.Core.Services
             PositionCounts = ReadJsonBool(json, "PositionCounts") ?? PositionCounts;
             ManaColorlessLabel = ReadJsonBool(json, "ManaColorlessLabel") ?? ManaColorlessLabel;
             ManaGroupColors = ReadJsonBool(json, "ManaGroupColors") ?? ManaGroupColors;
+            BattlefieldStacking = ReadJsonBool(json, "BattlefieldStacking") ?? BattlefieldStacking;
             CheckForUpdates = ReadJsonBool(json, "CheckForUpdates") ?? CheckForUpdates;
         }
 

@@ -121,6 +121,7 @@ namespace AccessibleArena.Core.Services
             _isUserTurn = true;
             _pendingPhaseAnnouncement = null;
             DuelHolderCache.Clear();
+            BattlefieldStackProvider.ClearCache();
             _instanceIdToName.Clear();
             _creatureDamage.Clear();
         }
