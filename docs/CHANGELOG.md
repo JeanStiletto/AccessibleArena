@@ -7,6 +7,7 @@ All notable changes to Accessible Arena.
 Duel:
 
 - New J hotkey on a focused card jumps between attachments and targets — cycles through the card's attachment parent, attached children, targets, and things targeting it. Cycle state persists across the jumps themselves (focus on source or last destination continues the cycle); any other focus change rebuilds it. Falls back to "no longer in play" or "{name} in {zone}" announcements when the target can't be focused.
+- New optional "Battlefield stacking" setting (F2 menu, off by default) groups identical battlefield cards into one navigable entry announced as "N Cardname" — e.g. five Tentakel tokens become a single "5 Tentakel" entry with one Left/Right step, mirroring the game's own visual stacking. Land Summary (M / Shift+M) still reports the true physical count. When a stack is split by targeting (e.g. selecting one of two Kraken for an untap effect), focus automatically advances to the next unselected copy so repeated Enter steps through the stack instead of toggling the same card. Navigation announcements now include selection state so selected and unselected copies of the same card are distinguishable by ear.
 
 Bug fixes:
 

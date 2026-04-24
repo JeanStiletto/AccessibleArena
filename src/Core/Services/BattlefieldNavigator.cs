@@ -679,22 +679,62 @@ namespace AccessibleArena.Core.Services
 
                     _announcer.Announce(announcement, AnnouncementPriority.High);
                 }
+                var clicked = _watchedCard;
                 _watchedCard = null;
+                TryAdvanceToSameNameSibling(clicked);
+            }
+        }
+
+        /// <summary>
+        /// After an Enter click that produced a state change on a stacked card, move
+        /// focus to the next same-name sibling in the current row so repeated Enter
+        /// targets the next copy instead of toggling the just-clicked card's state
+        /// back off. No-op when stacking is disabled or no sibling exists.
+        /// </summary>
+        private void TryAdvanceToSameNameSibling(GameObject clickedCard)
+        {
+            if (clickedCard == null) return;
+            if (AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking != true) return;
+
+            string clickedName = CardDetector.GetCardName(clickedCard);
+            if (string.IsNullOrEmpty(clickedName)) return;
+            uint clickedId = CardStateProvider.GetCardInstanceId(clickedCard);
+
+            DiscoverAndCategorizeCards();
+            var rowCards = _rows[_currentRow];
+            for (int i = 0; i < rowCards.Count; i++)
+            {
+                var go = rowCards[i];
+                if (go == null) continue;
+                uint id = CardStateProvider.GetCardInstanceId(go);
+                if (id == clickedId) continue;
+                if (CardDetector.GetCardName(go) != clickedName) continue;
+                _currentIndex = i;
+                AnnounceCurrentCard(priority: AnnouncementPriority.High);
+                return;
             }
         }
 
         /// <summary>
         /// Builds a combined state snapshot of a card: combat state + selection state.
         /// Used for before/after comparison to detect and announce state changes.
-        /// Selection state is only checked when combat state is empty, since combat
-        /// state already includes selection indicators (e.g. "selected to block").
+        /// We include selection state alongside combat state so targeting flows are
+        /// caught even when combat state is unchanged (e.g. tapped card targeted by
+        /// an untap ability — tap state stays "getappt", only selection flips).
+        /// Drops the redundant selection fragment when combat state already names it
+        /// (e.g. "zum Blocken ausgewählt") to avoid doubled announcements.
         /// </summary>
         private string GetCardStateSnapshot(GameObject card)
         {
             string combat = _combatNavigator?.GetCombatStateText(card) ?? "";
-            if (!string.IsNullOrEmpty(combat))
-                return combat;
-            return GetSelectionState(card);
+            string sel = GetSelectionState(card);
+            if (!string.IsNullOrEmpty(combat) && !string.IsNullOrEmpty(sel)
+                && !string.IsNullOrEmpty(Strings.Selected)
+                && combat.Contains(Strings.Selected))
+            {
+                sel = "";
+            }
+            return combat + sel;
         }
 
         /// <summary>
@@ -728,12 +768,13 @@ namespace AccessibleArena.Core.Services
             var card = cards[_currentIndex];
             string cardName = CardDetector.GetCardName(card);
 
-            // When stacking is on, collapsed stacks get a "×N" suffix (e.g. "Tentakel ×5").
+            // When stacking is on, collapsed stacks get an "N " prefix (e.g. "5 Tentakel").
+            // Prefix chosen over suffix to avoid collision with the position counter (",X von Y").
             if (AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking == true)
             {
                 uint id = CardStateProvider.GetCardInstanceId(card);
                 if (id != 0 && BattlefieldStackProvider.TryGetStackSize(id, out int stackSize) && stackSize > 1)
-                    cardName = $"{cardName} ×{stackSize}";
+                    cardName = $"{stackSize} {cardName}";
             }
 
             int position = _currentIndex + 1;
@@ -741,6 +782,17 @@ namespace AccessibleArena.Core.Services
 
             // Add combat state if available
             string combatState = _combatNavigator?.GetCombatStateText(card) ?? "";
+
+            // Add selection state so the user can tell selected vs unselected copies apart
+            // when a stack has been split by targeting (e.g. 1 of 2 Kraken selected for untap).
+            // Skip if combat state already names the selection (e.g. "zum Blocken ausgewählt").
+            string selectionState = GetSelectionState(card);
+            if (!string.IsNullOrEmpty(combatState) && !string.IsNullOrEmpty(selectionState)
+                && !string.IsNullOrEmpty(Strings.Selected)
+                && combatState.Contains(Strings.Selected))
+            {
+                selectionState = "";
+            }
 
             // Add attachment info (enchantments, equipment attached to this card)
             string attachmentText = CardStateProvider.GetAttachmentText(card);
@@ -764,7 +816,7 @@ namespace AccessibleArena.Core.Services
                 prefix = (!isRowSwitch || verbose) ? $"{rowName}, " : "";
             }
             string pos = Strings.PositionOf(position, total, force: true);
-            _announcer.Announce($"{prefix}{cardName}{typeLabel}{combatState}{attachmentText}{targetingText}" + (pos != "" ? $", {pos}" : ""), priority);
+            _announcer.Announce($"{prefix}{cardName}{typeLabel}{combatState}{selectionState}{attachmentText}{targetingText}" + (pos != "" ? $", {pos}" : ""), priority);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes
@@ -792,36 +844,42 @@ namespace AccessibleArena.Core.Services
             DiscoverAndCategorizeCards();
 
             var cards = _rows[landRow];
-            int total = cards.Count;
 
-            if (total == 0)
-                return Strings.LandSummaryEmpty(GetRowName(landRow));
-
-            // Group untapped lands by name, preserving order of first appearance
+            // Group untapped lands by name, preserving order of first appearance.
+            // Each row entry represents a stack of N identical lands (all same tap state
+            // — IsSame requires IsTapped to match), so we count the stack size, not the
+            // entry, when stacking is enabled.
             var untappedGroups = new List<KeyValuePair<string, int>>();
             var untappedCounts = new Dictionary<string, int>();
             int tappedCount = 0;
+            int total = 0;
 
             foreach (var card in cards)
             {
+                int n = GetStackSizeForCard(card);
+                total += n;
+
                 bool isTapped = CardStateProvider.GetIsTappedFromCard(card);
                 if (isTapped)
                 {
-                    tappedCount++;
+                    tappedCount += n;
                     continue;
                 }
 
                 string name = CardDetector.GetCardName(card);
                 if (untappedCounts.ContainsKey(name))
                 {
-                    untappedCounts[name]++;
+                    untappedCounts[name] += n;
                 }
                 else
                 {
-                    untappedCounts[name] = 1;
+                    untappedCounts[name] = n;
                     untappedGroups.Add(new KeyValuePair<string, int>(name, 0)); // placeholder
                 }
             }
+
+            if (total == 0)
+                return Strings.LandSummaryEmpty(GetRowName(landRow));
 
             // Build the untapped part: "2 Islands, 1 Mountain"
             var parts = new List<string>();
@@ -842,6 +900,21 @@ namespace AccessibleArena.Core.Services
                 return Strings.LandSummaryAllUntapped(totalPart, untappedPart);
 
             return Strings.LandSummaryMixed(totalPart, untappedPart);
+        }
+
+        /// <summary>
+        /// Returns how many physical cards a row entry represents. With BattlefieldStacking
+        /// off or for single-card entries, returns 1. With stacking on and a collapsed stack,
+        /// returns the stack's AllCards count.
+        /// </summary>
+        private int GetStackSizeForCard(GameObject card)
+        {
+            if (card == null) return 0;
+            if (AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking != true) return 1;
+            uint id = CardStateProvider.GetCardInstanceId(card);
+            if (id != 0 && BattlefieldStackProvider.TryGetStackSize(id, out int n) && n > 1)
+                return n;
+            return 1;
         }
 
         /// <summary>

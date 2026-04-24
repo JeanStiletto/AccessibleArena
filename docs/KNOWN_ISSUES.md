@@ -51,25 +51,6 @@ The Steam overlay is not accessible to screen readers. This causes two problems 
 
 ---
 
-### Token Attack Selection Uses Game's Internal Order
-
-When clicking a non-attacking token during declare attackers, the game always selects the first available token in its internal order, regardless of which specific token CDC was clicked. This is game behavior for identical tokens (e.g., Goblin tokens). Clicking an already-attacking token correctly deselects that specific one.
-
-**Confirmed not a position issue:** BattlefieldNavigator now sends each card's actual screen position via `Camera.main.WorldToScreenPoint`, and tokens at different positions (e.g., 127px apart) still exhibit this behavior. The game intentionally ignores which token object receives the click event.
-
-**For sighted users:** Tokens are visually stacked; clicking the stack selects them in order. This is by design.
-
-**Workaround:** Use Space ("All Attack") then deselect specific tokens, or accept that tokens are selected in the game's internal order.
-
-**Investigation history:**
-- Failed fix 1: Setting `pointerCurrentRaycast`/`pointerPressRaycast` in CreatePointerEventData - broke all card plays (incomplete RaycastResult struct)
-- Failed fix 2: `Camera.main.WorldToScreenPoint` in generic `GetScreenPosition` - broke hand card playing (hand cards are also 3D objects)
-- Fix 3 (kept): Battlefield-specific position override in `BattlefieldNavigator.ActivateCurrentCard()` - correct positions but game ignores them for tokens. Kept for potential benefit with non-token overlapping cards.
-
-**Files:** `UIActivator.cs` (SimulatePointerClick overload), `BattlefieldNavigator.cs` (ActivateCurrentCard)
-
----
-
 ### Set Filter + Text Search Combination Returns Empty Results
 
 Combining set filters (Advanced Filters) with a text search in the deck builder collection returns 0 results, even when matching cards exist. For example: searching "brand" finds Brandende Welle normally, but adding the Avatar set filter produces 0 results despite the card having the correct Avatar set code (TLA). Clearing the search shows Avatar cards; clearing the filter shows search results. The combination fails.
@@ -93,6 +74,27 @@ The "How to Play" category in the Codex of the Multiverse may be missing entries
 ---
 
 ## Monitoring
+
+### Battlefield Stacking (new in 1.0.1)
+
+Optional setting (F2 → "Battlefield stacking") that groups identical battlefield cards into one navigable entry, announced as "N Cardname" (e.g. "5 Tentakel"). Matches the game's own visual stacking: the mod reads each `UniversalBattlefieldStack` / `BattlefieldLayout` region via reflection and filters stacked-behind copies out of the flat row list. Stacks carrying attachments or exile (`HasAttachmentOrExile`) stay expanded so attachment text still lines up.
+
+Selection-aware behaviors layered on top:
+
+- When a stack is split by targeting (e.g. 1 of 2 Kraken selected for an untap effect), the `IsSame` comparator diverges on `SelectedBy`, so the game splits it into two 1-stacks. The mod detects the state change, announces it, then auto-advances focus to the next same-name sibling so repeated Enter targets the next copy instead of toggling the just-clicked card back off.
+- Navigation announcements include selection state (e.g. "Krake, getappt, ausgewählt, 1 von 2") so a user can tell the selected copy from the unselected one.
+- Land Summary (M / Shift+M) counts the real physical card count, not collapsed entries.
+
+**Monitor for:**
+- Whether the position count ("X von Y") makes sense when stacks split mid-action (e.g. clicking one of 4 creatures to block should leave "3 remaining" as the next audible step; the current auto-advance announces the shrunk stack but with a fresh position count)
+- Whether non-creature token stacks (Treasure, Food, Clue, Blood) group cleanly in PlayerNonCreatures — investigation predicted fine, needs real match exposure
+- Whether `StackParent` reassignments (game's `Sort()` can promote a different CDC to parent after attachments drop) cause stale focus after re-scans
+- HotHighlightNavigator's Tab order interacting with collapsed stacks — when only some members of a stack are valid targets, `SelectedBy` already forces a split, but edge cases around attachments + multi-target may still surface expansion the mod hasn't accounted for
+- Stacking of lands with tapped/untapped mix — row entries multiply when tap state varies across turns; the noisier Lands row may warrant a setting to keep lands always flat
+
+**Files:** `BattlefieldStackProvider.cs`, `BattlefieldNavigator.cs` (DiscoverAndCategorizeCards, AnnounceCurrentCard, CheckWatchedCardState, TryAdvanceToSameNameSibling, GetLandSummary, GetStackSizeForCard)
+
+---
 
 ### Tab Navigation Index Mismatch During Battlefield Selection
 
@@ -265,9 +267,8 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 5. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
 6. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
 7. Replace Tolk with Prism library — Tolk covers the major Western screen readers (NVDA, JAWS, Narrator) but lacks support for several Asian ones. A switch to Prism may be considered if Asian screen reader users request it. Two blockers remain: the official Prism .NET binding currently targets .NET 10, while this mod runs on .NET Framework 4.7.2; and the mod would need to be confirmed portable to macOS, which requires a contributor with access to a Mac (the maintainer does not have one).
-8. Improved display of large token stacks — currently each token is listed individually, which gets noisy with many identical tokens. Could mirror the game's visual stacking behavior by grouping identical tokens (e.g. "5 Goblin tokens, 2/2"). Needs investigation and testing; may cause more problems than it solves in real game situations (e.g. tokens with different damage, auras, or counters).
-9. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
-10. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
-11. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
-12. Missing README translations — the localized READMEs for French, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Simplified Chinese, and Traditional Chinese currently show the English text with a "not yet translated" notice at the top. Only German and Spanish are fully translated for the v1.0 release. Translations will follow in future releases.
+8. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
+9. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
+10. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
+11. Missing README translations — the localized READMEs for French, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Simplified Chinese, and Traditional Chinese currently show the English text with a "not yet translated" notice at the top. Only German and Spanish are fully translated for the v1.0 release. Translations will follow in future releases.
 
