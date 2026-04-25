@@ -71,7 +71,6 @@
   "CardType_Planeswalker": "Planeswalker",
   "CardType_Battle": "Schlacht",
   "StackSelect_Unavailable": "Stapelauswahl gerade nicht möglich",
-  "StackSelect_Sent_Format": "Stapel mit {0} {1} ausgewählt",
   "LandSummary_Empty_Format": "{0}, keine Länder",
   "LandSummary_Total_One": "1 Land",
   "LandSummary_Total_Format": "{0} Länder",

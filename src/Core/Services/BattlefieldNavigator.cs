@@ -34,6 +34,9 @@ namespace AccessibleArena.Core.Services
         private GameObject _watchedCard;
         private string _watchedStateBefore;
         private float _watchStartTime;
+        // True when the watched click was a Ctrl+Enter stack badge click. The whole stack
+        // moves together, so we don't auto-advance to a same-name sibling afterwards.
+        private bool _watchedFromStackClick;
         private const float WatchTimeoutSeconds = 3f;
         private const float WatchCheckIntervalSeconds = 0.1f;
         private float _lastWatchCheckTime;
@@ -302,6 +305,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            string stateBefore = GetCardStateSnapshot(card);
             var result = StackInteractionBridge.TrySelectStack(id);
             if (result == StackInteractionBridge.Result.Unavailable)
             {
@@ -317,9 +321,13 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            BattlefieldStackProvider.TryGetStackSize(id, out int n);
-            string name = CardDetector.GetCardName(card);
-            _announcer.Announce(Strings.StackSelectSent(n, name), AnnouncementPriority.High);
+            // Let the existing state-change watcher announce the new state on the head
+            // card (e.g. "angreifend"). The whole stack flips together, so one card's
+            // diff represents the action.
+            _watchedCard = card;
+            _watchedStateBefore = stateBefore;
+            _watchStartTime = Time.time;
+            _watchedFromStackClick = true;
         }
 
         /// <summary>
@@ -697,6 +705,7 @@ namespace AccessibleArena.Core.Services
             _watchedCard = card;
             _watchedStateBefore = stateBefore;
             _watchStartTime = Time.time;
+            _watchedFromStackClick = false;
         }
 
         /// <summary>
@@ -713,6 +722,7 @@ namespace AccessibleArena.Core.Services
             {
                 Log.Msg("BattlefieldNavigator", "State watch timed out");
                 _watchedCard = null;
+                _watchedFromStackClick = false;
                 return;
             }
 
@@ -739,8 +749,11 @@ namespace AccessibleArena.Core.Services
                     _announcer.Announce(announcement, AnnouncementPriority.High);
                 }
                 var clicked = _watchedCard;
+                bool fromStackClick = _watchedFromStackClick;
                 _watchedCard = null;
-                TryAdvanceToSameNameSibling(clicked);
+                _watchedFromStackClick = false;
+                if (!fromStackClick)
+                    TryAdvanceToSameNameSibling(clicked);
             }
         }
 
@@ -787,13 +800,24 @@ namespace AccessibleArena.Core.Services
         {
             string combat = _combatNavigator?.GetCombatStateText(card) ?? "";
             string sel = GetSelectionState(card);
-            if (!string.IsNullOrEmpty(combat) && !string.IsNullOrEmpty(sel)
-                && !string.IsNullOrEmpty(Strings.Selected)
-                && combat.Contains(Strings.Selected))
-            {
+            if (ShouldDropSelectionSuffix(combat, sel))
                 sel = "";
-            }
             return combat + sel;
+        }
+
+        /// <summary>
+        /// During declare attackers/blockers, the attacker/blocker frame already conveys
+        /// "selected" — the SelectedHighlightBattlefield child is just a cosmetic echo,
+        /// so we drop the "ausgewählt" suffix to avoid noise like "greift an, ausgewählt".
+        /// Also drops it when combat already names the selection (e.g. "zum Blocken ausgewählt").
+        /// </summary>
+        private bool ShouldDropSelectionSuffix(string combat, string sel)
+        {
+            if (string.IsNullOrEmpty(combat) || string.IsNullOrEmpty(sel))
+                return false;
+            if (!string.IsNullOrEmpty(Strings.Selected) && combat.Contains(Strings.Selected))
+                return true;
+            return _combatNavigator != null && _combatNavigator.IsInCombatPhase;
         }
 
         /// <summary>
@@ -844,14 +868,10 @@ namespace AccessibleArena.Core.Services
 
             // Add selection state so the user can tell selected vs unselected copies apart
             // when a stack has been split by targeting (e.g. 1 of 2 Kraken selected for untap).
-            // Skip if combat state already names the selection (e.g. "zum Blocken ausgewählt").
+            // Skip if combat already implies selection (declare attackers/blockers frames).
             string selectionState = GetSelectionState(card);
-            if (!string.IsNullOrEmpty(combatState) && !string.IsNullOrEmpty(selectionState)
-                && !string.IsNullOrEmpty(Strings.Selected)
-                && combatState.Contains(Strings.Selected))
-            {
+            if (ShouldDropSelectionSuffix(combatState, selectionState))
                 selectionState = "";
-            }
 
             // Add attachment info (enchantments, equipment attached to this card)
             string attachmentText = CardStateProvider.GetAttachmentText(card);
