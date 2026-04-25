@@ -250,10 +250,15 @@ namespace AccessibleArena.Core.Services
             // Enter - activate current item (only if we still have zone ownership)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                // Ctrl+Enter is the stack-selection shortcut owned by BattlefieldNavigator.
+                // Don't intercept it here, even if the primary button has a count (e.g. "3 Angreifer"
+                // during Declare Attackers makes IsSelectionModeActive return true).
+                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+
                 // In selection mode, handle Enter even if BattlefieldNavigator has zone ownership.
                 // Tab navigates to battlefield cards which delegates to BattlefieldNavigator (Left/Right work),
                 // but Enter should toggle selection rather than doing a regular click.
-                var submitInfo = IsSelectionModeActive() ? GetSubmitButtonInfo() : null;
+                var submitInfo = (!ctrl && IsSelectionModeActive()) ? GetSubmitButtonInfo() : null;
                 if (submitInfo != null && _zoneNavigator.CurrentZoneOwner == ZoneOwner.BattlefieldNavigator
                     && _battlefieldNavigator != null)
                 {
