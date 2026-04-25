@@ -101,6 +101,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpLeftRightCards,
                 Strings.HelpHomeEndCards,
                 Strings.HelpEnterPlay,
+                Strings.HelpCtrlEnterStack,
                 Strings.HelpTabTargets,
 
                 // Card details

@@ -136,6 +136,11 @@ namespace AccessibleArena.Core.Models
         public static string CardType_Planeswalker => L.Get("CardType_Planeswalker");
         public static string CardType_Battle => L.Get("CardType_Battle");
 
+        // Stack selection (Ctrl+Enter)
+        public static string StackSelectUnavailable => L.Get("StackSelect_Unavailable");
+        public static string StackSelectSent(int count, string name) =>
+            L.Format("StackSelect_Sent_Format", count, name);
+
         // Land summary (M key)
         public static string LandSummaryEmpty(string rowName) => L.Format("LandSummary_Empty_Format", rowName);
         public static string LandSummaryTotal(int count) =>
@@ -1006,6 +1011,7 @@ namespace AccessibleArena.Core.Models
         public static string HelpLeftRightCards => L.Get("HelpLeftRightCards");
         public static string HelpHomeEndCards => L.Get("HelpHomeEndCards");
         public static string HelpEnterPlay => L.Get("HelpEnterPlay");
+        public static string HelpCtrlEnterStack => L.Get("HelpCtrlEnterStack");
         public static string HelpTabTargets => L.Get("HelpTabTargets");
 
         // Card details

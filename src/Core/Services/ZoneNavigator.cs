@@ -614,6 +614,24 @@ namespace AccessibleArena.Core.Services
             else
                 zone.Cards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
 
+            // Battlefield zone: when stacking is enabled, collapse multi-card stacks
+            // to one entry (the StackParent). Mirrors BattlefieldNavigator dedup so
+            // Tab/Left-Right counts match the B/A/R row navigation counts.
+            if (zone.Type == ZoneType.Battlefield
+                && AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking == true)
+            {
+                BattlefieldStackProvider.BuildStackIndex();
+                var childIds = BattlefieldStackProvider.StackChildIds;
+                if (childIds.Count > 0)
+                {
+                    zone.Cards.RemoveAll(go =>
+                    {
+                        uint id = CardStateProvider.GetCardInstanceId(go);
+                        return id != 0 && childIds.Contains(id);
+                    });
+                }
+            }
+
             // Hidden zones — ONLY include cards visible to sighted players. Showing the rest
             // would be cheating. Library: revealed via Vizier/Future Sight/Courser. OpponentHand:
             // revealed via Duress/Inquisitor (face-up) or playable-from-exile (Plot/Foretell).

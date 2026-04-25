@@ -251,6 +251,17 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // Ctrl+Enter on a collapsed multi-card stack -> "click the count badge"
+            // (select whole stack; only meaningful during Declare Attackers/Blockers).
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            if (inBattlefield && ctrl
+                && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            {
+                RefreshIfDirty();
+                ActivateStackOnCurrentCard();
+                return true;
+            }
+
             // Enter to activate card (only when in battlefield)
             // Note: HotHighlightNavigator handles Enter for targets - this is for non-highlighted cards
             if (inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
@@ -261,6 +272,54 @@ namespace AccessibleArena.Core.Services
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Ctrl+Enter handler: invokes the game's stack-count badge click on the focused
+        /// card's stack. Only meaningful during Declare Attackers/Blockers — for other
+        /// workflows the game itself returns CanClickStack=false, so we announce
+        /// "not in combat" instead of firing the native invalid sfx.
+        /// For single-card entries (no stack), falls back to a normal Enter click.
+        /// </summary>
+        private void ActivateStackOnCurrentCard()
+        {
+            var card = GetCurrentCard();
+            if (card == null)
+            {
+                _announcer.Announce(Strings.NoCardSelected, AnnouncementPriority.High);
+                return;
+            }
+
+            uint id = CardStateProvider.GetCardInstanceId(card);
+            bool isStack = id != 0
+                && AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking == true
+                && BattlefieldStackProvider.TryGetStackSize(id, out int size) && size > 1;
+
+            if (!isStack)
+            {
+                // No stack collapse in effect — Ctrl+Enter behaves like plain Enter.
+                ActivateCurrentCard();
+                return;
+            }
+
+            var result = StackInteractionBridge.TrySelectStack(id);
+            if (result == StackInteractionBridge.Result.Unavailable)
+            {
+                _announcer.Announce(Strings.StackSelectUnavailable, AnnouncementPriority.High);
+                return;
+            }
+            if (result != StackInteractionBridge.Result.Success)
+            {
+                // Reflection/setup failure — fall back to the normal per-card click.
+                Log.Warn("BattlefieldNavigator",
+                    $"Stack click bridge failed ({result}); falling back to single click");
+                ActivateCurrentCard();
+                return;
+            }
+
+            BattlefieldStackProvider.TryGetStackSize(id, out int n);
+            string name = CardDetector.GetCardName(card);
+            _announcer.Announce(Strings.StackSelectSent(n, name), AnnouncementPriority.High);
         }
 
         /// <summary>
