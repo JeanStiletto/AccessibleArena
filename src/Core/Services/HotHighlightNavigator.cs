@@ -468,6 +468,29 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Battlefield stacking: drop highlighted children of multi-card stacks so
+            // Tab cycles through stack heads only (mirrors B/A/R row navigation).
+            // The head card stays — its highlight represents the whole stack.
+            if (AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking == true)
+            {
+                BattlefieldStackProvider.BuildStackIndex();
+                var childIds = BattlefieldStackProvider.StackChildIds;
+                if (childIds.Count > 0)
+                {
+                    var toRemove = new List<int>();
+                    foreach (var kvp in result)
+                    {
+                        var item = kvp.Value;
+                        if (item?.Zone != "Battlefield" || item.GameObject == null) continue;
+                        uint cardId = CardStateProvider.GetCardInstanceId(item.GameObject);
+                        if (cardId != 0 && childIds.Contains(cardId))
+                            toRemove.Add(kvp.Key);
+                    }
+                    foreach (var key in toRemove)
+                        result.Remove(key);
+                }
+            }
+
             return result;
         }
 
