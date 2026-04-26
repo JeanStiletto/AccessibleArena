@@ -30,7 +30,7 @@ namespace AccessibleArena
         private GameLogNavigator _gameLogNavigator;
         private ModSettings _settings;
         private PanelStateManager _panelStateManager;
-        private ChatMessageWatcher _chatMessageWatcher;
+        private SocialNotificationWatcher _socialNotificationWatcher;
 
         private bool _initialized;
         private string _lastActiveNavigatorId;
@@ -144,8 +144,10 @@ namespace AccessibleArena
                 new AssetPrepNavigator(_announcer)  // Download screen - low priority, fails gracefully
             );
 
-            // Global chat message watcher (announces incoming messages from any screen)
-            _chatMessageWatcher = new ChatMessageWatcher(_announcer);
+            // Global social notification watcher: announces incoming chat messages,
+            // friend invites, challenge invites, lobby invites/chat, and tournament-ready
+            // notifications regardless of which screen is active.
+            _socialNotificationWatcher = new SocialNotificationWatcher(_announcer);
 
             // Subscribe to focus changes for automatic card navigation
             _focusTracker.OnFocusChanged += HandleFocusChanged;
@@ -323,8 +325,8 @@ namespace AccessibleArena
             // Notify navigator manager of scene change
             _navigatorManager?.OnSceneChanged(sceneName);
 
-            // Clear chat watcher cached references on scene change
-            _chatMessageWatcher?.OnSceneChanged();
+            // Re-subscribe the social notification watcher to the new scene's ChatManager
+            _socialNotificationWatcher?.OnSceneChanged();
 
             // DuelNavigator and SideboardNavigator activate on DuelScene
             if (sceneName == DuelScene)
@@ -434,7 +436,7 @@ namespace AccessibleArena
             _navigatorManager?.Update();
 
             // Poll for incoming chat messages (global, works from any screen)
-            _chatMessageWatcher?.Update();
+            _socialNotificationWatcher?.Update();
 
             // Poll auto-update background tasks (version check announcement, download completion)
             UpdateChecker.Update(_announcer);
