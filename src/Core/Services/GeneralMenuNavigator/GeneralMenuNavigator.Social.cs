@@ -304,6 +304,16 @@ namespace AccessibleArena.Core.Services
             // Blocked section is at the bottom and collapsed, so tiles never get created.
             EnsureBlockedTilesExist(widget, widgetType, flags);
             EnsureChallengeTilesExist(widget, widgetType, flags);
+
+            // After toggling section open state, ask the game to rebuild its tile layout.
+            // Without this, an incoming/outgoing invite section we just opened (or whose
+            // tiles were deactivated by a prior viewport calc) stays empty.
+            var updateMethod = widgetType.GetMethod("UpdateSocialEntityList", AllInstanceFlags);
+            if (updateMethod != null)
+            {
+                updateMethod.Invoke(widget, null);
+                Log.Msg("{NavigatorId}", $"Called UpdateSocialEntityList to refresh invite/friend tiles");
+            }
         }
 
         /// <summary>
