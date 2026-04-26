@@ -344,11 +344,15 @@ namespace AccessibleArena.Core.Services
 
             // Parent-subtree fallback: the label TMP_Text for toggles like the RegistrationPanel
             // checkboxes (OffersToggle, TermsConditionsToggle, ...) is a sibling of the inner
-            // "Toggle" GO, not a descendant. Scan the immediate parent's subtree only — walking
-            // further up leaks sibling controls' text (e.g. Data Toggle picking up adjacent
-            // checkbox labels in a shared group).
+            // "Toggle" GO, not a descendant. ONLY walk into the parent's subtree when the parent
+            // is a true 1:1 wrapper around a single Toggle — otherwise the parent is a row /
+            // container that holds many siblings (search input, tooltips, neighbour toggles)
+            // whose text leaks into the wrong toggle (e.g. deck-builder color filters picked up
+            // the search input's "Suche ..." placeholder, then an event-pool tooltip). The
+            // 1:1-wrapper test rules those out: registration wrappers contain exactly one Toggle,
+            // multi-toggle filter rows do not.
             var parent = toggle.transform.parent;
-            if (parent != null)
+            if (parent != null && IsSingleToggleWrapper(parent, toggle))
             {
                 string parentLocalizeText = TryGetLocalizeTextExcluding(parent.gameObject, toggle.gameObject);
                 if (!string.IsNullOrEmpty(parentLocalizeText))
@@ -372,6 +376,20 @@ namespace AccessibleArena.Core.Services
 
             // Return empty - UIElementClassifier will use object name as fallback
             return string.Empty;
+        }
+
+        /// <summary>
+        /// True when <paramref name="parent"/> is a 1:1 wrapper around <paramref name="toggle"/>:
+        /// the only Toggle in the parent's subtree is this one. Registration-panel wrappers like
+        /// OffersToggle satisfy this; multi-toggle filter rows (e.g. deck-builder color filters)
+        /// do not.
+        /// </summary>
+        private static bool IsSingleToggleWrapper(Transform parent, Toggle toggle)
+        {
+            if (parent == null) return false;
+            var toggles = parent.GetComponentsInChildren<Toggle>(true);
+            if (toggles == null || toggles.Length != 1) return false;
+            return toggles[0] == toggle;
         }
 
         private static string GetDropdownText(TMP_Dropdown d) =>
