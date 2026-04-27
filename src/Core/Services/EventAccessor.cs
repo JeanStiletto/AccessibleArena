@@ -35,6 +35,7 @@ namespace AccessibleArena.Core.Services
         {
             public FieldInfo EventContexts;       // _eventContexts (Dictionary<string, FactionEventContext>)
             public FieldInfo CurrentKey;          // _currentEventContextKey (string)
+            public FieldInfo CurrentDescription;  // _currentFactionDescription (TextComponent — dynamic, swaps on faction selection)
         }
 
         private sealed class FactionEventContextHandles
@@ -77,6 +78,19 @@ namespace AccessibleArena.Core.Services
             public FieldInfo[] ButtonFields;
         }
 
+        private sealed class EventUxInfoHandles
+        {
+            public PropertyInfo FactionSealedUXInfo; // List<FactionSealedUXInfo> (interface property)
+        }
+
+        private sealed class FactionUxInfoHandles
+        {
+            public PropertyInfo FactionInternalName;
+            public PropertyInfo FactionEventNameLoc;
+            public PropertyInfo FactionSelectShortNameLoc;
+            public PropertyInfo EventPageDescriptionLoc;
+        }
+
         private static readonly ReflectionCache<TileHandles> _tileCache = new ReflectionCache<TileHandles>(
             builder: t => new TileHandles
             {
@@ -104,6 +118,7 @@ namespace AccessibleArena.Core.Services
             {
                 EventContexts = t.GetField("_eventContexts", PrivateInstance),
                 CurrentKey = t.GetField("_currentEventContextKey", PrivateInstance),
+                CurrentDescription = t.GetField("_currentFactionDescription", PrivateInstance),
             },
             validator: h => h.EventContexts != null && h.CurrentKey != null,
             logTag: "EventAccessor",
@@ -180,6 +195,27 @@ namespace AccessibleArena.Core.Services
             validator: h => h.ButtonFields != null && System.Array.Exists(h.ButtonFields, f => f != null),
             logTag: "EventAccessor",
             logSubject: "MainButtonComponent");
+
+        private static readonly ReflectionCache<EventUxInfoHandles> _eventUxInfoCache = new ReflectionCache<EventUxInfoHandles>(
+            builder: t => new EventUxInfoHandles
+            {
+                FactionSealedUXInfo = t.GetProperty("FactionSealedUXInfo", PublicInstance),
+            },
+            validator: h => h.FactionSealedUXInfo != null,
+            logTag: "EventAccessor",
+            logSubject: "EventUXInfo");
+
+        private static readonly ReflectionCache<FactionUxInfoHandles> _factionUxInfoCache = new ReflectionCache<FactionUxInfoHandles>(
+            builder: t => new FactionUxInfoHandles
+            {
+                FactionInternalName = t.GetProperty("FactionInternalName", PublicInstance),
+                FactionEventNameLoc = t.GetProperty("FactionEventNameLoc", PublicInstance),
+                FactionSelectShortNameLoc = t.GetProperty("FactionSelectShortNameLoc", PublicInstance),
+                EventPageDescriptionLoc = t.GetProperty("EventPageDescriptionLoc", PublicInstance),
+            },
+            validator: h => h.FactionEventNameLoc != null && h.EventPageDescriptionLoc != null,
+            logTag: "EventAccessor",
+            logSubject: "FactionSealedUXInfo");
 
         // Cached component references (invalidated on scene change)
         private static MonoBehaviour _cachedEventPageController;
@@ -436,6 +472,20 @@ namespace AccessibleArena.Core.Services
                 var controller = FindActiveEventController();
                 if (controller == null) return blocks;
 
+                bool isFactionEvent = controller.GetType().Name == T.FactionalizedEventTemplate;
+
+                // For V2 events, resolve the dynamic faction-description Transform via reflection.
+                // The TMP under it is replaced as the user (or SelectRandomFaction) chooses a faction
+                // — initially the combined "all factions" overview text, then a single faction's text
+                // — so we suppress whichever it currently holds and emit explicit per-faction blocks.
+                Transform descriptionRoot = null;
+                if (isFactionEvent)
+                {
+                    var ch = _factionalizedCache.Handles?.CurrentDescription;
+                    var descComp = ch?.GetValue(controller) as Component;
+                    if (descComp != null) descriptionRoot = descComp.transform;
+                }
+
                 var seenTexts = new System.Collections.Generic.HashSet<string>();
                 string label = Strings.EventInfoLabel;
 
@@ -462,6 +512,12 @@ namespace AccessibleArena.Core.Services
                     if (IsInsideComponent(tmp.transform, controller.transform, "FactionalizedEventBladeItem"))
                         continue;
 
+                    // V2 faction events: skip TMPs under the dynamic faction-description root
+                    // (resolved above). The description swaps based on faction selection and is
+                    // replaced with explicit per-faction blocks appended below.
+                    if (descriptionRoot != null && IsDescendantOf(tmp.transform, descriptionRoot))
+                        continue;
+
                     // Skip text inside GameObjects with "Objective" in name (progress milestones)
                     if (IsInsideNamedParent(tmp.transform, controller.transform, "Objective"))
                         continue;
@@ -484,6 +540,9 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
+                if (isFactionEvent)
+                    AppendFactionInfoBlocks(controller, blocks, seenTexts, label);
+
                 Log.Msg("EventAccessor", $"GetEventPageInfoBlocks: {blocks.Count} blocks");
             }
             catch (Exception ex)
@@ -492,6 +551,148 @@ namespace AccessibleArena.Core.Services
             }
 
             return blocks;
+        }
+
+        /// <summary>
+        /// Append one info block per faction in a V2 Sealed/Faction event. Each faction has
+        /// a localized event name and description (from <c>FactionSealedUXInfo</c>). The
+        /// game's UI normally shows only one faction's description at a time (swapping on
+        /// faction-button selection), which collapses badly into a single screen-reader
+        /// announcement. Splitting per faction lets the user read each independently.
+        /// </summary>
+        private static void AppendFactionInfoBlocks(
+            MonoBehaviour controller,
+            System.Collections.Generic.List<CardInfoBlock> blocks,
+            System.Collections.Generic.HashSet<string> seenTexts,
+            string label)
+        {
+            try
+            {
+                var playerEvent = GetPlayerEvent(controller);
+                if (playerEvent == null) { Log.Msg("EventAccessor", "AppendFactionInfoBlocks: playerEvent null"); return; }
+
+                var peh = _playerEventCache.Handles;
+                if (peh?.EventUxInfo == null) { Log.Msg("EventAccessor", "AppendFactionInfoBlocks: EventUxInfo handle null"); return; }
+
+                var uxInfo = peh.EventUxInfo.GetValue(playerEvent);
+                if (uxInfo == null) { Log.Msg("EventAccessor", "AppendFactionInfoBlocks: uxInfo null"); return; }
+
+                if (!_eventUxInfoCache.EnsureInitialized(uxInfo.GetType())) return;
+
+                var factionList = _eventUxInfoCache.Handles.FactionSealedUXInfo.GetValue(uxInfo) as IEnumerable;
+                if (factionList == null) { Log.Msg("EventAccessor", "AppendFactionInfoBlocks: factionList null"); return; }
+
+                // Collect (localized name, raw descLoc) pairs first — all factions typically
+                // share the same descLoc (a wall of text containing every faction's blurb).
+                var factions = new System.Collections.Generic.List<(string Name, string DescLoc)>();
+                foreach (var faction in factionList)
+                {
+                    if (faction == null) continue;
+                    if (!_factionUxInfoCache.EnsureInitialized(faction.GetType())) continue;
+
+                    var fh = _factionUxInfoCache.Handles;
+                    // Prefer FactionSelectShortNameLoc — the short name (e.g. "Silberkiel") is the
+                    // section header used inside the shared description wall. FactionEventNameLoc
+                    // is a verbose title with a shared prefix ("Sealed: Geheimnisse von Strixhaven – …")
+                    // that doesn't appear as a delimiter.
+                    string shortLoc = fh.FactionSelectShortNameLoc?.GetValue(faction) as string;
+                    string descLoc = fh.EventPageDescriptionLoc.GetValue(faction) as string;
+                    string name = UITextExtractor.ResolveLocKey(shortLoc);
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        string nameLoc = fh.FactionEventNameLoc.GetValue(faction) as string;
+                        name = UITextExtractor.ResolveLocKey(nameLoc);
+                    }
+                    if (!string.IsNullOrWhiteSpace(name))
+                        factions.Add((name, descLoc));
+                }
+
+                if (factions.Count == 0) return;
+
+                // If every faction shares the same descLoc, treat it as a combined wall and split it.
+                // Otherwise (per-faction loc keys exist) emit each faction's resolved text directly.
+                bool sharedWall = factions.TrueForAll(f => f.DescLoc == factions[0].DescLoc);
+                if (sharedWall)
+                {
+                    string wall = UITextExtractor.ResolveLocKey(factions[0].DescLoc);
+                    if (!string.IsNullOrWhiteSpace(wall))
+                        SplitWallByFactions(wall, factions, blocks, seenTexts, label);
+                }
+                else
+                {
+                    foreach (var f in factions)
+                    {
+                        string desc = UITextExtractor.ResolveLocKey(f.DescLoc);
+                        if (string.IsNullOrWhiteSpace(desc)) continue;
+                        string content = $"{f.Name}. {desc}";
+                        if (!seenTexts.Add(content)) continue;
+                        blocks.Add(new CardInfoBlock(label, content, isVerbose: false));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAccessor", $"AppendFactionInfoBlocks failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Split a shared description wall into per-faction sections. Each faction's localized
+        /// name (e.g., "Silberkiel: Schlagfertigkeits-Aggro") appears as a section header inside
+        /// the wall; the chunk between one header and the next belongs to that faction.
+        /// </summary>
+        private static int SplitWallByFactions(
+            string wall,
+            System.Collections.Generic.List<(string Name, string DescLoc)> factions,
+            System.Collections.Generic.List<CardInfoBlock> blocks,
+            System.Collections.Generic.HashSet<string> seenTexts,
+            string label)
+        {
+            // Find each faction-name occurrence in the wall (by localized name).
+            // Names like "Silberkiel: Schlagfertigkeits-Aggro" embed a colon — for matching the
+            // header, prefer the prefix before the first colon (e.g., "Silberkiel") since the
+            // wall may use a slightly different formatting after the colon.
+            var hits = new System.Collections.Generic.List<(int Index, string Name)>();
+            foreach (var f in factions)
+            {
+                if (string.IsNullOrWhiteSpace(f.Name)) continue;
+                string headerKey = f.Name;
+                int colon = headerKey.IndexOf(':');
+                if (colon > 0) headerKey = headerKey.Substring(0, colon).Trim();
+                if (string.IsNullOrWhiteSpace(headerKey)) continue;
+                int idx = wall.IndexOf(headerKey, StringComparison.Ordinal);
+                if (idx >= 0) hits.Add((idx, f.Name));
+            }
+            if (hits.Count == 0) return 0;
+            hits.Sort((a, b) => a.Index.CompareTo(b.Index));
+
+            int added = 0;
+            for (int i = 0; i < hits.Count; i++)
+            {
+                int start = hits[i].Index;
+                int end = (i + 1 < hits.Count) ? hits[i + 1].Index : wall.Length;
+                string section = wall.Substring(start, end - start).Trim();
+                if (string.IsNullOrWhiteSpace(section) || section.Length < 5) continue;
+                if (!seenTexts.Add(section)) continue;
+                blocks.Add(new CardInfoBlock(label, section, isVerbose: false));
+                added++;
+            }
+            return added;
+        }
+
+        /// <summary>
+        /// Check if <paramref name="child"/> is the same as or a descendant of <paramref name="ancestor"/>.
+        /// </summary>
+        private static bool IsDescendantOf(Transform child, Transform ancestor)
+        {
+            if (ancestor == null) return false;
+            Transform current = child;
+            while (current != null)
+            {
+                if (current == ancestor) return true;
+                current = current.parent;
+            }
+            return false;
         }
 
         /// <summary>
