@@ -28,6 +28,7 @@ Bug fixes:
 - System message popups during game loading (e.g. "Arena must be restarted") are now announced. Previously the scene-loading gate suppressed alpha-detected popups during the AssetPrep screen and was only cleared for the MatchEnd survey popup; the gate is now also cleared in GameLoading mode so `LoadingScreenNavigator` picks up these popups.
 - Friends panel now reliably shows the incoming/outgoing requests groups when invites exist — `EnsureAllSocialTilesExist` now triggers `FriendsWidget.UpdateSocialEntityList()` after toggling section open state, so collapsed or viewport-deactivated invite tiles get rebuilt before our scan.
 - Spanish localization: pack type names and the "Timer" label are now translated (verified against MTGA's own loc DB; Sideboard / Mulligan / Planeswalker correctly stay English in Spanish).
+- French localization: fixed double-encoded accents in 24 strings (e.g. Land Summary read out as "dÃ©gagÃ©s" instead of "dégagés"). Affected Land Summary, Full Control, Phase Stop, Loyalty, and a few help/menu strings; all now display proper French accents.
 
 Documentation:
 
