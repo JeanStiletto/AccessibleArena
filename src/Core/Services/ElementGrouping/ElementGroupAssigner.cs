@@ -663,6 +663,12 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (parentPath.Contains("CampaignGraph"))
                 return false;
 
+            // V2 event page (FactionalizedEventTemplate / FactionalizedEventBlade) uses
+            // "EventBlade_" naming for sub-components but is the event content page itself,
+            // not the PlayBlade overlay. Faction tiles, banners, etc. should be Content.
+            if (parentPath.Contains("FactionalizedEvent") || parentPath.Contains("FactionSelect"))
+                return false;
+
             // Direct blade containers
             if (parentPath.Contains("PlayBlade") || parentPath.Contains("Blade_") ||
                 parentPath.Contains("BladeContent") || parentPath.Contains("BladeContainer"))

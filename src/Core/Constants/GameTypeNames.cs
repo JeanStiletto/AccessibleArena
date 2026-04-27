@@ -40,6 +40,8 @@ namespace AccessibleArena.Core.Constants
         // --- Content Controllers ---
         public const string HomePageContentController = "HomePageContentController";
         public const string EventPageContentController = "EventPageContentController";
+        public const string FactionalizedEventTemplate = "FactionalizedEventTemplate";
+        public const string MainButtonComponent = "MainButtonComponent";
         public const string PacketSelectContentController = "PacketSelectContentController";
         public const string CampaignGraphContentController = "CampaignGraphContentController";
         public const string LearnToPlayControllerV2 = "LearnToPlayControllerV2";

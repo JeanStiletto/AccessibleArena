@@ -159,6 +159,13 @@ namespace AccessibleArena.Core.Services
                 return eventTileLabel;
             }
 
+            // Check if this is an event-page payment button (Pay with Gems/Gold)
+            string paymentLabel = TryGetEventPaymentButtonLabel(gameObject);
+            if (!string.IsNullOrEmpty(paymentLabel))
+            {
+                return paymentLabel;
+            }
+
             // Check if this is a packet selection option - extract packet info
             string packetLabel = TryGetPacketLabel(gameObject);
             if (!string.IsNullOrEmpty(packetLabel))

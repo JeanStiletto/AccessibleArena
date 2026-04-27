@@ -31,6 +31,17 @@ namespace AccessibleArena.Core.Services
             public FieldInfo CurrentEventContext; // _currentEventContext (EventContext)
         }
 
+        private sealed class FactionalizedEventHandles
+        {
+            public FieldInfo EventContexts;       // _eventContexts (Dictionary<string, FactionEventContext>)
+            public FieldInfo CurrentKey;          // _currentEventContextKey (string)
+        }
+
+        private sealed class FactionEventContextHandles
+        {
+            public PropertyInfo EventContext;     // FactionEventContext.EventContext (auto-property)
+        }
+
         private sealed class EventContextHandles
         {
             public FieldInfo PlayerEvent;         // EventContext.PlayerEvent (field)
@@ -58,6 +69,14 @@ namespace AccessibleArena.Core.Services
             public FieldInfo Strategy;            // _strategy (IColorChallengeStrategy)
         }
 
+        private sealed class MainButtonHandles
+        {
+            // All payment button fields on MainButtonComponent. Currency is derived from each
+            // field's name via CurrencyLabels.FromFieldName; non-currency fields (Play/Start,
+            // EventToken which carries its own localized text) return null and are skipped.
+            public FieldInfo[] ButtonFields;
+        }
+
         private static readonly ReflectionCache<TileHandles> _tileCache = new ReflectionCache<TileHandles>(
             builder: t => new TileHandles
             {
@@ -79,6 +98,25 @@ namespace AccessibleArena.Core.Services
             validator: h => h.CurrentEventContext != null,
             logTag: "EventAccessor",
             logSubject: "EventPageContentController");
+
+        private static readonly ReflectionCache<FactionalizedEventHandles> _factionalizedCache = new ReflectionCache<FactionalizedEventHandles>(
+            builder: t => new FactionalizedEventHandles
+            {
+                EventContexts = t.GetField("_eventContexts", PrivateInstance),
+                CurrentKey = t.GetField("_currentEventContextKey", PrivateInstance),
+            },
+            validator: h => h.EventContexts != null && h.CurrentKey != null,
+            logTag: "EventAccessor",
+            logSubject: "FactionalizedEventTemplate");
+
+        private static readonly ReflectionCache<FactionEventContextHandles> _factionEventContextCache = new ReflectionCache<FactionEventContextHandles>(
+            builder: t => new FactionEventContextHandles
+            {
+                EventContext = t.GetProperty("EventContext", PublicInstance),
+            },
+            validator: h => h.EventContext != null,
+            logTag: "EventAccessor",
+            logSubject: "FactionEventContext");
 
         private static readonly ReflectionCache<EventContextHandles> _eventContextCache = new ReflectionCache<EventContextHandles>(
             builder: t => new EventContextHandles
@@ -127,8 +165,25 @@ namespace AccessibleArena.Core.Services
             logTag: "EventAccessor",
             logSubject: "CampaignGraphContentController");
 
+        private static readonly ReflectionCache<MainButtonHandles> _mainButtonCache = new ReflectionCache<MainButtonHandles>(
+            builder: t => new MainButtonHandles
+            {
+                ButtonFields = new[]
+                {
+                    t.GetField("_payWithGemsButton", PrivateInstance),
+                    t.GetField("_payWithGoldButton", PrivateInstance),
+                    t.GetField("_payWithEventTokenButton", PrivateInstance),
+                    t.GetField("_playButton", PrivateInstance),
+                    t.GetField("_startButton", PrivateInstance),
+                },
+            },
+            validator: h => h.ButtonFields != null && System.Array.Exists(h.ButtonFields, f => f != null),
+            logTag: "EventAccessor",
+            logSubject: "MainButtonComponent");
+
         // Cached component references (invalidated on scene change)
         private static MonoBehaviour _cachedEventPageController;
+        private static MonoBehaviour _cachedFactionalizedController;
         private static MonoBehaviour _cachedPacketController;
         private static MonoBehaviour _cachedCampaignGraphController;
 
@@ -248,7 +303,7 @@ namespace AccessibleArena.Core.Services
         {
             try
             {
-                var controller = FindEventPageController();
+                var controller = FindActiveEventController();
                 if (controller == null) return null;
 
                 var playerEvent = GetPlayerEvent(controller);
@@ -300,15 +355,25 @@ namespace AccessibleArena.Core.Services
         private static MonoBehaviour FindEventPageController()
             => FindCachedController(ref _cachedEventPageController, T.EventPageContentController, _eventPageCache);
 
+        private static MonoBehaviour FindFactionalizedEventTemplate()
+            => FindCachedController(ref _cachedFactionalizedController, T.FactionalizedEventTemplate, _factionalizedCache);
+
+        /// <summary>
+        /// Find whichever event-page controller is currently active. Supports both the
+        /// classic <c>EventPageContentController</c> and the V2 <c>FactionalizedEventTemplate</c>
+        /// (used by Sealed/Faction events).
+        /// </summary>
+        private static MonoBehaviour FindActiveEventController()
+            => FindEventPageController() ?? FindFactionalizedEventTemplate();
+
         /// <summary>
         /// Get the IPlayerEvent from the active event page controller.
         /// Also initializes EventContext/PlayerEvent caches against their runtime types.
+        /// Handles both V1 (single _currentEventContext field) and V2 (Dictionary keyed by _currentEventContextKey).
         /// </summary>
         private static object GetPlayerEvent(MonoBehaviour controller)
         {
-            if (!_eventPageCache.IsInitialized) return null;
-
-            var eventContext = _eventPageCache.Handles.CurrentEventContext.GetValue(controller);
+            object eventContext = ExtractEventContext(controller);
             if (eventContext == null) return null;
 
             if (!_eventContextCache.EnsureInitialized(eventContext.GetType()))
@@ -323,6 +388,40 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Extract the EventContext object from either the V1 (_currentEventContext) or
+        /// V2 (_eventContexts[_currentEventContextKey].EventContext) controller.
+        /// </summary>
+        private static object ExtractEventContext(MonoBehaviour controller)
+        {
+            if (controller == null) return null;
+
+            // V1: EventPageContentController._currentEventContext
+            if (_eventPageCache.IsInitialized && controller.GetType().Name == T.EventPageContentController)
+                return _eventPageCache.Handles.CurrentEventContext.GetValue(controller);
+
+            // V2: FactionalizedEventTemplate._eventContexts[_currentEventContextKey].EventContext
+            if (_factionalizedCache.IsInitialized && controller.GetType().Name == T.FactionalizedEventTemplate)
+            {
+                var fh = _factionalizedCache.Handles;
+                string key = fh.CurrentKey.GetValue(controller) as string;
+                if (string.IsNullOrEmpty(key)) return null;
+
+                var dict = fh.EventContexts.GetValue(controller) as IDictionary;
+                if (dict == null || !dict.Contains(key)) return null;
+
+                var factionContext = dict[key];
+                if (factionContext == null) return null;
+
+                if (!_factionEventContextCache.EnsureInitialized(factionContext.GetType()))
+                    return null;
+
+                return _factionEventContextCache.Handles.EventContext.GetValue(factionContext);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Get navigable info blocks from the event page's text content.
         /// Scans all active TMP_Text in the EventPageContentController hierarchy,
         /// filters out button text and objective/progress milestones, and splits
@@ -334,7 +433,7 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var controller = FindEventPageController();
+                var controller = FindActiveEventController();
                 if (controller == null) return blocks;
 
                 var seenTexts = new System.Collections.Generic.HashSet<string>();
@@ -354,6 +453,13 @@ namespace AccessibleArena.Core.Services
                     if (IsInsideComponent(tmp.transform, controller.transform, "CustomButton"))
                         continue;
                     if (IsInsideComponent(tmp.transform, controller.transform, "CustomButtonWithTooltip"))
+                        continue;
+
+                    // V2 faction tiles: the Localize text TMP is a sibling of the CustomButton
+                    // (not a descendant), so the CustomButton check above doesn't catch it.
+                    // Skip anything inside a FactionalizedEventBladeItem — those names are
+                    // already announced via the navigable button itself.
+                    if (IsInsideComponent(tmp.transform, controller.transform, "FactionalizedEventBladeItem"))
                         continue;
 
                     // Skip text inside GameObjects with "Objective" in name (progress milestones)
@@ -1022,6 +1128,73 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        #region Event Payment Button Enrichment
+
+        /// <summary>
+        /// Get an enriched label for an event-page payment button (Pay with Gems / Gold / Event Token).
+        /// The game writes only the numeric quantity to the button text and conveys the currency
+        /// via an icon, which is invisible to screen readers. This method walks parent chain to a
+        /// MainButtonComponent, identifies which button field the element belongs to, and prefixes
+        /// the price with the localized currency name.
+        /// Returns null if not a payment button (Play / Start states already have proper labels).
+        /// </summary>
+        public static string GetEventPaymentButtonLabel(GameObject element)
+        {
+            if (element == null) return null;
+
+            try
+            {
+                var component = FindParentComponent(element, T.MainButtonComponent);
+                if (component == null) return null;
+
+                if (!_mainButtonCache.EnsureInitialized(component.GetType()))
+                    return null;
+
+                // Find which of the component's button fields the element belongs to,
+                // then ask CurrencyLabels for the matching localized currency name.
+                // Returns null for Play/Start/EventToken — those carry their own localized text.
+                foreach (var field in _mainButtonCache.Handles.ButtonFields)
+                {
+                    if (field == null) continue;
+                    if (!IsElementInButtonField(element, component, field)) continue;
+
+                    string currencyName = CurrencyLabels.FromFieldName(field.Name);
+                    if (currencyName == null) return null;
+
+                    var tmp = element.GetComponentInChildren<TMPro.TMP_Text>(true);
+                    string priceText = tmp != null ? tmp.text?.Trim() : null;
+                    return CurrencyLabels.FormatPrice(priceText, currencyName);
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAccessor", $"GetEventPaymentButtonLabel failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Check whether the element is the same GameObject as the field's button or a descendant of it.
+        /// </summary>
+        private static bool IsElementInButtonField(GameObject element, MonoBehaviour component, FieldInfo field)
+        {
+            var button = field.GetValue(component) as Component;
+            if (button == null) return false;
+
+            Transform target = button.transform;
+            Transform current = element.transform;
+            while (current != null)
+            {
+                if (current == target) return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
+        #endregion
+
         /// <summary>
         /// Walk parent chain to find a MonoBehaviour of the given type name.
         /// </summary>
@@ -1046,6 +1219,7 @@ namespace AccessibleArena.Core.Services
         public static void ClearCache()
         {
             _cachedEventPageController = null;
+            _cachedFactionalizedController = null;
             _cachedPacketController = null;
             _cachedCampaignGraphController = null;
         }

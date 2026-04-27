@@ -158,15 +158,10 @@ namespace AccessibleArena.Core.Services
                     if (string.IsNullOrEmpty(priceText))
                         priceText = UITextExtractor.GetText(customButton.gameObject) ?? customButton.gameObject.name;
 
-                    // Derive currency name from field name (icon-only in game, invisible to screen readers)
-                    string currencyName = "";
-                    string fieldName = field.Name ?? "";
-                    if (fieldName.Contains("Gem")) currencyName = Strings.CurrencyGems;
-                    else if (fieldName.Contains("Coin")) currencyName = Strings.CurrencyGold;
-                    else if (fieldName.Contains("Free")) currencyName = Strings.PrizeWallSphereCost;
-
-                    string buttonLabel = !string.IsNullOrEmpty(currencyName) && !string.IsNullOrEmpty(priceText)
-                        ? $"{priceText} {currencyName}" : priceText;
+                    // Currency icon next to the price is invisible to screen readers — derive
+                    // the currency name from the reflected field name and prepend it.
+                    string currencyName = CurrencyLabels.FromFieldName(field.Name);
+                    string buttonLabel = CurrencyLabels.FormatPrice(priceText, currencyName) ?? priceText;
 
                     _modalElements.Add((customButton.gameObject, $"{buttonLabel}, {Strings.RoleButton}"));
                 }

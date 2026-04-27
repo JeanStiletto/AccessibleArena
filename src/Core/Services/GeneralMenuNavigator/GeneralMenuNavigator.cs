@@ -505,7 +505,7 @@ namespace AccessibleArena.Core.Services
                     return Strings.ScreenDeckBuilderReadOnly;
 
                 // Event page: append event title (e.g., "Event: Jump In")
-                if (_activeContentController == "EventPageContentController")
+                if (IsEventPageController(_activeContentController))
                 {
                     string eventTitle = EventAccessor.GetEventPageTitle();
                     if (!string.IsNullOrEmpty(eventTitle))
@@ -652,7 +652,7 @@ namespace AccessibleArena.Core.Services
             {
                 InjectDeckInfoGroup();
             }
-            else if (_activeContentController == "EventPageContentController")
+            else if (IsEventPageController(_activeContentController))
             {
                 InjectEventInfoGroup();
             }
@@ -1561,7 +1561,7 @@ namespace AccessibleArena.Core.Services
             {
                 InjectDeckInfoGroup();
             }
-            else if (_activeContentController == "EventPageContentController")
+            else if (IsEventPageController(_activeContentController))
             {
                 InjectEventInfoGroup();
             }
@@ -3399,6 +3399,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool HasColorChallengeVisible() =>
             _screenDetector.HasColorChallengeVisible(GetActiveCustomButtons, GetGameObjectPath);
+
+        /// <summary>
+        /// True for either the classic <c>EventPageContentController</c> or the V2
+        /// <c>FactionalizedEventTemplate</c> (Sealed/Faction events).
+        /// </summary>
+        private static bool IsEventPageController(string controllerName) =>
+            controllerName == T.EventPageContentController || controllerName == T.FactionalizedEventTemplate;
 
         /// <summary>
         /// Get a human-readable name for the current PlayBlade state.

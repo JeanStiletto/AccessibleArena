@@ -497,6 +497,17 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Adds the localized currency name to event-page payment buttons. The game writes only
+        /// the numeric quantity (e.g. "2000") to the button text and conveys the currency via an
+        /// icon — invisible to screen readers. Returns "2000 Edelsteine" / "2000 Gold".
+        /// Returns null for non-payment buttons (Play / Start / Token already have proper text).
+        /// </summary>
+        private static string TryGetEventPaymentButtonLabel(GameObject gameObject)
+        {
+            return EventAccessor.GetEventPaymentButtonLabel(gameObject);
+        }
+
+        /// <summary>
         /// Extracts button labels from DeckManager icon buttons.
         /// These are icon-only buttons with no text, but the element name contains the function
         /// (e.g., "Clone_MainButton_Round" -> "Clone", "Delete_MainButton_Round" -> "Delete").

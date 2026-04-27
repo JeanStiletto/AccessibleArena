@@ -218,10 +218,7 @@ namespace AccessibleArena.Core.Services
             // Synthetic Details option
             if (option.ButtonObject == null && option.PriceText == "Details")
                 return "Details";
-            // If currency name is empty (real money), just show the price
-            if (string.IsNullOrEmpty(option.CurrencyName))
-                return option.PriceText;
-            return $"{option.PriceText} {option.CurrencyName}";
+            return CurrencyLabels.FormatPrice(option.PriceText, option.CurrencyName) ?? option.PriceText;
         }
 
         #endregion

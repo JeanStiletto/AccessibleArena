@@ -96,6 +96,7 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | NavBarController | NavBarController | Core |
 | HomePageContentController | HomePageContentController | Core |
 | EventPageContentController | EventPageContentController | Core |
+| FactionalizedEventTemplate | Core.Meta.MainNavigation.EventPageV2.FactionalizedEventTemplate | Core |
 | PacketSelectContentController | PacketSelectContentController | Core |
 | CampaignGraphContentController | CampaignGraphContentController | Core |
 | LearnToPlayControllerV2 | LearnToPlayControllerV2 | Core |
