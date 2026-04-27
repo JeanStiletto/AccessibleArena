@@ -55,6 +55,7 @@ namespace AccessibleArena.Core.Constants
         public const string MasteryContentController = "MasteryContentController";
         public const string PackOpeningController = "PackOpeningController";
         public const string ConstructedDeckSelectController = "ConstructedDeckSelectController";
+        public const string SealedBoosterOpenController = "SealedBoosterOpenController";
 
         // --- Color Challenge Types ---
         public const string CampaignGraphTrackModule = "CampaignGraphTrackModule";

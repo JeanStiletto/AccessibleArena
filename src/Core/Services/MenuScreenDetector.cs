@@ -35,7 +35,8 @@ namespace AccessibleArena.Core.Services
             T.ProgressionTracksContentController,
             T.PacketSelectContentController,
             T.DraftContentController,
-            T.BoosterChamberController
+            T.BoosterChamberController,
+            T.SealedBoosterOpenController
         };
 
         // Settings submenu panel names
@@ -382,6 +383,7 @@ namespace AccessibleArena.Core.Services
                 T.DraftContentController => Strings.ScreenDraft,
                 "RewardsOverlay" => Strings.ScreenRewards,
                 T.BoosterChamberController => Strings.ScreenPacks,
+                T.SealedBoosterOpenController => Strings.ScreenSealedPackOpening,
                 "NPERewards" => Strings.ScreenCardUnlocked,
                 T.ProgressionTracksContentController => Strings.ScreenMastery,
                 _ => controllerTypeName?.Replace("ContentController", "").Replace("Controller", "").Trim()
