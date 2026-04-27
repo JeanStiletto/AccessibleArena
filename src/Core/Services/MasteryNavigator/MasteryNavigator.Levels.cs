@@ -703,7 +703,8 @@ namespace AccessibleArena.Core.Services
             if (_currentTierIndex < 0 || _currentTierIndex >= level.Tiers.Count) return;
 
             var tier = level.Tiers[_currentTierIndex];
-            string announcement = Strings.MasteryTier(tier.TierName, tier.RewardName, tier.Quantity);
+            int tierQty = RewardNameAlreadyHasQuantity(tier.RewardName, tier.Quantity) ? 1 : tier.Quantity;
+            string announcement = Strings.MasteryTier(tier.TierName, tier.RewardName, tierQty);
             if (level.Tiers.Count > 1)
             {
                 string tierPos = Strings.PositionOf(_currentTierIndex + 1, level.Tiers.Count);
@@ -725,7 +726,8 @@ namespace AccessibleArena.Core.Services
             {
                 foreach (var tier in level.Tiers)
                 {
-                    parts.Add(Strings.MasteryTier(tier.TierName, tier.RewardName, tier.Quantity));
+                    int tierQty = RewardNameAlreadyHasQuantity(tier.RewardName, tier.Quantity) ? 1 : tier.Quantity;
+                    parts.Add(Strings.MasteryTier(tier.TierName, tier.RewardName, tierQty));
                 }
             }
 
@@ -752,9 +754,33 @@ namespace AccessibleArena.Core.Services
             // Show Free tier reward by default
             var tier = level.Tiers[0];
             string name = tier.RewardName;
-            if (tier.Quantity > 1)
+            if (tier.Quantity > 1 && !RewardNameAlreadyHasQuantity(name, tier.Quantity))
                 name = $"{tier.Quantity}x {name}";
             return name;
+        }
+
+        /// <summary>
+        /// Whether the reward's localized text already starts with the quantity (e.g. "600 Edelsteine"
+        /// for a 600-gem reward, "2 sagenhafte Kartenbelohnungen" for a 2-rare-card reward). The game
+        /// embeds the count for both currency and high-rarity card rewards, so prefixing "{N}x " would
+        /// produce "600x 600 Edelsteine".
+        /// </summary>
+        private static bool RewardNameAlreadyHasQuantity(string rewardName, int quantity)
+        {
+            if (string.IsNullOrEmpty(rewardName) || quantity <= 1) return false;
+
+            string raw = quantity.ToString();
+            string grouped = quantity.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+            return StartsWithQuantity(rewardName, raw) || StartsWithQuantity(rewardName, grouped);
+        }
+
+        private static bool StartsWithQuantity(string rewardName, string quantityText)
+        {
+            if (!rewardName.StartsWith(quantityText)) return false;
+            // Require a separator after the number so "60" doesn't match a "600 ..." reward
+            if (rewardName.Length == quantityText.Length) return true;
+            char next = rewardName[quantityText.Length];
+            return next == ' ' || next == 'x';
         }
 
         private string GetLevelStatus(LevelData level)
