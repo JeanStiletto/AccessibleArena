@@ -70,7 +70,7 @@
   "CardType_Enchantment": "Verzauberung",
   "CardType_Planeswalker": "Planeswalker",
   "CardType_Battle": "Schlacht",
-  "StackSelect_Unavailable": "Stapelauswahl gerade nicht möglich",
+  "StackSelect_Unavailable": "Stapelauswahl nur in Angreifer- oder Blocker-Phase verfügbar",
   "LandSummary_Empty_Format": "{0}, keine Länder",
   "LandSummary_Total_One": "1 Land",
   "LandSummary_Total_Format": "{0} Länder",

@@ -70,7 +70,7 @@
   "CardType_Enchantment": "Enchantment",
   "CardType_Planeswalker": "Planeswalker",
   "CardType_Battle": "Battle",
-  "StackSelect_Unavailable": "Stack selection not available right now",
+  "StackSelect_Unavailable": "Stack selection only available during declare attackers or blockers",
   "LandSummary_Empty_Format": "{0}, no lands",
   "LandSummary_Total_One": "1 land",
   "LandSummary_Total_Format": "{0} lands",

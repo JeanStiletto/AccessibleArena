@@ -11,12 +11,22 @@ namespace AccessibleArena.Core.Services
     /// Bridges our Ctrl+Enter shortcut to the game's stack-count badge click.
     ///
     /// In MTGA, sighted players can click the little "xN" badge hovering over a
-    /// multi-card stack to select/toggle the whole stack at once. The set of
-    /// workflows that honor this varies — Declare Attackers/Blockers, Select
-    /// Targets, Group selection, etc. We don't enumerate them; instead we ask
-    /// the current workflow's CanClickStack with our prepared proxy view, and
-    /// only dispatch when it returns true. See GameInteractionSystem.OnStackClicked
+    /// multi-card stack to select/toggle the whole stack at once. We ask the
+    /// current workflow's CanClickStack with our prepared proxy view, and only
+    /// dispatch when it returns true. See GameInteractionSystem.OnStackClicked
     /// and the IClickableWorkflow.CanClickStack extension at WorkflowBase.
+    ///
+    /// Scan of all IClickableWorkflow implementers (Core.dll) shows stack-badge
+    /// clicks are only honored by DeclareAttackersWorkflow and DeclareBlockersWorkflow.
+    /// Every other workflow — ActionsAvailableWorkflow, SelectTargetsWorkflow,
+    /// SelectionWorkflow, GroupWorkflow_BattlefieldPermanents, SelectFromGroupsWorkflow,
+    /// DistributionWorkflow, all SelectN variants, etc. — hardcodes CanClickStack=false.
+    ///
+    /// Note: tapping multiple lands at once during spell payment is handled separately
+    /// by the game itself via ActionsAvailableWorkflow.BatchManaSubmission.OnClick,
+    /// which iterates stack.AllCards on a single per-card click. That batches mana
+    /// without going through OnStackClicked, so a plain Enter on a stacked land while
+    /// paying for a spell already taps as many copies as the cost requires.
     /// </summary>
     public static class StackInteractionBridge
     {
