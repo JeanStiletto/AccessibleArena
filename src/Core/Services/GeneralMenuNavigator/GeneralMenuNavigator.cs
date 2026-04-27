@@ -2227,6 +2227,13 @@ namespace AccessibleArena.Core.Services
                 EnrichColorChallengeLabels();
             }
 
+            // V2 faction event: append "selected" to the active faction tile so users can hear
+            // which faction the selection currently sits on.
+            if (_activeContentController == T.FactionalizedEventTemplate)
+            {
+                EnrichFactionEventLabels();
+            }
+
             // Organize elements into groups for hierarchical navigation
             if (_groupedNavigationEnabled && _elements.Count > 0)
             {
@@ -3088,6 +3095,14 @@ namespace AccessibleArena.Core.Services
                 TriggerRescan();
             }
 
+            // V2 Sealed/Faction: clicking a faction tile updates SelectedFaction; rescan so
+            // the tile labels announce the new selection state.
+            if (_activeContentController == T.FactionalizedEventTemplate &&
+                EventAccessor.GetFactionInternalNameForElement(element) != null)
+            {
+                TriggerRescan();
+            }
+
             // Brawl deck builder: activating the commander empty slot toggles the Commanders
             // filter, which changes the collection card pool. Rescan so the collection group
             // picks up the newly filtered cards instead of showing stale entries.
@@ -3344,6 +3359,32 @@ namespace AccessibleArena.Core.Services
             }
 
             Log.Msg("{NavigatorId}", $"EnrichColorChallengeLabels: enriched {enriched} of {_elements.Count} elements");
+        }
+
+        /// <summary>
+        /// Append ", selected" to the faction-tile button whose internal faction name matches the
+        /// currently selected faction on a V2 Sealed/Faction event page. The game stores the
+        /// selection in <c>FactionEventContext.SelectedFaction</c>; without this enrichment the
+        /// tiles all sound the same when navigated.
+        /// </summary>
+        private void EnrichFactionEventLabels()
+        {
+            string selected = EventAccessor.GetSelectedFactionInternalName();
+            if (string.IsNullOrEmpty(selected)) return;
+
+            int enriched = 0;
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var elem = _elements[i];
+                string factionName = EventAccessor.GetFactionInternalNameForElement(elem.GameObject);
+                if (factionName != selected) continue;
+                elem.Label = string.IsNullOrEmpty(elem.Label)
+                    ? Strings.Selected
+                    : $"{elem.Label}, {Strings.Selected}";
+                _elements[i] = elem;
+                enriched++;
+            }
+            Log.Msg("{NavigatorId}", $"EnrichFactionEventLabels: marked {enriched} tile(s) as selected ({selected})");
         }
 
         #endregion

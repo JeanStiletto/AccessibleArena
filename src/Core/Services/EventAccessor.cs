@@ -41,6 +41,7 @@ namespace AccessibleArena.Core.Services
         private sealed class FactionEventContextHandles
         {
             public PropertyInfo EventContext;     // FactionEventContext.EventContext (auto-property)
+            public PropertyInfo SelectedFaction;  // FactionEventContext.SelectedFaction (string; "NO_FACTION_SELECTED" sentinel)
         }
 
         private sealed class EventContextHandles
@@ -128,6 +129,7 @@ namespace AccessibleArena.Core.Services
             builder: t => new FactionEventContextHandles
             {
                 EventContext = t.GetProperty("EventContext", PublicInstance),
+                SelectedFaction = t.GetProperty("SelectedFaction", PublicInstance),
             },
             validator: h => h.EventContext != null,
             logTag: "EventAccessor",
@@ -393,6 +395,66 @@ namespace AccessibleArena.Core.Services
 
         private static MonoBehaviour FindFactionalizedEventTemplate()
             => FindCachedController(ref _cachedFactionalizedController, T.FactionalizedEventTemplate, _factionalizedCache);
+
+        /// <summary>
+        /// Get the currently selected faction's internal name on a V2 Sealed/Faction event page.
+        /// Returns null if no faction event is active or no faction is selected (sentinel
+        /// <c>NO_FACTION_SELECTED</c>). Used to enrich faction-button labels with selection state
+        /// and to mark the matching info block.
+        /// </summary>
+        public static string GetSelectedFactionInternalName()
+        {
+            try
+            {
+                var controller = FindFactionalizedEventTemplate();
+                if (controller == null || !_factionalizedCache.IsInitialized) return null;
+
+                var fh = _factionalizedCache.Handles;
+                string key = fh.CurrentKey.GetValue(controller) as string;
+                if (string.IsNullOrEmpty(key)) return null;
+
+                var dict = fh.EventContexts.GetValue(controller) as IDictionary;
+                if (dict == null || !dict.Contains(key)) return null;
+
+                var factionContext = dict[key];
+                if (factionContext == null) return null;
+
+                if (!_factionEventContextCache.EnsureInitialized(factionContext.GetType())) return null;
+                var selectedProp = _factionEventContextCache.Handles.SelectedFaction;
+                if (selectedProp == null) return null;
+
+                string selected = selectedProp.GetValue(factionContext) as string;
+                if (string.IsNullOrEmpty(selected) || selected == "NO_FACTION_SELECTED") return null;
+                return selected;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAccessor", $"GetSelectedFactionInternalName failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// If <paramref name="element"/> is a faction-select tile (or a child of one), returns
+        /// the faction's internal name (e.g. "Silverquill"). Used by the menu navigator to detect
+        /// faction buttons and append selection state.
+        /// </summary>
+        public static string GetFactionInternalNameForElement(GameObject element)
+        {
+            if (element == null) return null;
+            try
+            {
+                var item = FindParentComponent(element, "FactionalizedEventBladeItem");
+                if (item == null) return null;
+                var prop = item.GetType().GetProperty("FactionName", PublicInstance);
+                return prop?.GetValue(item) as string;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAccessor", $"GetFactionInternalNameForElement failed: {ex.Message}");
+                return null;
+            }
+        }
 
         /// <summary>
         /// Find whichever event-page controller is currently active. Supports both the
@@ -667,6 +729,20 @@ namespace AccessibleArena.Core.Services
             hits.Sort((a, b) => a.Index.CompareTo(b.Index));
 
             int added = 0;
+
+            // Emit the wall prefix (everything before the first faction header) as a generic
+            // intro block — typically describes pack counts, deckbuilding rules, and prizes.
+            int firstHit = hits[0].Index;
+            if (firstHit > 0)
+            {
+                string intro = wall.Substring(0, firstHit).Trim();
+                if (intro.Length >= 5 && seenTexts.Add(intro))
+                {
+                    blocks.Add(new CardInfoBlock(label, intro, isVerbose: false));
+                    added++;
+                }
+            }
+
             for (int i = 0; i < hits.Count; i++)
             {
                 int start = hits[i].Index;
