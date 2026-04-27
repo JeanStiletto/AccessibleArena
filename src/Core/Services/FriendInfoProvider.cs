@@ -434,7 +434,7 @@ namespace AccessibleArena.Core.Services
                 {
                     string text = tmpText.text;
                     if (!string.IsNullOrWhiteSpace(text))
-                        return text.Trim();
+                        return UITextExtractor.StripRichText(text).Trim();
                 }
             }
             catch
@@ -466,7 +466,7 @@ namespace AccessibleArena.Core.Services
                 {
                     string text = tmpText.text;
                     if (!string.IsNullOrWhiteSpace(text))
-                        return text.Trim();
+                        return UITextExtractor.StripRichText(text).Trim();
                 }
             }
             catch
