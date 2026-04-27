@@ -49,6 +49,12 @@ namespace AccessibleArena.Core.Services
         // Track prompt button text to announce when meaningful choices appear
         private string _lastPromptButtonText;
 
+        // Default primary-button text seen at start of the current combat phase
+        // (e.g. "All Attack" / "Alle greifen an"). Used to suppress re-announcing the
+        // default when the user deselects the last attacker/blocker, which would
+        // otherwise sound like an action the user took.
+        private string _combatPhaseDefaultButtonText;
+
         // Selection mode detection (discard, choose cards to exile, etc.)
         // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
         private static readonly Regex ButtonNumberPattern = new Regex(@"(\d+)", RegexOptions.IgnoreCase);
@@ -143,6 +149,7 @@ namespace AccessibleArena.Core.Services
             _opponentIndex = -1;
             _lastItemZone = null;
             _lastPromptButtonText = null;
+            _combatPhaseDefaultButtonText = null;
             _cachedAvatarViews.Clear();
             PhaseSkipGuard.Reset();
             Log.Msg("HotHighlightNavigator", "Deactivated");
@@ -1201,6 +1208,11 @@ namespace AccessibleArena.Core.Services
                 currentText = primaryText;
             }
 
+            // Reset combat-phase default once we leave combat so a future combat phase
+            // can capture its own default text (it may differ between attackers/blockers).
+            if (!isInCombatPhase)
+                _combatPhaseDefaultButtonText = null;
+
             if (currentText != _lastPromptButtonText)
             {
                 bool shouldAnnounce = currentText != null;
@@ -1209,7 +1221,22 @@ namespace AccessibleArena.Core.Services
                 // The phase change already announced "Declare Attackers/Blockers".
                 // Real changes (text → different text) like triggered ability prompts still announce.
                 if (shouldAnnounce && isInCombatPhase && _lastPromptButtonText == null)
+                {
+                    // Capture this default text so we can suppress later transitions back to it
+                    // (e.g. user deselects the last attacker → button reverts to "All Attack").
+                    _combatPhaseDefaultButtonText = currentText;
                     shouldAnnounce = false;
+                }
+
+                // Suppress transitions back to the captured combat-phase default. The user
+                // already gets per-card feedback ("can attack") from BattlefieldNavigator;
+                // re-announcing "All Attack" sounds like an action they took, not a deselect.
+                if (shouldAnnounce && isInCombatPhase
+                    && _combatPhaseDefaultButtonText != null
+                    && currentText == _combatPhaseDefaultButtonText)
+                {
+                    shouldAnnounce = false;
+                }
 
                 if (shouldAnnounce)
                     _announcer.Announce(currentText, AnnouncementPriority.High);

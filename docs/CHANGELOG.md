@@ -22,6 +22,7 @@ Bug fixes:
 - Battlefield zone navigation (Tab from the action button, B / A / R row keys, etc.) now applies the "Battlefield stacking" dedup consistently. Previously row navigation collapsed stacks but Tab handoff via the highlight system fell into `ZoneNavigator`'s flat per-card list, surfacing every card in every stack — e.g. a battlefield with 32 stacks / 47 individual cards announced as "8 of 47" instead of "8 of 32" and let you Tab through both the stack head and the individual cards inside it. `ZoneNavigator.DiscoverCardsInZone` now drops stacked-behind copies for the Battlefield zone when the setting is enabled.
 - Friends panel now reliably shows the incoming/outgoing requests groups when invites exist — `EnsureAllSocialTilesExist` now triggers `FriendsWidget.UpdateSocialEntityList()` after toggling section open state, so collapsed or viewport-deactivated invite tiles get rebuilt before our scan.
 - Deck-screen filter checkboxes (color filters etc.) are labeled correctly again — the registration-panel sibling-label fallback was leaking the search input's "Suche ..." placeholder and event-pool tooltips into adjacent toggles; the fallback is now restricted to true 1:1 wrappers.
+- Combat phase announcements are less confusing — deselecting the last attacker no longer re-announces the default action-button text ("All Attack") as if it were an action; per-card "can attack" feedback still plays.
 
 ## v1.0.0
 
