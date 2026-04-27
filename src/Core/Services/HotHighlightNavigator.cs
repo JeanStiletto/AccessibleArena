@@ -270,6 +270,9 @@ namespace AccessibleArena.Core.Services
                         bool wasSelected = IsCardSelected(card);
                         Log.Msg("HotHighlightNavigator", $"Toggling battlefield selection: {cardName} on {card.name} (was selected: {wasSelected}, preCount: {preClickCount})");
                         var result = ClickBattlefieldCard(card);
+                        // Game may reshuffle stack membership in response to selection — invalidate
+                        // BattlefieldNavigator's cached row layout and stack-size index.
+                        _battlefieldNavigator?.MarkDirty();
                         if (result.Success)
                             MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount, card.name));
                         else
@@ -883,6 +886,8 @@ namespace AccessibleArena.Core.Services
                     var result = (item.Zone == "Battlefield")
                         ? ClickBattlefieldCard(item.GameObject)
                         : UIActivator.SimulatePointerClick(item.GameObject);
+                    if (item.Zone == "Battlefield")
+                        _battlefieldNavigator?.MarkDirty();
                     if (result.Success)
                         MelonCoroutines.Start(AnnounceSelectionToggleDelayed(item.Name, wasSelected, preClickCount, item.Zone == "Battlefield" ? item.GameObject.name : null));
                     else
@@ -1479,6 +1484,8 @@ namespace AccessibleArena.Core.Services
             var result = (zone == "Battlefield")
                 ? ClickBattlefieldCard(card)
                 : UIActivator.SimulatePointerClick(card);
+            if (zone == "Battlefield")
+                _battlefieldNavigator?.MarkDirty();
             if (result.Success)
                 MelonCoroutines.Start(AnnounceSelectionToggleDelayed(cardName, wasSelected, preClickCount, zone == "Battlefield" ? card.name : null));
             else

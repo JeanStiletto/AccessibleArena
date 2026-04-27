@@ -321,6 +321,11 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // Stack-badge click flips combat state on every member of the stack — the game
+            // will likely restructure stack membership immediately after. Mark dirty so the
+            // next navigation press rebuilds the row layout and stack-size index.
+            _dirty = true;
+
             // Let the existing state-change watcher announce the new state on the head
             // card (e.g. "angreifend"). The whole stack flips together, so one card's
             // diff represents the action.
@@ -700,6 +705,11 @@ namespace AccessibleArena.Core.Services
             {
                 UIActivator.SimulatePointerClick(card);
             }
+
+            // Tap state / combat selection / etc. may cause the game to restructure stack
+            // membership (different IsSame comparator → split or merge). Force a refresh on
+            // the next navigation press so row layout and stack-size index stay current.
+            _dirty = true;
 
             // Start watching this card for state change (checked per-frame in HandleInput)
             _watchedCard = card;
