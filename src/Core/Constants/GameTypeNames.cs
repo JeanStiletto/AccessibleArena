@@ -30,6 +30,7 @@ namespace AccessibleArena.Core.Constants
         // --- Booster Chamber Types ---
         public const string BoosterOpenToScrollListController = "BoosterOpenToScrollListController";
         public const string BoosterCardHolder = "BoosterCardHolder";
+        public const string SealedBoosterOpenAnimation = "SealedBoosterOpenAnimation";
 
         // --- Card Holder Types ---
         public const string CardPoolHolder = "CardPoolHolder";

@@ -22,6 +22,9 @@ namespace AccessibleArena.Core.Services
     public class BoosterOpenNavigator : BaseNavigator
     {
         private Component _controller;
+        private GameObject _chamberRoot;
+        private bool _isSealedMode;
+        private Component _sealedAnimation;
         private GameObject _revealAllButton;
         private int _totalCards;
         private int _expectedCardCount;
@@ -74,19 +77,26 @@ namespace AccessibleArena.Core.Services
 
         protected override bool DetectScreen()
         {
-            // Look for the BoosterChamber
-            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
-            if (boosterChamber == null || !boosterChamber.activeInHierarchy)
+            // Find the BoosterOpenToScrollListController anywhere in the active scene.
+            // Both regular booster chamber (BoosterChamber_v2_Desktop_16x9) and sealed
+            // event opening (SealedBoosterOpen_v2_Desktop_16x9) host the same scroll
+            // list controller, so we detect by component instead of GameObject name.
+            Component controller = null;
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
-                _controller = null;
-                return false;
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == T.BoosterOpenToScrollListController)
+                {
+                    controller = mb;
+                    break;
+                }
             }
-
-            // Find the BoosterOpenToScrollListController component
-            var controller = FindScrollListController(boosterChamber);
             if (controller == null)
             {
                 _controller = null;
+                _chamberRoot = null;
+                _sealedAnimation = null;
+                _isSealedMode = false;
                 return false;
             }
 
@@ -95,10 +105,34 @@ namespace AccessibleArena.Core.Services
             if (cards == null || cards.Count == 0)
             {
                 _controller = null;
+                _chamberRoot = null;
+                _sealedAnimation = null;
+                _isSealedMode = false;
                 return false;
             }
 
+            // Walk up to find the chamber root (parent containing "BoosterChamber" or "SealedBoosterOpen")
+            GameObject chamberRoot = FindChamberRoot(controller);
+            bool isSealed = chamberRoot != null && chamberRoot.name.Contains("SealedBoosterOpen");
+
+            // Sealed flow populates _cardsToOpen during Init() — before the user clicks
+            // "Öffnen". Activating now would steal focus from the Open button. Wait until
+            // the Open button is hidden (set inactive on click in OpenButton_OnClick).
+            Component sealedAnimation = null;
+            if (isSealed)
+            {
+                sealedAnimation = FindSealedAnimation(chamberRoot);
+                if (!IsSealedOpenButtonClicked(sealedAnimation))
+                {
+                    _controller = null;
+                    return false;
+                }
+            }
+
             _controller = controller;
+            _chamberRoot = chamberRoot;
+            _sealedAnimation = sealedAnimation;
+            _isSealedMode = isSealed;
             _expectedCardCount = cards.Count;
 
             // Clear AutoReveal immediately — before the animation starts spawning cards.
@@ -106,21 +140,54 @@ namespace AccessibleArena.Core.Services
             // so we must clear it before any SpawnCard call happens.
             ClearAutoReveal();
 
-            Log.Msg("{NavigatorId}", $"Pack opened with {cards.Count} cards");
+            Log.Msg("{NavigatorId}", $"Pack opened with {cards.Count} cards (sealed={isSealed})");
             return true;
         }
 
         /// <summary>
-        /// Find the BoosterOpenToScrollListController component in the booster chamber.
+        /// Walk up from the scroll list controller to find the chamber root GameObject.
+        /// The root has name like "ContentController - BoosterChamber_v2_Desktop_16x9(Clone)"
+        /// or "ContentController - SealedBoosterOpen_v2_Desktop_16x9(Clone)".
         /// </summary>
-        private Component FindScrollListController(GameObject boosterChamber)
+        private GameObject FindChamberRoot(Component controller)
         {
-            foreach (var mb in boosterChamber.GetComponentsInChildren<MonoBehaviour>(true))
+            Transform current = (controller as MonoBehaviour)?.transform;
+            while (current != null)
             {
-                if (mb != null && mb.GetType().Name == T.BoosterOpenToScrollListController)
+                if (current.name.Contains("BoosterChamber") || current.name.Contains("SealedBoosterOpen"))
+                    return current.gameObject;
+                current = current.parent;
+            }
+            // Fallback: return the controller's GameObject (better than null)
+            return (controller as MonoBehaviour)?.gameObject;
+        }
+
+        /// <summary>
+        /// Find the SealedBoosterOpenAnimation component within the chamber root.
+        /// </summary>
+        private Component FindSealedAnimation(GameObject chamberRoot)
+        {
+            if (chamberRoot == null) return null;
+            foreach (var mb in chamberRoot.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == T.SealedBoosterOpenAnimation)
                     return mb;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Check if the user has clicked the sealed Open button. The button is hidden
+        /// (gameObject.SetActive(false)) inside OpenButton_OnClick, so we use its active
+        /// state as the signal that the opening animation has started.
+        /// </summary>
+        private bool IsSealedOpenButtonClicked(Component sealedAnimation)
+        {
+            if (sealedAnimation == null) return false;
+            var openBtnField = sealedAnimation.GetType().GetField("_openButton", PrivateInstance);
+            var openBtn = openBtnField?.GetValue(sealedAnimation) as Component;
+            if (openBtn == null) return true; // Field gone — assume animation is past Open
+            return !openBtn.gameObject.activeSelf;
         }
 
         /// <summary>
@@ -545,6 +612,7 @@ namespace AccessibleArena.Core.Services
             while (current != null)
             {
                 if (current.name.Contains("BoosterChamber") ||
+                    current.name.Contains("SealedBoosterOpen") ||
                     current.name.Contains("Menu_FooterButtons"))
                     return true;
                 current = current.parent;
@@ -865,14 +933,13 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Stop pack music by sending PointerExit to the currently active pack hitbox.
         /// Same approach used by GeneralMenuNavigator when switching packs in the carousel.
+        /// Sealed event opening has no carousel/hover hitboxes — skip in that mode.
         /// </summary>
         private void StopPackMusic()
         {
-            // Find all pack hitboxes in the carousel and send PointerExit to stop their music
-            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
-            if (boosterChamber == null) return;
+            if (_isSealedMode || _chamberRoot == null) return;
 
-            foreach (Transform t in boosterChamber.GetComponentsInChildren<Transform>(true))
+            foreach (Transform t in _chamberRoot.GetComponentsInChildren<Transform>(true))
             {
                 if (t != null && t.name == "Hitbox_BoosterMesh" && t.gameObject.activeInHierarchy)
                 {
@@ -890,10 +957,10 @@ namespace AccessibleArena.Core.Services
         private void RestorePackMusic()
         {
             if (_packMusicRestored) return;
+            // Sealed event opening doesn't use the BoosterChamberController/RTPC audio path.
+            if (_isSealedMode || _chamberRoot == null) return;
 
-            // Find BoosterChamberController to read the current set code
-            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
-            if (boosterChamber == null) return;
+            var boosterChamber = _chamberRoot;
 
             Component chamberController = null;
             foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
@@ -974,8 +1041,9 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void CallUpdateRevealed()
         {
-            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
-            if (boosterChamber == null) return;
+            // Only the regular booster chamber has BoosterChamberController/UpdateRevealed.
+            if (_isSealedMode || _chamberRoot == null) return;
+            var boosterChamber = _chamberRoot;
 
             Component chamberController = null;
             foreach (var mb in boosterChamber.GetComponents<MonoBehaviour>())
@@ -1071,8 +1139,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool TryCloseChamberController()
         {
-            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
-            if (boosterChamber == null) return false;
+            // Sealed event opening uses SealedBoosterOpenAnimation._doneButton instead.
+            // The scroll list controller's DismissCards delegate routes to DoneButton_OnClick
+            // for sealed (set in Init()), so the fallback path below handles that case.
+            if (_isSealedMode) return false;
+            if (_chamberRoot == null) return false;
+            var boosterChamber = _chamberRoot;
 
             // Find the BoosterChamberController component (the NavContentController, not the scroll list)
             Component chamberController = null;
@@ -1121,15 +1193,15 @@ namespace AccessibleArena.Core.Services
             if (_controller != null)
                 return _controller;
 
-            var boosterChamber = GameObject.Find("ContentController - BoosterChamber_v2_Desktop_16x9(Clone)");
-            if (boosterChamber != null)
+            // Re-scan: works for both regular and sealed chambers
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
-                var ctrl = FindScrollListController(boosterChamber);
-                if (ctrl != null)
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == T.BoosterOpenToScrollListController)
                 {
-                    Log.Msg("{NavigatorId}", $"Re-found controller: {ctrl.GetType().Name}");
-                    _controller = ctrl;
-                    return ctrl;
+                    Log.Msg("{NavigatorId}", $"Re-found controller: {mb.GetType().Name}");
+                    _controller = mb;
+                    return mb;
                 }
             }
 
@@ -1489,6 +1561,9 @@ namespace AccessibleArena.Core.Services
                 Deactivate();
             }
             _controller = null;
+            _chamberRoot = null;
+            _sealedAnimation = null;
+            _isSealedMode = false;
             _revealAllButton = null;
         }
     }
