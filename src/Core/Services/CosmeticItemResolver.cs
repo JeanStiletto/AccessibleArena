@@ -141,8 +141,26 @@ namespace AccessibleArena.Core.Services
 
             if (string.IsNullOrEmpty(name)) return null;
 
+            // Disambiguate pet variants (skin variants share the same base name); without this
+            // the popup shows e.g. four identical "TMT Mastery Companion" rows.
+            int variantIndex = ReadIntProp(type, petItem, "VariantIndex");
+            if (variantIndex > 0)
+                name = $"{name} {variantIndex + 1}";
+
             string status = ReadCosmeticStatus(type, petItem);
             return string.IsNullOrEmpty(status) ? name : $"{name}, {status}";
+        }
+
+        private static int ReadIntProp(Type type, object instance, string propName)
+        {
+            try
+            {
+                var prop = type.GetProperty(propName, PublicInstance);
+                if (prop == null) return 0;
+                var val = prop.GetValue(instance);
+                return val is int i ? i : 0;
+            }
+            catch { return 0; }
         }
 
         #endregion

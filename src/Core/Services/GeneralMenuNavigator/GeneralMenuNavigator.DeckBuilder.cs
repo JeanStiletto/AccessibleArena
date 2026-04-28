@@ -1186,29 +1186,68 @@ namespace AccessibleArena.Core.Services
             => CosmeticItemResolver.TryResolve(buttonObj, out label);
 
         /// <summary>
-        /// When the user activates an Avatar tile inside the deck-details popup, the
-        /// game inline-instantiates an <c>AvatarSelectPanel</c> as a child of the same
-        /// popup (it is NOT a separate <c>PopupBase</c>, so PanelStateManager never
-        /// fires for it). Detect that inline expansion and treat it as a stacked popup
-        /// so the user can navigate the avatar busts.
+        /// React to popup-item activations inside the deck-cosmetic flow:
+        /// (a) Avatar tile in <c>DeckDetailsPopup</c> → inline-instantiated <c>AvatarSelectPanel</c>
+        ///     never registers with PanelStateManager. Locate the now-active panel and treat
+        ///     it as a stacked popup.
+        /// (b) Avatar bust inside <c>AvatarSelectPanel</c> → previewing a different avatar
+        ///     updates the panel's title and bio TMP_Text content silently. Re-discover so
+        ///     those text blocks reflect the new preview.
         /// </summary>
         protected override void OnPopupItemActivated(GameObject element)
         {
             base.OnPopupItemActivated(element);
             if (PopupGameObject == null) return;
-            if (!HasComponentInChildren(PopupGameObject, "DeckDetailsPopup")) return;
 
-            // Was the activated element an Avatar tile? Walk up looking for DisplayItemAvatar.
-            if (FindAncestorComponentByName(element, "DisplayItemAvatar") == null) return;
-
-            // Find the now-active AvatarSelectPanel under the popup root and switch into it.
-            var panelMb = FindActiveDescendantComponent(PopupGameObject, "AvatarSelectPanel");
-            if (panelMb == null)
+            // Case (a): activate Avatar tile in DeckDetailsPopup
+            if (HasComponentInChildren(PopupGameObject, "DeckDetailsPopup")
+                && FindAncestorComponentByName(element, "DisplayItemAvatar") != null)
             {
-                Log.Nav(NavigatorId, "Avatar tile activated but AvatarSelectPanel not found active");
+                var panelMb = FindActiveDescendantComponent(PopupGameObject, "AvatarSelectPanel");
+                if (panelMb == null)
+                {
+                    Log.Nav(NavigatorId, "Avatar tile activated but AvatarSelectPanel not found active");
+                    return;
+                }
+                EnterPopupMode(panelMb.gameObject);
                 return;
             }
-            EnterPopupMode(panelMb.gameObject);
+
+            // Case (b): activate avatar bust inside AvatarSelectPanel
+            if (PopupGameObject.GetComponent("AvatarSelectPanel") != null
+                && FindAncestorComponentByName(element, "AvatarSelection") != null)
+            {
+                RefreshPopupElementsSilently();
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Inside the cosmetic-selector popups (PetPopUpV2, CardBackSelectorPopup,
+        /// AvatarSelectPanel) the game adds non-actionable hover-area buttons (the
+        /// right-side preview hitbox, the store-redirect button when not visible).
+        /// They surface as unlabelled "button"/"pet_HitBox" entries in the screen reader.
+        /// Skip them when they're not the actual cosmetic-item button or a recognized
+        /// popup-level control.
+        /// </summary>
+        protected override bool ShouldSkipPopupButton(GameObject buttonObj)
+        {
+            if (PopupGameObject == null) return false;
+
+            bool isCosmeticPopup =
+                HasComponentInChildren(PopupGameObject, "PetPopUpV2") ||
+                HasComponentInChildren(PopupGameObject, "CardBackSelectorPopup") ||
+                PopupGameObject.GetComponent("AvatarSelectPanel") != null;
+            if (!isCosmeticPopup) return false;
+
+            // Keep cosmetic-item buttons (we resolve them via CosmeticItemResolver).
+            if (CosmeticItemResolver.TryResolve(buttonObj, out _)) return false;
+
+            // Keep buttons with real text (Bestätigen, Zurück, Profilstandard festlegen, ...).
+            string text = UITextExtractor.GetText(buttonObj);
+            if (!string.IsNullOrEmpty(text) && text.Length > 1) return false;
+
+            return true;
         }
 
         private static MonoBehaviour FindAncestorComponentByName(GameObject start, string typeName)

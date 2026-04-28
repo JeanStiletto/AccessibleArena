@@ -943,6 +943,11 @@ namespace AccessibleArena.Core.Services
                     Log.Msg("{NavigatorId}", $"Popup: skipping dismiss overlay: {obj.name}");
                     continue;
                 }
+                if (ShouldSkipPopupButton(obj))
+                {
+                    Log.Msg("{NavigatorId}", $"Popup: skipping button (subclass filter): {obj.name}");
+                    continue;
+                }
 
                 // Allow subclasses to substitute a richer label and bypass the dedup that
                 // would otherwise collapse multiple sprite-only items sharing a generic name.
@@ -990,6 +995,52 @@ namespace AccessibleArena.Core.Services
         /// Default: no-op.
         /// </summary>
         protected virtual void OnPopupItemActivated(GameObject element) { }
+
+        /// <summary>
+        /// Hook called for each candidate button before it is added to the popup element
+        /// list. Returning true skips the button entirely. Useful for filtering noisy
+        /// non-interactive overlays (e.g., right-side preview hitboxes inside cosmetic
+        /// popups that have no real keyboard action). Default: do not skip.
+        /// </summary>
+        protected virtual bool ShouldSkipPopupButton(GameObject buttonObj) => false;
+
+        /// <summary>
+        /// Silently re-run popup element discovery without announcing or exiting popup
+        /// mode. Preserves the user's current focus by GameObject identity when possible
+        /// (else clamps to the prior numeric index). Used when a popup mutates its own
+        /// content in response to an action — e.g., the avatar selector updating its
+        /// title/bio text blocks when the user previews a different bust.
+        /// </summary>
+        protected void RefreshPopupElementsSilently()
+        {
+            if (!_isInPopupMode || _popupGameObject == null) return;
+
+            int savedIndex = _currentIndex;
+            GameObject savedFocused = (savedIndex >= 0 && savedIndex < _elements.Count)
+                ? _elements[savedIndex].GameObject
+                : null;
+
+            _elements.Clear();
+            _currentIndex = -1;
+            DiscoverPopupElements(_popupGameObject);
+
+            if (savedFocused != null)
+            {
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    if (_elements[i].GameObject == savedFocused)
+                    {
+                        _currentIndex = i;
+                        break;
+                    }
+                }
+            }
+            if (_currentIndex < 0) _currentIndex = Math.Min(savedIndex, _elements.Count - 1);
+            if (_currentIndex < 0 && _elements.Count > 0) _currentIndex = 0;
+
+            UpdateEventSystemSelection();
+            Log.Msg("{NavigatorId}", $"Popup: silent refresh — {_elements.Count} items");
+        }
 
         private void DeduplicateTextBlocksAgainstButtons()
         {
