@@ -109,46 +109,98 @@ namespace AccessibleArena.Core.Services
         private static string ResolvePetLabel(MonoBehaviour petItem)
         {
             var type = petItem.GetType();
-            string petId = ReadStringProp(type, petItem, "PetId");
+
+            // Pull PetEntry from the list-item view — that's what the game itself uses
+            // (see PetUtils.KeyForPetDetails: tries Name_Variant, then Name_Level, then Name).
+            // Many pets have variant-specific localized names ("Brushwagg" vs "Solring";
+            // mastery pets across sets); resolving via the same scheme keeps us aligned.
+            object petEntry = null;
+            try
+            {
+                var petEntryProp = type.GetProperty("PetEntry", PublicInstance);
+                petEntry = petEntryProp?.GetValue(petItem);
+            }
+            catch { }
 
             string name = null;
-            if (!string.IsNullOrEmpty(petId))
+            bool variantSpecificResolved = false;
+            string petName = null;
+
+            if (petEntry != null)
             {
-                // PetId is "Name.Variant" — the localization uses the prefix.
-                string baseId = petId.Contains(".") ? petId.Substring(0, petId.IndexOf('.')) : petId;
-                string[] patterns =
+                var entryType = petEntry.GetType();
+                petName = ReadFieldString(entryType, petEntry, "Name");
+                string variant = ReadFieldString(entryType, petEntry, "Variant");
+                int level = ReadFieldInt(entryType, petEntry, "Level");
+
+                if (!string.IsNullOrEmpty(petName))
                 {
-                    $"MainNav/Cosmetics/Pet/{petId}_Details",
-                    $"MainNav/Cosmetics/Pet/{petId}_Name",
-                    $"MainNav/Cosmetics/Pet/{petId}",
-                    $"MainNav/Cosmetics/Pet/{baseId}_Details",
-                    $"MainNav/Cosmetics/Pet/{baseId}_Name",
-                    $"MainNav/Cosmetics/Pet/{baseId}",
-                    $"MainNav/Cosmetics/Pets/{baseId}",
-                };
-                foreach (var pattern in patterns)
-                {
-                    string loc = UITextExtractor.ResolveLocKey(pattern);
-                    if (!string.IsNullOrEmpty(loc))
+                    string variantKey = !string.IsNullOrEmpty(variant) ? $"MainNav/PetNames/{petName}_{variant}" : null;
+                    string levelKey = $"MainNav/PetNames/{petName}_{level}";
+                    string baseKey = $"MainNav/PetNames/{petName}";
+
+                    if (variantKey != null)
                     {
-                        name = loc;
-                        break;
+                        string loc = UITextExtractor.ResolveLocKey(variantKey);
+                        if (!string.IsNullOrEmpty(loc)) { name = loc; variantSpecificResolved = true; }
+                    }
+                    if (name == null)
+                    {
+                        string loc = UITextExtractor.ResolveLocKey(levelKey);
+                        if (!string.IsNullOrEmpty(loc)) { name = loc; variantSpecificResolved = true; }
+                    }
+                    if (name == null)
+                    {
+                        string loc = UITextExtractor.ResolveLocKey(baseKey);
+                        if (!string.IsNullOrEmpty(loc)) name = loc;
                     }
                 }
-                if (string.IsNullOrEmpty(name))
-                    name = HumanizeId(baseId);
             }
 
-            if (string.IsNullOrEmpty(name)) return null;
+            // Last-resort fallback: humanise the petKey from PetId ("Name.Variant").
+            if (string.IsNullOrEmpty(name))
+            {
+                string petId = ReadStringProp(type, petItem, "PetId");
+                string baseId = petId != null && petId.Contains(".") ? petId.Substring(0, petId.IndexOf('.')) : petId;
+                if (string.IsNullOrEmpty(baseId)) return null;
+                petName = baseId;
+                name = HumanizeId(baseId);
+            }
 
-            // Disambiguate pet variants (skin variants share the same base name); without this
-            // the popup shows e.g. four identical "TMT Mastery Companion" rows.
-            int variantIndex = ReadIntProp(type, petItem, "VariantIndex");
-            if (variantIndex > 0)
-                name = $"{name} {variantIndex + 1}";
+            // Only disambiguate by variant index when the loc lookup gave us the generic
+            // base name and there's no variant-specific localization — otherwise we'd append
+            // numbers to already-distinct names like "Brushwagg" or "Solring".
+            if (!variantSpecificResolved)
+            {
+                int variantIndex = ReadIntProp(type, petItem, "VariantIndex");
+                if (variantIndex > 0)
+                    name = $"{name} {variantIndex + 1}";
+            }
 
             string status = ReadCosmeticStatus(type, petItem);
             return string.IsNullOrEmpty(status) ? name : $"{name}, {status}";
+        }
+
+        private static string ReadFieldString(Type type, object instance, string fieldName)
+        {
+            try
+            {
+                var field = type.GetField(fieldName, PublicInstance);
+                return field?.GetValue(instance) as string;
+            }
+            catch { return null; }
+        }
+
+        private static int ReadFieldInt(Type type, object instance, string fieldName)
+        {
+            try
+            {
+                var field = type.GetField(fieldName, PublicInstance);
+                if (field == null) return 0;
+                var val = field.GetValue(instance);
+                return val is int i ? i : 0;
+            }
+            catch { return 0; }
         }
 
         private static int ReadIntProp(Type type, object instance, string propName)
