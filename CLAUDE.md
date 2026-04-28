@@ -149,6 +149,11 @@ A-Z: Jump to item starting with letter (buffered: type "ST" for "Store", repeat 
 Enter/Space: Activate
 Backspace: Back one level
 
+**Deck Builder - Cosmetics:**
+Shift+Enter on a focused card: Open card viewer (style picker / craft preview), same flow as a sighted right-click.
+Deck cosmetics (avatar, sleeve, pet, emotes) are reachable through the deck-title button — pressing Enter on it opens the deck-details popup, which the mod then makes keyboard-navigable.
+Style on focused card is read out as part of the card info blocks (Arrow Down).
+
 **Input Fields (Login, Search, etc.):**
 Enter: Start editing text field
 Escape: Stop editing, return to navigation

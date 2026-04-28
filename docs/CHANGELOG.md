@@ -2,6 +2,15 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+Cosmetics:
+
+- New `DeckDetailsNavigator` takes over when the deck-details popup opens (activate the deck-title button as before). Tile entries announce the current avatar, sleeve, pet, and emote selections; Enter on a tile expands the in-popup selector grid for navigation; Backspace returns to the tile list, then closes the popup.
+- New `CardViewerNavigator` handles the per-card style/craft popup. Carousel positions announce style name, ownership, and source (Mastery Pass / code / event / season / store). Enter applies the active style; Backspace cancels.
+- New `Shift+Enter` on a focused deck-builder card opens the card viewer popup, mirroring the sighted right-click. Works on collection cards, deck-list entries, sideboard, commanders, and read-only deck cards.
+- Deck-builder card info blocks (Arrow Down) now include a "Style" line (e.g. "Style: Showcase Etched", or "Style: Default art") read live from the deck's per-card skin map.
+
 ## v1.1
 
 Duel:

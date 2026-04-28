@@ -5,8 +5,10 @@ using AccessibleArena.Core.Services.ElementGrouping;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using AccessibleArena.Core.Utils;
+using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
 {
@@ -624,7 +626,14 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Collection style: "CardName, TypeLine, ManaCost"
+                // Style name is prepended for non-default-art tiles so multiple style versions
+                // of the same card become distinguishable.
                 string label = cardInfo.Name;
+                string style = DeckCosmeticsReader.GetTileStyleName(cardObj);
+                if (!string.IsNullOrEmpty(style))
+                {
+                    label += $", {style}";
+                }
 
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
                 {
@@ -694,6 +703,9 @@ namespace AccessibleArena.Core.Services
                 if (!cardInfo.IsValid) continue;
 
                 string label = cardInfo.Name;
+                string style = DeckCosmeticsReader.GetTileStyleName(cardObj);
+                if (!string.IsNullOrEmpty(style))
+                    label += $", {style}";
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
                     label += $", {cardInfo.TypeLine}";
                 if (!string.IsNullOrEmpty(cardInfo.ManaCost))
@@ -790,6 +802,11 @@ namespace AccessibleArena.Core.Services
                 // Build label with quantity and card name
                 string label = $"{deckCard.Quantity}x {cardName}";
 
+                // Append non-default style so the user can tell skinned copies apart from defaults.
+                string style = DeckCosmeticsReader.GetTileStyleName(deckCard.ViewGameObject);
+                if (!string.IsNullOrEmpty(style))
+                    label += $", {style}";
+
                 Log.Nav(NavigatorId, $"Adding deck list card {cardNum}: {label}");
 
                 // Add as navigable element
@@ -829,6 +846,10 @@ namespace AccessibleArena.Core.Services
                     cardName = $"Card #{sideCard.GrpId}";
 
                 string label = $"{sideCard.Quantity}x {cardName}";
+
+                string style = DeckCosmeticsReader.GetTileStyleName(sideCard.ViewGameObject);
+                if (!string.IsNullOrEmpty(style))
+                    label += $", {style}";
 
                 Log.Nav(NavigatorId, $"Adding sideboard card {cardNum}: {label}");
 
@@ -1030,6 +1051,128 @@ namespace AccessibleArena.Core.Services
                 announcement = entryText;
 
             _announcer.AnnounceInterrupt(announcement);
+        }
+
+        /// <summary>
+        /// Handle Shift+Enter on a focused card in the deck builder to open the
+        /// card viewer popup (style picker / craft preview), mirroring the sighted
+        /// right-click flow. Returns true if the action was dispatched.
+        /// </summary>
+        private bool TryOpenCardViewerForFocusedCard()
+        {
+            if (_activeContentController != T.WrapperDeckBuilder) return false;
+
+            GameObject focused = null;
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                focused = _groupedNavigator.CurrentElement?.GameObject;
+            else if (IsValidIndex)
+                focused = _elements[_currentIndex].GameObject;
+
+            Log.Nav(NavigatorId, $"Shift+Enter: focused={focused?.name ?? "null"}");
+            if (focused == null) return false;
+
+            // Walk the focused element + ancestors looking for a MetaCardView component.
+            // Collection cards have it directly; deck-list TileButton cards have it on a parent.
+            Component metaCardView = FindMetaCardViewOnOrAbove(focused);
+            if (metaCardView == null)
+            {
+                Log.Nav(NavigatorId, $"Shift+Enter: no MetaCardView found on/above {focused.name}");
+                return false;
+            }
+
+            // Resolve a rollover zoom handler. The card's MetaCardHolder.RolloverZoomView
+            // is the same instance WrapperDeckBuilder uses, so we get it for free.
+            object zoomHandler = ResolveRolloverZoomHandler(metaCardView);
+            if (zoomHandler == null)
+            {
+                Log.Nav(NavigatorId, $"Shift+Enter: no ICardRolloverZoom available");
+                return false;
+            }
+
+            object actionsHandler = GetDeckBuilderActionsHandler();
+            if (actionsHandler == null)
+            {
+                Log.Nav(NavigatorId, $"Shift+Enter: DeckBuilderActionsHandler not in Pantry");
+                return false;
+            }
+
+            try
+            {
+                var openMethod = actionsHandler.GetType().GetMethods(PublicInstance)
+                    .FirstOrDefault(m => m.Name == "OpenCardViewer" && m.GetParameters().Length == 3);
+                if (openMethod == null)
+                {
+                    Log.Nav(NavigatorId, $"Shift+Enter: OpenCardViewer(MetaCardView,ICardRolloverZoom,int) not found");
+                    return false;
+                }
+                openMethod.Invoke(actionsHandler, new object[] { metaCardView, zoomHandler, 1 });
+                _announcer.Announce(Models.Strings.ScreenCardViewer, Models.AnnouncementPriority.Normal);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(NavigatorId, $"Shift+Enter OpenCardViewer failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static Component FindMetaCardViewOnOrAbove(GameObject element)
+        {
+            Transform t = element.transform;
+            int safety = 8;
+            while (t != null && safety-- > 0)
+            {
+                var found = CardModelProvider.GetMetaCardView(t.gameObject);
+                if (found != null) return found;
+                t = t.parent;
+            }
+            return null;
+        }
+
+        private static object ResolveRolloverZoomHandler(Component metaCardView)
+        {
+            // metaCardView.Holder.RolloverZoomView is the cleanest path.
+            try
+            {
+                var holderProp = metaCardView.GetType().GetProperty("Holder", PublicInstance | BindingFlags.FlattenHierarchy);
+                var holder = holderProp?.GetValue(metaCardView);
+                if (holder != null)
+                {
+                    var zoomProp = holder.GetType().GetProperty("RolloverZoomView", PublicInstance | BindingFlags.FlattenHierarchy);
+                    var zoom = zoomProp?.GetValue(holder);
+                    if (zoom != null) return zoom;
+                }
+            }
+            catch { }
+
+            // Fallback: pull WrapperDeckBuilder's private _zoomHandler field.
+            try
+            {
+                Type wrapperType = FindType("WrapperDeckBuilder");
+                if (wrapperType == null) return null;
+                var instances = GameObject.FindObjectsOfType(wrapperType);
+                if (instances == null || instances.Length == 0) return null;
+                var instance = instances[0];
+                var field = wrapperType.GetField("_zoomHandler", PrivateInstance);
+                return field?.GetValue(instance);
+            }
+            catch { return null; }
+        }
+
+        private static object GetDeckBuilderActionsHandler()
+        {
+            try
+            {
+                Type pantryType = FindType("Wizards.Mtga.Pantry");
+                if (pantryType == null) return null;
+                Type handlerType = FindType("Core.Code.Decks.DeckBuilderActionsHandler");
+                if (handlerType == null) return null;
+
+                var get = pantryType.GetMethod("Get", BindingFlags.Public | BindingFlags.Static);
+                if (get == null || !get.IsGenericMethod) return null;
+                return get.MakeGenericMethod(handlerType).Invoke(null, null);
+            }
+            catch { return null; }
         }
 
         /// <summary>

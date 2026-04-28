@@ -832,6 +832,21 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override bool HandleCustomInput()
         {
+            // Shift+Enter on a focused deck-builder card opens the card-viewer popup.
+            // Must run BEFORE the grouped-Enter handler below, which calls GetEnterAndConsume()
+            // and routes activation to ActivateCurrentElement (without checking Shift).
+            if (_activeContentController == T.WrapperDeckBuilder
+                && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+            {
+                if (TryOpenCardViewerForFocusedCard())
+                {
+                    InputManager.ConsumeKey(KeyCode.Return);
+                    InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                    return true;
+                }
+            }
+
             // F4: Toggle Friends panel
             if (Input.GetKeyDown(KeyCode.F4))
             {
@@ -3029,6 +3044,21 @@ namespace AccessibleArena.Core.Services
         }
 
         #endregion
+
+        /// <summary>
+        /// Shift+Enter on a focused deck-builder card opens the card-viewer popup
+        /// (style picker / craft preview), mirroring the sighted right-click flow.
+        /// Falls through to default behavior elsewhere (deck-row Rename via AlternateActionObject, etc.).
+        /// </summary>
+        protected override void ActivateAlternateAction()
+        {
+            if (_activeContentController == T.WrapperDeckBuilder
+                && TryOpenCardViewerForFocusedCard())
+            {
+                return;
+            }
+            base.ActivateAlternateAction();
+        }
 
         protected override bool OnElementActivated(int index, GameObject element)
         {

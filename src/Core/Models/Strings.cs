@@ -1638,6 +1638,38 @@ namespace AccessibleArena.Core.Models
         public static string ProfileItemStore => L.Get("ProfileItemStore");
 
         // ===========================================
+        // DECK COSMETICS / CARD STYLES
+        // ===========================================
+        public static string ScreenDeckDetails => L.Get("ScreenDeckDetails");
+        public static string ScreenCardViewer => L.Get("ScreenCardViewer");
+        public static string CosmeticsAvatar => L.Get("CosmeticsAvatar");
+        public static string CosmeticsSleeve => L.Get("CosmeticsSleeve");
+        public static string CosmeticsPet => L.Get("CosmeticsPet");
+        public static string CosmeticsEmote => L.Get("CosmeticsEmote");
+        public static string CosmeticsTitle => L.Get("CosmeticsTitle");
+        public static string CosmeticsDefaultArt => L.Get("CosmeticsDefaultArt");
+        public static string CosmeticsTile(string label, string current) =>
+            L.Format("CosmeticsTileFormat", label, current);
+        public static string CardStyleLine(string styleName) => L.Format("CardStyleLineFormat", styleName);
+        public static string CardViewerCosmeticMode(string current) => L.Format("CardViewerCosmeticMode", current);
+        public static string CardViewerCraftMode(int qty) => L.Format("CardViewerCraftMode", qty);
+        public static string CardViewerReadOnly => L.Get("CardViewerReadOnly");
+        public static string CardViewerStyleApplied(string style) => L.Format("CardViewerStyleApplied", style);
+        public static string CardViewerNoAlternatives => L.Get("CardViewerNoAlternatives");
+        public static string CardViewerStyleStatusOwned => L.Get("CardViewerStyleStatus_Owned");
+        public static string CardViewerStyleStatusNotOwned => L.Get("CardViewerStyleStatus_NotOwned");
+        public static string CardViewerStyleStatusActive => L.Get("CardViewerStyleStatus_Active");
+        public static string CardViewerStyleSourceBattlePass => L.Get("CardViewerStyleSource_BattlePass");
+        public static string CardViewerStyleSourceCode => L.Get("CardViewerStyleSource_Code");
+        public static string CardViewerStyleSourceEvent => L.Get("CardViewerStyleSource_Event");
+        public static string CardViewerStyleSourceSeasonReward => L.Get("CardViewerStyleSource_SeasonReward");
+        public static string CardViewerPriceGems(string amount) => L.Format("CardViewerPriceGems", amount);
+        public static string CardViewerPriceGold(string amount) => L.Format("CardViewerPriceGold", amount);
+        public static string DeckDetailsRescanned => L.Get("DeckDetailsRescanned");
+        public static string DeckDetailsClosed => L.Get("DeckDetailsClosed");
+        public static string ShiftEnterNotApplicable => L.Get("ShiftEnterNotApplicable");
+
+        // ===========================================
         // FRIEND ACTIONS
         // ===========================================
         public static string FriendActionChat => L.Get("FriendActionChat");

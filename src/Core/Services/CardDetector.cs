@@ -496,6 +496,10 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoCollection, collectionText));
             }
 
+            // Deck-builder card style (only set by DeckCardProvider extractors).
+            if (!string.IsNullOrEmpty(info.Style))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, Models.Strings.CardStyleLine(info.Style)));
+
             // Block order varies by zone context
             bool isBattlefield = zone == ZoneType.Battlefield;
             bool isBrowser = zone == ZoneType.Browser;
@@ -753,6 +757,11 @@ namespace AccessibleArena.Core.Services
         /// Whether this card is a companion (Brawl/Commander deck builder).
         /// </summary>
         public bool IsCompanion;
+        /// <summary>
+        /// Localized art-style name (e.g., "Showcase Etched", "Default art") for deck-builder cards.
+        /// Empty/null on cards outside the deck builder — the Style block is suppressed for those.
+        /// </summary>
+        public string Style;
     }
 
     /// <summary>

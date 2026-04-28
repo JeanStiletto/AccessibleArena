@@ -125,6 +125,8 @@ namespace AccessibleArena
             _navigatorManager = new NavigatorManager();
             _navigatorManager.RegisterAll(
                 new AdvancedFiltersNavigator(_announcer), // Advanced Filters popup in Collection/Deck Builder (priority 87)
+                new DeckDetailsNavigator(_announcer),     // Deck details popup with cosmetic tiles (priority 87)
+                new CardViewerNavigator(_announcer),      // Card viewer popup (style picker / craft) (priority 87)
                 new RewardPopupNavigator(_announcer),   // Rewards popup from mail/store (priority 86)
                 new OverlayNavigator(_announcer),
                 new SettingsMenuNavigator(_announcer),  // Settings menu - works everywhere including duels (priority 90)

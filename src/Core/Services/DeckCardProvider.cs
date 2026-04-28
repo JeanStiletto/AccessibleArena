@@ -338,6 +338,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var result = cardInfo.Value;
                     result.Quantity = info.Quantity;
+                    result.Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId);
                     return result;
                 }
             }
@@ -347,6 +348,7 @@ namespace AccessibleArena.Core.Services
             {
                 Name = name ?? $"Card #{info.GrpId}",
                 Quantity = info.Quantity,
+                Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId),
                 IsValid = true
             };
         }
@@ -414,6 +416,7 @@ namespace AccessibleArena.Core.Services
                     var result = cardInfo.Value;
                     result.Quantity = info.Quantity;
                     result.IsUnowned = isUnowned;
+                    result.Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId);
                     return result;
                 }
             }
@@ -425,6 +428,7 @@ namespace AccessibleArena.Core.Services
                 Name = name ?? $"Card #{info.GrpId}",
                 Quantity = info.Quantity,
                 IsUnowned = isUnowned,
+                Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId),
                 IsValid = true
             };
         }
@@ -605,6 +609,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var result = cardInfo.Value;
                     result.Quantity = info.Quantity;
+                    result.Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId);
                     return result;
                 }
             }
@@ -615,6 +620,7 @@ namespace AccessibleArena.Core.Services
             {
                 Name = name ?? $"Card #{info.GrpId}",
                 Quantity = info.Quantity,
+                Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId),
                 IsValid = true
             };
         }
@@ -807,6 +813,7 @@ namespace AccessibleArena.Core.Services
                     result.Quantity = cmdInfo.Quantity;
                     result.IsCommander = !cmdInfo.IsCompanion;
                     result.IsCompanion = cmdInfo.IsCompanion;
+                    result.Style = DeckCosmeticsReader.GetCardStyleName(cmdInfo.GrpId);
                     return result;
                 }
             }
@@ -819,6 +826,7 @@ namespace AccessibleArena.Core.Services
                 Quantity = cmdInfo.Quantity,
                 IsCommander = !cmdInfo.IsCompanion,
                 IsCompanion = cmdInfo.IsCompanion,
+                Style = DeckCosmeticsReader.GetCardStyleName(cmdInfo.GrpId),
                 IsValid = true
             };
         }
