@@ -25,6 +25,19 @@ namespace AccessibleArena.Core.Services
         private InputFieldEditHelper _popupInputHelper;
         private DropdownEditHelper _popupDropdownHelper;
 
+        // Stack of popups currently nested below the active one.
+        // Used when a popup spawns another popup on top (e.g., DeckDetailsPopup → PetPopUpV2):
+        // the underlying popup is pushed here while we navigate the new one, then restored
+        // (re-discovered) when the top popup closes. We only stash the GO and the index —
+        // on restore we re-run DiscoverPopupElements so subclass overrides re-evaluate any
+        // labels that the inner popup may have mutated (e.g., picked a new avatar).
+        private struct PopupSnapshot
+        {
+            public GameObject Popup;
+            public int Index;
+        }
+        private readonly List<PopupSnapshot> _popupStack = new List<PopupSnapshot>();
+
         #endregion
 
         #region Popup Mode
@@ -44,6 +57,10 @@ namespace AccessibleArena.Core.Services
             if (PanelStateManager.Instance != null)
             {
                 PanelStateManager.Instance.OnPanelChanged += OnPopupPanelChanged;
+                // OnAnyPanelOpened catches stacked popups that open at the SAME priority as
+                // the current popup — those don't update PanelStateManager.ActivePanel, so
+                // OnPanelChanged never fires for them (e.g., PetPopUpV2 on top of DeckDetailsPopup).
+                PanelStateManager.Instance.OnAnyPanelOpened += OnAnyPanelOpenedHandler;
 
                 // Check if a popup is already active (opened while a different navigator was active)
                 var activePanel = PanelStateManager.Instance.ActivePanel;
@@ -61,7 +78,10 @@ namespace AccessibleArena.Core.Services
         protected void DisablePopupDetection()
         {
             if (PanelStateManager.Instance != null)
+            {
                 PanelStateManager.Instance.OnPanelChanged -= OnPopupPanelChanged;
+                PanelStateManager.Instance.OnAnyPanelOpened -= OnAnyPanelOpenedHandler;
+            }
         }
 
         /// <summary>
@@ -78,14 +98,37 @@ namespace AccessibleArena.Core.Services
                     Log.Msg("{NavigatorId}", $"Popup detected: {newPanel.Name}");
                     OnPopupDetected(newPanel);
                 }
+                else if (newPanel.GameObject != _popupGameObject)
+                {
+                    // ActivePanel switched to a different popup while we were already in one
+                    // (e.g., higher-priority popup opens on top). Stack the current and switch.
+                    Log.Msg("{NavigatorId}", $"Stacked popup detected (active changed): {newPanel.Name}");
+                    OnPopupDetected(newPanel);
+                }
             }
             else if (_isInPopupMode)
             {
-                // Popup closed: active panel reverted to the underlying panel (or null)
+                // Popup closed: active panel reverted to the underlying panel (or null).
+                // ExitPopupMode pops the popup stack if non-empty; if it fully exits we fire OnPopupClosed.
                 Log.Msg("{NavigatorId}", $"Popup closed");
-                ExitPopupMode();
-                OnPopupClosed();
+                if (ExitPopupMode())
+                    OnPopupClosed();
             }
+        }
+
+        /// <summary>
+        /// Handler for OnAnyPanelOpened. Catches stacked popups that open at the SAME priority
+        /// as the current popup (those don't update ActivePanel and so don't trigger OnPanelChanged).
+        /// </summary>
+        private void OnAnyPanelOpenedHandler(PanelInfo panel)
+        {
+            if (!_isActive || !_isInPopupMode) return;
+            if (panel == null || !panel.IsValid) return;
+            if (IsPopupExcluded(panel) || !IsPopupPanel(panel)) return;
+            if (panel.GameObject == _popupGameObject) return;
+
+            Log.Msg("{NavigatorId}", $"Stacked popup detected (any opened): {panel.Name}");
+            OnPopupDetected(panel);
         }
 
         /// <summary>
@@ -110,26 +153,48 @@ namespace AccessibleArena.Core.Services
         {
             if (popup == null) return;
 
-            Log.Msg("{NavigatorId}", $"Entering popup mode: {popup.name}");
+            if (_isInPopupMode && _popupGameObject != null && _popupGameObject != popup)
+            {
+                // Stacked entry: a new popup opened on top of the current one.
+                // Push the current popup's state so we can restore it when the new popup closes.
+                Log.Msg("{NavigatorId}", $"Stacking popup: {_popupGameObject.name} -> {popup.name}");
+                _popupStack.Add(new PopupSnapshot
+                {
+                    Popup = _popupGameObject,
+                    Index = _currentIndex
+                });
 
-            // Deactivate card info navigator so Up/Down navigates popup items, not card blocks
-            AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
+                // Reset element list and helpers for the new popup, but DO NOT touch _savedElements —
+                // those represent the underlying (non-popup) screen and must persist across nesting.
+                _popupInputHelper?.Clear();
+                _popupDropdownHelper?.Clear();
+                _elements.Clear();
+                _currentIndex = -1;
+                InputManager.BlockSubmitForToggle = false;
+            }
+            else
+            {
+                Log.Msg("{NavigatorId}", $"Entering popup mode: {popup.name}");
 
-            // Save current state
-            _savedElements = new List<NavigableElement>(_elements);
-            _savedIndex = _currentIndex;
+                // Deactivate card info navigator so Up/Down navigates popup items, not card blocks
+                AccessibleArenaMod.Instance?.CardNavigator?.Deactivate();
 
-            // Switch to popup mode
-            _isInPopupMode = true;
+                // Save current state
+                _savedElements = new List<NavigableElement>(_elements);
+                _savedIndex = _currentIndex;
+
+                _isInPopupMode = true;
+                InputManager.PopupModeActive = true;
+                _elements.Clear();
+                _currentIndex = -1;
+
+                // Clear toggle submit blocking - popup elements are independent of the underlying screen.
+                // The previous element might have been a toggle, leaving BlockSubmitForToggle=true,
+                // which would block Enter on popup buttons via EventSystemPatch.
+                InputManager.BlockSubmitForToggle = false;
+            }
+
             _popupGameObject = popup;
-            InputManager.PopupModeActive = true;
-            _elements.Clear();
-            _currentIndex = -1;
-
-            // Clear toggle submit blocking - popup elements are independent of the underlying screen.
-            // The previous element might have been a toggle, leaving BlockSubmitForToggle=true,
-            // which would block Enter on popup buttons via EventSystemPatch.
-            InputManager.BlockSubmitForToggle = false;
 
             // Create helpers for popup input fields and dropdowns
             _popupInputHelper = new InputFieldEditHelper(_announcer);
@@ -152,14 +217,57 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Exit popup mode: restore saved elements and index.
+        /// Exit popup mode. If a popup is on the stack, pop and restore it instead of fully exiting.
+        /// Returns true if the navigator fully exited popup mode (caller should fire OnPopupClosed),
+        /// false if it popped back to a stacked popup (caller should NOT fire OnPopupClosed because
+        /// from the navigator's POV we're still inside a popup, just one level shallower).
         /// </summary>
-        protected void ExitPopupMode()
+        protected bool ExitPopupMode()
         {
-            if (!_isInPopupMode) return;
+            if (!_isInPopupMode) return false;
+
+            // Drop any stacked snapshots whose popup GO is no longer alive (rare race during teardown).
+            while (_popupStack.Count > 0)
+            {
+                var top = _popupStack[_popupStack.Count - 1];
+                if (top.Popup != null && top.Popup.activeInHierarchy)
+                    break;
+                Log.Msg("{NavigatorId}", $"Discarding stale stacked popup: {top.Popup?.name ?? "<destroyed>"}");
+                _popupStack.RemoveAt(_popupStack.Count - 1);
+            }
+
+            if (_popupStack.Count > 0)
+            {
+                var prev = _popupStack[_popupStack.Count - 1];
+                _popupStack.RemoveAt(_popupStack.Count - 1);
+
+                Log.Msg("{NavigatorId}", $"Popping back to popup: {prev.Popup.name}");
+
+                // Recreate per-popup helpers for the restored popup
+                _popupInputHelper?.Clear();
+                _popupDropdownHelper?.Clear();
+                _popupInputHelper = new InputFieldEditHelper(_announcer);
+                _popupDropdownHelper = new DropdownEditHelper(_announcer, NavigatorId);
+
+                // Re-discover the parent popup so any subclass discovery overrides re-run with
+                // fresh data (e.g., cosmetic value the user just changed in the child popup).
+                _popupGameObject = prev.Popup;
+                _elements.Clear();
+                _currentIndex = -1;
+                DiscoverPopupElements(prev.Popup);
+
+                _currentIndex = prev.Index;
+                if (_currentIndex >= _elements.Count) _currentIndex = _elements.Count - 1;
+                if (_currentIndex < 0 && _elements.Count > 0) _currentIndex = 0;
+
+                UpdateEventSystemSelection();
+                AnnouncePopupOpen();
+                return false;
+            }
 
             Log.Msg("{NavigatorId}", $"Exiting popup mode");
             ClearPopupModeState();
+            return true;
         }
 
         /// <summary>
@@ -171,6 +279,7 @@ namespace AccessibleArena.Core.Services
             _popupDropdownHelper?.Clear();
             _popupInputHelper = null;
             _popupDropdownHelper = null;
+            _popupStack.Clear();
 
             _isInPopupMode = false;
             InputManager.PopupModeActive = false;
@@ -278,8 +387,8 @@ namespace AccessibleArena.Core.Services
             {
                 Log.Msg("{NavigatorId}", $"Popup: dismissed FriendInvitePanel via Close()");
                 _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
-                ExitPopupMode();
-                OnPopupClosed();
+                if (ExitPopupMode())
+                    OnPopupClosed();
                 return;
             }
 
@@ -302,8 +411,8 @@ namespace AccessibleArena.Core.Services
             {
                 Log.Msg("{NavigatorId}", $"Popup: dismissed via OnBack()");
                 _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
-                ExitPopupMode();
-                OnPopupClosed();
+                if (ExitPopupMode())
+                    OnPopupClosed();
                 return;
             }
 
@@ -311,8 +420,8 @@ namespace AccessibleArena.Core.Services
             Log.Warn("{NavigatorId}", $"Popup: using SetActive(false) fallback");
             _popupGameObject.SetActive(false);
             _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
-            ExitPopupMode();
-            OnPopupClosed();
+            if (ExitPopupMode())
+                OnPopupClosed();
         }
 
         /// <summary>
@@ -1107,7 +1216,7 @@ namespace AccessibleArena.Core.Services
             return false;
         }
 
-        private static bool HasComponentInChildren(GameObject go, string typeName)
+        protected static bool HasComponentInChildren(GameObject go, string typeName)
         {
             if (go == null) return false;
             foreach (var mb in go.GetComponentsInChildren<MonoBehaviour>(true))

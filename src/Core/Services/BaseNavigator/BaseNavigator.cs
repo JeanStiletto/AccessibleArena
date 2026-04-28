@@ -557,9 +557,11 @@ namespace AccessibleArena.Core.Services
             {
                 if (_popupGameObject != null && _popupGameObject.activeInHierarchy)
                     return true;
-                // Popup gone - exit properly so OnPopupClosed fires (e.g. craft confirmation)
-                ExitPopupMode();
-                OnPopupClosed();
+                // Top popup gone — pop the stack if non-empty, otherwise fully exit and fire OnPopupClosed.
+                if (ExitPopupMode())
+                    OnPopupClosed();
+                else
+                    return true; // Popped back to a stacked popup, still in popup mode
                 // Fall through to validate the restored underlying elements
             }
 
@@ -676,8 +678,8 @@ namespace AccessibleArena.Core.Services
             {
                 if (!ValidatePopup())
                 {
-                    ExitPopupMode();
-                    OnPopupClosed();
+                    if (ExitPopupMode())
+                        OnPopupClosed();
                     return;
                 }
                 HandlePopupInput();

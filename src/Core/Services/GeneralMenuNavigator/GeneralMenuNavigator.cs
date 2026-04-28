@@ -591,10 +591,22 @@ namespace AccessibleArena.Core.Services
             // Save grouped navigation state before entering popup mode so we can
             // restore the user's group and element position when the popup closes.
             // Base EnterPopupMode only saves the flat element list, not group state.
-            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+            // Skip when already in popup mode (stacked popup) — we'd overwrite the original save.
+            if (!IsInPopupMode && _groupedNavigationEnabled && _groupedNavigator.IsActive)
                 _groupedNavigator.SaveCurrentGroupForRestore();
 
             base.OnPopupDetected(panel);
+        }
+
+        protected override void DiscoverPopupElements(GameObject popup)
+        {
+            base.DiscoverPopupElements(popup);
+
+            // Replace generic tile labels ("Avatare", "Begleiter", "Kartenhüllen", ...) with
+            // value-rich ones ("Avatar: Standard, press Enter to change") on the deck-details popup.
+            // Re-runs on stacked-popup pop-back so a freshly-picked avatar is reflected immediately.
+            if (HasComponentInChildren(popup, "DeckDetailsPopup"))
+                EnrichDeckCosmeticTileLabels();
         }
 
         protected override void OnDeactivating()

@@ -1176,6 +1176,79 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// On the DeckDetailsPopup, replace base-discovered generic tile labels (the localized
+        /// category text — "Avatare", "Begleiter", "Kartenhüllen", "Emotes", "Titel") with
+        /// value-rich labels that announce the current selection. The tile button discovered by
+        /// base popup discovery is a child of <c>DisplayItem_*_Desktop_*</c> — walk up to identify
+        /// the cosmetic type, then rewrite the label using <see cref="DeckCosmeticsReader"/>.
+        /// </summary>
+        private void EnrichDeckCosmeticTileLabels()
+        {
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var elem = _elements[i];
+                if (elem.GameObject == null) continue;
+                if (elem.Role != UIElementClassifier.ElementRole.Button) continue;
+
+                string cosmeticType = ResolveCosmeticTypeFromHierarchy(elem.GameObject);
+                if (cosmeticType == null) continue;
+
+                string typeLabel;
+                string current;
+                switch (cosmeticType)
+                {
+                    case "Avatar":
+                        typeLabel = Models.Strings.CosmeticsAvatar;
+                        current = DeckCosmeticsReader.GetCurrentAvatarName();
+                        break;
+                    case "Sleeve":
+                        typeLabel = Models.Strings.CosmeticsSleeve;
+                        current = DeckCosmeticsReader.GetCurrentSleeveName();
+                        break;
+                    case "Pet":
+                        typeLabel = Models.Strings.CosmeticsPet;
+                        current = DeckCosmeticsReader.GetCurrentPetName();
+                        break;
+                    case "Emote":
+                        typeLabel = Models.Strings.CosmeticsEmote;
+                        current = DeckCosmeticsReader.GetCurrentEmoteSummary();
+                        break;
+                    case "Title":
+                        typeLabel = Models.Strings.CosmeticsTitle;
+                        current = Models.Strings.ProfileItemDefault;
+                        break;
+                    default:
+                        continue;
+                }
+
+                elem.Label = Models.Strings.CosmeticsTile(typeLabel, current);
+                _elements[i] = elem;
+            }
+        }
+
+        private static string ResolveCosmeticTypeFromHierarchy(GameObject element)
+        {
+            var t = element.transform;
+            int safety = 6;
+            while (t != null && safety-- > 0)
+            {
+                string n = t.name;
+                if (n.IndexOf("DisplayItem_", StringComparison.Ordinal) >= 0)
+                {
+                    if (n.IndexOf("Avatar", StringComparison.OrdinalIgnoreCase) >= 0) return "Avatar";
+                    if (n.IndexOf("Sleeve", StringComparison.OrdinalIgnoreCase) >= 0) return "Sleeve";
+                    if (n.IndexOf("CardBack", StringComparison.OrdinalIgnoreCase) >= 0) return "Sleeve";
+                    if (n.IndexOf("Pet", StringComparison.OrdinalIgnoreCase) >= 0) return "Pet";
+                    if (n.IndexOf("Emote", StringComparison.OrdinalIgnoreCase) >= 0) return "Emote";
+                    if (n.IndexOf("Title", StringComparison.OrdinalIgnoreCase) >= 0) return "Title";
+                    return null;
+                }
+                t = t.parent;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Refresh the 2D sub-navigation data for DeckBuilderInfo (re-reads from game UI).
         /// Preserves current row and entry position where possible.
         /// </summary>
