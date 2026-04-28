@@ -62,6 +62,10 @@ namespace AccessibleArena.Core.Services
         private bool _closeTriggered;
         private int _closeRescanCounter;
 
+        // Off-screen reveal announces inline; suppress the next rescan label-change
+        // announcement for that data index so it isn't read twice.
+        private int _suppressAnnounceDataIndex = -1;
+
         public override string NavigatorId => "BoosterOpen";
         public override string ScreenName => GetScreenName();
         public override int Priority => 80; // Higher than GeneralMenuNavigator (15), below OverlayNavigator (85)
@@ -1326,6 +1330,7 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(cardInfo.Value.TypeLine))
                     label += $", {cardInfo.Value.TypeLine}";
                 _announcer.AnnounceInterrupt(label);
+                _suppressAnnounceDataIndex = dataIndex;
             }
 
             // Trigger rescan to update navigation labels
@@ -1432,9 +1437,11 @@ namespace AccessibleArena.Core.Services
                 else if (restored >= 0)
                 {
                     string newLabel = _elements[restored].Label;
-                    if (newLabel != oldLabel)
+                    int newDataIdx = (restored < _elementDataIndex.Count) ? _elementDataIndex[restored] : -1;
+                    if (newLabel != oldLabel && newDataIdx != _suppressAnnounceDataIndex)
                         _announcer.AnnounceInterrupt(newLabel);
                 }
+                _suppressAnnounceDataIndex = -1;
 
                 UpdateCardNavigation();
                 UpdateCardInfoForOffScreenCard();
@@ -1521,6 +1528,7 @@ namespace AccessibleArena.Core.Services
             _packMusicRestored = false;
             _cardDataIndices.Clear();
             _elementDataIndex.Clear();
+            _suppressAnnounceDataIndex = -1;
         }
 
         /// <summary>

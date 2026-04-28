@@ -224,31 +224,6 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 
 ---
 
-### Settings Menu While Declared Attackers
-
-Opening the settings menu (F2) during the declare attackers phase causes issues. Exact symptoms and reproduction steps unknown.
-
----
-
-### Adding Cards to Deck Exits Collection Group
-
-Adding cards to a deck reportedly moves the user out of the Collection group to the upper group level. Exact reproduction steps unknown.
-
----
-
-### Targeting Planeswalker with Burn Spell May Not Work
-
-Targeting a planeswalker with a burn spell (direct damage) may not work correctly. Exact reproduction steps unknown.
-
----
-
-
-## Improvements to Investigate
-
-1. Sound or text alerts for friend activities — notify the user when a friend comes online, sends a friend request, or sends a challenge invite. Needs research into which game events/callbacks fire for these, and how to surface them non-intrusively (priority, channel, opt-out).
-
----
-
 
 ## Planned Features
 
@@ -270,5 +245,4 @@ Targeting a planeswalker with a burn spell (direct damage) may not work correctl
 8. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
 9. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
 10. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
-11. Missing README translations — the localized READMEs for French, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Simplified Chinese, and Traditional Chinese currently show the English text with a "not yet translated" notice at the top. Only German and Spanish are fully translated for the v1.0 release. Translations will follow in future releases.
 
