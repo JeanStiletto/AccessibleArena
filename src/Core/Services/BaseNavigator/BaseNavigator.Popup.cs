@@ -572,6 +572,7 @@ namespace AccessibleArena.Core.Services
                 // Use CustomButton.Click() directly — popup buttons are keyboard-navigated
                 // and SimulatePointerClick fails on first press because _mouseOver is false.
                 UIActivator.ActivateViaCustomButtonClick(elem.GameObject);
+                OnPopupItemActivated(elem.GameObject);
             }
         }
 
@@ -942,21 +943,53 @@ namespace AccessibleArena.Core.Services
                     Log.Msg("{NavigatorId}", $"Popup: skipping dismiss overlay: {obj.name}");
                     continue;
                 }
-                if (!seenLabels.Add(label))
+
+                // Allow subclasses to substitute a richer label and bypass the dedup that
+                // would otherwise collapse multiple sprite-only items sharing a generic name.
+                // Used for cosmetic-selector items (avatar busts, pet rows, sleeve cards).
+                string finalLabel = label;
+                bool bypassDedup = false;
+                if (TryGetCustomPopupButtonLabel(obj, out string custom) && !string.IsNullOrEmpty(custom))
                 {
-                    Log.Msg("{NavigatorId}", $"Popup: skipping duplicate button: {label}");
+                    finalLabel = custom;
+                    bypassDedup = true;
+                }
+
+                if (!bypassDedup && !seenLabels.Add(finalLabel))
+                {
+                    Log.Msg("{NavigatorId}", $"Popup: skipping duplicate button: {finalLabel}");
                     continue;
                 }
 
                 _elements.Add(new NavigableElement
                 {
                     GameObject = obj,
-                    Label = label,
+                    Label = finalLabel,
                     Role = UIElementClassifier.ElementRole.Button
                 });
-                Log.Msg("{NavigatorId}", $"Popup: button: {label}");
+                Log.Msg("{NavigatorId}", $"Popup: button: {finalLabel}");
             }
         }
+
+        /// <summary>
+        /// Hook for subclasses to substitute a richer label for a discovered popup button
+        /// (e.g., resolving an avatar/pet/sleeve item to its localized name). Returning true
+        /// also opts the button out of label-based dedup so multiple sibling items with the
+        /// same underlying GameObject name still all become navigable. Default: no override.
+        /// </summary>
+        protected virtual bool TryGetCustomPopupButtonLabel(GameObject buttonObj, out string label)
+        {
+            label = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Hook called after a popup item is activated (the click is dispatched). Subclasses
+        /// can use this to react to activations — e.g., detecting that an inline selector
+        /// expanded inside the current popup and switching into it as a stacked popup.
+        /// Default: no-op.
+        /// </summary>
+        protected virtual void OnPopupItemActivated(GameObject element) { }
 
         private void DeduplicateTextBlocksAgainstButtons()
         {

@@ -1176,6 +1176,69 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Provide localized labels for cosmetic-selector items (avatar busts, pet rows,
+        /// sleeve cards) discovered by base popup-mode button discovery. Without this, the
+        /// dozens of sprite-only items inside PetPopUpV2 / CardBackSelectorPopup /
+        /// AvatarSelectPanel all fall back to "Button" / "AvatarBust_Select" and dedup
+        /// collapses them to a single navigable entry.
+        /// </summary>
+        protected override bool TryGetCustomPopupButtonLabel(GameObject buttonObj, out string label)
+            => CosmeticItemResolver.TryResolve(buttonObj, out label);
+
+        /// <summary>
+        /// When the user activates an Avatar tile inside the deck-details popup, the
+        /// game inline-instantiates an <c>AvatarSelectPanel</c> as a child of the same
+        /// popup (it is NOT a separate <c>PopupBase</c>, so PanelStateManager never
+        /// fires for it). Detect that inline expansion and treat it as a stacked popup
+        /// so the user can navigate the avatar busts.
+        /// </summary>
+        protected override void OnPopupItemActivated(GameObject element)
+        {
+            base.OnPopupItemActivated(element);
+            if (PopupGameObject == null) return;
+            if (!HasComponentInChildren(PopupGameObject, "DeckDetailsPopup")) return;
+
+            // Was the activated element an Avatar tile? Walk up looking for DisplayItemAvatar.
+            if (FindAncestorComponentByName(element, "DisplayItemAvatar") == null) return;
+
+            // Find the now-active AvatarSelectPanel under the popup root and switch into it.
+            var panelMb = FindActiveDescendantComponent(PopupGameObject, "AvatarSelectPanel");
+            if (panelMb == null)
+            {
+                Log.Nav(NavigatorId, "Avatar tile activated but AvatarSelectPanel not found active");
+                return;
+            }
+            EnterPopupMode(panelMb.gameObject);
+        }
+
+        private static MonoBehaviour FindAncestorComponentByName(GameObject start, string typeName)
+        {
+            if (start == null) return null;
+            Transform t = start.transform;
+            int safety = 8;
+            while (t != null && safety-- > 0)
+            {
+                foreach (var mb in t.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == typeName) return mb;
+                }
+                t = t.parent;
+            }
+            return null;
+        }
+
+        private static MonoBehaviour FindActiveDescendantComponent(GameObject root, string typeName)
+        {
+            if (root == null) return null;
+            foreach (var mb in root.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (mb.GetType().Name == typeName) return mb;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// On the DeckDetailsPopup, replace base-discovered generic tile labels (the localized
         /// category text — "Avatare", "Begleiter", "Kartenhüllen", "Emotes", "Titel") with
         /// value-rich labels that announce the current selection. The tile button discovered by
