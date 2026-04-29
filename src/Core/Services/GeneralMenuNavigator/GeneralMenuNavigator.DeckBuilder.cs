@@ -1234,20 +1234,53 @@ namespace AccessibleArena.Core.Services
         {
             if (PopupGameObject == null) return false;
 
-            bool isCosmeticPopup =
-                HasComponentInChildren(PopupGameObject, "PetPopUpV2") ||
-                HasComponentInChildren(PopupGameObject, "CardBackSelectorPopup") ||
-                PopupGameObject.GetComponent("AvatarSelectPanel") != null;
-            if (!isCosmeticPopup) return false;
+            // Match only popups whose ROOT component is a cosmetic selector. The
+            // deck-details popup contains all five sub-selector prefabs as INACTIVE
+            // children (instantiated by DisplayItem*.Init) — checking with
+            // GetComponentInChildren would mis-classify it as a cosmetic popup and
+            // wipe out its cosmetic tile hitboxes and back button.
+            if (!IsRootCosmeticSelector(PopupGameObject)) return false;
 
-            // Keep cosmetic-item buttons (we resolve them via CosmeticItemResolver).
+            // Inside an actual cosmetic selector popup, keep recognized cosmetic items.
             if (CosmeticItemResolver.TryResolve(buttonObj, out _)) return false;
 
-            // Keep buttons with real text (Bestätigen, Zurück, Profilstandard festlegen, ...).
-            string text = UITextExtractor.GetText(buttonObj);
-            if (!string.IsNullOrEmpty(text) && text.Length > 1) return false;
+            // Keep popup-level controls that carry their own text (Bestätigen, Zurück,
+            // Profilstandard festlegen). The selector popups all set those via
+            // TMP_Text + Localize on a child — no need to chase siblings.
+            if (HasMeaningfulTextComponent(buttonObj)) return false;
 
             return true;
+        }
+
+        private static bool IsRootCosmeticSelector(GameObject popup)
+        {
+            foreach (var mb in popup.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string name = mb.GetType().Name;
+                if (name == "PetPopUpV2"
+                    || name == "CardBackSelectorPopup"
+                    || name == "AvatarSelectPanel")
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool HasMeaningfulTextComponent(GameObject obj)
+        {
+            foreach (var tmp in obj.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+                string s = tmp.text?.Trim();
+                if (!string.IsNullOrEmpty(s) && s.Length > 1) return true;
+            }
+            foreach (var legacy in obj.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+            {
+                if (legacy == null || !legacy.gameObject.activeInHierarchy) continue;
+                string s = legacy.text?.Trim();
+                if (!string.IsNullOrEmpty(s) && s.Length > 1) return true;
+            }
+            return false;
         }
 
         private static MonoBehaviour FindAncestorComponentByName(GameObject start, string typeName)

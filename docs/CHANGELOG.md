@@ -2,12 +2,14 @@
 
 All notable changes to Accessible Arena.
 
-## Unreleased
+## v1.2
 
 Cosmetics:
 
-- New `DeckDetailsNavigator` takes over when the deck-details popup opens (activate the deck-title button as before). Tile entries announce the current avatar, sleeve, pet, and emote selections; Enter on a tile expands the in-popup selector grid for navigation; Backspace returns to the tile list, then closes the popup.
-- New `CardViewerNavigator` handles the per-card style/craft popup. Carousel positions announce style name, ownership, and source (Mastery Pass / code / event / season / store). Enter applies the active style; Backspace cancels.
+- Per-deck cosmetic selection (avatar, pet, sleeve) is now fully accessible. Activating the deck-title button opens the deck-details popup; tiles announce the current selection ("Avatar: Standard, press Enter to change") and Enter opens the matching selector. Pet and sleeve sub-popups stack on top — pets, sleeves, and avatar busts are read with their localized names plus status (selected, default, owned, locked) instead of the unlabeled hitboxes the screen reader used to encounter. Backspace closes the active selector and returns to the deck-details tiles.
+- Avatar selector is inline rather than a separate popup. Activating an avatar bust now triggers a silent rescan so the title and bio TMP_Text on the right side update for each preview — arrow Up reads the new bio without leaving the selector.
+- Cosmetic value labels refresh after closing a sub-selector so the deck-details tile reflects the just-picked avatar / pet / sleeve.
+- New popup-mode infrastructure underneath: stacked-popup support in `BaseNavigator` lets any sub-popup opening on top of an existing popup be navigated cleanly, then return to the parent popup with refreshed labels. Benefits any future flow that nests popups, not just cosmetics.
 - New `Shift+Enter` on a focused deck-builder card opens the card viewer popup, mirroring the sighted right-click. Works on collection cards, deck-list entries, sideboard, commanders, and read-only deck cards.
 - Deck-builder card info blocks (Arrow Down) now include a "Style" line (e.g. "Style: Showcase Etched", or "Style: Default art") read live from the deck's per-card skin map.
 
