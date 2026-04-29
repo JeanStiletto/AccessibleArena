@@ -20,6 +20,7 @@ Bug fixes:
 - Evoke and similar hybrid alternative costs are no longer dropped. The game encodes `{U/B}{U/B}` as `{o(U/B)o(U/B)}`, which the parser couldn't tokenize at all (parens weren't recognized) — so Deceit's "Evoke {U/B}{U/B}" line read as just "Evoke". Now reads "Evoke Blue or Black, Blue or Black".
 - Store / offline: opening the store while disconnected no longer reads out the empty Welcome Bundle modal ("000000 Edelsteine, $X.XX, ..."). The store's confirmation modal is now ignored while its currency buttons hold placeholder values, so the real "Store-Fehler" / "Could not retrieve items" SystemMessage popup announces and is keyboard-navigable instead.
 - SystemMessageView popups (offline / error / restart-required dialogs) now outrank routine confirmation modals that opened in the same frame, so the system message becomes the active panel instead of being masked.
+- Pack reward popup no longer reads the previous purchase's set name. The rewards GameObject lives on Canvas - Screenspace Popups and stays active across purchases, so the pack-name cache and `_revealingWasSeen` flag survived between popups — the second pack reused the first pack's set name and a 2 s timeout fallback briefly re-activated the navigator after each claim. Per-popup state is now reset on the True→False detection transition so each purchase re-extracts pack set names cleanly.
 
 ## v1.1
 

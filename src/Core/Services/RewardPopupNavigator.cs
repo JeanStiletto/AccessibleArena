@@ -79,6 +79,21 @@ namespace AccessibleArena.Core.Services
             {
                 _lastRewardsPopupState = result;
                 Log.Msg("{NavigatorId}", $"IsRewardsPopupOpen changed to: {result}");
+
+                // The "ContentController - Rewards" GO lives on Canvas - Screenspace
+                // Popups and stays active across purchases — its mere presence won't
+                // tell us a new reward cycle has started. Use the public True→False
+                // transition as the lifecycle boundary: when one popup ends, drop the
+                // pack-name cache, the revealing flag, and the timeout-fired flag so
+                // the next purchase re-runs the full ExtractPackSetNames flow.
+                if (!result)
+                {
+                    _packSetNames.Clear();
+                    _packSetNameIndex = 0;
+                    _revealingWasSeen = false;
+                    _timeoutFallbackFired = false;
+                    _popupDetectedTime = -1f;
+                }
             }
 
             return result;
@@ -204,10 +219,9 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            // No matching popup found — clear everything
-            _activePopup = null;
-            _seasonEndState = 0;
-            _popupDetectedTime = -1f;
+            // No matching popup found — clear everything (incl. _packSetNames so a
+            // subsequent purchase doesn't re-use the previous pack's set name).
+            ClearPopupState();
             return false;
         }
 
