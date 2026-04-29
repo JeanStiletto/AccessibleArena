@@ -66,6 +66,9 @@ namespace AccessibleArena.Core.Services
         // Confirmation modal uses its own element list (special handling with purchase buttons)
         private List<(GameObject obj, string label)> _modalElements = new List<(GameObject, string)>();
         private int _modalElementIndex;
+        // Set by DiscoverConfirmationModalElements when currency buttons all show placeholder values
+        // (e.g. "000000", "$X.XX") — happens during scene init and when offline so prices never load.
+        private bool _confirmationModalUnpopulated;
 
         // Web browser accessibility (payment popup)
         private readonly WebBrowserAccessibility _webBrowser = new WebBrowserAccessibility();
@@ -778,17 +781,36 @@ namespace AccessibleArena.Core.Services
             bool modalOpen = IsConfirmationModalOpen(_controller);
             if (modalOpen && !_wasConfirmationModalOpen)
             {
-                _wasConfirmationModalOpen = true;
                 var modalObj = GetConfirmationModalGameObject();
                 if (modalObj != null)
                 {
-                    Log.Msg("Store", $"Confirmation modal opened, handling with custom elements");
-                    _isConfirmationModalActive = true;
                     _confirmationModalMb = GetConfirmationModalMb();
                     DiscoverConfirmationModalElements();
-                    AnnounceConfirmationModal();
+                    if (_confirmationModalUnpopulated)
+                    {
+                        // Modal GO is active but its currency buttons all show placeholders
+                        // (e.g. "000000", "$X.XX") — typically the Welcome Bundle stub during
+                        // store load, especially when offline. Latch so we don't re-discover
+                        // every frame, but DON'T take over input — fall through to base.Update
+                        // so a higher-priority popup (SystemMessageView offline error) stays navigable.
+                        Log.Msg("Store", "Confirmation modal placeholder detected, ignoring");
+                        _wasConfirmationModalOpen = true;
+                        _modalElements.Clear();
+                        _confirmationModalMb = null;
+                    }
+                    else
+                    {
+                        Log.Msg("Store", "Confirmation modal opened, handling with custom elements");
+                        _wasConfirmationModalOpen = true;
+                        _isConfirmationModalActive = true;
+                        AnnounceConfirmationModal();
+                        return;
+                    }
                 }
-                return;
+                else
+                {
+                    return;
+                }
             }
             else if (!modalOpen && _wasConfirmationModalOpen)
             {

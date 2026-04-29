@@ -18,6 +18,8 @@ Bug fixes:
 - Generic mana in card costs is now read as "generic" instead of "colorless" (e.g. `{5}{U}{B}` → "5 generic, blue, black"). "Colorless" has a specific Magic meaning — `{C}` and the Colorless color enum still read as "colorless".
 - Repeated mana symbols inside one brace pair no longer drop tokens. The game encodes pairs like `{B}{B}` as `{oBoB}`, and the regex consumed the leading `o` before tokenizing — so Spree's `+ {B}{B} —` line read as `+ Black —`. Now reads `+ Black, Black —`.
 - Evoke and similar hybrid alternative costs are no longer dropped. The game encodes `{U/B}{U/B}` as `{o(U/B)o(U/B)}`, which the parser couldn't tokenize at all (parens weren't recognized) — so Deceit's "Evoke {U/B}{U/B}" line read as just "Evoke". Now reads "Evoke Blue or Black, Blue or Black".
+- Store / offline: opening the store while disconnected no longer reads out the empty Welcome Bundle modal ("000000 Edelsteine, $X.XX, ..."). The store's confirmation modal is now ignored while its currency buttons hold placeholder values, so the real "Store-Fehler" / "Could not retrieve items" SystemMessage popup announces and is keyboard-navigable instead.
+- SystemMessageView popups (offline / error / restart-required dialogs) now outrank routine confirmation modals that opened in the same frame, so the system message becomes the active panel instead of being masked.
 
 ## v1.1
 

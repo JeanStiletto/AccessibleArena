@@ -227,6 +227,11 @@ namespace AccessibleArena.Core.Services.PanelDetection
             GameObject = gameObject;
             DetectedBy = detectedBy;
             Priority = GetPriority(type);
+            // SystemMessageView (offline/error/notification dialogs) outranks routine popups
+            // so a disconnect message wins over a Store ConfirmationModal opened in the same frame.
+            if (!string.IsNullOrEmpty(name) &&
+                name.IndexOf("systemmessage", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                Priority += 100;
             FiltersNavigation = ShouldFilterNavigation(type, name);
             DisplayName = GetDisplayName(name, type);
         }

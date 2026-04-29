@@ -66,12 +66,15 @@ namespace AccessibleArena.Core.Services
         {
             _modalElements.Clear();
             _modalElementIndex = 0;
+            _confirmationModalUnpopulated = false;
 
             if (_confirmationModalMb == null || _storeCache.Handles.ModalButtonFields == null) return;
 
             Log.Msg("Store", $"Discovering confirmation modal elements");
 
             var flags = AllInstanceFlags;
+            bool sawCurrencyButton = false;
+            bool sawRealCurrencyPrice = false;
 
             // Get the modal's own purchase buttons (not the reparented item widget's)
             foreach (var field in _storeCache.Handles.ModalButtonFields)
@@ -105,8 +108,16 @@ namespace AccessibleArena.Core.Services
                     // Derive currency name from field name (icon-only in game, invisible to screen readers)
                     string currencyName = "";
                     string fieldName = field.Name ?? "";
-                    if (fieldName.Contains("Gem")) currencyName = Strings.CurrencyGems;
-                    else if (fieldName.Contains("Coin")) currencyName = Strings.CurrencyGold;
+                    bool isCurrencyButton = false;
+                    if (fieldName.Contains("Gem")) { currencyName = Strings.CurrencyGems; isCurrencyButton = true; }
+                    else if (fieldName.Contains("Coin")) { currencyName = Strings.CurrencyGold; isCurrencyButton = true; }
+                    else if (fieldName.Contains("Cash")) { isCurrencyButton = true; }
+
+                    if (isCurrencyButton)
+                    {
+                        sawCurrencyButton = true;
+                        if (!LooksLikePlaceholderPrice(priceText)) sawRealCurrencyPrice = true;
+                    }
 
                     string buttonLabel = !string.IsNullOrEmpty(currencyName) && !string.IsNullOrEmpty(priceText)
                         ? $"{priceText} {currencyName}" : priceText;
@@ -119,7 +130,25 @@ namespace AccessibleArena.Core.Services
             // Add Cancel option
             _modalElements.Add((null, Strings.PopupCancel));
 
-            Log.Msg("Store", $"Found {_modalElements.Count} confirmation modal elements");
+            // If we saw currency buttons but none of them had a real price, the modal hasn't loaded its
+            // pricing data yet (offline / pre-fetch). Caller will skip the announcement.
+            _confirmationModalUnpopulated = sawCurrencyButton && !sawRealCurrencyPrice;
+
+            Log.Msg("Store", $"Found {_modalElements.Count} confirmation modal elements" +
+                (_confirmationModalUnpopulated ? " (placeholders only — deferring)" : ""));
+        }
+
+        /// <summary>
+        /// Detect price labels that haven't been filled in by the game yet.
+        /// Real prices show numbers like "1500" or "$4.99"; pre-load placeholders show
+        /// repeated zeros ("000000") or literal "X.XX".
+        /// </summary>
+        private static bool LooksLikePlaceholderPrice(string priceText)
+        {
+            if (string.IsNullOrWhiteSpace(priceText)) return true;
+            if (priceText.IndexOf("X.XX", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (priceText.Contains("000000")) return true;
+            return false;
         }
 
         private void AnnounceConfirmationModal()
