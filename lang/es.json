@@ -369,6 +369,7 @@
   "Cancelled": "Cancelado",
   "NoConfirmButton": "No se encontró botón de confirmación",
   "BrowserConfirmGuard": "Pulsa Espacio de nuevo para confirmar.",
+  "BrowserDeclineGuard": "Pulsa Retroceso de nuevo para rechazar el desencadenante.",
   "KeepOnTop": "conservar",
   "PutOnBottom": "seleccionado",
   "CouldNotClick_Format": "No se pudo hacer clic en {0}",

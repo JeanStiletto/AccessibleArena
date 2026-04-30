@@ -369,6 +369,7 @@
   "Cancelled": "Annullato",
   "NoConfirmButton": "Nessun pulsante di conferma trovato",
   "BrowserConfirmGuard": "Premi Spazio di nuovo per confermare.",
+  "BrowserDeclineGuard": "Premi Backspace di nuovo per rifiutare l'innesco.",
   "KeepOnTop": "tieni",
   "PutOnBottom": "selezionato",
   "CouldNotClick_Format": "Impossibile fare clic su {0}",

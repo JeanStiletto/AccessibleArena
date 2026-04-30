@@ -1072,6 +1072,7 @@ namespace AccessibleArena.Core.Models
             L.Format("OrderCards_Placed_Format", position, total);
         public static string NoConfirmButton => L.Get("NoConfirmButton");
         public static string BrowserConfirmGuard => L.Get("BrowserConfirmGuard");
+        public static string BrowserDeclineGuard => L.Get("BrowserDeclineGuard");
         public static string KeepOnTop => L.Get("KeepOnTop");
         public static string PutOnBottom => L.Get("PutOnBottom");
         public static string ZoneChange => L.Get("ZoneChange");

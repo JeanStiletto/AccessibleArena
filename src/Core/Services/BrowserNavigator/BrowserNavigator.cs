@@ -315,6 +315,8 @@ namespace AccessibleArena.Core.Services
             _isHighlightFilteredBrowser = false;
             _browserConfirmWarning = false;
             _browserConfirmWaitRelease = false;
+            _browserDeclineWarning = false;
+            _browserDeclineWaitRelease = false;
 
             // Clear OrderCards state
             _isOrderCards = false;
@@ -385,6 +387,10 @@ namespace AccessibleArena.Core.Services
             // Track Space release for browser confirm guard (double-press in selection browsers)
             if (_browserConfirmWaitRelease && !Input.GetKey(KeyCode.Space))
                 _browserConfirmWaitRelease = false;
+
+            // Track Backspace release for the "may"-trigger decline guard
+            if (_browserDeclineWaitRelease && !Input.GetKey(KeyCode.Backspace))
+                _browserDeclineWaitRelease = false;
 
             // AssignDamage browser: Up/Down controls spinner, Left/Right navigates blockers
             if (_isAssignDamage)
@@ -786,9 +792,13 @@ namespace AccessibleArena.Core.Services
 
                     if (!_browserConfirmWarning)
                     {
-                        // First press: warn and block
+                        // First press: warn and block. Clear the decline guard so a prior
+                        // armed Backspace doesn't decline on the user's next Backspace —
+                        // pressing the other key signals intent has shifted, restart counts.
                         _browserConfirmWarning = true;
                         _browserConfirmWaitRelease = true;
+                        _browserDeclineWarning = false;
+                        _browserDeclineWaitRelease = false;
                         _announcer.Announce(Strings.BrowserConfirmGuard, AnnouncementPriority.High);
                         return true;
                     }
@@ -810,6 +820,13 @@ namespace AccessibleArena.Core.Services
                     _announcer.Announce(Strings.OrderCardsCancelled, AnnouncementPriority.Normal);
                     return true;
                 }
+
+                // "May"-trigger stuck case (DoneButton-only dict + sticky selection that
+                // auto-resubmits): require double Backspace to deselect-and-decline.
+                // Same double-press shape as the Space confirm guard above.
+                if (TryHandleOptionalDeclineGuard())
+                    return true;
+
                 ClickCancelButton();
                 return true;
             }

@@ -18,6 +18,12 @@ namespace AccessibleArena.Core.Services
         private bool _browserConfirmWarning;
         private bool _browserConfirmWaitRelease;
 
+        // Browser decline guard: require double Backspace press to escape "may"-trigger
+        // stuck loops (SelectCardsMultiZone with auto-resubmitting selection, no
+        // CancelButton). Mirrors the Space confirm guard.
+        private bool _browserDeclineWarning;
+        private bool _browserDeclineWaitRelease;
+
         /// <summary>
         /// Tries to submit the current workflow via reflection by accessing GameManager.WorkflowController.
         /// This bypasses the need to click UI elements that may not have standard click handlers.
@@ -899,6 +905,145 @@ namespace AccessibleArena.Core.Services
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Detects the "may"-trigger stuck case: highlight-filtered scaffold (SelectCards/
+        /// SelectCardsMultiZone) where the provider's button dict has DoneButton but no
+        /// CancelButton AND the workflow's currentSelections is non-empty.
+        ///
+        /// Why this gate: when AllowCancel.No on the request, GenerateMultiZoneButtonStates
+        /// (Core.dll) emits only DoneButton. With selections present, DoneButton is the
+        /// "Done" face — Space (auto-) submits the cast. With selections cleared,
+        /// DoneButton becomes "FailToFind" Secondary — the only legal decline path.
+        /// CanAutoSubmitBasedOnInitialTargetList re-fires SubmitTargets on every workflow
+        /// re-apply while count==max, which is the visible cast→cancel→cast loop.
+        ///
+        /// This predicate identifies that exact shape so Backspace can offer a guarded
+        /// "deselect-then-submit-empty" escape without touching any other browser flow.
+        /// </summary>
+        private bool IsOptionalTriggerStuckCase()
+        {
+            if (!_isHighlightFilteredBrowser) return false;
+
+            var browser = GetCurrentBrowser();
+            if (browser == null) return false;
+
+            var dict = GetProviderButtonStateData(browser);
+            if (dict == null) return false;
+            if (!dict.Contains("DoneButton")) return false;
+            if (dict.Contains("CancelButton")) return false;
+
+            return GetCurrentSelectionsCount(browser) > 0;
+        }
+
+        /// <summary>
+        /// Reads the count of `currentSelections` (List&lt;DuelScene_CDC&gt;) on the workflow
+        /// provider via reflection. The field is declared on SelectCardsWorkflow&lt;T&gt;
+        /// (protected), so we walk the hierarchy to find it.
+        /// Returns -1 if the field can't be reached.
+        /// </summary>
+        private int GetCurrentSelectionsCount(object browser)
+        {
+            var providerField = FindFieldWalkingHierarchy(browser.GetType(), "_duelSceneBrowserProvider");
+            var provider = providerField?.GetValue(browser);
+            if (provider == null) return -1;
+
+            var selectionsField = FindFieldWalkingHierarchy(provider.GetType(), "currentSelections");
+            var list = selectionsField?.GetValue(provider) as IList;
+            return list?.Count ?? -1;
+        }
+
+        /// <summary>
+        /// Backspace handler for the "may"-trigger stuck case. Mirrors the Space confirm
+        /// guard exactly: first press warns and arms, second press after release executes.
+        /// Returns true when the input should be consumed (caller skips ClickCancelButton).
+        ///
+        /// Two-press required because declining a "may" trigger is one-shot and ends the
+        /// optional ability. The user would not get a second chance, so we want the same
+        /// safety surface as Space-to-confirm-cast already provides.
+        /// </summary>
+        internal bool TryHandleOptionalDeclineGuard()
+        {
+            if (!IsOptionalTriggerStuckCase()) return false;
+
+            if (_browserDeclineWaitRelease)
+                return true; // Still held from first press — ignore
+
+            if (!_browserDeclineWarning)
+            {
+                // First press: warn and block. Clear the confirm guard so a prior
+                // armed Space doesn't confirm-cast on the user's next Space — pressing
+                // the other key signals intent has shifted, restart counts.
+                _browserDeclineWarning = true;
+                _browserDeclineWaitRelease = true;
+                _browserConfirmWarning = false;
+                _browserConfirmWaitRelease = false;
+                _announcer.Announce(Strings.BrowserDeclineGuard, AnnouncementPriority.High);
+                return true;
+            }
+
+            // Second press after release: reset guard and execute decline
+            _browserDeclineWarning = false;
+            if (TryDeclineOptionalTriggerAndSubmit())
+            {
+                _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+            }
+            else
+            {
+                Log.Msg("BrowserNavigator", "OptionalDecline: deselect-and-submit failed");
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Deselects every card in the workflow's currentSelections by simulating a
+        /// pointer click on each (mirrors how Enter-on-card toggles selection — same
+        /// path as a sighted player clicking the card off), then invokes
+        /// OnButtonCallback("DoneButton") which is the FailToFind decline path when
+        /// count==0 and minSelections==0.
+        ///
+        /// If minSelections > 0 (decline not legal), the game's CanSubmitCurrentTargetSelection
+        /// will reject the empty submit and the user remains in the browser with cards
+        /// deselected — they can re-select via Enter. We don't auto-restore because the
+        /// pre-deselect state was the auto-submit cast loop.
+        /// </summary>
+        private bool TryDeclineOptionalTriggerAndSubmit()
+        {
+            try
+            {
+                var browser = GetCurrentBrowser();
+                if (browser == null) return false;
+
+                var providerField = FindFieldWalkingHierarchy(browser.GetType(), "_duelSceneBrowserProvider");
+                var provider = providerField?.GetValue(browser);
+                if (provider == null) return false;
+
+                var selectionsField = FindFieldWalkingHierarchy(provider.GetType(), "currentSelections");
+                var list = selectionsField?.GetValue(provider) as IList;
+                if (list == null || list.Count == 0) return false;
+
+                // Snapshot before iterating — toggling each removes from the live list
+                var snapshot = new List<object>();
+                foreach (var item in list) snapshot.Add(item);
+
+                int deselected = 0;
+                foreach (var cdcObj in snapshot)
+                {
+                    if (!(cdcObj is Component cdc)) continue;
+                    var result = UIActivator.SimulatePointerClick(cdc.gameObject);
+                    if (result.Success) deselected++;
+                }
+                Log.Msg("BrowserNavigator", $"OptionalDecline: deselected {deselected}/{snapshot.Count} cards");
+
+                return TryClickProviderLogicalButton("DoneButton", "BrowserDecline");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("BrowserNavigator", $"OptionalDecline error: {ex.Message}");
+                return false;
+            }
         }
     }
 }

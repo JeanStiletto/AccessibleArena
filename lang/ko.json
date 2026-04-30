@@ -369,6 +369,7 @@
   "Cancelled": "취소됨",
   "NoConfirmButton": "확인 버튼을 찾을 수 없습니다",
   "BrowserConfirmGuard": "스페이스를 다시 눌러 확인하세요.",
+  "BrowserDeclineGuard": "백스페이스를 다시 눌러 유발을 거부하세요.",
   "KeepOnTop": "유지",
   "PutOnBottom": "선택됨",
   "CouldNotClick_Format": "{0}을(를) 클릭할 수 없습니다",

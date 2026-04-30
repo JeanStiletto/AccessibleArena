@@ -371,6 +371,7 @@
   "Cancelled": "Cancelled",
   "NoConfirmButton": "No confirm button found",
   "BrowserConfirmGuard": "Press Space again to confirm.",
+  "BrowserDeclineGuard": "Press Backspace again to decline trigger.",
   "KeepOnTop": "keep",
   "PutOnBottom": "selected",
   "CouldNotClick_Format": "Could not click {0}",

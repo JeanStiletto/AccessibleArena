@@ -369,6 +369,7 @@
   "Cancelled": "Abgebrochen",
   "NoConfirmButton": "Keine Bestätigungsschaltfläche gefunden",
   "BrowserConfirmGuard": "Erneut Leertaste drücken zum Bestätigen.",
+  "BrowserDeclineGuard": "Erneut Rücktaste drücken, um Trigger abzulehnen.",
   "KeepOnTop": "behalten",
   "PutOnBottom": "ausgewählt",
   "CouldNotClick_Format": "{0} konnte nicht angeklickt werden",

@@ -369,6 +369,7 @@
   "Cancelled": "已取消",
   "NoConfirmButton": "未找到确认按钮",
   "BrowserConfirmGuard": "再次按空格键确认。",
+  "BrowserDeclineGuard": "再次按退格键拒绝触发。",
   "KeepOnTop": "保留",
   "PutOnBottom": "已选择",
   "CouldNotClick_Format": "无法点击{0}",

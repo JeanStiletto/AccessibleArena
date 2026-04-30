@@ -369,6 +369,7 @@
   "Cancelled": "Cancelado",
   "NoConfirmButton": "Botão de confirmação não encontrado",
   "BrowserConfirmGuard": "Pressione Espaço novamente para confirmar.",
+  "BrowserDeclineGuard": "Pressione Backspace novamente para recusar o gatilho.",
   "KeepOnTop": "manter",
   "PutOnBottom": "selecionado",
   "CouldNotClick_Format": "Não foi possível clicar em {0}",

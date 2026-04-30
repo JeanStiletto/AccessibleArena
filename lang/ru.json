@@ -369,6 +369,7 @@
   "Cancelled": "Отменено",
   "NoConfirmButton": "Кнопка подтверждения не найдена",
   "BrowserConfirmGuard": "Нажмите Пробел ещё раз для подтверждения.",
+  "BrowserDeclineGuard": "Нажмите Backspace ещё раз, чтобы отклонить триггер.",
   "KeepOnTop": "оставить",
   "PutOnBottom": "выбрано",
   "CouldNotClick_Format": "Не удалось нажать {0}",

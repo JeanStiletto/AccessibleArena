@@ -369,6 +369,7 @@
   "Cancelled": "キャンセルしました",
   "NoConfirmButton": "確定ボタンが見つかりません",
   "BrowserConfirmGuard": "もう一度スペースを押して確定。",
+  "BrowserDeclineGuard": "もう一度Backspaceを押して誘発を拒否。",
   "KeepOnTop": "キープ",
   "PutOnBottom": "選択済み",
   "CouldNotClick_Format": "{0}をクリックできませんでした",

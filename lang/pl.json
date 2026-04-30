@@ -369,6 +369,7 @@
   "Cancelled": "Anulowane",
   "NoConfirmButton": "Nie znaleziono przycisku potwierdzenia",
   "BrowserConfirmGuard": "Naciśnij Spację ponownie, aby potwierdzić.",
+  "BrowserDeclineGuard": "Naciśnij Backspace ponownie, aby odrzucić wyzwalacz.",
   "KeepOnTop": "zachowaj",
   "PutOnBottom": "wybrano",
   "CouldNotClick_Format": "Nie udało się kliknąć {0}",
