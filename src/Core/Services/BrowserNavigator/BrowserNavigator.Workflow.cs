@@ -748,7 +748,50 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            _announcer.Announce(Strings.NoConfirmButton, AnnouncementPriority.Normal);
+            // Nothing was clicked — don't rescan (would loop the entry announcement and
+            // teleport focus back to card 1, masking the failure feedback).
+            _pendingRescan = false;
+
+            // Highlight-filtered scaffolds with a disabled DoneButton in the provider dict
+            // mean the workflow requires a selection (count < min). Tell the player that
+            // explicitly instead of the generic "No confirm button" mod-error message.
+            if (_isHighlightFilteredBrowser && IsHighlightFilteredDoneButtonDisabled())
+                _announcer.Announce(Strings.NoTargetSelected, AnnouncementPriority.Normal);
+            else
+                _announcer.Announce(Strings.NoConfirmButton, AnnouncementPriority.Normal);
+        }
+
+        /// <summary>
+        /// True iff the current highlight-filtered (SelectCards / SelectCardsMultiZone)
+        /// scaffold's provider dict contains a DoneButton whose Enabled flag is false.
+        ///
+        /// This is the "0 of N selected, must pick a target" shape from
+        /// CreateNonZoneButtons (Core.dll): when count &lt; min, DoneButton stays in the
+        /// dict but Enabled=false. Used to swap the fall-through announcement for one
+        /// that tells the player what action is required.
+        /// </summary>
+        private bool IsHighlightFilteredDoneButtonDisabled()
+        {
+            try
+            {
+                var browser = GetCurrentBrowser();
+                if (browser == null) return false;
+
+                var dict = GetProviderButtonStateData(browser);
+                if (dict == null || !dict.Contains("DoneButton")) return false;
+
+                var stateData = dict["DoneButton"];
+                if (stateData == null) return false;
+
+                var enabledField = stateData.GetType().GetField("Enabled", PublicInstance);
+                if (enabledField == null) return false;
+
+                return !(bool)enabledField.GetValue(stateData);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
