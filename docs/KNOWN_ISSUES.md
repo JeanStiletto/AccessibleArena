@@ -35,6 +35,20 @@ Room cards (Duskmourn) have two independently unlockable sides, each with its ow
 
 ---
 
+### Ctrl+F1 Reads Wrong Tutorial Hint
+
+Ctrl+F1 is meant to repeat the tutorial hint stored for the current screen, but sometimes reads a generic tutorial command instead of the per-screen hint. Hint lookup needs to consistently resolve to the entry stored for the active screen rather than falling through to a default.
+
+---
+
+### Steam Overlay Warning Shows With Overlay Disabled
+
+The startup warning that flags the Steam overlay as conflicting with the mod's Shift+Tab navigation appears even when the user has actually disabled the overlay (right-click MTGA → Properties → uncheck "Enable Steam Overlay while in-game"). Detection currently triggers on Steam-launched runs regardless of the overlay's real state — it should check whether the overlay is actually enabled before warning.
+
+**Files:** `SteamOverlayBlocker.cs`
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Steam Overlay Inaccessible to Screen Readers
@@ -196,6 +210,22 @@ Season end rewards popup now uses content-gated detection (NPE-style): the navig
 
 ---
 
+### Parenless Hybrid Mana In Rules Text (PR #90 follow-up)
+
+PR #90 rewrote the rules-text mana parser so any o-prefixed input is routed through a tokenizer that accepts three shapes: o plus digits, o plus a single color letter, or o plus a parenthesized inner expression. The original parser's comment listed an additional shape — a single hybrid inside o-notation written without parentheses around the slash group — as supported. In-game testing on Spree (Insatiable Avarice) and Evoke (Deceit) confirmed Arena emits the parenthesized form, but the parenless form was not exhaustively verified across all card sets and locales.
+
+If any card or localization string produces the parenless shape, the new tokenizer silently matches only the leading o plus the first color letter and drops the alternative color. No error, no log entry — just a missing color in rules text.
+
+**Monitor for:**
+- Hybrid mana in rules text or activated cost lines reading as a single color when the card definitely shows a hybrid symbol (e.g. just "white" instead of "white or blue").
+- Especially on older sets, less-tested locales, or unusual cost shapes.
+
+If reports surface, the fix is to extend the tokenizer's single-letter shape to optionally accept a slash plus a second color letter.
+
+**Files:** `ManaTextFormatter.cs` (`ParseBareManaSequence` token regex)
+
+---
+
 ## Needs Testing
 
 ### Other Windows Versions and Screen Readers
@@ -244,4 +274,6 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 7. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
 8. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
 9. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
+10. Confirmation guard for skipping declare blockers with available untapped creatures — pressing Space during declare blockers with no blocks assigned currently sends all attackers through unopposed without any warning, even when the player has untapped creatures that could legally block. Mirror item 9: on the first Space press warn that untapped blockers are available, require a second press to confirm.
+11. Damage state announcement on creatures — read marked damage on creatures so the player can tell which ones are at risk during combat (e.g. a 4/4 with 3 damage marked is one point from dying). Currently only base toughness is announced; damage taken this turn is not surfaced, making lethal-damage assignment decisions harder than necessary.
 
