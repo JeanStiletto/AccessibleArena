@@ -26,10 +26,12 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(text))
                 return text;
 
-            // Pattern 1: {oX} format with curly braces (MTGA internal notation)
-            // Examples: {oT}, {oR}, {oW}, {oU}, {oB}, {oG}, {oC}, {o1}, {o2}, {oX}, {oS}, {oP}, {oE}
-            // Also handles hybrid like {oW/U}, {oR/G}, {o2/W}
-            text = Regex.Replace(text, @"\{o([^}]+)\}", match =>
+            // Pattern 1: {o...} format with curly braces (MTGA internal notation)
+            // Single token: {oT}, {oR}, {oW}, {oU}, {oB}, {oG}, {oC}, {o1}, {o2}, {oX}, {oS}, {oP}, {oE}
+            // Multi-token: {oUoU}, {o2oW}, {o4oU}, {o1oB}        (repeated colors / generic + colored)
+            // Hybrid:      {o(U/B)o(U/B)}, {o(W/P)}              (each hybrid wrapped in parens)
+            // Capture includes the leading 'o' so ParseBareManaSequence can match every token.
+            text = Regex.Replace(text, @"\{(o[^}]+)\}", match =>
             {
                 string symbol = match.Groups[1].Value;
                 return ConvertManaSymbolToText(symbol);
@@ -65,8 +67,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Parses a bare mana sequence like "2oW", "o2oW", or "oToRoR" into readable text.
-        /// Handles both leading-number format (2oW) and o-prefix format (o2oW) for generic mana.
+        /// Parses a bare mana sequence like "2oW", "o2oW", "oToRoR", or "o(U/B)o(U/B)" into readable text.
+        /// Handles leading-number format (2oW), o-prefix tokens (o2, oW), and parenthesized hybrid groups (o(U/B)).
         /// </summary>
         private static string ParseBareManaSequence(string sequence)
         {
@@ -83,12 +85,23 @@ namespace AccessibleArena.Core.Services
                 sequence = sequence.Substring(numberMatch.Length);
             }
 
-            // Extract all o(digit+|letter) patterns — handles both o2 (generic) and oW (color)
-            var symbolMatches = Regex.Matches(sequence, @"o(\d+|[WUBRGCTXSE])");
+            // Extract all o-prefixed tokens. Each token is one of:
+            //   o(<inner>)        — parenthesized hybrid like (U/B), (W/P), (2/W)
+            //   o<digits>         — generic count
+            //   o<letter>         — single colored / tap / X / snow / energy
+            var symbolMatches = Regex.Matches(sequence, @"o(\(([^)]+)\)|\d+|[WUBRGCTXSE])");
             foreach (Match m in symbolMatches)
             {
-                string symbol = m.Groups[1].Value;
-                parts.Add(ConvertSingleManaSymbol(symbol));
+                string token = m.Groups[1].Value;
+                if (token.Length > 0 && token[0] == '(')
+                {
+                    // Parenthesized hybrid — recurse so "(U/B)" goes through the standard hybrid path.
+                    parts.Add(ConvertManaSymbolToText(m.Groups[2].Value));
+                }
+                else
+                {
+                    parts.Add(ConvertSingleManaSymbol(token));
+                }
             }
 
             return string.Join(", ", parts);
@@ -103,7 +116,14 @@ namespace AccessibleArena.Core.Services
             if (string.IsNullOrEmpty(symbol))
                 return "";
 
-            // Handle hybrid mana (e.g., "W/U", "R/G", "2/W")
+            // Compound o-prefixed sequences ("oUoU", "o2oW") and parenthesized hybrid groups
+            // ("o(U/B)o(U/B)") must be tokenized — splitting on '/' first would mangle them.
+            if (symbol.Contains("o") || symbol.Contains("("))
+            {
+                return ParseBareManaSequence(symbol);
+            }
+
+            // Standard hybrid mana (no o-prefix), e.g., "W/U", "R/G", "2/W", "W/P"
             if (symbol.Contains("/"))
             {
                 var parts = symbol.Split('/');
@@ -120,12 +140,6 @@ namespace AccessibleArena.Core.Services
                     string right = ConvertSingleManaSymbol(parts[1]);
                     return Strings.ManaHybrid(left, right);
                 }
-            }
-
-            // Handle compound patterns like "4oW", "2oWoW", "oToR" (number + oX sequences)
-            if (symbol.Contains("o"))
-            {
-                return ParseBareManaSequence(symbol);
             }
 
             return ConvertSingleManaSymbol(symbol);
