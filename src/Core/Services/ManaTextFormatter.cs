@@ -266,7 +266,7 @@ namespace AccessibleArena.Core.Services
 
             // Generic mana first
             if (genericCount > 0)
-                parts.Add(colorlessLabel ? $"{genericCount} {Strings.ManaColorless}" : $"{genericCount}");
+                parts.Add(colorlessLabel ? $"{genericCount} {Strings.ManaGeneric}" : $"{genericCount}");
 
             // Simple colors
             foreach (var symbol in colorOrder)

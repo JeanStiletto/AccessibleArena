@@ -13,6 +13,10 @@ Cosmetics:
 - New `Shift+Enter` on a focused deck-builder card opens the card viewer popup, mirroring the sighted right-click. Works on collection cards, deck-list entries, sideboard, commanders, and read-only deck cards.
 - Deck-builder card info blocks (Arrow Down) now include a "Style" line (e.g. "Style: Showcase Etched", or "Style: Default art") read live from the deck's per-card skin map.
 
+Bug fixes:
+
+- Generic mana in card costs is now read as "generic" instead of "colorless" (e.g. `{5}{U}{B}` → "5 generic, blue, black"). "Colorless" has a specific Magic meaning — `{C}` and the Colorless color enum still read as "colorless".
+
 ## v1.1
 
 Duel:
