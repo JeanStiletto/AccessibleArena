@@ -13,6 +13,12 @@ Cosmetics:
 - New `Shift+Enter` on a focused deck-builder card opens the card viewer popup, mirroring the sighted right-click. Works on collection cards, deck-list entries, sideboard, commanders, and read-only deck cards.
 - Deck-builder card info blocks (Arrow Down) now include a "Style" line (e.g. "Style: Showcase Etched", or "Style: Default art") read live from the deck's per-card skin map.
 
+Bug fixes:
+
+- Generic mana in card costs is now read as "generic" instead of "colorless" (e.g. `{5}{U}{B}` → "5 generic, blue, black"). "Colorless" has a specific Magic meaning — `{C}` and the Colorless color enum still read as "colorless".
+- Repeated mana symbols inside one brace pair no longer drop tokens. The game encodes pairs like `{B}{B}` as `{oBoB}`, and the regex consumed the leading `o` before tokenizing — so Spree's `+ {B}{B} —` line read as `+ Black —`. Now reads `+ Black, Black —`.
+- Evoke and similar hybrid alternative costs are no longer dropped. The game encodes `{U/B}{U/B}` as `{o(U/B)o(U/B)}`, which the parser couldn't tokenize at all (parens weren't recognized) — so Deceit's "Evoke {U/B}{U/B}" line read as just "Evoke". Now reads "Evoke Blue or Black, Blue or Black".
+
 ## v1.1
 
 Duel:
