@@ -37,10 +37,10 @@ namespace AccessibleArena.Core.Services
                 return ConvertManaSymbolToText(symbol);
             });
 
-            // Pattern 2: Bare format for activated ability costs (e.g., "2oW:", "oT:", "3oRoR:")
+            // Pattern 2: Bare format for activated ability costs (e.g., "2oW:", "oT:", "3oRoR:", "o(U/B):")
             // This handles patterns like: [number]o[color] at the start of ability text
-            // Pattern breakdown: (optional number)(one or more oX sequences)(colon)
-            text = Regex.Replace(text, @"^((\d*)(?:o(\d+|[WUBRGCTXSE]))+):", match =>
+            // o-token shapes accepted: o<digits>, o<single-color>, or o(<hybrid-inner>) — same set ParseBareManaSequence tokenizes
+            text = Regex.Replace(text, @"^((\d*)(?:o(?:\([^)]+\)|\d+|[WUBRGCTXSE]))+):", match =>
             {
                 string fullCost = match.Groups[1].Value;
                 return ParseBareManaSequence(fullCost) + ":";
@@ -48,8 +48,8 @@ namespace AccessibleArena.Core.Services
 
             // Pattern 3: Bare mana sequences anywhere in text (from parameterized hanger tooltips)
             // Examples: "Umwandlung o2oW:", "Du kannst o3oW zahlen"
-            // Matches: one or more o(digit|color) tokens, not inside words
-            text = Regex.Replace(text, @"(?<!\w)((?:o(?:\d+|[WUBRGCTXSE]))+)(?!\w)", match =>
+            // Matches: one or more o-tokens, not inside words. Same token shapes as Pattern 2.
+            text = Regex.Replace(text, @"(?<!\w)((?:o(?:\([^)]+\)|\d+|[WUBRGCTXSE]))+)(?!\w)", match =>
             {
                 return ParseBareManaSequence(match.Groups[1].Value);
             });
