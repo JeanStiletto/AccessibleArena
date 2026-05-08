@@ -25,6 +25,7 @@ Bug fixes:
 - Translated the four 1.1 battlefield-stacking strings (`StackSelect_Unavailable`, `SettingBattlefieldStacking` + Desc, `HelpCtrlEnterStack`) into es, fr, it, ja, ko, pl, pt-BR, ru, zh-CN, zh-TW — they were English-only.
 - Ctrl+F1 in a duel now reads the hint for the active sub-state (Choose X, spinner, mana color picker, declare blockers, browser) instead of always reading the full duel keybindings list.
 - Phase-skip warning now also fires during Declare Blockers: pressing Space to confirm "no blocks" while you still have untapped creatures and nothing assigned warns once and requires a second press to confirm.
+- Card cost announcements now reflect active cost reductions instead of always reading the printed cost. With a Warden of Evos Isle on the battlefield, a second Warden in hand now reads `1 generic, blue` (matching the in-hand tile) instead of `2 generic, blue` (the printed cost). The mod now reads the live cast-action cost (`Action.ManaCost` on the per-card `Actions` list, converted via `GreClient.CardData.ManaUtilities.ConvertManaCostsToList`) — the same source MTGA's own card-tile renderer uses — and falls back to `PrintedCastingCost` when no cast action is available. Library / collection / deck-builder views (no live instance, so no actions) still read the printed cost as before.
 
 ## v1.1
 
