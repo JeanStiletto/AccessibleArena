@@ -35,12 +35,6 @@ Room cards (Duskmourn) have two independently unlockable sides, each with its ow
 
 ---
 
-### Ctrl+F1 Reads Wrong Tutorial Hint
-
-Ctrl+F1 is meant to repeat the tutorial hint stored for the current screen, but sometimes reads a generic tutorial command instead of the per-screen hint. Hint lookup needs to consistently resolve to the entry stored for the active screen rather than falling through to a default.
-
----
-
 ### Steam Overlay Warning Shows With Overlay Disabled
 
 The startup warning that flags the Steam overlay as conflicting with the mod's Shift+Tab navigation appears even when the user has actually disabled the overlay (right-click MTGA → Properties → uncheck "Enable Steam Overlay while in-game"). Detection currently triggers on Steam-launched runs regardless of the overlay's real state — it should check whether the overlay is actually enabled before warning.

@@ -22,6 +22,7 @@ Bug fixes:
 - SystemMessageView popups (offline / error / restart-required dialogs) now outrank routine confirmation modals that opened in the same frame, so the system message becomes the active panel instead of being masked.
 - Pack reward popup no longer reads the previous purchase's set name. The rewards GameObject lives on Canvas - Screenspace Popups and stays active across purchases, so the pack-name cache and `_revealingWasSeen` flag survived between popups — the second pack reused the first pack's set name and a 2 s timeout fallback briefly re-activated the navigator after each claim. Per-popup state is now reset on the True→False detection transition so each purchase re-extracts pack set names cleanly.
 - Translated the four 1.1 battlefield-stacking strings (`StackSelect_Unavailable`, `SettingBattlefieldStacking` + Desc, `HelpCtrlEnterStack`) into es, fr, it, ja, ko, pl, pt-BR, ru, zh-CN, zh-TW — they were English-only.
+- Ctrl+F1 in a duel now reads the hint for the active sub-state (Choose X, spinner, mana color picker, declare blockers, browser) instead of always reading the full duel keybindings list.
 
 ## v1.1
 

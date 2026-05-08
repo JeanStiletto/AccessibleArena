@@ -406,8 +406,15 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        public override string GetTutorialHint() =>
-            BrowserNavigator.IsActive ? _browserNavigator.GetTutorialHint() : LocaleManager.Instance.Get("DuelKeybindingsHint");
+        public override string GetTutorialHint()
+        {
+            if (BrowserNavigator.IsActive) return _browserNavigator.GetTutorialHint();
+            if (_chooseXNavigator.IsActive) return LocaleManager.Instance.Get("ChooseXHint");
+            if (_spinnerNavigator.IsActive) return LocaleManager.Instance.Get("SpinnerHint");
+            if (_manaColorPicker.IsActive) return LocaleManager.Instance.Get("HelpTipManaColorPicker");
+            if (_duelAnnouncer.IsInDeclareBlockersPhase) return LocaleManager.Instance.Get("HelpTipCombatBlocking");
+            return LocaleManager.Instance.Get("DuelKeybindingsHint");
+        }
 
         protected override string GetActivationAnnouncement()
         {
