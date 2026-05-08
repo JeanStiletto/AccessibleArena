@@ -962,6 +962,7 @@
   "SkipTurn_On": "Passer le tour",
   "SkipTurn_Off": "Passer le tour désactivé",
   "PhaseSkipGuard_Warning": "Mana disponible. Appuyez à nouveau sur Espace pour passer.",
+  "BlockSkipGuard_Warning": "Créatures non engagées disponibles. Appuyez à nouveau sur Espace pour confirmer aucun bloqueur.",
   "PhaseStop_Set_Format": "Arrêt défini : {0}",
   "PhaseStop_Cleared_Format": "Arrêt supprimé : {0}",
   "PhaseStop_Upkeep": "Entretien",

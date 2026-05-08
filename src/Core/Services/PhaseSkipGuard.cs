@@ -8,7 +8,9 @@ using AccessibleArena.Core.Utils;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
-    /// Guards against accidental phase-skip when player has untapped lands in main phase.
+    /// Guards against accidental phase-skip in two situations:
+    ///   (a) Untapped lands during the player's own main phase.
+    ///   (b) Untapped creatures with no blockers assigned during Declare Blockers.
     ///
     /// Intercepts at TWO levels:
     /// 1. SendSubmitEventToSelectedObject prefix — blocks Unity EventSystem's Submit dispatch.
@@ -21,6 +23,13 @@ namespace AccessibleArena.Core.Services
     /// </summary>
     public static class PhaseSkipGuard
     {
+        private struct GuardContext
+        {
+            public string Key;            // Identifier for state tracking; differs across guarded contexts.
+            public string WarningMessage; // Localized message announced when warning fires.
+            public bool BypassFullControl;
+        }
+
         private static bool _warningShown;
         private static string _warningPhase;
         private static bool _waitingForRelease;
@@ -114,28 +123,29 @@ namespace AccessibleArena.Core.Services
             var duelAnnouncer = DuelAnnouncer.Instance;
             if (duelAnnouncer == null) return false;
 
-            string phase = duelAnnouncer.CurrentPhase;
+            var context = GetGuardContext(duelAnnouncer);
+            string contextKey = context?.Key;
 
-            // After user confirmed pass, suppress until phase actually changes.
-            // The server takes ~200ms to process the pass — lands are still untapped
+            // After user confirmed pass, suppress until context actually changes.
+            // The server takes ~200ms to process the pass — state is still warning-worthy
             // during that window, which would re-trigger the warning.
             if (_confirmed)
             {
-                if (phase != _confirmedPhase)
-                    _confirmed = false; // Phase changed, allow future warnings
+                if (contextKey != _confirmedPhase)
+                    _confirmed = false; // Context changed, allow future warnings
                 else
-                    return false; // Same phase, don't re-warn
+                    return false; // Same context, don't re-warn
             }
 
-            // Auto-clear warning if phase changed since it was shown
-            if (_warningShown && phase != _warningPhase)
+            // Auto-clear warning if context changed since it was shown
+            if (_warningShown && contextKey != _warningPhase)
             {
                 _warningShown = false;
                 _waitingForRelease = false;
             }
 
-            if (phase != "Main1" && phase != "Main2") return false;
-            if (!duelAnnouncer.IsUserTurn) return false;
+            if (context == null) return false;
+            var ctx = context.Value;
 
             if (_warningShown)
             {
@@ -143,28 +153,65 @@ namespace AccessibleArena.Core.Services
                 _warningShown = false;
                 _warningPhase = null;
                 _confirmed = true;
-                _confirmedPhase = phase;
-                Log.Msg("PhaseSkipGuard", "Confirmed — allowing pass");
+                _confirmedPhase = contextKey;
+                Log.Msg("PhaseSkipGuard", $"Confirmed ({contextKey}) — allowing pass");
                 return false;
             }
 
-            if (!HasUntappedPlayerLands()) return false;
-
-            // Don't warn when full control is already active
-            if (_priorityController != null &&
+            // Don't warn when full control is already active (only for contexts where
+            // full control implies the user is intentionally managing each priority pass).
+            if (!ctx.BypassFullControl && _priorityController != null &&
                 (_priorityController.IsFullControlEnabled() || _priorityController.IsFullControlLocked()))
                 return false;
 
-            // First press with untapped lands — warn and block until released
+            // First press while in a guarded context — warn and block until released
             _warningShown = true;
-            _warningPhase = phase;
+            _warningPhase = contextKey;
             _waitingForRelease = true;
             _blockThisFrame = true;
 
             var announcer = AccessibleArenaMod.Instance?.Announcer;
-            announcer?.Announce(Strings.PhaseSkipGuard_Warning, AnnouncementPriority.High);
-            Log.Msg("PhaseSkipGuard", "Warning shown — blocking until Space released and pressed again");
+            announcer?.Announce(ctx.WarningMessage, AnnouncementPriority.High);
+            Log.Msg("PhaseSkipGuard", $"Warning shown ({contextKey}) — blocking until Space released and pressed again");
             return true;
+        }
+
+        private static GuardContext? GetGuardContext(DuelAnnouncer duelAnnouncer)
+        {
+            string phase = duelAnnouncer.CurrentPhase;
+
+            // Main phase + user turn + untapped lands
+            if ((phase == "Main1" || phase == "Main2") && duelAnnouncer.IsUserTurn)
+            {
+                if (HasUntappedPlayerLands())
+                {
+                    return new GuardContext
+                    {
+                        Key = "Main:" + phase,
+                        WarningMessage = Strings.PhaseSkipGuard_Warning,
+                        BypassFullControl = false,
+                    };
+                }
+                return null;
+            }
+
+            // Declare blockers + untapped creatures + no blocker yet assigned
+            if (duelAnnouncer.IsInDeclareBlockersPhase)
+            {
+                var (hasUntappedCreature, hasAssignedBlocker) = ScanPlayerCreaturesForBlockerGuard();
+                if (hasUntappedCreature && !hasAssignedBlocker)
+                {
+                    return new GuardContext
+                    {
+                        Key = "DeclareBlock",
+                        WarningMessage = Strings.BlockSkipGuard_Warning,
+                        BypassFullControl = true,
+                    };
+                }
+                return null;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -200,6 +247,28 @@ namespace AccessibleArena.Core.Services
                 if (!CardStateProvider.GetIsTappedFromCard(go)) return true;
             }
             return false;
+        }
+
+        private static (bool hasUntappedCreature, bool hasAssignedBlocker) ScanPlayerCreaturesForBlockerGuard()
+        {
+            var battlefieldHolder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
+            if (battlefieldHolder == null) return (false, false);
+
+            bool hasUntappedCreature = false;
+            foreach (Transform child in battlefieldHolder.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null || !child.gameObject.activeInHierarchy) continue;
+                var go = child.gameObject;
+                if (!CardDetector.IsCard(go)) continue;
+                var (isCreature, _, isOpponent) = CardDetector.GetCardCategory(go);
+                if (!isCreature || isOpponent) continue;
+                // Any blocker already assigned → user is committing real blocks, not "no blocks".
+                if (CardStateProvider.GetIsBlockingFromCard(go))
+                    return (false, true);
+                if (!CardStateProvider.GetIsTappedFromCard(go))
+                    hasUntappedCreature = true;
+            }
+            return (hasUntappedCreature, false);
         }
     }
 }

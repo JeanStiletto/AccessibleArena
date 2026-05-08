@@ -962,6 +962,7 @@
   "SkipTurn_On": "Salta turno",
   "SkipTurn_Off": "Salta turno disattivato",
   "PhaseSkipGuard_Warning": "Mana disponibile. Premi Spazio di nuovo per passare.",
+  "BlockSkipGuard_Warning": "Creature STAP disponibili. Premi Spazio di nuovo per confermare nessun bloccante.",
   "PhaseStop_Set_Format": "Stop impostato: {0}",
   "PhaseStop_Cleared_Format": "Stop rimosso: {0}",
   "PhaseStop_Upkeep": "Mantenimento",

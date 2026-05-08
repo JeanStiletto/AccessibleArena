@@ -1525,6 +1525,7 @@ namespace AccessibleArena.Core.Models
         public static string SkipTurn_On => L.Get("SkipTurn_On");
         public static string SkipTurn_Off => L.Get("SkipTurn_Off");
         public static string PhaseSkipGuard_Warning => L.Get("PhaseSkipGuard_Warning");
+        public static string BlockSkipGuard_Warning => L.Get("BlockSkipGuard_Warning");
         public static string PhaseStop_Set(string phase) => L.Format("PhaseStop_Set_Format", phase);
         public static string PhaseStop_Cleared(string phase) => L.Format("PhaseStop_Cleared_Format", phase);
 

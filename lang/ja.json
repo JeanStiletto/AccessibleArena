@@ -962,6 +962,7 @@
   "SkipTurn_On": "ターンスキップ",
   "SkipTurn_Off": "ターンスキップ 解除",
   "PhaseSkipGuard_Warning": "マナが利用可能です。もう一度スペースを押してパスします。",
+  "BlockSkipGuard_Warning": "アンタップ状態のクリーチャーがいます。もう一度スペースを押してブロックなしを確定します。",
   "PhaseStop_Set_Format": "ストップ設定: {0}",
   "PhaseStop_Cleared_Format": "ストップ解除: {0}",
   "PhaseStop_Upkeep": "アップキープ",

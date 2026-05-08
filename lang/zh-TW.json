@@ -962,6 +962,7 @@
   "SkipTurn_On": "跳過回合",
   "SkipTurn_Off": "跳過回合 已關閉",
   "PhaseSkipGuard_Warning": "有可用魔法力。再次按空白鍵跳過。",
+  "BlockSkipGuard_Warning": "有未橫置的生物可用。再次按空白鍵確認不阻擋。",
   "PhaseStop_Set_Format": "停止已設定：{0}",
   "PhaseStop_Cleared_Format": "停止已清除：{0}",
   "PhaseStop_Upkeep": "維持",

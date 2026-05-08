@@ -962,6 +962,7 @@
   "SkipTurn_On": "Zug überspringen",
   "SkipTurn_Off": "Zug überspringen aus",
   "PhaseSkipGuard_Warning": "Mana verfügbar. Leertaste erneut drücken zum Passen.",
+  "BlockSkipGuard_Warning": "Ungetappte Kreaturen verfügbar. Leertaste erneut drücken, um keine Blocker zu bestätigen.",
   "PhaseStop_Set_Format": "Stopp gesetzt: {0}",
   "PhaseStop_Cleared_Format": "Stopp entfernt: {0}",
   "PhaseStop_Upkeep": "Versorgungsphase",

@@ -962,6 +962,7 @@
   "SkipTurn_On": "Saltar turno",
   "SkipTurn_Off": "Saltar turno desactivado",
   "PhaseSkipGuard_Warning": "Maná disponible. Pulsa Espacio de nuevo para pasar.",
+  "BlockSkipGuard_Warning": "Criaturas sin girar disponibles. Pulsa Espacio de nuevo para confirmar sin bloqueos.",
   "PhaseStop_Set_Format": "Parada establecida: {0}",
   "PhaseStop_Cleared_Format": "Parada eliminada: {0}",
   "PhaseStop_Upkeep": "Mantenimiento",

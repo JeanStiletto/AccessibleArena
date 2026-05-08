@@ -962,6 +962,7 @@
   "SkipTurn_On": "턴 건너뛰기",
   "SkipTurn_Off": "턴 건너뛰기 해제",
   "PhaseSkipGuard_Warning": "마나 사용 가능. 스페이스를 다시 누르면 패스합니다.",
+  "BlockSkipGuard_Warning": "언탭된 생물이 있습니다. 스페이스를 다시 누르면 방어자 없음을 확정합니다.",
   "PhaseStop_Set_Format": "정지 설정: {0}",
   "PhaseStop_Cleared_Format": "정지 해제: {0}",
   "PhaseStop_Upkeep": "유지단계",

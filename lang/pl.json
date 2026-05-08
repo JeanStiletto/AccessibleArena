@@ -962,6 +962,7 @@
   "SkipTurn_On": "Pomiń turę",
   "SkipTurn_Off": "Pomiń turę wyłączony",
   "PhaseSkipGuard_Warning": "Mana dostępna. Naciśnij Spację ponownie, aby przepuścić.",
+  "BlockSkipGuard_Warning": "Dostępne nieprzekręcone stworzenia. Naciśnij Spację ponownie, aby potwierdzić brak blokujących.",
   "PhaseStop_Set_Format": "Stop ustawiony: {0}",
   "PhaseStop_Cleared_Format": "Stop usunięty: {0}",
   "PhaseStop_Upkeep": "Utrzymanie",
