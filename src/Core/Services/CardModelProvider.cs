@@ -41,6 +41,12 @@ namespace AccessibleArena.Core.Services
         // so we log the first occurrence and only re-log if the resolved name ever differs.
         private static readonly Dictionary<uint, string> _loggedGrpIdName = new Dictionary<uint, string>();
 
+        // Cache for ManaUtilities.ConvertManaCostsToList(IEnumerable<ManaRequirement>) — converts
+        // an Action's RepeatedField<ManaRequirement> into the ManaQuantity[] shape that the rest of
+        // the formatter understands.
+        private static MethodInfo _convertManaCostsMethod = null;
+        private static bool _convertManaCostsSearched = false;
+
         /// <summary>
         /// Clears the model provider cache. Call when scene changes.
         /// </summary>
@@ -991,6 +997,109 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        /// <summary>
+        /// Looks for a Cast action in the card's <c>Actions</c> list and returns its converted
+        /// ManaQuantity list — the live, possibly-discounted casting cost (Warden of Evos Isle's
+        /// "creature spells with flying you cast cost {1} less", Goblin Electromancer, etc.).
+        ///
+        /// Cost reductions are tracked on the per-card Action.ManaCost (a
+        /// <c>RepeatedField&lt;ManaRequirement&gt;</c>), not on CardData.ManaCostOverride which only
+        /// covers the narrower "explicit override" case. The game's display path resolves the cost
+        /// via <c>costAction.ConvertedActionManaCost(model)</c> → <c>ManaUtilities.ConvertManaCostsToList</c>;
+        /// we invoke that converter reflectively to reuse the same conversion logic.
+        ///
+        /// Returns null when no live cast action is available — caller falls back to PrintedCastingCost.
+        /// </summary>
+        private static IEnumerable TryGetLiveCastActionManaCost(object dataObj, Type objType)
+        {
+            try
+            {
+                var actionsObj = GetModelPropertyValue(dataObj, objType, "Actions");
+                if (!(actionsObj is IEnumerable actions)) return null;
+
+                foreach (var actionInfo in actions)
+                {
+                    if (actionInfo == null) continue;
+                    var aiType = actionInfo.GetType();
+                    var actionProp = aiType.GetProperty("Action", PublicInstance);
+                    if (actionProp == null) continue;
+
+                    var action = actionProp.GetValue(actionInfo);
+                    if (action == null) continue;
+
+                    var actType = action.GetType();
+                    var actionTypeProp = actType.GetProperty("ActionType", PublicInstance);
+                    var manaCostProp = actType.GetProperty("ManaCost", PublicInstance);
+                    if (actionTypeProp == null || manaCostProp == null) continue;
+
+                    // ActionType enum: Cast, CastAdventure, CastOmen, CastLeft, CastRight, CastMdfc,
+                    // CastPrototype, CastLeftRoom, CastRightRoom — name prefix "Cast" matches all.
+                    string actionTypeName = actionTypeProp.GetValue(action)?.ToString() ?? "";
+                    if (!actionTypeName.StartsWith("Cast")) continue;
+
+                    var manaCost = manaCostProp.GetValue(action);
+                    if (!(manaCost is IEnumerable manaCostEnum)) continue;
+
+                    // RepeatedField<ManaRequirement> of length 0 means "free cast" or "not yet
+                    // resolved" — skip and let the next action / printed-cost fallback handle it.
+                    if (!manaCostEnum.Cast<object>().Any()) continue;
+
+                    var convertedList = InvokeConvertManaCostsToList(manaCostEnum);
+                    if (convertedList != null) return convertedList;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Msg("CardModelProvider", $"Live cast-action cost lookup failed: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Reflectively invokes <c>GreClient.CardData.ManaUtilities.ConvertManaCostsToList</c>
+        /// to turn an <c>IEnumerable&lt;ManaRequirement&gt;</c> into <c>IReadOnlyList&lt;ManaQuantity&gt;</c>.
+        /// Returns null when the method cannot be located.
+        /// </summary>
+        private static IEnumerable InvokeConvertManaCostsToList(IEnumerable manaRequirements)
+        {
+            if (!_convertManaCostsSearched)
+            {
+                _convertManaCostsSearched = true;
+                try
+                {
+                    var manaUtilsType = AppDomain.CurrentDomain.GetAssemblies()
+                        .Select(a => { try { return a.GetType("GreClient.CardData.ManaUtilities"); } catch { return null; } })
+                        .FirstOrDefault(t => t != null);
+                    if (manaUtilsType != null)
+                    {
+                        _convertManaCostsMethod = manaUtilsType.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                            .FirstOrDefault(m => m.Name == "ConvertManaCostsToList" && m.GetParameters().Length == 1);
+                    }
+                    Log.Card("CardModelProvider",
+                        _convertManaCostsMethod != null
+                            ? "ConvertManaCostsToList located"
+                            : "ConvertManaCostsToList NOT found — cost-reduction fix disabled");
+                }
+                catch (Exception ex)
+                {
+                    Log.Msg("CardModelProvider", $"ConvertManaCostsToList reflection failed: {ex.Message}");
+                }
+            }
+
+            if (_convertManaCostsMethod == null) return null;
+
+            try
+            {
+                return _convertManaCostsMethod.Invoke(null, new object[] { manaRequirements }) as IEnumerable;
+            }
+            catch (Exception ex)
+            {
+                Log.Msg("CardModelProvider", $"ConvertManaCostsToList invoke failed: {ex.Message}");
+                return null;
+            }
+        }
+
         #endregion
 
         #region Power/Toughness
@@ -1222,13 +1331,23 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(info.Name) && cardGrpId > 0)
                     info.Name = GetNameFromGrpId(cardGrpId);
 
-                // Mana Cost - try structured ManaQuantity list first, fall back to string.
-                // CardData exposes PrintedCastingCost, CardPrintingData exposes CastingCost (both are the same list).
-                var castingCost = GetModelPropertyValue(dataObj, objType, "PrintedCastingCost")
-                    ?? GetModelPropertyValue(dataObj, objType, "CastingCost");
-                if (castingCost != null && castingCost is IEnumerable costEnum && !(castingCost is string))
+                // Mana Cost - prefer the live cast-action cost so cost reductions (Warden of Evos
+                // Isle, Goblin Electromancer, etc.) match what the in-hand tile shows. The printed
+                // cost on CardData/CardPrintingData is the oracle cost and ignores active reducers;
+                // the per-card Actions list carries an Action whose ManaCost reflects the current
+                // discounted requirement. Fall back to PrintedCastingCost / CastingCost when no cast
+                // action is available (battlefield, deck builder, collection — no live instance).
+                IEnumerable castingCost = TryGetLiveCastActionManaCost(dataObj, objType);
+                if (castingCost == null)
                 {
-                    info.ManaCost = ManaTextFormatter.ParseManaQuantityArray(costEnum);
+                    var printedVal = GetModelPropertyValue(dataObj, objType, "PrintedCastingCost")
+                                     ?? GetModelPropertyValue(dataObj, objType, "CastingCost");
+                    castingCost = printedVal as IEnumerable;
+                    if (printedVal is string) castingCost = null;
+                }
+                if (castingCost != null)
+                {
+                    info.ManaCost = ManaTextFormatter.ParseManaQuantityArray(castingCost);
                 }
                 if (string.IsNullOrEmpty(info.ManaCost))
                 {
