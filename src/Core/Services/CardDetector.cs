@@ -496,10 +496,6 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoCollection, collectionText));
             }
 
-            // Deck-builder card style (only set by DeckCardProvider extractors).
-            if (!string.IsNullOrEmpty(info.Style))
-                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, Models.Strings.CardStyleLine(info.Style)));
-
             // Block order varies by zone context
             bool isBattlefield = zone == ZoneType.Battlefield;
             bool isBrowser = zone == ZoneType.Browser;
@@ -538,6 +534,11 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRarity, info.Rarity));
 
             AddSetAndArtistBlock(blocks, info);
+
+            // Deck-builder card style — last block, after set/artist.
+            // Only set by DeckCardProvider extractors; suppressed elsewhere.
+            if (!string.IsNullOrEmpty(info.Style))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoName, Models.Strings.CardStyleLine(info.Style)));
 
             return blocks;
         }

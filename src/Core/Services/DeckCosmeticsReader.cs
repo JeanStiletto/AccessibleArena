@@ -56,6 +56,8 @@ namespace AccessibleArena.Core.Services
             public PropertyInfo CardDataProvider;   // CardDatabase.CardDataProvider
             public MethodInfo GetCardPrintingById;  // ICardDataProvider.GetCardPrintingById(uint)
             public PropertyInfo ArtId;              // CardPrintingData.ArtId
+            public PropertyInfo ExpansionCode;      // CardPrintingData.ExpansionCode
+            public PropertyInfo CollectorNumber;    // CardPrintingData.CollectorNumber
         }
 
         private sealed class ArtStyleEntryHandles
@@ -149,12 +151,17 @@ namespace AccessibleArena.Core.Services
                 if (h.CardDataProvider != null)
                 {
                     var providerType = h.CardDataProvider.PropertyType;
-                    h.GetCardPrintingById = providerType.GetMethod("GetCardPrintingById", PublicInstance, null, new[] { typeof(uint) }, null);
+                    // Concrete impl is GetCardPrintingById(uint id, string skinCode = null) — two params,
+                    // even though most callers omit the second. Match that exact signature.
+                    h.GetCardPrintingById = providerType.GetMethod("GetCardPrintingById", PublicInstance, null, new[] { typeof(uint), typeof(string) }, null)
+                                         ?? providerType.GetMethod("GetCardPrintingById", PublicInstance, null, new[] { typeof(uint) }, null);
                 }
                 Type printingType = FindType("GreClient.CardData.CardPrintingData");
                 if (printingType != null)
                 {
                     h.ArtId = printingType.GetProperty("ArtId", PublicInstance);
+                    h.ExpansionCode = printingType.GetProperty("ExpansionCode", PublicInstance);
+                    h.CollectorNumber = printingType.GetProperty("CollectorNumber", PublicInstance);
                 }
                 return h;
             },
@@ -252,8 +259,81 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Resolves a raw skin/variant code (e.g. "ShowcaseEtched") to a localized display name,
+        /// or returns the "Default art" placeholder when the code is null/empty.
+        /// Use this when the per-tile skin code is already known (preferred path for deck-list
+        /// rows, where two tiles can share a grpId but differ by skin).
+        /// </summary>
+        public static string GetStyleNameFromSkinCode(string skinCode)
+        {
+            if (string.IsNullOrEmpty(skinCode)) return Models.Strings.CosmeticsDefaultArt;
+            return HumanizeId(skinCode);
+        }
+
+        /// <summary>
+        /// Resolves the displayed style for a deck-builder tile. When the tile has a skin override
+        /// applied (user-picked variant), returns the humanized skin code. Otherwise falls back to
+        /// the printing's set + collector number (e.g. "Dominaria 26") so that two rows of the same
+        /// card from different printings (different GrpIds) can be told apart by ear.
+        /// </summary>
+        public static string GetStyleNameForTile(uint grpId, string skinCode)
+        {
+            if (!string.IsNullOrEmpty(skinCode))
+                return HumanizeId(skinCode);
+
+            string printingLabel = GetPrintingLabel(grpId);
+            return printingLabel ?? Models.Strings.CosmeticsDefaultArt;
+        }
+
+        private static string GetPrintingLabel(uint grpId)
+        {
+            if (grpId == 0) return null;
+            var printing = GetCardPrinting(grpId);
+            if (printing == null) return null;
+
+            var ch = _cardDatabaseCache.IsInitialized ? _cardDatabaseCache.Handles : null;
+            if (ch == null) return null;
+
+            string setCode = null;
+            string collector = null;
+            try { setCode = ch.ExpansionCode?.GetValue(printing) as string; } catch { }
+            try { collector = ch.CollectorNumber?.GetValue(printing) as string; } catch { }
+
+            if (string.IsNullOrEmpty(setCode) && string.IsNullOrEmpty(collector)) return null;
+
+            string setName = string.IsNullOrEmpty(setCode) ? null : UITextExtractor.MapSetCodeToName(setCode);
+            if (string.IsNullOrEmpty(setName)) setName = setCode;
+
+            if (string.IsNullOrEmpty(collector)) return setName;
+            if (string.IsNullOrEmpty(setName)) return collector;
+            return $"{setName} {collector}";
+        }
+
+        private static object GetCardPrinting(uint grpId)
+        {
+            var ph = GetPantryHandles();
+            if (ph?.GetCardDatabase == null) return null;
+            try
+            {
+                var cardDatabase = ph.GetCardDatabase.Invoke(null, null);
+                if (cardDatabase == null) return null;
+                _cardDatabaseCache.EnsureInitialized(cardDatabase.GetType());
+                var ch = _cardDatabaseCache.IsInitialized ? _cardDatabaseCache.Handles : null;
+                if (ch?.CardDataProvider == null || ch.GetCardPrintingById == null) return null;
+                var provider = ch.CardDataProvider.GetValue(cardDatabase);
+                if (provider == null) return null;
+                int paramCount = ch.GetCardPrintingById.GetParameters().Length;
+                object[] args = paramCount == 2 ? new object[] { grpId, null } : new object[] { grpId };
+                return ch.GetCardPrintingById.Invoke(provider, args);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Localized name for the art style applied to the given grpId on the current deck.
-        /// Returns "Default art" placeholder when no skin code is set.
+        /// Falls back to the model's deck-level skin override dictionary; this is keyed by
+        /// grpId only and cannot represent two rows with the same grpId but different skins,
+        /// so callers with access to a tile should prefer <see cref="GetStyleNameFromSkinCode"/>.
         /// </summary>
         public static string GetCardStyleName(uint grpId)
         {
@@ -268,11 +348,7 @@ namespace AccessibleArena.Core.Services
             }
             catch { skinCode = null; }
 
-            if (string.IsNullOrEmpty(skinCode)) return Models.Strings.CosmeticsDefaultArt;
-
-            // Resolve the human-readable variant name. The catalog is keyed by variant code,
-            // but variant codes look like enum values (e.g., "ShowcaseEtched") which we can humanize.
-            return HumanizeId(skinCode);
+            return GetStyleNameFromSkinCode(skinCode);
         }
 
         /// <summary>

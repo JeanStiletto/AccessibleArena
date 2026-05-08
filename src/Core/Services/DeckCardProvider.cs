@@ -25,6 +25,7 @@ namespace AccessibleArena.Core.Services
         public struct DeckListCardInfo
         {
             public uint GrpId;
+            public string SkinCode; // Per-tile skin/variant; null/empty for default art
             public int Quantity;
             public GameObject TileButton;
             public GameObject TagButton;
@@ -338,7 +339,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var result = cardInfo.Value;
                     result.Quantity = info.Quantity;
-                    result.Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId);
+                    result.Style = DeckCosmeticsReader.GetStyleNameForTile(info.GrpId, info.SkinCode);
                     return result;
                 }
             }
@@ -348,7 +349,7 @@ namespace AccessibleArena.Core.Services
             {
                 Name = name ?? $"Card #{info.GrpId}",
                 Quantity = info.Quantity,
-                Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId),
+                Style = DeckCosmeticsReader.GetStyleNameForTile(info.GrpId, info.SkinCode),
                 IsValid = true
             };
         }
@@ -416,7 +417,7 @@ namespace AccessibleArena.Core.Services
                     var result = cardInfo.Value;
                     result.Quantity = info.Quantity;
                     result.IsUnowned = isUnowned;
-                    result.Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId);
+                    result.Style = DeckCosmeticsReader.GetStyleNameForTile(info.GrpId, info.SkinCode);
                     return result;
                 }
             }
@@ -428,7 +429,7 @@ namespace AccessibleArena.Core.Services
                 Name = name ?? $"Card #{info.GrpId}",
                 Quantity = info.Quantity,
                 IsUnowned = isUnowned,
-                Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId),
+                Style = DeckCosmeticsReader.GetStyleNameForTile(info.GrpId, info.SkinCode),
                 IsValid = true
             };
         }
@@ -443,6 +444,7 @@ namespace AccessibleArena.Core.Services
         public struct ReadOnlyDeckCardInfo
         {
             public uint GrpId;
+            public string SkinCode; // Per-tile skin/variant; null/empty for default art
             public int Quantity;
             public GameObject CardGameObject; // StaticColumnMetaCardView GameObject
             public bool IsValid => GrpId > 0 && CardGameObject != null;
@@ -542,6 +544,8 @@ namespace AccessibleArena.Core.Services
                             }
                         }
 
+                        info.SkinCode = ReadSkinCode(cardView);
+
                         // Get Quantity property
                         var qtyProp = viewType.GetProperty("Quantity");
                         if (qtyProp != null)
@@ -609,7 +613,7 @@ namespace AccessibleArena.Core.Services
                 {
                     var result = cardInfo.Value;
                     result.Quantity = info.Quantity;
-                    result.Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId);
+                    result.Style = DeckCosmeticsReader.GetStyleNameForTile(info.GrpId, info.SkinCode);
                     return result;
                 }
             }
@@ -620,7 +624,7 @@ namespace AccessibleArena.Core.Services
             {
                 Name = name ?? $"Card #{info.GrpId}",
                 Quantity = info.Quantity,
-                Style = DeckCosmeticsReader.GetCardStyleName(info.GrpId),
+                Style = DeckCosmeticsReader.GetStyleNameForTile(info.GrpId, info.SkinCode),
                 IsValid = true
             };
         }
@@ -635,6 +639,7 @@ namespace AccessibleArena.Core.Services
         public struct CommanderCardInfo
         {
             public uint GrpId;
+            public string SkinCode; // Per-tile skin/variant; null/empty for default art
             public int Quantity;
             public GameObject CardGameObject; // ListCommanderView gameObject (for card info extraction)
             public GameObject TileButton;     // CustomButton - Tile (navigable element)
@@ -728,6 +733,8 @@ namespace AccessibleArena.Core.Services
                         }
                     }
 
+                    info.SkinCode = ReadSkinCode(cardView);
+
                     // Quantity
                     var qtyProp = viewType.GetProperty("Quantity");
                     if (qtyProp != null)
@@ -813,7 +820,7 @@ namespace AccessibleArena.Core.Services
                     result.Quantity = cmdInfo.Quantity;
                     result.IsCommander = !cmdInfo.IsCompanion;
                     result.IsCompanion = cmdInfo.IsCompanion;
-                    result.Style = DeckCosmeticsReader.GetCardStyleName(cmdInfo.GrpId);
+                    result.Style = DeckCosmeticsReader.GetStyleNameForTile(cmdInfo.GrpId, cmdInfo.SkinCode);
                     return result;
                 }
             }
@@ -826,7 +833,7 @@ namespace AccessibleArena.Core.Services
                 Quantity = cmdInfo.Quantity,
                 IsCommander = !cmdInfo.IsCompanion,
                 IsCompanion = cmdInfo.IsCompanion,
-                Style = DeckCosmeticsReader.GetCardStyleName(cmdInfo.GrpId),
+                Style = DeckCosmeticsReader.GetStyleNameForTile(cmdInfo.GrpId, cmdInfo.SkinCode),
                 IsValid = true
             };
         }
@@ -884,6 +891,9 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
+                // SkinCode — per-tile, distinguishes rows that share a grpId but differ by skin
+                info.SkinCode = ReadSkinCode(cardView);
+
                 // Quantity
                 var qtyProp = viewType.GetProperty("Quantity");
                 if (qtyProp != null)
@@ -907,6 +917,35 @@ namespace AccessibleArena.Core.Services
                 if (info.IsValid)
                     target.Add(info);
             }
+        }
+
+        /// <summary>
+        /// Reads the per-tile skin/variant code from a deck-builder card view.
+        /// Tries the view's <c>SkinCode</c> property first (ListMetaCardView_Expanding /
+        /// ListCommanderView expose this directly), then falls back to <c>Card.Instance.SkinCode</c>
+        /// for views without that convenience property (e.g. StaticColumnMetaCardView).
+        /// Returns null when the tile has no skin override applied (= default art).
+        /// </summary>
+        private static string ReadSkinCode(object cardView)
+        {
+            if (cardView == null) return null;
+            try
+            {
+                var viewType = cardView.GetType();
+                var skinProp = viewType.GetProperty("SkinCode");
+                if (skinProp != null && skinProp.PropertyType == typeof(string))
+                    return skinProp.GetValue(cardView) as string;
+
+                var cardProp = viewType.GetProperty("Card");
+                var card = cardProp?.GetValue(cardView);
+                if (card == null) return null;
+                var instanceProp = card.GetType().GetProperty("Instance");
+                var instance = instanceProp?.GetValue(card);
+                if (instance == null) return null;
+                var instanceSkinProp = instance.GetType().GetProperty("SkinCode");
+                return instanceSkinProp?.GetValue(instance) as string;
+            }
+            catch { return null; }
         }
     }
 }

@@ -11,7 +11,7 @@ Cosmetics:
 - Cosmetic value labels refresh after closing a sub-selector so the deck-details tile reflects the just-picked avatar / pet / sleeve.
 - New popup-mode infrastructure underneath: stacked-popup support in `BaseNavigator` lets any sub-popup opening on top of an existing popup be navigated cleanly, then return to the parent popup with refreshed labels. Benefits any future flow that nests popups, not just cosmetics.
 - New `Shift+Enter` on a focused deck-builder card opens the card viewer popup, mirroring the sighted right-click. Works on collection cards, deck-list entries, sideboard, commanders, and read-only deck cards.
-- Deck-builder card info blocks (Arrow Down) now include a "Style" line (e.g. "Style: Showcase Etched", or "Style: Default art") read live from the deck's per-card skin map.
+- Deck-builder card info blocks (Arrow Down) end with a "Style" line (e.g. "Style: Showcase Etched") read live from each tile. Skin codes are read per row from the tile's own `MtgCardInstance.SkinCode` rather than the deck-level skin dictionary, so two rows of the same card with different skins read distinctly. When no skin override is applied, the line falls back to the printing identity (set name + collector number, e.g. "Style: Dominaria 26") so two rows of the same card from different printings — different `GrpId`s — can be told apart by ear too.
 
 Bug fixes:
 
