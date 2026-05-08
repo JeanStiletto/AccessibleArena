@@ -48,10 +48,15 @@ namespace AccessibleArena.Core.Services
         private int _savedMainIndex;
         private float _subPanelPollTimer;
         private bool _pollForMonoBehaviourPanels; // Poll for Avatar/Emote panels (not PopupBase)
+        private GameObject _popupSubPanelGo;      // Captured popup root for Pet/Title/Sleeve (PopupBase types)
+        private float _rescanDelay;               // Countdown for silent info-block rescan after sub-panel exit
+        private bool _persistedDuringSubPanel;    // Marks "user actually applied a cosmetic change" so ExitSubPanel can schedule a rescan
 
         // Info blocks for main screen navigation
         private readonly List<InfoBlock> _infoBlocks = new List<InfoBlock>();
         private int _infoIndex;
+
+        private const float RescanDelaySeconds = 0.4f;
 
         #endregion
 
@@ -122,6 +127,12 @@ namespace AccessibleArena.Core.Services
             public Type AvatarSelectPanelType;
             public MethodInfo DoneButtonOnClick;
             public MethodInfo AvatarIsLocked;
+
+            // Pet persistence
+            public Type PetPopUpV2Type;
+            public MethodInfo PetOnConfirm;
+            public Type SelectPetsListItemViewType;
+            public PropertyInfo SelectPetsItemIsOwned;
         }
 
         private static readonly ReflectionCache<ProfileHandles> _profileCache = new ReflectionCache<ProfileHandles>(
@@ -186,6 +197,14 @@ namespace AccessibleArena.Core.Services
                     h.BioString = avatarSelType.GetProperty("BioString", PublicInstance);
                     h.StoreSection = avatarSelType.GetProperty("StoreSection", PublicInstance);
                 }
+
+                h.PetPopUpV2Type = FindType("Core.Meta.MainNavigation.Profile.PetPopUpV2");
+                if (h.PetPopUpV2Type != null)
+                    h.PetOnConfirm = h.PetPopUpV2Type.GetMethod("OnConfirm", PublicInstance);
+
+                h.SelectPetsListItemViewType = FindType("SelectPetsListItemView");
+                if (h.SelectPetsListItemViewType != null)
+                    h.SelectPetsItemIsOwned = h.SelectPetsListItemViewType.GetProperty("IsOwned", PublicInstance);
 
                 return h;
             },
@@ -688,6 +707,9 @@ namespace AccessibleArena.Core.Services
             DisablePopupDetection();
             _inSubPanel = false;
             _pollForMonoBehaviourPanels = false;
+            _popupSubPanelGo = null;
+            _rescanDelay = 0f;
+            _persistedDuringSubPanel = false;
             _subPanelItems.Clear();
             _infoBlocks.Clear();
             _controller = null;
@@ -923,6 +945,7 @@ namespace AccessibleArena.Core.Services
                         _announcer.Announce(Strings.Activating(item.Label));
                         UIActivator.Activate(item.GameObject);
                         TryPersistAvatarSelection(item);
+                        TryPersistPetSelection(item);
                     }
                 }
                 return true;
@@ -981,12 +1004,64 @@ namespace AccessibleArena.Core.Services
 
                 _profileCache.Handles.DoneButtonOnClick.Invoke(panel, null);
                 Log.Msg("{NavigatorId}", $"Avatar selection persisted via DoneButton_OnClick");
+                _persistedDuringSubPanel = true;
                 // Panel closes automatically via _backButton_OnClicked callback;
-                // polling will detect mode change and call ExitSubPanel()
+                // polling will detect mode change and call ExitSubPanel(), which schedules the rescan.
             }
             catch (Exception ex)
             {
                 Log.Warn("{NavigatorId}", $"DoneButton_OnClick failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// PetPopUpV2 uses a two-step flow: clicking a pet item only previews it
+        /// (sets _selectPetListIcon, shows 3D preview); the selection is only persisted
+        /// when the Confirm button is clicked, which calls OnConfirm() → _onPetSelected.Invoke().
+        /// After the preview click, invoke OnConfirm directly so Enter persists in one keypress.
+        /// Skips locked pets (the game itself hides the confirm buttons when !IsOwned).
+        /// </summary>
+        private void TryPersistPetSelection(SubPanelItem item)
+        {
+            if (_subPanelType != "Pet") return;
+            if (item.GameObject == null) return;
+            if (_profileCache.Handles.PetPopUpV2Type == null || _profileCache.Handles.PetOnConfirm == null) return;
+
+            // Skip persistence for locked pets — the game's confirm buttons aren't shown
+            if (_profileCache.Handles.SelectPetsListItemViewType != null && _profileCache.Handles.SelectPetsItemIsOwned != null)
+            {
+                try
+                {
+                    var petItem = item.GameObject.GetComponent(_profileCache.Handles.SelectPetsListItemViewType);
+                    if (petItem != null && !(bool)_profileCache.Handles.SelectPetsItemIsOwned.GetValue(petItem))
+                    {
+                        Log.Msg("{NavigatorId}", "Pet is locked, skipping persistence");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("{NavigatorId}", $"IsOwned check failed: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                var popup = item.GameObject.GetComponentInParent(_profileCache.Handles.PetPopUpV2Type);
+                if (popup == null)
+                {
+                    Log.Msg("{NavigatorId}", "PetPopUpV2 not found in parent hierarchy");
+                    return;
+                }
+
+                _profileCache.Handles.PetOnConfirm.Invoke(popup, null);
+                Log.Msg("{NavigatorId}", "Pet selection persisted via OnConfirm");
+                _persistedDuringSubPanel = true;
+                // Popup closes itself via Hide() in OnConfirm; OnPopupClosed → ExitSubPanel schedules the rescan.
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"OnConfirm failed: {ex.Message}");
             }
         }
 
@@ -1051,6 +1126,11 @@ namespace AccessibleArena.Core.Services
         {
             _inSubPanel = true;
             _pollForMonoBehaviourPanels = false;
+            // Capture popup root for Pet/Title/Sleeve so Update() can detect when the game hides it
+            // (OnConfirm → Hide()). We never enter base popup mode for cosmetic popups, so the
+            // standard OnPopupClosed path doesn't fire — we have to poll the GO ourselves.
+            _popupSubPanelGo = (_subPanelType == "Pet" || _subPanelType == "Title" || _subPanelType == "Sleeve")
+                ? panelGo : null;
             _subPanelItems.Clear();
             _subPanelIndex = 0;
 
@@ -1067,6 +1147,7 @@ namespace AccessibleArena.Core.Services
         {
             _inSubPanel = false;
             _pollForMonoBehaviourPanels = false;
+            _popupSubPanelGo = null;
             _subPanelItems.Clear();
             _subPanelType = null;
 
@@ -1079,6 +1160,14 @@ namespace AccessibleArena.Core.Services
 
             if (_infoIndex >= 0 && _infoIndex < _infoBlocks.Count)
                 AnnounceCurrentBlock();
+
+            // If the user actually applied a cosmetic change, schedule a deferred silent
+            // rebuild — game-side reactive bindings often haven't propagated by this frame.
+            if (_persistedDuringSubPanel)
+            {
+                _persistedDuringSubPanel = false;
+                TriggerRescan();
+            }
         }
 
         private void CloseSubPanel()
@@ -1644,6 +1733,85 @@ namespace AccessibleArena.Core.Services
                     ExitSubPanel();
                 }
             }
+
+            // Pet/Title/Sleeve are PopupBase popups, but ProfileNavigator's OnPopupDetected
+            // handles them with EnterSubPanel without calling base.OnPopupDetected — so
+            // _isInPopupMode is never set, and OnPopupClosed never fires when the game hides
+            // the popup itself (OnConfirm → Hide()). Poll the captured popup GO directly.
+            if (_inSubPanel && _popupSubPanelGo != null
+                && (_subPanelType == "Pet" || _subPanelType == "Title" || _subPanelType == "Sleeve"))
+            {
+                if (_popupSubPanelGo == null || !_popupSubPanelGo.activeInHierarchy)
+                {
+                    Log.Msg("{NavigatorId}", $"Popup sub-panel closed (poll): {_subPanelType}");
+                    ExitSubPanel();
+                }
+            }
+
+            // Delayed silent rescan after cosmetic persistence + sub-panel exit.
+            // Game-side reactive bindings (cosmetic provider → display item) settle one or two
+            // frames after _onPetSelected / DoneButton_OnClick, so the immediate BuildInfoBlocks
+            // in ExitSubPanel may read stale data. This deferred pass catches the settled state.
+            if (_rescanDelay > 0f)
+            {
+                _rescanDelay -= Time.deltaTime;
+                if (_rescanDelay <= 0f)
+                {
+                    _rescanDelay = 0f;
+                    PerformRescan();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Schedule a silent rescan after the standard delay. Mirrors the SettingsMenuNavigator
+        /// pattern (SettingsMenuNavigator.cs:1112). Only triggered from ExitSubPanel so the rescan
+        /// runs once we are definitively back on the main screen — never mid-transition.
+        /// </summary>
+        private void TriggerRescan()
+        {
+            _rescanDelay = RescanDelaySeconds;
+        }
+
+        /// <summary>
+        /// Silently rebuild main info blocks, preserving selection by GameObject reference.
+        /// Skips while still in a sub-panel — sub-panel state transitions own their discovery and
+        /// touching _subPanelItems mid-flight strands the user in an empty list (frozen state).
+        /// </summary>
+        private void PerformRescan()
+        {
+            if (!_isActive) return;
+            if (_inSubPanel) return; // Defensive: never disturb sub-panel item list
+
+            GameObject prevGo = (_infoIndex >= 0 && _infoIndex < _infoBlocks.Count)
+                ? _infoBlocks[_infoIndex].GameObject : null;
+            string prevLabel = (_infoIndex >= 0 && _infoIndex < _infoBlocks.Count)
+                ? _infoBlocks[_infoIndex].Label : null;
+
+            _infoBlocks.Clear();
+            BuildInfoBlocks();
+
+            // Restore by reference first; fall back to label match (cosmetic buttons share controller GO)
+            int restored = -1;
+            if (prevGo != null)
+            {
+                for (int i = 0; i < _infoBlocks.Count; i++)
+                {
+                    if (_infoBlocks[i].GameObject == prevGo) { restored = i; break; }
+                }
+            }
+            if (restored < 0 && !string.IsNullOrEmpty(prevLabel))
+            {
+                for (int i = 0; i < _infoBlocks.Count; i++)
+                {
+                    if (_infoBlocks[i].Label == prevLabel) { restored = i; break; }
+                }
+            }
+
+            if (restored >= 0)
+                _infoIndex = restored;
+            else if (_infoBlocks.Count > 0)
+                _infoIndex = Math.Min(_infoIndex, _infoBlocks.Count - 1);
         }
 
         private void CheckForMonoBehaviourPanel()

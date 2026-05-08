@@ -7,6 +7,7 @@ All notable changes to Accessible Arena.
 Cosmetics:
 
 - Per-deck cosmetic selection (avatar, pet, sleeve) is now fully accessible. Activating the deck-title button opens the deck-details popup; tiles announce the current selection ("Avatar: Standard, press Enter to change") and Enter opens the matching selector. Pet and sleeve sub-popups stack on top — pets, sleeves, and avatar busts are read with their localized names plus status (selected, default, owned, locked) instead of the unlabeled hitboxes the screen reader used to encounter. Backspace closes the active selector and returns to the deck-details tiles.
+- Profile pet selector now actually applies the selection on Enter. The `PetPopUpV2` uses a two-step flow (preview, then explicit Confirm); the mod now invokes `OnConfirm` after the preview click so the chosen pet is persisted instead of dropped when the popup closes.
 - Avatar selector is inline rather than a separate popup. Activating an avatar bust now triggers a silent rescan so the title and bio TMP_Text on the right side update for each preview — arrow Up reads the new bio without leaving the selector.
 - Cosmetic value labels refresh after closing a sub-selector so the deck-details tile reflects the just-picked avatar / pet / sleeve.
 - New popup-mode infrastructure underneath: stacked-popup support in `BaseNavigator` lets any sub-popup opening on top of an existing popup be navigated cleanly, then return to the parent popup with refreshed labels. Benefits any future flow that nests popups, not just cosmetics.
