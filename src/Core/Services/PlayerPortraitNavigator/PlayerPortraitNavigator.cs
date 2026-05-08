@@ -19,7 +19,7 @@ namespace AccessibleArena.Core.Services
         private bool _isActive;
 
         // State machine for V key navigation
-        private enum NavigationState { Inactive, PlayerNavigation, EmoteNavigation }
+        private enum NavigationState { Inactive, PlayerNavigation, EmoteNavigation, PetNavigation }
         private NavigationState _navigationState = NavigationState.Inactive;
         private int _currentPlayerIndex = 0; // 0 = You, 1 = Opponent
         private int _currentPropertyIndex = 0;
@@ -45,7 +45,8 @@ namespace AccessibleArena.Core.Services
         {
             _isActive = false;
             _navigationState = NavigationState.Inactive;
-            _emoteButtons.Clear();
+            _equippedEmotes.Clear();
+            _petInteractions.Clear();
             UnsubscribeLowTimeWarnings();
             _localTimerObj = null;
             _opponentTimerObj = null;
@@ -144,6 +145,12 @@ namespace AccessibleArena.Core.Services
                 return HandleEmoteNavigation();
             }
 
+            // Handle pet navigation state (modal - blocks other keys)
+            if (_navigationState == NavigationState.PetNavigation)
+            {
+                return HandlePetNavigation();
+            }
+
             // Handle player navigation state
             if (_navigationState == NavigationState.PlayerNavigation)
             {
@@ -192,7 +199,8 @@ namespace AccessibleArena.Core.Services
             if (_navigationState == NavigationState.Inactive) return;
 
             _navigationState = NavigationState.Inactive;
-            _emoteButtons.Clear();
+            _equippedEmotes.Clear();
+            _petInteractions.Clear();
 
             // Restore previous focus
             if (_previousFocus != null && _previousFocus) // Check both null and Unity destroyed
@@ -319,18 +327,25 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Enter: open emote menu (local player only)
-            // Use InputManager to consume the key so game doesn't also process it
+            // Enter / Shift+Enter dispatch:
+            //   local + Enter        → emote wheel
+            //   local + Shift+Enter  → pet interaction menu
+            //   opponent + Enter     → toggle per-duel mute
+            //   opponent + Shift+Enter → no-op (opponent pet ignores local input)
             if (InputManager.GetEnterAndConsume())
             {
-                Log.Nav("PlayerPortrait", $"Enter pressed and consumed in PlayerNavigation, playerIndex={_currentPlayerIndex}");
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                Log.Nav("PlayerPortrait", $"Enter pressed (shift={shift}, playerIndex={_currentPlayerIndex})");
 
-                // Open emote wheel (local player only)
                 if (_currentPlayerIndex == 0)
                 {
-                    OpenEmoteWheel();
+                    if (shift) OpenPetMenu();
+                    else       OpenEmoteWheel();
                 }
-                // Do nothing for opponent
+                else if (!shift)
+                {
+                    ToggleOpponentMute();
+                }
                 return true;
             }
 

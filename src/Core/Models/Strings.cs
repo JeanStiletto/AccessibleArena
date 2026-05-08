@@ -701,6 +701,25 @@ namespace AccessibleArena.Core.Models
         public static string EmoteSent(string emoteName) => L.Format("EmoteSent_Format", emoteName);
         public static string EmotesNotAvailable => L.Get("EmotesNotAvailable");
 
+        // Opponent emote / mute
+        public static string OpponentEmoted(string text) => L.Format("OpponentEmoted_Format", text);
+        public static string OpponentMuted => L.Get("OpponentMuted");
+        public static string OpponentUnmuted => L.Get("OpponentUnmuted");
+        public static string OpponentMuteUnavailable => L.Get("OpponentMuteUnavailable");
+
+        // Pet interaction menu
+        public static string PetMenu => L.Get("PetMenu");
+        public static string PetMenuOpened(string petName) => L.Format("PetMenuOpened_Format", petName);
+        public static string PetNotAvailable => L.Get("PetNotAvailable");
+        public static string PetNotEquipped => L.Get("PetNotEquipped");
+        public static string PetActionTriggered(string label) => L.Format("PetActionTriggered_Format", label);
+        public static string PetActionStroke => L.Get("PetActionStroke");
+        public static string PetActionTap => L.Get("PetActionTap");
+        public static string PetActionChest => L.Get("PetActionChest");
+        public static string PetActionArm => L.Get("PetActionArm");
+        public static string PetActionLeg => L.Get("PetActionLeg");
+        public static string PetActionHead => L.Get("PetActionHead");
+
         // ===========================================
         // INPUT FIELD NAVIGATION
         // ===========================================

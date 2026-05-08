@@ -31,6 +31,7 @@ namespace AccessibleArena
         private ModSettings _settings;
         private PanelStateManager _panelStateManager;
         private SocialNotificationWatcher _socialNotificationWatcher;
+        private EmoteAnnouncer _emoteAnnouncer;
 
         private bool _initialized;
         private string _lastActiveNavigatorId;
@@ -148,6 +149,10 @@ namespace AccessibleArena
             // friend invites, challenge invites, lobby invites/chat, and tournament-ready
             // notifications regardless of which screen is active.
             _socialNotificationWatcher = new SocialNotificationWatcher(_announcer);
+
+            // Duel-only watcher: subscribes to UIMessageHandler.EmoteRecievedCallback once GameManager
+            // exists, and reads incoming opponent emotes through the same announcement pipeline.
+            _emoteAnnouncer = new EmoteAnnouncer(_announcer);
 
             // Subscribe to focus changes for automatic card navigation
             _focusTracker.OnFocusChanged += HandleFocusChanged;
@@ -328,6 +333,11 @@ namespace AccessibleArena
             // Re-subscribe the social notification watcher to the new scene's ChatManager
             _socialNotificationWatcher?.OnSceneChanged();
 
+            // Drop the cached GameManager/UIMessageHandler so the announcer re-subscribes for the next duel.
+            _emoteAnnouncer?.OnSceneChanged();
+            EmoteService.ClearCache();
+            PetService.ClearCache();
+
             // DuelNavigator and SideboardNavigator activate on DuelScene
             if (sceneName == DuelScene)
             {
@@ -437,6 +447,9 @@ namespace AccessibleArena
 
             // Poll for incoming chat messages (global, works from any screen)
             _socialNotificationWatcher?.Update();
+
+            // Resolve UIMessageHandler once GameManager is up, then announce opponent emotes as they arrive.
+            _emoteAnnouncer?.Update();
 
             // Poll auto-update background tasks (version check announcement, download completion)
             UpdateChecker.Update(_announcer);
