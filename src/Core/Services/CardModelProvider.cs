@@ -47,6 +47,12 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _convertManaCostsMethod = null;
         private static bool _convertManaCostsSearched = false;
 
+        // Per-action PropertyInfos resolved on first card extraction and reused thereafter — game
+        // types are stable across the process lifetime, same rule as the other reflection caches.
+        private static PropertyInfo _actionInfoActionProp = null;
+        private static PropertyInfo _actionTypeProp = null;
+        private static PropertyInfo _actionManaCostProp = null;
+
         /// <summary>
         /// Clears the model provider cache. Call when scene changes.
         /// </summary>
@@ -1020,24 +1026,27 @@ namespace AccessibleArena.Core.Services
                 foreach (var actionInfo in actions)
                 {
                     if (actionInfo == null) continue;
-                    var aiType = actionInfo.GetType();
-                    var actionProp = aiType.GetProperty("Action", PublicInstance);
-                    if (actionProp == null) continue;
+                    if (_actionInfoActionProp == null)
+                        _actionInfoActionProp = actionInfo.GetType().GetProperty("Action", PublicInstance);
+                    if (_actionInfoActionProp == null) continue;
 
-                    var action = actionProp.GetValue(actionInfo);
+                    var action = _actionInfoActionProp.GetValue(actionInfo);
                     if (action == null) continue;
 
-                    var actType = action.GetType();
-                    var actionTypeProp = actType.GetProperty("ActionType", PublicInstance);
-                    var manaCostProp = actType.GetProperty("ManaCost", PublicInstance);
-                    if (actionTypeProp == null || manaCostProp == null) continue;
+                    if (_actionTypeProp == null || _actionManaCostProp == null)
+                    {
+                        var actType = action.GetType();
+                        _actionTypeProp = actType.GetProperty("ActionType", PublicInstance);
+                        _actionManaCostProp = actType.GetProperty("ManaCost", PublicInstance);
+                    }
+                    if (_actionTypeProp == null || _actionManaCostProp == null) continue;
 
                     // ActionType enum: Cast, CastAdventure, CastOmen, CastLeft, CastRight, CastMdfc,
                     // CastPrototype, CastLeftRoom, CastRightRoom — name prefix "Cast" matches all.
-                    string actionTypeName = actionTypeProp.GetValue(action)?.ToString() ?? "";
+                    string actionTypeName = _actionTypeProp.GetValue(action)?.ToString() ?? "";
                     if (!actionTypeName.StartsWith("Cast")) continue;
 
-                    var manaCost = manaCostProp.GetValue(action);
+                    var manaCost = _actionManaCostProp.GetValue(action);
                     if (!(manaCost is IEnumerable manaCostEnum)) continue;
 
                     // RepeatedField<ManaRequirement> of length 0 means "free cast" or "not yet
@@ -1068,9 +1077,7 @@ namespace AccessibleArena.Core.Services
                 _convertManaCostsSearched = true;
                 try
                 {
-                    var manaUtilsType = AppDomain.CurrentDomain.GetAssemblies()
-                        .Select(a => { try { return a.GetType("GreClient.CardData.ManaUtilities"); } catch { return null; } })
-                        .FirstOrDefault(t => t != null);
+                    var manaUtilsType = FindType("GreClient.CardData.ManaUtilities");
                     if (manaUtilsType != null)
                     {
                         _convertManaCostsMethod = manaUtilsType.GetMethods(BindingFlags.Public | BindingFlags.Static)
