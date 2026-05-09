@@ -1376,7 +1376,13 @@ namespace AccessibleArena.Core.Services
             }
             else if (buttonCount > 0)
             {
-                message = Strings.BrowserOptions(browserName);
+                // Prepend the scaffold's subheader prompt when present (YesNo's
+                // "Do you want to target your opponent with Ancestral Recall?",
+                // Optional-action prompts, Mutate prompts) so the user hears the
+                // actual question instead of just the generic type label.
+                string prompt = ExtractBrowserHeaderText();
+                string options = Strings.BrowserOptions(browserName);
+                message = !string.IsNullOrEmpty(prompt) ? $"{prompt} {options}" : options;
             }
             else
             {
