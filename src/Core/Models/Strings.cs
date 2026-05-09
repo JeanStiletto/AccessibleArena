@@ -712,6 +712,7 @@ namespace AccessibleArena.Core.Models
         public static string PetMenuOpened(string petName) => L.Format("PetMenuOpened_Format", petName);
         public static string PetNotAvailable => L.Get("PetNotAvailable");
         public static string PetNotEquipped => L.Get("PetNotEquipped");
+        public static string PetHasNoInteractions => L.Get("PetHasNoInteractions");
         public static string PetActionTriggered(string label) => L.Format("PetActionTriggered_Format", label);
         public static string PetActionStroke => L.Get("PetActionStroke");
         public static string PetActionTap => L.Get("PetActionTap");

@@ -4,6 +4,12 @@ All notable changes to Accessible Arena.
 
 ## v1.2
 
+Duel:
+
+- Emote, mute, and pet interaction during a duel are now functional from the player info zone (V key). Enter on yourself opens the equipped emote wheel — read straight from `EmoteOptionsController._equippedEmoteOptions` and sent through `UIMessageHandler.TrySendEmote`, so the wheel doesn't need to be visually open. Enter on the opponent toggles per-duel mute via `OpponentDialogController.UpdateIsMuted`, mirroring the in-game mute icon. Shift+Enter on yourself opens a pet-interaction menu (Stroke, Tap, or Chest/Arm/Leg/Head depending on the pet) routed through the active `AccessoryController`. Incoming opponent emotes are announced via `UIMessageHandler.EmoteRecievedCallback`, localized through `EmoteUtils.GetFullLocKey`, and gated by your current mute state. Opponent emote announcements use High priority so they aren't drowned by Immediate-priority card reads while you're arrowing through cards.
+- Pet action menu hides actions whose prefab UnityEvent has no persistent listeners. Some pets (e.g. the ONE_Skitterling mastery pet) wire hover events to nothing — surfacing "Stroke" would have announced "Streicheln ausgelöst" with no in-game effect at all. The menu now only surfaces actions wired to actually do something (Animator trigger, audio event, etc.); a pet with nothing wired announces "This pet has no interactions" instead of misleading the user with phantom options.
+- Ctrl+F1 inside the player info zone reads a targeted hint (Left/Right to switch between you and the opponent, Up/Down to cycle through values, Enter for emote / mute, Shift+Enter for pet, Backspace to leave) instead of the full duel-keybindings dump.
+
 Cosmetics:
 
 - Per-deck cosmetic selection (avatar, pet, sleeve) is now fully accessible. Activating the deck-title button opens the deck-details popup; tiles announce the current selection ("Avatar: Standard, press Enter to change") and Enter opens the matching selector. Pet and sleeve sub-popups stack on top — pets, sleeves, and avatar busts are read with their localized names plus status (selected, default, owned, locked) instead of the unlabeled hitboxes the screen reader used to encounter. Backspace closes the active selector and returns to the deck-details tiles.

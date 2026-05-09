@@ -412,6 +412,7 @@ namespace AccessibleArena.Core.Services
             if (_chooseXNavigator.IsActive) return LocaleManager.Instance.Get("ChooseXHint");
             if (_spinnerNavigator.IsActive) return LocaleManager.Instance.Get("SpinnerHint");
             if (_manaColorPicker.IsActive) return LocaleManager.Instance.Get("HelpTipManaColorPicker");
+            if (_portraitNavigator != null && _portraitNavigator.IsInPlayerInfoZone) return LocaleManager.Instance.Get("PlayerInfoZoneHint");
             if (_duelAnnouncer.IsInDeclareBlockersPhase) return LocaleManager.Instance.Get("HelpTipCombatBlocking");
             return LocaleManager.Instance.Get("DuelKeybindingsHint");
         }

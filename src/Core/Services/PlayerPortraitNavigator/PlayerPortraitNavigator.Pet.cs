@@ -67,7 +67,11 @@ namespace AccessibleArena.Core.Services
             var actions = PetService.GetAvailableInteractions();
             if (actions == null || actions.Count == 0)
             {
-                _announcer.Announce(Strings.PetNotEquipped, AnnouncementPriority.Normal);
+                // Distinguish "no pet" from "pet exists but every action's UnityEvent is empty"
+                // — both end up here after we started filtering inert actions out of the menu.
+                _announcer.Announce(
+                    PetService.HasLocalPet() ? Strings.PetHasNoInteractions : Strings.PetNotEquipped,
+                    AnnouncementPriority.Normal);
                 return;
             }
 

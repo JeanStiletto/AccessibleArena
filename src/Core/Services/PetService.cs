@@ -51,6 +51,9 @@ namespace AccessibleArena.Core.Services
             public MethodInfo HandleHoverEnter;
             public MethodInfo HandleHoverExit;
             public MethodInfo HandleClickPart;   // only on InteractiveParts subclass
+            public FieldInfo ClickEvent;         // protected UnityEvent (base) — used to gate Tap/Chest
+            public FieldInfo HoverEnterEvent;    // protected UnityEvent (base) — used to gate Stroke
+            public FieldInfo HoverExitEvent;     // protected UnityEvent (base)
             public FieldInfo ArmClickEvent;      // public UnityEvent — InteractiveParts only
             public FieldInfo LegClickEvent;
             public FieldInfo HeadClickEvent;
@@ -104,6 +107,8 @@ namespace AccessibleArena.Core.Services
             _localHandles = null;
             _localPlayerEnum = null;
             _localPlayerEnumResolved = false;
+            _eventDumpLogged = false;
+            _mutedStateLogged = false;
         }
 
         /// <summary>
@@ -174,6 +179,11 @@ namespace AccessibleArena.Core.Services
                 HandleClick = concreteType.GetMethod("HandleClick", PublicInstance, null, Type.EmptyTypes, null),
                 HandleHoverEnter = concreteType.GetMethod("HandleHoverEnter", PublicInstance, null, Type.EmptyTypes, null),
                 HandleHoverExit = concreteType.GetMethod("HandleHoverExit", PublicInstance, null, Type.EmptyTypes, null),
+                // UnityEvent fields are protected on the base class — needed so we can suppress
+                // menu entries for actions whose prefab event has zero persistent listeners.
+                ClickEvent = baseType.GetField("clickEvent", PrivateInstance),
+                HoverEnterEvent = baseType.GetField("hoverEnterEvent", PrivateInstance),
+                HoverExitEvent = baseType.GetField("hoverExitEvent", PrivateInstance),
             };
             if (h.IsInteractiveParts)
             {
@@ -183,6 +193,21 @@ namespace AccessibleArena.Core.Services
                 h.HeadClickEvent = concreteType.GetField("headClickEvent", PublicInstance);
             }
             return h;
+        }
+
+        // Returns true if the named UnityEvent on the controller has at least one persistent
+        // listener wired by the prefab. Used to hide pet actions that would do nothing.
+        // Tolerates a null FieldInfo (filter fails open — better to surface a no-op action
+        // than to hide a real one because reflection couldn't see the field).
+        private static bool HasListeners(MonoBehaviour ctrl, FieldInfo evtField)
+        {
+            if (evtField == null) return true;
+            try
+            {
+                var evt = evtField.GetValue(ctrl) as UnityEvent;
+                return evt != null && evt.GetPersistentEventCount() > 0;
+            }
+            catch { return true; }
         }
 
         /// <summary>True iff a local pet is in the duel scene.</summary>
@@ -198,24 +223,27 @@ namespace AccessibleArena.Core.Services
             if (ctrl == null || _localHandles == null) return new List<PetInteraction>();
 
             var list = new List<PetInteraction>(5);
-            // Stroke is available on every pet — hover events live on the base class.
-            if (_localHandles.HandleHoverEnter != null && _localHandles.HandleHoverExit != null)
+            // Each option also gates on the prefab's UnityEvent having at least one persistent
+            // listener — pets like ONE_Skitterling have hover events with zero listeners, so
+            // surfacing "Stroke" would just announce "ausgelöst" with no in-game effect.
+            if (_localHandles.HandleHoverEnter != null && _localHandles.HandleHoverExit != null
+                && (HasListeners(ctrl, _localHandles.HoverEnterEvent) || HasListeners(ctrl, _localHandles.HoverExitEvent)))
                 list.Add(new PetInteraction(PetInteractionKind.Stroke, Strings.PetActionStroke));
 
             if (_localHandles.IsInteractiveParts)
             {
-                if (_localHandles.HandleClick != null)
+                if (_localHandles.HandleClick != null && HasListeners(ctrl, _localHandles.ClickEvent))
                     list.Add(new PetInteraction(PetInteractionKind.Chest, Strings.PetActionChest));
-                if (_localHandles.HandleClickPart != null && _localHandles.ArmClickEvent != null)
+                if (_localHandles.HandleClickPart != null && HasListeners(ctrl, _localHandles.ArmClickEvent))
                     list.Add(new PetInteraction(PetInteractionKind.Arm, Strings.PetActionArm));
-                if (_localHandles.HandleClickPart != null && _localHandles.LegClickEvent != null)
+                if (_localHandles.HandleClickPart != null && HasListeners(ctrl, _localHandles.LegClickEvent))
                     list.Add(new PetInteraction(PetInteractionKind.Leg, Strings.PetActionLeg));
-                if (_localHandles.HandleClickPart != null && _localHandles.HeadClickEvent != null)
+                if (_localHandles.HandleClickPart != null && HasListeners(ctrl, _localHandles.HeadClickEvent))
                     list.Add(new PetInteraction(PetInteractionKind.Head, Strings.PetActionHead));
             }
             else
             {
-                if (_localHandles.HandleClick != null)
+                if (_localHandles.HandleClick != null && HasListeners(ctrl, _localHandles.ClickEvent))
                     list.Add(new PetInteraction(PetInteractionKind.Tap, Strings.PetActionTap));
             }
             return list;
@@ -230,6 +258,9 @@ namespace AccessibleArena.Core.Services
         {
             var ctrl = FindLocalAccessoryController();
             if (ctrl == null || _localHandles == null) return false;
+
+            DumpPetEventListenersOnce(ctrl);
+            LogMutedStateIfRelevant(ctrl);
 
             try
             {
@@ -253,8 +284,96 @@ namespace AccessibleArena.Core.Services
                         return InvokePart(ctrl, _localHandles.HeadClickEvent);
                 }
             }
-            catch { return false; }
+            catch (Exception ex)
+            {
+                Log.Warn("PetService", $"TriggerInteraction({kind}) threw", ex);
+                return false;
+            }
             return false;
+        }
+
+        // Diagnostic latch: dumps the pet's UnityEvent persistent listeners once per cache
+        // lifetime so we can tell whether a "silent" interaction is failing to fire or simply
+        // wired to visual-only callbacks (no audio). Reset on scene change with the rest.
+        private static bool _eventDumpLogged;
+
+        private static void DumpPetEventListenersOnce(MonoBehaviour ctrl)
+        {
+            if (_eventDumpLogged) return;
+            _eventDumpLogged = true;
+
+            // Walk the AccessoryController hierarchy collecting every UnityEvent field. Each
+            // pet prefab wires these in the Inspector — listeners reveal animator/audio split.
+            var fields = new List<FieldInfo>();
+            for (var t = ctrl.GetType(); t != null && t != typeof(MonoBehaviour); t = t.BaseType)
+            {
+                foreach (var f in t.GetFields(AllInstanceFlags))
+                {
+                    if (typeof(UnityEvent).IsAssignableFrom(f.FieldType) && !fields.Exists(x => x.Name == f.Name))
+                        fields.Add(f);
+                }
+            }
+
+            Log.Msg("PetService", $"Dumping pet '{ctrl.gameObject.name}' UnityEvent listeners ({fields.Count} fields):");
+            foreach (var f in fields)
+            {
+                UnityEvent evt;
+                try { evt = f.GetValue(ctrl) as UnityEvent; }
+                catch { continue; }
+                Log.Msg("PetService", $"  {f.Name}: {DescribeUnityEvent(evt)}");
+            }
+        }
+
+        private static string DescribeUnityEvent(UnityEvent evt)
+        {
+            if (evt == null) return "null";
+            int count;
+            try { count = evt.GetPersistentEventCount(); }
+            catch { return "(GetPersistentEventCount threw)"; }
+            if (count == 0) return "no persistent listeners";
+
+            var parts = new List<string>(count);
+            for (int i = 0; i < count; i++)
+            {
+                string targetName, methodName;
+                try
+                {
+                    var target = evt.GetPersistentTarget(i);
+                    targetName = target == null ? "(null)" : target.GetType().Name;
+                    methodName = evt.GetPersistentMethodName(i) ?? "(no-method)";
+                }
+                catch { targetName = "(threw)"; methodName = "(threw)"; }
+                parts.Add($"{targetName}.{methodName}");
+            }
+            return $"[{string.Join(", ", parts)}]";
+        }
+
+        private static bool _mutedStateLogged;
+        private static void LogMutedStateIfRelevant(MonoBehaviour ctrl)
+        {
+            if (_mutedStateLogged) return;
+            _mutedStateLogged = true;
+
+            // Pet's _muted property gates every action — log it once so we know whether a
+            // silent press is being rejected at the controller's first guard.
+            try
+            {
+                Type cur = ctrl.GetType();
+                FieldInfo gm = null, pm = null;
+                while (cur != null && (gm == null || pm == null))
+                {
+                    gm = gm ?? cur.GetField("_globalMuted", PrivateInstance | BindingFlags.FlattenHierarchy);
+                    pm = pm ?? cur.GetField("_playerMuted", PrivateInstance | BindingFlags.FlattenHierarchy);
+                    cur = cur.BaseType;
+                }
+                bool? gmv = gm == null ? (bool?)null : (bool)gm.GetValue(ctrl);
+                bool? pmv = pm == null ? (bool?)null : (bool)pm.GetValue(ctrl);
+                Log.Msg("PetService", $"Pet mute state: _globalMuted={gmv?.ToString() ?? "?"}, _playerMuted={pmv?.ToString() ?? "?"} (either=true blocks all actions)");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("PetService", "Could not read pet mute fields", ex);
+            }
         }
 
         private static bool InvokePart(MonoBehaviour ctrl, FieldInfo eventField)
