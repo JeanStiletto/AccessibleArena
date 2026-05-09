@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "Przeciwnik: {0}",
   "OpponentMuted": "Przeciwnik wyciszony",
   "OpponentUnmuted": "Przeciwnik odciszony",
-  "OpponentMuteUnavailable": "Wyciszanie jeszcze niedostępne",
+  "OpponentMuteUnavailable": "Wyciszanie niedostępne w tym meczu",
   "PetMenu": "Menu pupila",
   "PetMenuOpened_Format": "Menu pupila, {0}",
   "PetNotAvailable": "Pupil niedostępny",

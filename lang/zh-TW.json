@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "對手：{0}",
   "OpponentMuted": "對手已靜音",
   "OpponentUnmuted": "對手已取消靜音",
-  "OpponentMuteUnavailable": "靜音功能暫不可用",
+  "OpponentMuteUnavailable": "本場比賽無法使用靜音",
   "PetMenu": "寵物選單",
   "PetMenuOpened_Format": "寵物選單，{0}",
   "PetNotAvailable": "寵物不可用",

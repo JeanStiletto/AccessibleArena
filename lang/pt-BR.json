@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "Oponente: {0}",
   "OpponentMuted": "Oponente silenciado",
   "OpponentUnmuted": "Oponente reativado",
-  "OpponentMuteUnavailable": "Silenciamento ainda indisponível",
+  "OpponentMuteUnavailable": "Silenciamento indisponível nesta partida",
   "PetMenu": "Menu do bichinho",
   "PetMenuOpened_Format": "Menu do bichinho, {0}",
   "PetNotAvailable": "Bichinho indisponível",

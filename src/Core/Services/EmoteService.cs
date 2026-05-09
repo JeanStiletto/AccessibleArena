@@ -174,12 +174,25 @@ namespace AccessibleArena.Core.Services
         private static object _emoteManager;
         private static int _emoteManagerSearchFrame = -1;
 
+        // Diagnostic latches: each failure mode logs at most once per cache lifetime, so we can
+        // tell at a glance which step rejected an opponent-mute toggle without spamming the log.
+        private static bool _loggedNoEmoteManager;
+        private static bool _loggedEnumResolveFail;
+        private static bool _loggedNoOpponentDialog;
+        private static bool _loggedDialogException;
+
         public static void ClearCache()
         {
             _gameManager = null;
             _gameManagerSearchFrame = -1;
             _emoteManager = null;
             _emoteManagerSearchFrame = -1;
+            _opponentEnum = null;
+            _opponentEnumResolved = false;
+            _loggedNoEmoteManager = false;
+            _loggedEnumResolveFail = false;
+            _loggedNoOpponentDialog = false;
+            _loggedDialogException = false;
         }
 
         public static MonoBehaviour FindGameManager()
@@ -248,7 +261,15 @@ namespace AccessibleArena.Core.Services
         public static object GetOpponentDialogController()
         {
             var emoteManager = GetEmoteManager();
-            if (emoteManager == null) return null;
+            if (emoteManager == null)
+            {
+                if (!_loggedNoEmoteManager)
+                {
+                    _loggedNoEmoteManager = true;
+                    Log.Msg("EmoteService", "Opponent dialog unavailable: IEmoteManager not resolved (pre-duel or NullEmoteManager)");
+                }
+                return null;
+            }
 
             if (!_mgrCache.EnsureInitialized(emoteManager.GetType())) return null;
             var mh = _mgrCache.Handles;
@@ -256,21 +277,47 @@ namespace AccessibleArena.Core.Services
             if (!_opponentEnumResolved)
             {
                 _opponentEnumResolved = true;
-                var grePlayerNumType = FindType("GREPlayerNum");
-                if (grePlayerNumType != null && grePlayerNumType.IsEnum)
+                // Derive the enum type from the method's parameter type instead of looking up
+                // "GREPlayerNum" by name — name-only lookup hits protobuf wrapper classes that
+                // share the simple name and aren't enums (root cause of the previous failure).
+                var paramType = mh.GetDialogControllerByPlayerType.GetParameters()[0].ParameterType;
+                if (!paramType.IsEnum)
                 {
-                    try { _opponentEnum = Enum.Parse(grePlayerNumType, "Opponent"); }
-                    catch { _opponentEnum = null; }
+                    Log.Warn("EmoteService", $"GetDialogControllerByPlayerType parameter type is not an enum: {paramType.FullName}");
+                }
+                else
+                {
+                    try { _opponentEnum = Enum.Parse(paramType, "Opponent"); }
+                    catch (Exception ex) { Log.Warn("EmoteService", $"Enum.Parse({paramType.FullName},'Opponent') threw", ex); _opponentEnum = null; }
                 }
             }
-            if (_opponentEnum == null) return null;
+            if (_opponentEnum == null)
+            {
+                if (!_loggedEnumResolveFail)
+                {
+                    _loggedEnumResolveFail = true;
+                    Log.Msg("EmoteService", "Opponent dialog unavailable: GREPlayerNum.Opponent could not be resolved");
+                }
+                return null;
+            }
 
             try
             {
-                return mh.GetDialogControllerByPlayerType.Invoke(emoteManager, new[] { _opponentEnum });
+                var ctrl = mh.GetDialogControllerByPlayerType.Invoke(emoteManager, new[] { _opponentEnum });
+                if (ctrl == null && !_loggedNoOpponentDialog)
+                {
+                    _loggedNoOpponentDialog = true;
+                    Log.Msg("EmoteService", $"Opponent dialog unavailable: {emoteManager.GetType().Name}.GetDialogControllerByPlayerType(Opponent) returned null (no OpponentDialogController registered — likely a bot/NPE match)");
+                }
+                return ctrl;
             }
-            catch
+            catch (Exception ex)
             {
+                if (!_loggedDialogException)
+                {
+                    _loggedDialogException = true;
+                    Log.Warn("EmoteService", "GetDialogControllerByPlayerType threw", ex);
+                }
                 return null;
             }
         }
@@ -302,8 +349,9 @@ namespace AccessibleArena.Core.Services
                 _dialogCache.Handles.UpdateIsMuted.Invoke(ctrl, new object[] { !current });
                 return !current;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Warn("EmoteService", "ToggleOpponentMute threw", ex);
                 return null;
             }
         }

@@ -102,6 +102,8 @@ namespace AccessibleArena.Core.Services
             _localController = null;
             _localControllerSearchFrame = -1;
             _localHandles = null;
+            _localPlayerEnum = null;
+            _localPlayerEnumResolved = false;
         }
 
         /// <summary>
@@ -119,18 +121,6 @@ namespace AccessibleArena.Core.Services
             if (frame == _localControllerSearchFrame) return null;
             _localControllerSearchFrame = frame;
 
-            if (!_localPlayerEnumResolved)
-            {
-                _localPlayerEnumResolved = true;
-                var grePlayerNumType = FindType("GREPlayerNum");
-                if (grePlayerNumType != null && grePlayerNumType.IsEnum)
-                {
-                    try { _localPlayerEnum = Enum.Parse(grePlayerNumType, "LocalPlayer"); }
-                    catch { _localPlayerEnum = null; }
-                }
-            }
-            if (_localPlayerEnum == null) return null;
-
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
@@ -145,6 +135,24 @@ namespace AccessibleArena.Core.Services
 
                 var ownerField = baseType.GetField("_ownerPlayerNum", PublicInstance);
                 if (ownerField == null) continue;
+
+                // Resolve the GREPlayerNum.LocalPlayer enum value from the field type itself,
+                // rather than by FindType("GREPlayerNum") — name-only lookup picks up unrelated
+                // wrapper classes that share the simple name and aren't enums.
+                if (!_localPlayerEnumResolved)
+                {
+                    _localPlayerEnumResolved = true;
+                    if (!ownerField.FieldType.IsEnum)
+                    {
+                        Log.Warn("PetService", $"_ownerPlayerNum field type is not an enum: {ownerField.FieldType.FullName}");
+                    }
+                    else
+                    {
+                        try { _localPlayerEnum = Enum.Parse(ownerField.FieldType, "LocalPlayer"); }
+                        catch (Exception ex) { Log.Warn("PetService", $"Enum.Parse({ownerField.FieldType.FullName},'LocalPlayer') threw", ex); }
+                    }
+                }
+                if (_localPlayerEnum == null) return null;
 
                 var owner = ownerField.GetValue(mb);
                 if (owner == null || !owner.Equals(_localPlayerEnum)) continue;

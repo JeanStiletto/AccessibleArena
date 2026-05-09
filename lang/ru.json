@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "Противник: {0}",
   "OpponentMuted": "Противник заглушён",
   "OpponentUnmuted": "Противник снова со звуком",
-  "OpponentMuteUnavailable": "Заглушение пока недоступно",
+  "OpponentMuteUnavailable": "Заглушение недоступно в этом матче",
   "PetMenu": "Меню питомца",
   "PetMenuOpened_Format": "Меню питомца, {0}",
   "PetNotAvailable": "Питомец недоступен",

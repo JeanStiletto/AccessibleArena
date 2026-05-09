@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "Opponent: {0}",
   "OpponentMuted": "Opponent muted",
   "OpponentUnmuted": "Opponent unmuted",
-  "OpponentMuteUnavailable": "Mute not available yet",
+  "OpponentMuteUnavailable": "Mute not available in this match",
   "PetMenu": "Pet menu",
   "PetMenuOpened_Format": "Pet menu, {0}",
   "PetNotAvailable": "Pet not available",

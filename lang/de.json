@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "Gegner: {0}",
   "OpponentMuted": "Gegner stummgeschaltet",
   "OpponentUnmuted": "Gegner nicht mehr stumm",
-  "OpponentMuteUnavailable": "Stummschalten noch nicht verfügbar",
+  "OpponentMuteUnavailable": "Stummschalten in diesem Match nicht verfügbar",
   "PetMenu": "Haustiermenü",
   "PetMenuOpened_Format": "Haustiermenü, {0}",
   "PetNotAvailable": "Haustier nicht verfügbar",

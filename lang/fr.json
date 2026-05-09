@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "Adversaire : {0}",
   "OpponentMuted": "Adversaire muet",
   "OpponentUnmuted": "Adversaire réactivé",
-  "OpponentMuteUnavailable": "Mise en sourdine pas encore disponible",
+  "OpponentMuteUnavailable": "Mise en sourdine non disponible dans ce match",
   "PetMenu": "Menu de l'animal",
   "PetMenuOpened_Format": "Menu de l'animal, {0}",
   "PetNotAvailable": "Animal non disponible",

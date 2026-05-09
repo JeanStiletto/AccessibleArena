@@ -127,14 +127,22 @@ namespace AccessibleArena.Core.Services
         // Invoked by UIMessageHandler.Handle_OnChat when any incoming emote arrives.
         private void OnEmoteReceived(string emoteId)
         {
+            // Logged unconditionally so we can confirm callback delivery vs. silent opponent
+            // when investigating "did the opponent emote?" questions from a duel log.
+            Log.Msg("EmoteAnnouncer", $"Received emote: '{emoteId ?? "(null)"}'");
+
             if (string.IsNullOrEmpty(emoteId)) return;
 
             // OpponentDialogController already drops display when muted; mirror that gate here so the
             // user doesn't hear emotes they explicitly silenced.
-            if (EmoteService.IsOpponentMuted()) return;
+            if (EmoteService.IsOpponentMuted())
+            {
+                Log.Msg("EmoteAnnouncer", $"Suppressing '{emoteId}': opponent muted");
+                return;
+            }
 
             string text = EmoteService.ResolveEmoteText(emoteId) ?? emoteId;
-            _announcer.Announce(Strings.OpponentEmoted(text), AnnouncementPriority.Normal);
+            _announcer.Announce(Strings.OpponentEmoted(text), AnnouncementPriority.High);
         }
     }
 }

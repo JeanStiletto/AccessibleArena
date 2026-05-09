@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "対戦相手：{0}",
   "OpponentMuted": "対戦相手をミュートしました",
   "OpponentUnmuted": "対戦相手のミュートを解除しました",
-  "OpponentMuteUnavailable": "ミュートはまだ利用できません",
+  "OpponentMuteUnavailable": "このマッチではミュートを使用できません",
   "PetMenu": "ペットメニュー",
   "PetMenuOpened_Format": "ペットメニュー、{0}",
   "PetNotAvailable": "ペットは利用できません",

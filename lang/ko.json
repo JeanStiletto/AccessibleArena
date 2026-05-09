@@ -192,7 +192,7 @@
   "OpponentEmoted_Format": "상대: {0}",
   "OpponentMuted": "상대 음소거됨",
   "OpponentUnmuted": "상대 음소거 해제됨",
-  "OpponentMuteUnavailable": "음소거를 아직 사용할 수 없습니다",
+  "OpponentMuteUnavailable": "이 매치에서는 음소거를 사용할 수 없습니다",
   "PetMenu": "펫 메뉴",
   "PetMenuOpened_Format": "펫 메뉴, {0}",
   "PetNotAvailable": "펫을 사용할 수 없습니다",
