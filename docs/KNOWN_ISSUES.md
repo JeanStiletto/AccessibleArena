@@ -11,12 +11,6 @@ Phase stops (a game feature made accessible by the mod, toggled with keys 1-0) b
 
 ---
 
-### First Card Not Recognized After Filtering in Deck Builder
-
-After a filter is applied in the deck builder (collection or deck side), the first card in the results is not correctly recognized as a card. This causes issues when adding cards — the mod may not detect the card properly, leading to wrong card additions or focus glitches.
-
----
-
 ### Home/End Not Working in Mastery Navigator
 
 Home and End keys do not jump to the first/last item in the Mastery Navigator. Other navigators handle them correctly — Mastery needs the same wiring.
@@ -82,27 +76,6 @@ The "How to Play" category in the Codex of the Multiverse may be missing entries
 ---
 
 ## Monitoring
-
-### Battlefield Stacking (new in 1.0.1)
-
-Optional setting (F2 → "Battlefield stacking") that groups identical battlefield cards into one navigable entry, announced as "N Cardname" (e.g. "5 Tentakel"). Matches the game's own visual stacking: the mod reads each `UniversalBattlefieldStack` / `BattlefieldLayout` region via reflection and filters stacked-behind copies out of the flat row list. Stacks carrying attachments or exile (`HasAttachmentOrExile`) stay expanded so attachment text still lines up.
-
-Selection-aware behaviors layered on top:
-
-- When a stack is split by targeting (e.g. 1 of 2 Kraken selected for an untap effect), the `IsSame` comparator diverges on `SelectedBy`, so the game splits it into two 1-stacks. The mod detects the state change, announces it, then auto-advances focus to the next same-name sibling so repeated Enter targets the next copy instead of toggling the just-clicked card back off.
-- Navigation announcements include selection state (e.g. "Krake, getappt, ausgewählt, 1 von 2") so a user can tell the selected copy from the unselected one.
-- Land Summary (M / Shift+M) counts the real physical card count, not collapsed entries.
-
-**Monitor for:**
-- Whether the position count ("X von Y") makes sense when stacks split mid-action (e.g. clicking one of 4 creatures to block should leave "3 remaining" as the next audible step; the current auto-advance announces the shrunk stack but with a fresh position count)
-- Whether non-creature token stacks (Treasure, Food, Clue, Blood) group cleanly in PlayerNonCreatures — investigation predicted fine, needs real match exposure
-- Whether `StackParent` reassignments (game's `Sort()` can promote a different CDC to parent after attachments drop) cause stale focus after re-scans
-- HotHighlightNavigator's Tab order interacting with collapsed stacks — when only some members of a stack are valid targets, `SelectedBy` already forces a split, but edge cases around attachments + multi-target may still surface expansion the mod hasn't accounted for
-- Stacking of lands with tapped/untapped mix — row entries multiply when tap state varies across turns; the noisier Lands row may warrant a setting to keep lands always flat
-
-**Files:** `BattlefieldStackProvider.cs`, `BattlefieldNavigator.cs` (DiscoverAndCategorizeCards, AnnounceCurrentCard, CheckWatchedCardState, TryAdvanceToSameNameSibling, GetLandSummary, GetStackSizeForCard)
-
----
 
 ### Tab Navigation Index Mismatch During Battlefield Selection
 
@@ -175,19 +148,6 @@ Fixed `ExtractBrowserHeaderText()` to read the subheader from the `BrowserHeader
 
 ---
 
-### Off-Screen Cards in Open All Pack Opening May Lack Full Card Info
-
-When opening many packs at once (Open All), the game's virtualized scroll list only renders ~12 physical card slots. Cards beyond the viewport are represented as text-only entries with name and type from GrpId lookup. Arrow Up/Down card info (mana cost, rules text, P/T, etc.) is now provided via GrpId-based lookup for these off-screen cards, but this has not been tested in-game yet.
-
-**Monitor for:**
-- Whether off-screen cards actually show full Arrow Up/Down info (mana cost, type, rules text, rarity, etc.)
-- Whether scrolling the viewport (if possible) correctly transitions cards between text-only and full GO elements
-- Whether the card info blocks match what on-screen cards show
-
-**Files:** `BoosterOpenNavigator.cs` (UpdateCardInfoForOffScreenCard, Move/MoveFirst/MoveLast overrides)
-
----
-
 ### Season Rewards Popup (Monthly Reset)
 
 Season end rewards popup now uses content-gated detection (NPE-style): the navigator stays inactive until actual content is loaded, and activates once with a clean announcement. Season rank display phases (old rank, new rank) extract title, subtitle, and per-format rank details from `SeasonEndRankDisplay` components. ForceRescan suppresses duplicate announcements by tracking element count. Monitor whether:
@@ -201,22 +161,6 @@ Season end rewards popup now uses content-gated detection (NPE-style): the navig
 **Testable:** May 2025 (next monthly season reset)
 
 **Files:** `RewardPopupNavigator.cs` (CheckRewardsPopupOpenInternal, GetSeasonEndState, HasActiveSeasonDisplay, ExtractSeasonRankText, DiscoverSeasonRankElements, ForceRescan override)
-
----
-
-### Parenless Hybrid Mana In Rules Text (PR #90 follow-up)
-
-PR #90 rewrote the rules-text mana parser so any o-prefixed input is routed through a tokenizer that accepts three shapes: o plus digits, o plus a single color letter, or o plus a parenthesized inner expression. The original parser's comment listed an additional shape — a single hybrid inside o-notation written without parentheses around the slash group — as supported. In-game testing on Spree (Insatiable Avarice) and Evoke (Deceit) confirmed Arena emits the parenthesized form, but the parenless form was not exhaustively verified across all card sets and locales.
-
-If any card or localization string produces the parenless shape, the new tokenizer silently matches only the leading o plus the first color letter and drops the alternative color. No error, no log entry — just a missing color in rules text.
-
-**Monitor for:**
-- Hybrid mana in rules text or activated cost lines reading as a single color when the card definitely shows a hybrid symbol (e.g. just "white" instead of "white or blue").
-- Especially on older sets, less-tested locales, or unusual cost shapes.
-
-If reports surface, the fix is to extend the tokenizer's single-letter shape to optionally accept a slash plus a second color letter.
-
-**Files:** `ManaTextFormatter.cs` (`ParseBareManaSequence` token regex)
 
 ---
 
@@ -255,7 +199,6 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
  
 1. Display emblems in command zone and modified player properties (max hand size, extra turns, etc.)
 2. Sylvan Library support — the card has a unique draw-then-choose UI that needs accessible navigation. Planned for when Strixhaven Remastered releases on Arena. Reference: https://magic.wizards.com/en/news/mtg-arena/dev-diary-sylvan-library
-3. Emote system improvements — fix and improve the emote system so emotes can be sent and received correctly, with proper screen reader announcements for incoming opponent emotes. Add the ability to mute the opponent's emotes.
 
 ### Polish
 

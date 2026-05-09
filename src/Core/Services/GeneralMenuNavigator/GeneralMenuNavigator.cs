@@ -671,8 +671,36 @@ namespace AccessibleArena.Core.Services
             InjectChallengeStatusElement();
             if (_elements.Count > 0)
             {
-                _currentIndex = 0;
-                UpdateEventSystemSelection();
+                if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                {
+                    // Grouped navigation owns the cursor: sync _currentIndex to the
+                    // restored grouped element so it doesn't snap to the first overall
+                    // _elements entry (e.g. Wildcards) when the navigator restored into
+                    // Collection. DiscoverElements already set EventSystem selection
+                    // to the grouped element via UpdateEventSystemSelectionForGroupedElement;
+                    // calling the flat UpdateEventSystemSelection here would override it
+                    // to _elements[0] and leave focus on a non-card row, which deactivates
+                    // CardInfoNavigator and breaks Arrow Down on the first card.
+                    var groupedGo = _groupedNavigator.CurrentElement?.GameObject;
+                    int matched = -1;
+                    if (groupedGo != null)
+                    {
+                        for (int i = 0; i < _elements.Count; i++)
+                        {
+                            if (_elements[i].GameObject == groupedGo)
+                            {
+                                matched = i;
+                                break;
+                            }
+                        }
+                    }
+                    _currentIndex = matched >= 0 ? matched : 0;
+                }
+                else
+                {
+                    _currentIndex = 0;
+                    UpdateEventSystemSelection();
+                }
             }
 
             // After rescan, announce the results
