@@ -29,6 +29,7 @@ namespace AccessibleArena.Core.Services
 
         // Browser state (static so EventSystemPatch can block Submit while browser is active)
         private static bool _isActive;
+        private static string _activeBrowserType;
         private bool _hasAnnouncedEntry;
         private float _announceSettleTimer; // Delay announcement for scaffold-less browsers to avoid transient states
         private BrowserInfo _browserInfo;
@@ -64,6 +65,7 @@ namespace AccessibleArena.Core.Services
         #region Public Properties
 
         public static bool IsActive => _isActive;
+        public static string ActiveBrowserTypeStatic => _activeBrowserType;
         public string ActiveBrowserType => _browserInfo?.BrowserType;
         public BrowserZoneNavigator ZoneNavigator => _zoneNavigator;
 
@@ -199,6 +201,7 @@ namespace AccessibleArena.Core.Services
         {
             _isActive = true;
             _browserInfo = browserInfo;
+            _activeBrowserType = browserInfo?.BrowserType;
             _hasAnnouncedEntry = false;
             // Scaffold-detected browsers have stable UI — announce immediately.
             // Generic CardBrowserCardHolder may be a transient pre-mulligan state — settle first.
@@ -273,6 +276,7 @@ namespace AccessibleArena.Core.Services
 
             _isActive = false;
             _browserInfo = null;
+            _activeBrowserType = null;
             _hasAnnouncedEntry = false;
             _pendingRescan = false;
             _browserCards.Clear();

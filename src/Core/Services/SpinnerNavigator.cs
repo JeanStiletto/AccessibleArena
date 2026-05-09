@@ -100,6 +100,16 @@ namespace AccessibleArena.Core.Services
             if (_reflectionFailed || _spinnerAnimatedType == null)
                 return;
 
+            // AssignDamage browser uses SpinnerAnimated widgets but is fully handled by
+            // BrowserNavigator.AssignDamage (proper TotalDamage, card-name resolution,
+            // DoneAction submission). Yield to it to avoid double-handling.
+            if (BrowserNavigator.IsActive && BrowserNavigator.ActiveBrowserTypeStatic == "AssignDamage")
+            {
+                if (_isActive)
+                    Exit();
+                return;
+            }
+
             float time = Time.time;
             if (time - _lastScanTime < ScanInterval)
                 return;
