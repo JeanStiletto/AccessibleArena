@@ -974,6 +974,9 @@ namespace AccessibleArena.Core.Models
         public static string HelpCategoryGlobal => L.Get("HelpCategoryGlobal");
         public static string HelpCategoryMenuNavigation => L.Get("HelpCategoryMenuNavigation");
         public static string HelpCategoryDuelZones => L.Get("HelpCategoryDuelZones");
+        public static string HelpCategoryDeckBuilder => L.Get("HelpCategoryDeckBuilder");
+        public static string HelpShiftEnterCardViewer => L.Get("HelpShiftEnterCardViewer");
+        public static string HelpCtrlEnterCardStyles => L.Get("HelpCtrlEnterCardStyles");
         public static string HelpCategoryDuelInfo => L.Get("HelpCategoryDuelInfo");
         public static string HelpCategoryCardNavigation => L.Get("HelpCategoryCardNavigation");
         public static string HelpCategoryCardDetails => L.Get("HelpCategoryCardDetails");

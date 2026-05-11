@@ -1169,10 +1169,16 @@ namespace AccessibleArena.Core.Services
         private static bool _lastDisplayInfoFieldSearched = false;
         private static FieldInfo _availableTitleCountField = null;
         private static FieldInfo _usedTitleCountField = null;
+        private static FieldInfo _displayInfoCardField = null;
+        private static FieldInfo _displayInfoSkinField = null;
+        private static PropertyInfo _cardPrintingGrpIdProp = null;
 
         /// <summary>
         /// Extracts collection-specific quantity info from PagesMetaCardView._lastDisplayInfo.
-        /// Sets OwnedCount and UsedInDeckCount on the CardInfo if the card is a collection card.
+        /// Sets OwnedCount, UsedInDeckCount, and Style on the CardInfo when the card is a
+        /// pool tile. The Style block matches the deck-side rows (set by DeckCardProvider's
+        /// per-tile extractors via DeckCosmeticsReader.GetStyleNameForTile) so collection
+        /// and deck tiles disambiguate printings the same way.
         /// </summary>
         public static void ExtractCollectionQuantity(GameObject cardObj, ref CardInfo info)
         {
@@ -1205,6 +1211,8 @@ namespace AccessibleArena.Core.Services
                     var displayInfoType = displayInfo.GetType();
                     _availableTitleCountField = displayInfoType.GetField("AvailableTitleCount");
                     _usedTitleCountField = displayInfoType.GetField("UsedTitleCount");
+                    _displayInfoCardField = displayInfoType.GetField("Card");
+                    _displayInfoSkinField = displayInfoType.GetField("Skin");
                 }
 
                 if (_availableTitleCountField != null)
@@ -1212,6 +1220,27 @@ namespace AccessibleArena.Core.Services
 
                 if (_usedTitleCountField != null)
                     info.UsedInDeckCount = (int)(uint)_usedTitleCountField.GetValue(displayInfo);
+
+                // Resolve printing + skin so the Style info-block line matches deck tiles.
+                // DisplayInfo.Card is the CardPrintingData; .Skin is the variant code (may be null
+                // for default art, in which case GetStyleNameForTile falls back to set+collector).
+                if (_displayInfoCardField != null && _displayInfoSkinField != null)
+                {
+                    var printing = _displayInfoCardField.GetValue(displayInfo);
+                    if (printing != null)
+                    {
+                        if (_cardPrintingGrpIdProp == null)
+                            _cardPrintingGrpIdProp = printing.GetType().GetProperty("GrpId", PublicInstance);
+
+                        if (_cardPrintingGrpIdProp != null)
+                        {
+                            uint grpId = (uint)_cardPrintingGrpIdProp.GetValue(printing);
+                            string skinCode = _displayInfoSkinField.GetValue(displayInfo) as string;
+                            if (grpId > 0)
+                                info.Style = DeckCosmeticsReader.GetStyleNameForTile(grpId, skinCode);
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
