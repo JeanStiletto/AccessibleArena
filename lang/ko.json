@@ -566,6 +566,7 @@
   "BrowserHint_SelectCardsMultiZone": "위아래로 구역 전환. Tab으로 이동. Enter로 선택. 스페이스로 확인",
   "BrowserHint_SelectGroup": "좌우로 이동. Tab으로 더미 옵션. Enter 또는 Space로 선택",
   "BrowserHint_OptionalAction": "Tab으로 이동. Enter 또는 Space로 선택",
+  "BrowserHint_Mutate": "Tab으로 카드와 버튼 탐색. 스페이스로 변이. 백스페이스로 거부",
   "BrowserHint_SplitCards": "C는 첫 번째 더미, D는 두 번째 더미. 좌우로 이동. Enter로 카드 이동. 스페이스로 확인",
   "BrowserHint_AssignDamage": "좌우로 이동. 위아래로 피해 조정. 스페이스로 제출. 백스페이스로 취소",
   "BrowserHint_KeywordSelection": "Tab으로 이동. Enter로 전환. 스페이스로 확인. 모두 보기 후: 문자 키를 눌러 생물 유형으로 이동",

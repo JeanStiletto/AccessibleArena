@@ -568,6 +568,7 @@
   "BrowserHint_SelectCardsMultiZone": "Up Down to switch zones. Tab to navigate cards. Enter to select. Space to confirm",
   "BrowserHint_SelectGroup": "Left Right to navigate cards. Tab for pile options. Enter or Space to choose",
   "BrowserHint_OptionalAction": "Tab to navigate. Enter or Space to select",
+  "BrowserHint_Mutate": "Tab to navigate cards and buttons. Space to mutate. Backspace to decline",
   "BrowserHint_SplitCards": "C for first pile, D for second pile. Left Right to navigate. Enter to move card. Space to confirm",
   "BrowserHint_AssignDamage": "Left Right to navigate blockers. Up Down to adjust damage. Space to submit. Backspace to undo",
   "BrowserHint_KeywordSelection": "Tab to navigate keywords. Enter to toggle. Space to confirm. After Show All: type a letter to jump to a creature type",

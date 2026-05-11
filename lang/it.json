@@ -566,6 +566,7 @@
   "BrowserHint_SelectCardsMultiZone": "Su Giù per cambiare zona. Tab per navigare. Invio per selezionare. Spazio per confermare",
   "BrowserHint_SelectGroup": "Sinistra Destra per navigare. Tab per opzioni pila. Invio o Spazio per scegliere",
   "BrowserHint_OptionalAction": "Tab per navigare. Invio o Spazio per selezionare",
+  "BrowserHint_Mutate": "Tab per navigare tra carte e pulsanti. Spazio per mutare. Backspace per rifiutare",
   "BrowserHint_SplitCards": "C per prima pila, D per seconda pila. Sinistra Destra per navigare. Invio per spostare. Spazio per confermare",
   "BrowserHint_AssignDamage": "Sinistra Destra per navigare. Su Giù per regolare danno. Spazio per inviare. Backspace per annullare",
   "BrowserHint_KeywordSelection": "Tab per navigare. Invio per alternare. Spazio per confermare. Dopo Mostra tutto: premi una lettera per saltare a un tipo di creatura",

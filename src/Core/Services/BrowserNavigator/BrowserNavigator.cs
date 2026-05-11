@@ -52,6 +52,10 @@ namespace AccessibleArena.Core.Services
         // Highlight-filtered Tab: skip non-selectable cards in selection browsers
         private bool _isHighlightFilteredBrowser;
 
+        // Mutate Yes/No variant: cards (mutation pile preview) + 2-button row (Yes/No)
+        // routed through provider's logical DoneButton/CancelButton keys
+        private bool _isMutate;
+
         // Zone name constant
         private const string ZoneLocalHand = "LocalHand";
 
@@ -93,6 +97,7 @@ namespace AccessibleArena.Core.Services
             if (_browserInfo.IsMulligan) return "BrowserHint_Mulligan";
 
             // Special browsers
+            if (_isMutate) return "BrowserHint_Mutate";
             if (_isAssignDamage) return "BrowserHint_AssignDamage";
             if (_isKeywordSelection) return "BrowserHint_KeywordSelection";
             if (_isSelectGroup) return "BrowserHint_SelectGroup";
@@ -236,6 +241,9 @@ namespace AccessibleArena.Core.Services
                 CacheAssignDamageState();
             }
 
+            // Detect Mutate Yes/No variant (cards + 2-button row)
+            _isMutate = browserInfo.IsMutate;
+
             // Detect SelectGroup browser (Fact or Fiction pile selection)
             if (browserInfo.BrowserType == "SelectGroup")
             {
@@ -325,6 +333,9 @@ namespace AccessibleArena.Core.Services
             // Clear OrderCards state
             _isOrderCards = false;
             _orderGrabbedIndex = -1;
+
+            // Clear Mutate state
+            _isMutate = false;
 
             // Invalidate detector cache
             BrowserDetector.InvalidateCache();
@@ -645,8 +656,8 @@ namespace AccessibleArena.Core.Services
                     if (shift) NavigateToPreviousButton();
                     else NavigateToNextButton();
                 }
-                // OptionalAction: unified cycle through cards → choice buttons → wrap
-                else if (_browserInfo.IsOptionalAction && _browserCards.Count > 0 && _browserButtons.Count > 0)
+                // OptionalAction / Mutate: unified cycle through cards → choice buttons → wrap
+                else if ((_browserInfo.IsOptionalAction || _isMutate) && _browserCards.Count > 0 && _browserButtons.Count > 0)
                 {
                     if (shift) NavigateToPreviousItem();
                     else NavigateToNextItem();
@@ -704,8 +715,8 @@ namespace AccessibleArena.Core.Services
 
                 if (Input.GetKeyDown(KeyCode.LeftArrow))
                 {
-                    // OptionalAction: respect current focus type (card vs button)
-                    if (_browserInfo.IsOptionalAction && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
+                    // OptionalAction / Mutate: respect current focus type (card vs button)
+                    if ((_browserInfo.IsOptionalAction || _isMutate) && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
                         NavigateToPreviousButton();
                     else if (_browserCards.Count > 0) NavigateToPreviousCard();
                     else if (_browserButtons.Count > 0) NavigateToPreviousButton();
@@ -713,7 +724,7 @@ namespace AccessibleArena.Core.Services
                 }
                 if (Input.GetKeyDown(KeyCode.RightArrow))
                 {
-                    if (_browserInfo.IsOptionalAction && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
+                    if ((_browserInfo.IsOptionalAction || _isMutate) && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
                         NavigateToNextButton();
                     else if (_browserCards.Count > 0) NavigateToNextCard();
                     else if (_browserButtons.Count > 0) NavigateToNextButton();
@@ -758,10 +769,10 @@ namespace AccessibleArena.Core.Services
                     return false; // Already handled by zone navigator
                 }
 
-                // SelectGroup: Enter activates the focused pile button (choosing that pile)
+                // SelectGroup / Mutate: Enter activates the focused button (choosing that pile / Yes-No)
                 // Must check before generic card activation since _currentCardIndex stays >= 0
                 // after Tab moves focus to buttons
-                if (_isSelectGroup && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
+                if ((_isSelectGroup || _isMutate) && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
                 {
                     ActivateCurrentButton();
                 }
@@ -1304,7 +1315,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void AnnounceBrowserState()
         {
-            string browserName = BrowserDetector.GetFriendlyBrowserName(_browserInfo.BrowserType);
+            // For variants stripped during scaffold→type extraction (e.g. YesNo_Mutate → YesNo),
+            // prefer the variant-specific friendly name when the variant flag is set.
+            string browserName = _isMutate
+                ? BrowserDetector.GetFriendlyBrowserName("Mutate")
+                : BrowserDetector.GetFriendlyBrowserName(_browserInfo.BrowserType);
             int cardCount = _browserCards.Count;
             int buttonCount = _browserButtons.Count;
 

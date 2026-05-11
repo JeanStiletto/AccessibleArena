@@ -566,6 +566,7 @@
   "BrowserHint_SelectCardsMultiZone": "上下でゾーン切替。Tabで移動。Enterで選択。スペースで確認",
   "BrowserHint_SelectGroup": "左右で移動。Tabで山の選択肢。EnterまたはSpaceで選択",
   "BrowserHint_OptionalAction": "Tabでナビゲート。EnterまたはSpaceで選択",
+  "BrowserHint_Mutate": "Tabでカードとボタンを切り替え。スペースで変異。Backspaceで拒否",
   "BrowserHint_SplitCards": "Cで一つ目の山、Dで二つ目の山。左右で移動。Enterでカード移動。スペースで確認",
   "BrowserHint_AssignDamage": "左右でブロッカー移動。上下でダメージ調整。スペースで送信。バックスペースで元に戻す",
   "BrowserHint_KeywordSelection": "Tabで移動。Enterで切替。スペースで確認。すべて表示後：文字キーでクリーチャータイプへジャンプ",

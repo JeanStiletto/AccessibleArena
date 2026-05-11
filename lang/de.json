@@ -566,6 +566,7 @@
   "BrowserHint_SelectCardsMultiZone": "Hoch Runter zum Zonen wechseln. Tab zum Navigieren. Enter zum Auswählen. Leertaste zum Bestätigen",
   "BrowserHint_SelectGroup": "Links Rechts zum Navigieren. Tab für Stapel-Optionen. Enter oder Leertaste zum Wählen",
   "BrowserHint_OptionalAction": "Tab zum Navigieren. Enter oder Leertaste zum Auswählen",
+  "BrowserHint_Mutate": "Tab zum Navigieren von Karten und Schaltflächen. Leertaste zum Mutieren. Rücktaste zum Ablehnen",
   "BrowserHint_SplitCards": "C für ersten Stapel, D für zweiten Stapel. Links Rechts zum Navigieren. Enter zum Verschieben. Leertaste zum Bestätigen",
   "BrowserHint_AssignDamage": "Links Rechts zum Navigieren. Hoch Runter zum Schaden anpassen. Leertaste zum Absenden. Rücktaste zum Rückgängig",
   "BrowserHint_KeywordSelection": "Tab zum Navigieren. Enter zum Umschalten. Leertaste zum Bestätigen. Nach Alle anzeigen: Buchstabe drücken, um zu einem Kreaturentyp zu springen",
