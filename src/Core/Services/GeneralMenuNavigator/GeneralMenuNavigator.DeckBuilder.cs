@@ -1129,6 +1129,87 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        /// <summary>
+        /// Handle Ctrl+Enter on a focused pool card by invoking
+        /// PagesMetaCardView.ExpandClicked() — the game's own handler behind the
+        /// chevron on the tile's TAG_PreferredPrinting ribbon. The game then
+        /// either expands the title (one extra adjacent tile per available
+        /// art-style/printing variant) or collapses it back to the single tile.
+        /// Only pool tiles support this; deck-list / sideboard tiles silently
+        /// no-op. After the click, schedule a rescan so the new tiles enter
+        /// the navigation list, and announce expanded/collapsed based on the
+        /// post-click state.
+        /// </summary>
+        private bool TryToggleStyleExpansionForFocusedCard()
+        {
+            if (_activeContentController != T.WrapperDeckBuilder) return false;
+
+            GameObject focused = null;
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                focused = _groupedNavigator.CurrentElement?.GameObject;
+            else if (IsValidIndex)
+                focused = _elements[_currentIndex].GameObject;
+
+            Log.Nav(NavigatorId, $"Ctrl+Enter: focused={focused?.name ?? "null"}");
+            if (focused == null) return false;
+
+            // Walk to a MetaCardView ancestor first, then narrow to PagesMetaCardView —
+            // ExpandClicked() lives only on the pool-tile subclass. Deck-list tiles
+            // (ListMetaCardView_Expanding) don't expose this expansion.
+            Component metaCardView = FindMetaCardViewOnOrAbove(focused);
+            if (metaCardView == null)
+            {
+                Log.Nav(NavigatorId, $"Ctrl+Enter: no MetaCardView on/above {focused.name}");
+                return false;
+            }
+
+            Type metaType = metaCardView.GetType();
+            if (metaType.Name != T.PagesMetaCardView)
+            {
+                Log.Nav(NavigatorId, $"Ctrl+Enter: {metaType.Name} is not a pool tile; no style expansion available");
+                return false;
+            }
+
+            try
+            {
+                var expandMethod = metaType.GetMethod("ExpandClicked", PublicInstance | BindingFlags.FlattenHierarchy);
+                if (expandMethod == null)
+                {
+                    Log.Nav(NavigatorId, $"Ctrl+Enter: ExpandClicked not found on {metaType.Name}");
+                    return false;
+                }
+
+                expandMethod.Invoke(metaCardView, null);
+
+                // After ExpandClicked, the game has either added or removed the title
+                // from PreferredPrintingState.ExpandedPoolCards. Read the new state via
+                // GetIsExpanded() for the announcement.
+                bool nowExpanded = false;
+                try
+                {
+                    var stateMethod = metaType.GetMethod("GetIsExpanded", PublicInstance | BindingFlags.FlattenHierarchy);
+                    if (stateMethod != null)
+                        nowExpanded = (bool)stateMethod.Invoke(metaCardView, null);
+                }
+                catch { }
+
+                _announcer.Announce(
+                    nowExpanded ? Strings.CardStylesExpanded : Strings.CardStylesCollapsed,
+                    AnnouncementPriority.Normal);
+
+                // RefreshPoolView is already fired by ExpandCard/CollapseCard. Schedule
+                // our own rescan so the new tiles populate _elements before the user
+                // arrows to them.
+                TriggerRescan();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(NavigatorId, $"Ctrl+Enter ExpandClicked failed: {ex.Message}");
+                return false;
+            }
+        }
+
         private static object ResolveRolloverZoomHandler(Component metaCardView)
         {
             // metaCardView.Holder.RolloverZoomView is the cleanest path.

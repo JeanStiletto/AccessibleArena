@@ -1673,6 +1673,8 @@ namespace AccessibleArena.Core.Models
         public static string CosmeticsTile(string label, string current) =>
             L.Format("CosmeticsTileFormat", label, current);
         public static string CardStyleLine(string styleName) => L.Format("CardStyleLineFormat", styleName);
+        public static string CardStylesExpanded => L.Get("CardStylesExpanded");
+        public static string CardStylesCollapsed => L.Get("CardStylesCollapsed");
         public static string CardViewerCosmeticMode(string current) => L.Format("CardViewerCosmeticMode", current);
         public static string CardViewerCraftMode(int qty) => L.Format("CardViewerCraftMode", qty);
         public static string CardViewerReadOnly => L.Get("CardViewerReadOnly");

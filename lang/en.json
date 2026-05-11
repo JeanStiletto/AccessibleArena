@@ -1201,6 +1201,8 @@
   "CosmeticsTileFormat": "{0}: {1}, press Enter to change",
   "CosmeticsDefaultArt": "Default art",
   "CardStyleLineFormat": "Style: {0}",
+  "CardStylesExpanded": "Art styles expanded",
+  "CardStylesCollapsed": "Art styles collapsed",
   "CardViewerCosmeticMode": "Card style picker. Current: {0}",
   "CardViewerCraftMode": "Craft card. Quantity: {0}",
   "CardViewerReadOnly": "Style picker is read only for this deck",

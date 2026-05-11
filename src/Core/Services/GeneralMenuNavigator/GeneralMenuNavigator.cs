@@ -887,6 +887,22 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Ctrl+Enter on a focused pool card toggles the game's preferred-printing
+            // expansion — the same chevron sighted users click on the tile's tag to
+            // fan out adjacent tiles for every available art style/printing. The
+            // pool refreshes and TriggerRescan picks up the new tiles for navigation.
+            // Always consume Ctrl+Enter inside the deck builder so a plain Enter
+            // doesn't fire on the focused element when the user holds Ctrl.
+            if (_activeContentController == T.WrapperDeckBuilder
+                && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+            {
+                TryToggleStyleExpansionForFocusedCard();
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                return true;
+            }
+
             // F4: Toggle Friends panel
             if (Input.GetKeyDown(KeyCode.F4))
             {

@@ -151,6 +151,7 @@ Backspace: Back one level
 
 **Deck Builder - Cosmetics:**
 Shift+Enter on a focused card: Open card viewer (style picker / craft preview), same flow as a sighted right-click.
+Ctrl+Enter on a focused pool card: Toggle the game's preferred-printing expansion — fans the title out into one adjacent tile per available art style/printing (or collapses back). After expansion, arrow Left/Right walks the variants; the per-tile "Style:" info block tells them apart; Shift+Enter on the wanted variant opens the craft popup for that exact printing.
 Deck cosmetics (avatar, sleeve, pet, emotes) are reachable through the deck-title button — pressing Enter on it opens the deck-details popup, which the mod then makes keyboard-navigable.
 Style on focused card is read out as part of the card info blocks (Arrow Down).
 
