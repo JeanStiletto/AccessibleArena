@@ -1171,6 +1171,7 @@ namespace AccessibleArena.Core.Services
         private static FieldInfo _usedTitleCountField = null;
         private static FieldInfo _displayInfoCardField = null;
         private static FieldInfo _displayInfoSkinField = null;
+        private static FieldInfo _displayInfoExpandedStyleField = null;
         private static PropertyInfo _cardPrintingGrpIdProp = null;
 
         /// <summary>
@@ -1213,6 +1214,7 @@ namespace AccessibleArena.Core.Services
                     _usedTitleCountField = displayInfoType.GetField("UsedTitleCount");
                     _displayInfoCardField = displayInfoType.GetField("Card");
                     _displayInfoSkinField = displayInfoType.GetField("Skin");
+                    _displayInfoExpandedStyleField = displayInfoType.GetField("ExpandedStyle");
                 }
 
                 if (_availableTitleCountField != null)
@@ -1239,6 +1241,20 @@ namespace AccessibleArena.Core.Services
                             if (grpId > 0)
                                 info.Style = DeckCosmeticsReader.GetStyleNameForTile(grpId, skinCode);
                         }
+                    }
+                }
+
+                // ExpandedStyle enum (Solo=0, Stacked=1, Expanded_First=2, Expanded_Mid=3, Expanded_Last=4).
+                // Anything >= Expanded_First means the tile is one position inside an active fan-out
+                // — the user (or a sighted player) toggled the preferred-printing chevron and the
+                // pool is currently showing one tile per variant for this title.
+                if (_displayInfoExpandedStyleField != null)
+                {
+                    object expanded = _displayInfoExpandedStyleField.GetValue(displayInfo);
+                    if (expanded != null)
+                    {
+                        int v = Convert.ToInt32(expanded);
+                        info.IsExpandedVariant = v >= 2;
                     }
                 }
             }

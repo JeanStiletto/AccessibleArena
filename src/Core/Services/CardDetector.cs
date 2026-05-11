@@ -763,6 +763,15 @@ namespace AccessibleArena.Core.Services
         /// Empty/null on cards outside the deck builder — the Style block is suppressed for those.
         /// </summary>
         public string Style;
+        /// <summary>
+        /// True when this pool tile is part of an active style-expansion group — i.e. the user
+        /// has Ctrl+Enter'd a title and the game is fanning out one tile per variant. Set from
+        /// PagesMetaCardView._lastDisplayInfo.ExpandedStyle (Expanded_First/Mid/Last). For Solo
+        /// and Stacked tiles, and for non-pool extractors, stays false. The deck-builder pool
+        /// navigator uses this to decide whether to surface the Style suffix on the focus
+        /// announce (so the user can tell variants apart without arrowing into info blocks).
+        /// </summary>
+        public bool IsExpandedVariant;
     }
 
     /// <summary>

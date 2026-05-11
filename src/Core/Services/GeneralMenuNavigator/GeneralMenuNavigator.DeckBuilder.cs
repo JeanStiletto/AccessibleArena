@@ -625,14 +625,22 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
-                // Collection style: "CardName, TypeLine, ManaCost"
-                // Style name is prepended for non-default-art tiles so multiple style versions
-                // of the same card become distinguishable.
+                // Collection style: "CardName, Style?, TypeLine, ManaCost".
+                // Style suffix policy:
+                //   - Solo / Stacked tiles (normal browsing): only announce style when there's
+                //     an explicit skin variant (Showcase, Borderless, …). Otherwise stay silent
+                //     so we don't say "M21 247" on every default-art card.
+                //   - Expanded variant tiles (Ctrl+Enter fan-out active): always announce the
+                //     full Style — that's the only way to tell sibling variants apart by ear,
+                //     and cardInfo.Style is guaranteed populated for pool tiles
+                //     (DeckCosmeticsReader.GetStyleNameForTile falls back to set+collector).
                 string label = cardInfo.Name;
-                string style = DeckCosmeticsReader.GetTileStyleName(cardObj);
-                if (!string.IsNullOrEmpty(style))
+                string styleSuffix = cardInfo.IsExpandedVariant
+                    ? cardInfo.Style
+                    : DeckCosmeticsReader.GetTileStyleName(cardObj);
+                if (!string.IsNullOrEmpty(styleSuffix))
                 {
-                    label += $", {style}";
+                    label += $", {styleSuffix}";
                 }
 
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
@@ -702,10 +710,13 @@ namespace AccessibleArena.Core.Services
                 var cardInfo = CardDetector.ExtractCardInfo(cardObj);
                 if (!cardInfo.IsValid) continue;
 
+                // Same style-suffix policy as the primary path — see comment above.
                 string label = cardInfo.Name;
-                string style = DeckCosmeticsReader.GetTileStyleName(cardObj);
-                if (!string.IsNullOrEmpty(style))
-                    label += $", {style}";
+                string styleSuffix = cardInfo.IsExpandedVariant
+                    ? cardInfo.Style
+                    : DeckCosmeticsReader.GetTileStyleName(cardObj);
+                if (!string.IsNullOrEmpty(styleSuffix))
+                    label += $", {styleSuffix}";
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
                     label += $", {cardInfo.TypeLine}";
                 if (!string.IsNullOrEmpty(cardInfo.ManaCost))
