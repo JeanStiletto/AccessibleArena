@@ -1190,22 +1190,34 @@ namespace AccessibleArena.Core.Services
                     return false;
                 }
 
+                // Decide the announce BEFORE the click. The game's CardExpansionToggled branches
+                // on the current ExpandedStyle: Stacked → ExpandCard (fan out), Expanded_* →
+                // CollapseCard (fold back), Solo → CollapseCard on a title not in the set
+                // (effectively a no-op since there are no alternates). Reading the post-click
+                // state via GetIsExpanded() gives the wrong answer because RefreshPoolView is
+                // deferred — _lastDisplayInfo.ExpandedStyle isn't repopulated yet when we read it.
+                // ExpandedStyle enum: 0=Solo, 1=Stacked, 2/3/4=Expanded_First/Mid/Last.
+                int? styleBefore = ReadTileExpandedStyle(metaType, metaCardView);
+                Log.Nav(NavigatorId, $"Ctrl+Enter: ExpandedStyle before click = {styleBefore?.ToString() ?? "unknown"}");
+
+                if (styleBefore == 0)
+                {
+                    // Solo — no alternative styles for this title. Skip the no-op click and
+                    // tell the user, rather than announcing a misleading "expanded/collapsed".
+                    _announcer.Announce(Strings.CardViewerNoAlternatives, AnnouncementPriority.Normal);
+                    return true;
+                }
+
                 expandMethod.Invoke(metaCardView, null);
 
-                // After ExpandClicked, the game has either added or removed the title
-                // from PreferredPrintingState.ExpandedPoolCards. Read the new state via
-                // GetIsExpanded() for the announcement.
-                bool nowExpanded = false;
-                try
-                {
-                    var stateMethod = metaType.GetMethod("GetIsExpanded", PublicInstance | BindingFlags.FlattenHierarchy);
-                    if (stateMethod != null)
-                        nowExpanded = (bool)stateMethod.Invoke(metaCardView, null);
-                }
-                catch { }
-
+                // Stacked → will expand; everything else (Expanded_*, or unreadable fallback)
+                // → will collapse. The unreadable fallback defaulting to "collapsed" is the
+                // safer wrong answer: if the user just collapsed, "collapsed" is right; if
+                // they just expanded but our reflection failed, the rescan will surface the
+                // new variant tiles regardless.
+                bool willBeExpanded = styleBefore == 1;
                 _announcer.Announce(
-                    nowExpanded ? Strings.CardStylesExpanded : Strings.CardStylesCollapsed,
+                    willBeExpanded ? Strings.CardStylesExpanded : Strings.CardStylesCollapsed,
                     AnnouncementPriority.Normal);
 
                 // RefreshPoolView is already fired by ExpandCard/CollapseCard. Schedule
@@ -1218,6 +1230,30 @@ namespace AccessibleArena.Core.Services
             {
                 Log.Warn(NavigatorId, $"Ctrl+Enter ExpandClicked failed: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Read PagesMetaCardView._lastDisplayInfo.ExpandedStyle as an int (the underlying enum
+        /// value 0..4). Returns null when reflection can't reach either field. Used by
+        /// TryToggleStyleExpansionForFocusedCard to decide the announce BEFORE invoking
+        /// ExpandClicked, since the post-click state is stale until RefreshPoolView runs.
+        /// </summary>
+        private static int? ReadTileExpandedStyle(Type metaType, Component metaCardView)
+        {
+            try
+            {
+                var displayInfoField = metaType.GetField("_lastDisplayInfo", PrivateInstance);
+                var displayInfo = displayInfoField?.GetValue(metaCardView);
+                if (displayInfo == null) return null;
+
+                var expandedStyleField = displayInfo.GetType().GetField("ExpandedStyle");
+                var value = expandedStyleField?.GetValue(displayInfo);
+                return value == null ? (int?)null : Convert.ToInt32(value);
+            }
+            catch
+            {
+                return null;
             }
         }
 
