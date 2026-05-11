@@ -111,6 +111,10 @@ namespace AccessibleArena.Core.Services
                     else if (diff < 0)
                     {
                         _lastSpellResolvedTime = DateTime.Now;
+                        // When the stack drains to empty, reset the announced-IDs tracker so the
+                        // next thing cast onto a fresh stack is announced again.
+                        if (cardCount == 0)
+                            ClearStackAnnouncements();
                         // Resolve announcement is handled by ResolutionEventEndedUXEvent
                         // which carries the actual card data from the game engine.
                         return null;
