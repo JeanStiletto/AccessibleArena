@@ -571,10 +571,14 @@ namespace AccessibleArena.Core.Services
                         // Convert enum name to readable name using existing function
                         string readableName = ManaTextFormatter.ConvertManaColorToName(colorName);
 
+                        // MtgMana.Count gives the multiplicity (one entry can carry e.g. 3 green).
+                        // Without this, Rofellos tapping for 3 announces as "1 Green".
+                        int count = GetManaCount(mana);
+
                         if (manaByColor.ContainsKey(readableName))
-                            manaByColor[readableName]++;
+                            manaByColor[readableName] += count;
                         else
-                            manaByColor[readableName] = 1;
+                            manaByColor[readableName] = count;
                     }
                     catch { /* Mana color reflection may fail on unexpected types */ }
                 }
@@ -595,6 +599,20 @@ namespace AccessibleArena.Core.Services
                 Log.Warn("DuelAnnouncer", $"Error parsing mana pool: {ex.Message}");
                 return null;
             }
+        }
+
+        private static int GetManaCount(object mana)
+        {
+            try
+            {
+                var member = LookupMember(mana.GetType(), "Count");
+                if (member == null) return 1;
+                object value = member is FieldInfo fi ? fi.GetValue(mana) : ((PropertyInfo)member).GetValue(mana);
+                if (value == null) return 1;
+                int count = Convert.ToInt32(value);
+                return count > 0 ? count : 1;
+            }
+            catch { return 1; }
         }
 
         #endregion
