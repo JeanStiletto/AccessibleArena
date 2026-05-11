@@ -1194,6 +1194,11 @@ namespace AccessibleArena.Core.Services
 
             if (_elements.Count == 0)
             {
+                // Diagnostic for issue #86: dump panel state so we can identify
+                // which Settings panel has no navigable items (e.g. post-ToS flows).
+                string panelName = _settingsContentPanel != null ? _settingsContentPanel.name : "null";
+                string menuObjName = _settingsMenuObject != null ? _settingsMenuObject.name : "null";
+                Log.Warn(NavigatorId, $"No navigable items. contentPanel={panelName} menuObj={menuObjName} quickMenu={_isInQuickMenu} popup={IsInPopupMode} scene={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
                 return $"{menuName}. No navigable items found.";
             }
             return $"{menuName}. {Models.Strings.NavigateHint}. {_elements.Count} items.";
