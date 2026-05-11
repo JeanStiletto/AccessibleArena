@@ -648,6 +648,16 @@ namespace AccessibleArena.Core.Services
                 }
 
                 zone.Cards.RemoveAll(c => !CardDetector.HasHotHighlight(c) && !CardDetector.IsDisplayedFaceUp(c));
+
+                // OpponentHand: a CDC whose model zone has moved away (e.g. a card the opponent
+                // cast that is now in their graveyard with flashback, or a Plot/Foretell card
+                // sitting in exile) often lingers visually under the OpponentHand holder with
+                // IsDisplayedFaceUp still true. Without this second filter the revealed-cards
+                // list would include those non-hand cards while the hand count (computed via
+                // IsRealHandCard) excludes them — producing a stale "Hand, 2 cards. … 1 of 3"
+                // mismatch where the list size doesn't match the announced count.
+                if (zone.Type == ZoneType.OpponentHand)
+                    zone.Cards.RemoveAll(c => !IsRealHandCard(c));
             }
         }
 
