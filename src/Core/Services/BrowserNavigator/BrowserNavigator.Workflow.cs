@@ -687,6 +687,17 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Mutate Yes/No (BrowserScaffold_YesNo_Mutate_…): route through the provider's
+            // logical "DoneButton" (resolves to 2Button_Right = Yes). Falling through to
+            // PromptButton_Primary clicks the duel-level pass button instead, leaving the
+            // browser stuck — see GitHub #88.
+            if (_isMutate && TryClickProviderLogicalButton("DoneButton", "BrowserConfirm"))
+            {
+                _announcer.Announce(Strings.Confirmed, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // SelectCards/SelectCardsMultiZone: prefer workflow reflection over button patterns.
             // SingleButton in these browsers is often the "Decline" option, not confirm.
             // The correct confirm is submitting the workflow with the current selection.
@@ -737,7 +748,7 @@ namespace AccessibleArena.Core.Services
             // their buttons are choices, not confirm/cancel, and the global PromptButtons
             // would click unrelated duel phase buttons (observed: clicked duel-level "Cancel"
             // during an activated-ability cost-payment SelectCards prompt).
-            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && !_isHighlightFilteredBrowser && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
+            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && !_isHighlightFilteredBrowser && !_isMutate && TryClickPromptButton(BrowserDetector.PromptButtonPrimaryPrefix, out clickedLabel))
             {
                 // PromptButton_Primary is a duel-level button (pass/submit), not browser-internal.
                 // Clicking it advances the game, which will destroy the scaffold.
@@ -814,6 +825,15 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Mutate Yes/No: route through the provider's logical "CancelButton"
+            // (resolves to 2Button_Left = No). Same reason as ClickConfirmButton — see #88.
+            if (_isMutate && TryClickProviderLogicalButton("CancelButton", "BrowserCancel"))
+            {
+                _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
+                BrowserDetector.InvalidateCache();
+                return;
+            }
+
             // First priority: MulliganButton (doesn't close browser, starts new mulligan)
             if (TryClickButtonByName(BrowserDetector.ButtonMulligan, out clickedLabel))
             {
@@ -844,8 +864,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Third priority: PromptButton_Secondary
-            // Skip for OptionalAction, choice-list, SelectCards browsers — would click unrelated duel phase buttons
-            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && !_isHighlightFilteredBrowser && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
+            // Skip for OptionalAction, choice-list, SelectCards, Mutate — would click unrelated duel phase buttons
+            if (!(_browserInfo?.IsOptionalAction == true) && !_isChoiceList && !_isSelectGroup && !_isHighlightFilteredBrowser && !_isMutate && TryClickPromptButton(BrowserDetector.PromptButtonSecondaryPrefix, out clickedLabel))
             {
                 _announcer.Announce(clickedLabel, AnnouncementPriority.Normal);
                 BrowserDetector.InvalidateCache(); // Force re-detection on next Update

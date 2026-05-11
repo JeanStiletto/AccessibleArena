@@ -74,6 +74,11 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpShiftTabPrevField,
                 Strings.HelpArrowsInField,
 
+                // Deck builder card shortcuts
+                Strings.HelpCategoryDeckBuilder,
+                Strings.HelpShiftEnterCardViewer,
+                Strings.HelpCtrlEnterCardStyles,
+
                 // Zones in duel (yours and opponent)
                 Strings.HelpCategoryDuelZones,
                 Strings.HelpCHand,

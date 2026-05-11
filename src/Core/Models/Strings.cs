@@ -974,6 +974,9 @@ namespace AccessibleArena.Core.Models
         public static string HelpCategoryGlobal => L.Get("HelpCategoryGlobal");
         public static string HelpCategoryMenuNavigation => L.Get("HelpCategoryMenuNavigation");
         public static string HelpCategoryDuelZones => L.Get("HelpCategoryDuelZones");
+        public static string HelpCategoryDeckBuilder => L.Get("HelpCategoryDeckBuilder");
+        public static string HelpShiftEnterCardViewer => L.Get("HelpShiftEnterCardViewer");
+        public static string HelpCtrlEnterCardStyles => L.Get("HelpCtrlEnterCardStyles");
         public static string HelpCategoryDuelInfo => L.Get("HelpCategoryDuelInfo");
         public static string HelpCategoryCardNavigation => L.Get("HelpCategoryCardNavigation");
         public static string HelpCategoryCardDetails => L.Get("HelpCategoryCardDetails");
@@ -1673,6 +1676,8 @@ namespace AccessibleArena.Core.Models
         public static string CosmeticsTile(string label, string current) =>
             L.Format("CosmeticsTileFormat", label, current);
         public static string CardStyleLine(string styleName) => L.Format("CardStyleLineFormat", styleName);
+        public static string CardStylesExpanded => L.Get("CardStylesExpanded");
+        public static string CardStylesCollapsed => L.Get("CardStylesCollapsed");
         public static string CardViewerCosmeticMode(string current) => L.Format("CardViewerCosmeticMode", current);
         public static string CardViewerCraftMode(int qty) => L.Format("CardViewerCraftMode", qty);
         public static string CardViewerReadOnly => L.Get("CardViewerReadOnly");

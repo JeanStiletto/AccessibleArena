@@ -23,6 +23,7 @@ namespace AccessibleArena.Core.Services
         public bool IsMulligan { get; set; }
         public bool IsWorkflow { get; set; }
         public bool IsOptionalAction { get; set; }
+        public bool IsMutate { get; set; }
 
         // For workflow browsers, stores all workflow action buttons found
         public List<GameObject> WorkflowButtons { get; set; }
@@ -358,6 +359,7 @@ namespace AccessibleArena.Core.Services
                 if (!isMulligan || hasMulliganButtons)
                 {
                     LogBrowserDiscovery(scaffoldCandidate.name, scaffoldType);
+                    bool isMutate = scaffoldCandidate.name.IndexOf("_Mutate", StringComparison.Ordinal) >= 0;
                     return new BrowserInfo
                     {
                         IsActive = true,
@@ -366,7 +368,8 @@ namespace AccessibleArena.Core.Services
                         IsScryLike = IsScryLikeBrowser(scaffoldType),
                         IsLondon = IsLondonBrowser(scaffoldType),
                         IsMulligan = isMulligan,
-                        IsOptionalAction = IsOptionalActionBrowser(scaffoldType)
+                        IsOptionalAction = IsOptionalActionBrowser(scaffoldType),
+                        IsMutate = isMutate
                     };
                 }
             }

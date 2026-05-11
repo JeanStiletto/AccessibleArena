@@ -625,14 +625,22 @@ namespace AccessibleArena.Core.Services
                     continue;
                 }
 
-                // Collection style: "CardName, TypeLine, ManaCost"
-                // Style name is prepended for non-default-art tiles so multiple style versions
-                // of the same card become distinguishable.
+                // Collection style: "CardName, Style?, TypeLine, ManaCost".
+                // Style suffix policy:
+                //   - Solo / Stacked tiles (normal browsing): only announce style when there's
+                //     an explicit skin variant (Showcase, Borderless, …). Otherwise stay silent
+                //     so we don't say "M21 247" on every default-art card.
+                //   - Expanded variant tiles (Ctrl+Enter fan-out active): always announce the
+                //     full Style — that's the only way to tell sibling variants apart by ear,
+                //     and cardInfo.Style is guaranteed populated for pool tiles
+                //     (DeckCosmeticsReader.GetStyleNameForTile falls back to set+collector).
                 string label = cardInfo.Name;
-                string style = DeckCosmeticsReader.GetTileStyleName(cardObj);
-                if (!string.IsNullOrEmpty(style))
+                string styleSuffix = cardInfo.IsExpandedVariant
+                    ? cardInfo.Style
+                    : DeckCosmeticsReader.GetTileStyleName(cardObj);
+                if (!string.IsNullOrEmpty(styleSuffix))
                 {
-                    label += $", {style}";
+                    label += $", {styleSuffix}";
                 }
 
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
@@ -702,10 +710,13 @@ namespace AccessibleArena.Core.Services
                 var cardInfo = CardDetector.ExtractCardInfo(cardObj);
                 if (!cardInfo.IsValid) continue;
 
+                // Same style-suffix policy as the primary path — see comment above.
                 string label = cardInfo.Name;
-                string style = DeckCosmeticsReader.GetTileStyleName(cardObj);
-                if (!string.IsNullOrEmpty(style))
-                    label += $", {style}";
+                string styleSuffix = cardInfo.IsExpandedVariant
+                    ? cardInfo.Style
+                    : DeckCosmeticsReader.GetTileStyleName(cardObj);
+                if (!string.IsNullOrEmpty(styleSuffix))
+                    label += $", {styleSuffix}";
                 if (!string.IsNullOrEmpty(cardInfo.TypeLine))
                     label += $", {cardInfo.TypeLine}";
                 if (!string.IsNullOrEmpty(cardInfo.ManaCost))
@@ -1127,6 +1138,123 @@ namespace AccessibleArena.Core.Services
                 t = t.parent;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Handle Ctrl+Enter on a focused pool card by invoking
+        /// PagesMetaCardView.ExpandClicked() — the game's own handler behind the
+        /// chevron on the tile's TAG_PreferredPrinting ribbon. The game then
+        /// either expands the title (one extra adjacent tile per available
+        /// art-style/printing variant) or collapses it back to the single tile.
+        /// Only pool tiles support this; deck-list / sideboard tiles silently
+        /// no-op. After the click, schedule a rescan so the new tiles enter
+        /// the navigation list, and announce expanded/collapsed based on the
+        /// post-click state.
+        /// </summary>
+        private bool TryToggleStyleExpansionForFocusedCard()
+        {
+            if (_activeContentController != T.WrapperDeckBuilder) return false;
+
+            GameObject focused = null;
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                focused = _groupedNavigator.CurrentElement?.GameObject;
+            else if (IsValidIndex)
+                focused = _elements[_currentIndex].GameObject;
+
+            Log.Nav(NavigatorId, $"Ctrl+Enter: focused={focused?.name ?? "null"}");
+            if (focused == null) return false;
+
+            // Walk to a MetaCardView ancestor first, then narrow to PagesMetaCardView —
+            // ExpandClicked() lives only on the pool-tile subclass. Deck-list tiles
+            // (ListMetaCardView_Expanding) don't expose this expansion.
+            Component metaCardView = FindMetaCardViewOnOrAbove(focused);
+            if (metaCardView == null)
+            {
+                Log.Nav(NavigatorId, $"Ctrl+Enter: no MetaCardView on/above {focused.name}");
+                return false;
+            }
+
+            Type metaType = metaCardView.GetType();
+            if (metaType.Name != T.PagesMetaCardView)
+            {
+                Log.Nav(NavigatorId, $"Ctrl+Enter: {metaType.Name} is not a pool tile; no style expansion available");
+                return false;
+            }
+
+            try
+            {
+                var expandMethod = metaType.GetMethod("ExpandClicked", PublicInstance | BindingFlags.FlattenHierarchy);
+                if (expandMethod == null)
+                {
+                    Log.Nav(NavigatorId, $"Ctrl+Enter: ExpandClicked not found on {metaType.Name}");
+                    return false;
+                }
+
+                // Decide the announce BEFORE the click. The game's CardExpansionToggled branches
+                // on the current ExpandedStyle: Stacked → ExpandCard (fan out), Expanded_* →
+                // CollapseCard (fold back), Solo → CollapseCard on a title not in the set
+                // (effectively a no-op since there are no alternates). Reading the post-click
+                // state via GetIsExpanded() gives the wrong answer because RefreshPoolView is
+                // deferred — _lastDisplayInfo.ExpandedStyle isn't repopulated yet when we read it.
+                // ExpandedStyle enum: 0=Solo, 1=Stacked, 2/3/4=Expanded_First/Mid/Last.
+                int? styleBefore = ReadTileExpandedStyle(metaType, metaCardView);
+                Log.Nav(NavigatorId, $"Ctrl+Enter: ExpandedStyle before click = {styleBefore?.ToString() ?? "unknown"}");
+
+                if (styleBefore == 0)
+                {
+                    // Solo — no alternative styles for this title. Skip the no-op click and
+                    // tell the user, rather than announcing a misleading "expanded/collapsed".
+                    _announcer.Announce(Strings.CardViewerNoAlternatives, AnnouncementPriority.Normal);
+                    return true;
+                }
+
+                expandMethod.Invoke(metaCardView, null);
+
+                // Stacked → will expand; everything else (Expanded_*, or unreadable fallback)
+                // → will collapse. The unreadable fallback defaulting to "collapsed" is the
+                // safer wrong answer: if the user just collapsed, "collapsed" is right; if
+                // they just expanded but our reflection failed, the rescan will surface the
+                // new variant tiles regardless.
+                bool willBeExpanded = styleBefore == 1;
+                _announcer.Announce(
+                    willBeExpanded ? Strings.CardStylesExpanded : Strings.CardStylesCollapsed,
+                    AnnouncementPriority.Normal);
+
+                // RefreshPoolView is already fired by ExpandCard/CollapseCard. Schedule
+                // our own rescan so the new tiles populate _elements before the user
+                // arrows to them.
+                TriggerRescan();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(NavigatorId, $"Ctrl+Enter ExpandClicked failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Read PagesMetaCardView._lastDisplayInfo.ExpandedStyle as an int (the underlying enum
+        /// value 0..4). Returns null when reflection can't reach either field. Used by
+        /// TryToggleStyleExpansionForFocusedCard to decide the announce BEFORE invoking
+        /// ExpandClicked, since the post-click state is stale until RefreshPoolView runs.
+        /// </summary>
+        private static int? ReadTileExpandedStyle(Type metaType, Component metaCardView)
+        {
+            try
+            {
+                var displayInfoField = metaType.GetField("_lastDisplayInfo", PrivateInstance);
+                var displayInfo = displayInfoField?.GetValue(metaCardView);
+                if (displayInfo == null) return null;
+
+                var expandedStyleField = displayInfo.GetType().GetField("ExpandedStyle");
+                var value = expandedStyleField?.GetValue(displayInfo);
+                return value == null ? (int?)null : Convert.ToInt32(value);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static object ResolveRolloverZoomHandler(Component metaCardView)
