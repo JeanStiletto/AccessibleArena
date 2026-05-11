@@ -25,6 +25,12 @@ namespace AccessibleArena.Core.Services
         private InputFieldEditHelper _popupInputHelper;
         private DropdownEditHelper _popupDropdownHelper;
 
+        // Number of title texts inserted at the front of _elements by DiscoverPopupTitleTexts.
+        // Used as the insertion point for content that should appear immediately after titles
+        // (e.g., the card-style block on the crafting popup), so a screen reader hits it
+        // right after the popup name instead of after every text block.
+        private int _popupTitleCount;
+
         // Stack of popups currently nested below the active one.
         // Used when a popup spawns another popup on top (e.g., DeckDetailsPopup → PetPopUpV2):
         // the underlying popup is pushed here while we navigate the new one, then restored
@@ -794,6 +800,8 @@ namespace AccessibleArena.Core.Services
                     Role = UIElementClassifier.ElementRole.TextBlock
                 });
             }
+
+            _popupTitleCount = titleTexts.Count;
         }
 
         private void DiscoverPopupInputFields(GameObject popup, HashSet<GameObject> addedObjects)
@@ -1070,6 +1078,13 @@ namespace AccessibleArena.Core.Services
                 var type = mb.GetType();
                 if (type.Name != "CardViewerController") continue;
 
+                // Inject a "Style: <print>" block so screen-reader users can tell which
+                // printing the popup is for (different printings of the same card live
+                // in the inventory as separate GrpIds). Same label format the deck
+                // builder card tiles use, derived from _printingData.GrpId + the resolved
+                // skin variant from _skins[0].Variant.
+                InjectCardStyleBlock(mb, type);
+
                 // Get pip objects (shared between stepper and no-stepper paths)
                 var pipsField = type.GetField("_CraftPips",
                     PrivateInstance);
@@ -1200,6 +1215,62 @@ namespace AccessibleArena.Core.Services
                 }
 
                 break;
+            }
+        }
+
+        /// <summary>
+        /// Reads the CardViewerController's printing + resolved skin variant and inserts a
+        /// "Style: …" navigable block right after the popup titles. Lets a screen-reader user
+        /// disambiguate which printing of a card they're about to craft — the popup UI itself
+        /// shows the printing visually (different art) but never as plain text.
+        /// </summary>
+        private void InjectCardStyleBlock(MonoBehaviour controller, Type controllerType)
+        {
+            try
+            {
+                var printingDataField = controllerType.GetField("_printingData", PrivateInstance);
+                var printingData = printingDataField?.GetValue(controller);
+                if (printingData == null) return;
+
+                var grpIdProp = printingData.GetType().GetProperty("GrpId", PublicInstance);
+                if (grpIdProp == null) return;
+                uint grpId = (uint)grpIdProp.GetValue(printingData);
+                if (grpId == 0) return;
+
+                string skinCode = null;
+                var skinsField = controllerType.GetField("_skins", PrivateInstance);
+                var skinsList = skinsField?.GetValue(controller) as System.Collections.IList;
+                if (skinsList != null && skinsList.Count > 0)
+                {
+                    var firstSkin = skinsList[0];
+                    if (firstSkin != null)
+                    {
+                        var variantField = firstSkin.GetType().GetField("Variant", PublicInstance);
+                        skinCode = variantField?.GetValue(firstSkin) as string;
+                    }
+                }
+
+                string styleName = DeckCosmeticsReader.GetStyleNameForTile(grpId, skinCode);
+                if (string.IsNullOrEmpty(styleName)) return;
+
+                string styleLine = Strings.CardStyleLine(styleName);
+
+                // Skip if a text block with the same label already exists (re-discovery path).
+                if (_elements.Any(e => e.Role == UIElementClassifier.ElementRole.TextBlock && e.Label == styleLine))
+                    return;
+
+                int insertAt = Math.Min(_popupTitleCount, _elements.Count);
+                _elements.Insert(insertAt, new NavigableElement
+                {
+                    GameObject = null,
+                    Label = styleLine,
+                    Role = UIElementClassifier.ElementRole.TextBlock
+                });
+                Log.Msg("{NavigatorId}", $"Popup: card style: {styleLine}");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"InjectCardStyleBlock failed: {ex.Message}");
             }
         }
 
