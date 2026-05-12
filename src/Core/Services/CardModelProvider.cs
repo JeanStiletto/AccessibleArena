@@ -47,6 +47,7 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _convertManaCostsMethod = null;
         private static bool _convertManaCostsSearched = false;
 
+
         // Per-action PropertyInfos resolved on first card extraction and reused thereafter — game
         // types are stable across the process lifetime, same rule as the other reflection caches.
         private static PropertyInfo _actionInfoActionProp = null;
