@@ -478,6 +478,37 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Hand-castable supplement: MTGA's visual HotHighlight isn't reliably refreshed on
+            // hand cards in transitional states (notably immediately after a land play, where the
+            // activated ability of a battlefield creature stays highlighted but the player's
+            // still-castable hand cards lose their visual cue). We look up MTGA's own answer
+            // instead — the active ActionsAvailableWorkflow tracks GreInteractions per card with
+            // CanAffordToCast pre-computed for each — and add any hand card the workflow says is
+            // currently castable. Selection mode (discard pick, etc.) keeps the existing
+            // visual-scan-only behavior since arbitrary castable cards would just be noise there.
+            if (!selectionMode)
+            {
+                var handHolder = DuelHolderCache.GetHolder("LocalHand");
+                if (handHolder != null)
+                {
+                    foreach (Transform t in handHolder.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (t == null || !t.gameObject.activeInHierarchy) continue;
+                        var go = t.gameObject;
+                        if (!CardDetector.IsCard(go)) continue;
+
+                        int id = go.GetInstanceID();
+                        if (result.ContainsKey(id)) continue;
+
+                        if (!IsCardCastableByGameState(go)) continue;
+
+                        var item = CreateHighlightedItem(go, "CastableNow");
+                        if (item != null)
+                            result[id] = item;
+                    }
+                }
+            }
+
             // Battlefield stacking: drop highlighted children of multi-card stacks so
             // Tab cycles through stack heads only (mirrors B/A/R row navigation).
             // The head card stays — its highlight represents the whole stack.
@@ -701,6 +732,152 @@ namespace AccessibleArena.Core.Services
                 IsPlayer = true,
                 CardType = "Player"
             };
+        }
+
+        // GreInteraction lookup cache — used by the hand-castable supplement to read MTGA's own
+        // pre-computed affordability flag rather than the visual HotHighlight prefab. Each
+        // GreInteraction is constructed by ActionsAvailableWorkflow with CanAffordToCast already
+        // captured from Action.CanAffordToCast(), so we get the game's exact answer per card.
+        private static bool _greInteractionCacheSearched;
+        private static MethodInfo _getInteractionsForIdMethod;
+        private static PropertyInfo _gameManagerCurrentInteractionProp;
+        private static FieldInfo _greInteractionTypeField;
+        private static FieldInfo _greInteractionCanAffordField;
+        private static MonoBehaviour _cachedGameManager;
+
+        /// <summary>
+        /// Scans loaded assemblies for the named types, tolerating ReflectionTypeLoadException
+        /// (the mod's reduced dependency set causes some game-DLL types to fail to load, which
+        /// makes Assembly.GetTypes() throw; ReflectionUtils.FindType's generic catch then swallows
+        /// the whole assembly's type list). Returns the first match per requested name.
+        /// </summary>
+        private static (Type a, Type b) ResolveGlobalTypesByName(string nameA, string nameB)
+        {
+            Type a = null, b = null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type[] types;
+                try { types = asm.GetTypes(); }
+                catch (ReflectionTypeLoadException rtle)
+                {
+                    types = rtle.Types?.Where(x => x != null).ToArray() ?? Array.Empty<Type>();
+                }
+                catch { continue; }
+
+                foreach (var ty in types)
+                {
+                    if (ty == null) continue;
+                    if (a == null && ty.Name == nameA) a = ty;
+                    else if (b == null && ty.Name == nameB) b = ty;
+                    if (a != null && b != null) return (a, b);
+                }
+            }
+            return (a, b);
+        }
+
+        private void InitInteractionLookup()
+        {
+            try
+            {
+                // ActionsAvailableWorkflow and GreInteraction are both global-namespace types,
+                // and at least one of the assemblies they live in throws ReflectionTypeLoadException
+                // on GetTypes() against the mod's reduced dependency set — so FindType (which only
+                // catches the generic Exception) silently skips them. A single robust scan
+                // tolerates the partial-load case and resolves both types in one pass.
+                var (workflowType, greType) = ResolveGlobalTypesByName("ActionsAvailableWorkflow", "GreInteraction");
+                if (workflowType != null)
+                {
+                    _getInteractionsForIdMethod = workflowType.GetMethod(
+                        "GetInteractionsForId", BindingFlags.Public | BindingFlags.Static);
+                }
+                if (greType != null)
+                {
+                    _greInteractionTypeField = greType.GetField("Type", PublicInstance);
+                    _greInteractionCanAffordField = greType.GetField("CanAffordToCast", PublicInstance);
+                }
+
+                // GameManager exposes WorkflowBase CurrentInteraction => WorkflowController.CurrentWorkflow.
+                var gmType = FindType("GameManager");
+                if (gmType != null)
+                    _gameManagerCurrentInteractionProp = gmType.GetProperty("CurrentInteraction", PublicInstance);
+
+                bool ok = _getInteractionsForIdMethod != null
+                       && _gameManagerCurrentInteractionProp != null
+                       && _greInteractionTypeField != null
+                       && _greInteractionCanAffordField != null;
+                Log.Nav("HotHighlightNavigator",
+                    ok ? "Hand-castable supplement: GreInteraction pipeline ready"
+                       : $"Hand-castable supplement: GreInteraction pipeline NOT fully resolvable " +
+                         $"(GetInteractionsForId={_getInteractionsForIdMethod != null}, " +
+                         $"GameManager.CurrentInteraction={_gameManagerCurrentInteractionProp != null}, " +
+                         $"GreInteraction.Type={_greInteractionTypeField != null}, " +
+                         $"GreInteraction.CanAffordToCast={_greInteractionCanAffordField != null}) — disabled");
+            }
+            catch (Exception ex)
+            {
+                Log.Msg("HotHighlightNavigator", $"InitInteractionLookup failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Returns true when MTGA's <c>ActionsAvailableWorkflow</c> has a Cast-type GreInteraction
+        /// for this card with <c>CanAffordToCast == true</c>. That's the game's own answer to
+        /// "is this card castable right now?", computed when the workflow built the interaction
+        /// (via <c>Action.CanAffordToCast()</c> against the current <c>AutoTapSolution</c>).
+        /// </summary>
+        private bool IsCardCastableByGameState(GameObject card)
+        {
+            if (!_greInteractionCacheSearched)
+            {
+                _greInteractionCacheSearched = true;
+                InitInteractionLookup();
+            }
+            if (_getInteractionsForIdMethod == null
+                || _gameManagerCurrentInteractionProp == null
+                || _greInteractionTypeField == null
+                || _greInteractionCanAffordField == null)
+                return false;
+
+            if (_cachedGameManager == null || !_cachedGameManager)
+            {
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == "GameManager")
+                    {
+                        _cachedGameManager = mb;
+                        break;
+                    }
+                }
+                if (_cachedGameManager == null) return false;
+            }
+
+            object currentInteraction = _gameManagerCurrentInteractionProp.GetValue(_cachedGameManager);
+            if (currentInteraction == null) return false;
+
+            uint instanceId = CardStateProvider.GetCardInstanceId(card);
+            if (instanceId == 0) return false;
+
+            object result;
+            try { result = _getInteractionsForIdMethod.Invoke(null, new object[] { instanceId, currentInteraction }); }
+            catch (Exception ex)
+            {
+                Log.Msg("HotHighlightNavigator", $"GetInteractionsForId invoke failed: {ex.Message}");
+                return false;
+            }
+            if (!(result is IEnumerable interactions)) return false;
+
+            foreach (var interaction in interactions)
+            {
+                if (interaction == null) continue;
+                var typeVal = _greInteractionTypeField.GetValue(interaction);
+                if (typeVal == null) continue;
+                string typeName = typeVal.ToString();
+                if (!typeName.StartsWith("Cast")) continue;
+
+                var afford = _greInteractionCanAffordField.GetValue(interaction);
+                if (afford is bool b && b) return true;
+            }
+            return false;
         }
 
         /// <summary>
