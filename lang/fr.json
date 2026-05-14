@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0} marqueur {1}",
   "Duel_CounterEntryPlural_Format": "{0} marqueurs {1}",
   "Duel_Loyalty_Format": "Loyauté {0}",
+  "Duel_DamageEntry_Format": "{0} blessure",
+  "Duel_DamageEntryPlural_Format": "{0} blessures",
   "HelpKCounters": "K : Info des marqueurs sur la carte ciblée",
   "HelpJJumpRelated": "J : Sauter à l'attachement ou à la cible (cycle entre plusieurs)",
   "Duel_NoJumpTarget": "Aucun attachement ni cible vers lequel sauter",

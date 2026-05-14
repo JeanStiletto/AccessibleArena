@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0} marcador de {1}",
   "Duel_CounterEntryPlural_Format": "{0} marcadores de {1}",
   "Duel_Loyalty_Format": "Lealdade {0}",
+  "Duel_DamageEntry_Format": "{0} de dano",
+  "Duel_DamageEntryPlural_Format": "{0} de dano",
   "HelpKCounters": "K: Info de marcadores na carta focada",
   "HelpJJumpRelated": "J: Saltar para anexo ou alvo (alterna entre vários)",
   "Duel_NoJumpTarget": "Sem anexos ou alvos para saltar",

@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0} {1}-Marke",
   "Duel_CounterEntryPlural_Format": "{0} {1}-Marken",
   "Duel_Loyalty_Format": "Loyalität {0}",
+  "Duel_DamageEntry_Format": "{0} Schaden",
+  "Duel_DamageEntryPlural_Format": "{0} Schaden",
   "HelpKCounters": "K: Markeninformation auf fokussierter Karte",
   "HelpJJumpRelated": "J: Zu Anlage oder Ziel springen (wechselt zwischen mehreren)",
   "Duel_NoJumpTarget": "Keine Anlagen oder Ziele zum Springen",

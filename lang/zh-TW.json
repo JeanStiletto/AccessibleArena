@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0}個{1}指示物",
   "Duel_CounterEntryPlural_Format": "{0}個{1}指示物",
   "Duel_Loyalty_Format": "忠誠度 {0}",
+  "Duel_DamageEntry_Format": "{0}點傷害",
+  "Duel_DamageEntryPlural_Format": "{0}點傷害",
   "HelpKCounters": "K：聚焦卡牌的指示物資訊",
   "HelpJJumpRelated": "J：跳到貼附物或目標（多個時循環）",
   "Duel_NoJumpTarget": "沒有可跳轉的貼附物或目標",

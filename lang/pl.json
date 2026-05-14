@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0} licznik {1}",
   "Duel_CounterEntryPlural_Format": "{0} liczników {1}",
   "Duel_Loyalty_Format": "Lojalność {0}",
+  "Duel_DamageEntry_Format": "{0} obrażenie",
+  "Duel_DamageEntryPlural_Format": "{0} obrażeń",
   "HelpKCounters": "K: Info o licznikach na skupionej karcie",
   "HelpJJumpRelated": "J: Skok do dołączenia lub celu (przechodzi przez wiele)",
   "Duel_NoJumpTarget": "Brak dołączeń lub celów do skoku",

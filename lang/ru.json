@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0} жетон {1}",
   "Duel_CounterEntryPlural_Format": "{0} жетонов {1}",
   "Duel_Loyalty_Format": "Верность {0}",
+  "Duel_DamageEntry_Format": "{0} повреждение",
+  "Duel_DamageEntryPlural_Format": "{0} повреждений",
   "HelpKCounters": "K: Информация о жетонах на выбранной карте",
   "HelpJJumpRelated": "J: Перейти к прикреплённой карте или цели (циклически)",
   "Duel_NoJumpTarget": "Нет прикреплённых карт или целей для перехода",

@@ -1040,6 +1040,8 @@
   "Duel_CounterEntry_Format": "{0} {1} counter",
   "Duel_CounterEntryPlural_Format": "{0} {1} counters",
   "Duel_Loyalty_Format": "Loyalty {0}",
+  "Duel_DamageEntry_Format": "{0} damage",
+  "Duel_DamageEntryPlural_Format": "{0} damage",
   "HelpKCounters": "K: Counter info on focused card",
   "HelpJJumpRelated": "J: Jump to attachment or target (cycles through multiple)",
   "Duel_NoJumpTarget": "No attachments or targets to jump to",

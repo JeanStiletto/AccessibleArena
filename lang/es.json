@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0} contador de {1}",
   "Duel_CounterEntryPlural_Format": "{0} contadores de {1}",
   "Duel_Loyalty_Format": "Lealtad {0}",
+  "Duel_DamageEntry_Format": "{0} de daño",
+  "Duel_DamageEntryPlural_Format": "{0} de daño",
   "HelpKCounters": "K: Info de contadores en carta enfocada",
   "HelpJJumpRelated": "J: Saltar a anexo u objetivo (alterna entre múltiples)",
   "Duel_NoJumpTarget": "Sin anexos ni objetivos a los que saltar",

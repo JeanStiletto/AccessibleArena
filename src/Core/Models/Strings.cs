@@ -423,6 +423,9 @@ namespace AccessibleArena.Core.Models
             count == 1 ? L.Format("Duel_CounterEntry_Format", count, type)
                        : L.Format("Duel_CounterEntryPlural_Format", count, type);
         public static string Duel_Loyalty(int value) => L.Format("Duel_Loyalty_Format", value);
+        public static string Duel_DamageEntry(int amount) =>
+            amount == 1 ? L.Format("Duel_DamageEntry_Format", amount)
+                        : L.Format("Duel_DamageEntryPlural_Format", amount);
 
         // J key (jump to related card)
         public static string Duel_NoJumpTarget => L.Get("Duel_NoJumpTarget");

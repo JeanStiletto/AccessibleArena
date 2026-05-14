@@ -1038,6 +1038,8 @@
   "Duel_CounterEntry_Format": "{0} segnalino {1}",
   "Duel_CounterEntryPlural_Format": "{0} segnalini {1}",
   "Duel_Loyalty_Format": "Fedeltà {0}",
+  "Duel_DamageEntry_Format": "{0} danno",
+  "Duel_DamageEntryPlural_Format": "{0} danni",
   "HelpKCounters": "K: Info segnalini sulla carta focalizzata",
   "HelpJJumpRelated": "J: Salta all'attaccamento o bersaglio (cicla tra più)",
   "Duel_NoJumpTarget": "Nessun attaccamento o bersaglio a cui saltare",
