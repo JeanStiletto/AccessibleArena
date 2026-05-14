@@ -23,12 +23,6 @@ The buy button for Spheres (mastery/cosmetics store) is announced twice when foc
 
 ---
 
-### Room Cards: Per-Side Mana Costs Not Announced Correctly
-
-Room cards (Duskmourn) have two independently unlockable sides, each with its own mana cost. The mod currently does not display the per-side mana costs correctly — both sides need to be announced with their individual costs so the player can decide which door to unlock.
-
----
-
 ### Steam Overlay Warning Shows With Overlay Disabled
 
 The startup warning that flags the Steam overlay as conflicting with the mod's Shift+Tab navigation appears even when the user has actually disabled the overlay (right-click MTGA → Properties → uncheck "Enable Steam Overlay while in-game"). Detection currently triggers on Steam-launched runs regardless of the overlay's real state — it should check whether the overlay is actually enabled before warning.
@@ -116,24 +110,6 @@ SelectCards browsers that require explicit confirmation (e.g. choosing which cou
 
 ---
 
-### SelectCardsMultiZone: Space Without Selection Dismisses Silently
-
-In SelectCardsMultiZone browsers (e.g. Abprall/Rebound triggers from Ojer Pakpatiq), pressing Space without first selecting a card via Enter clicks SingleButton which is "Ablehnen" (Decline). This silently declines the ability to cast the exiled spell. The help hint correctly says "Enter to select, Space to confirm", but the UX is confusing because:
-- The card is announced on browser entry, making it feel already selected when it isn't
-- Space = confirm with nothing selected = decline is consistent with other duel phases (pass), but unexpected when you're presented with a card you want to cast
-- No warning is given that you're about to decline without having selected anything
-
-**Possible improvements:**
-- Warn the user when Space would confirm an empty selection in a SelectCardsMultiZone browser (e.g. "Keine Karte ausgewählt. Leertaste erneut zum Ablehnen" / "No card selected. Space again to decline")
-- Auto-select the card when there's only one option, so Space immediately casts it
-- Announce "Ablehnen" more prominently before executing it
-
-**Observed in:** Abprall (Rebound) triggers during upkeep with Ojer Pakpatiq, Tiefste Epoche on the battlefield. Two triggers (Gedankenwirbel, Abtauchen) both dismissed unintentionally.
-
-**Files:** `BrowserNavigator.cs` (ClickConfirmButton), `BrowserDetector.cs` (ConfirmPatterns includes "Single")
-
----
-
 ### RepeatSelection Modal Spell Remaining Choices Announcement
 
 Fixed `ExtractBrowserHeaderText()` to read the subheader from the `BrowserHeader` component via reflection instead of searching by GO name (which never matched). Added dedicated `AnnounceRepeatSelectionAfterDelay()` that announces "selected/deselected" plus the remaining count after each mode selection. Monitor whether:
@@ -211,5 +187,4 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 7. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
 8. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
 9. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
-10. Damage state announcement on creatures — read marked damage on creatures so the player can tell which ones are at risk during combat (e.g. a 4/4 with 3 damage marked is one point from dying). Currently only base toughness is announced; damage taken this turn is not surfaced, making lethal-damage assignment decisions harder than necessary.
 
