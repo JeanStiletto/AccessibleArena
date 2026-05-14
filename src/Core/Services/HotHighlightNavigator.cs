@@ -820,10 +820,14 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Returns true when MTGA's <c>ActionsAvailableWorkflow</c> has a Cast-type GreInteraction
-        /// for this card with <c>CanAffordToCast == true</c>. That's the game's own answer to
-        /// "is this card castable right now?", computed when the workflow built the interaction
-        /// (via <c>Action.CanAffordToCast()</c> against the current <c>AutoTapSolution</c>).
+        /// Returns true when MTGA's <c>ActionsAvailableWorkflow</c> has a playable
+        /// <see cref="GreInteraction"/> for this card with <c>CanAffordToCast == true</c> —
+        /// "playable" being any Cast variant, plain <c>Activate</c> (cycling, channel,
+        /// foretell-the-card, plot-the-card, ninjutsu, …), or non-payment <c>Special</c>
+        /// actions (see <see cref="IsPlayableActionType"/>). That's the game's own answer
+        /// to "is the user able to do something with this card right now?", computed when
+        /// the workflow built each interaction (via <c>Action.CanAffordToCast()</c> against
+        /// the current <c>AutoTapSolution</c>).
         /// </summary>
         private bool IsCardCastableByGameState(GameObject card)
         {
@@ -872,12 +876,42 @@ namespace AccessibleArena.Core.Services
                 var typeVal = _greInteractionTypeField.GetValue(interaction);
                 if (typeVal == null) continue;
                 string typeName = typeVal.ToString();
-                if (!typeName.StartsWith("Cast")) continue;
+                if (!IsPlayableActionType(typeName)) continue;
 
                 var afford = _greInteractionCanAffordField.GetValue(interaction);
                 if (afford is bool b && b) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns true for <c>ActionType</c> values that represent a player-initiated action
+        /// the user would want surfaced in Tab. The enum lives in
+        /// <c>Wotc.Mtgo.Gre.External.Messaging.ActionType</c> (24 values total) and covers a
+        /// lot more than just casting:
+        /// <list type="bullet">
+        /// <item>All <c>Cast*</c> variants — normal cast, split halves (<c>CastLeft/Right</c>),
+        /// adventure, MDFC back-face, prototype, Rooms (DSK), Omens (BLB). All put a card on
+        /// the stack from hand / graveyard / exile / command zone.</item>
+        /// <item><c>Activate</c> — hand-side and battlefield-side activated abilities. This is
+        /// the big one beyond Cast: cycling, channel, ninjutsu, foretell-the-card,
+        /// plot-the-card, transmute, etc. Excluded: <c>ActivateMana</c> (mana abilities; tabbing
+        /// to one is noise — the auto-tap solution handles them) and <c>ActivateTest</c>
+        /// (internal/debug).</item>
+        /// <item><c>Special</c> + <c>SpecialTurnFaceUp</c> — generic special actions (conspire,
+        /// monarch claim, dungeon advance) and morph/manifest face-up. Excluded:
+        /// <c>SpecialPayment</c> (payment subaction, never standalone).</item>
+        /// </list>
+        /// Everything else (<c>Play*</c> for lands — Tab is for actions, not land drops;
+        /// <c>Pass</c>, <c>None</c>; payment subactions <c>MakePayment</c> / <c>CombatCost</c> /
+        /// <c>ResolutionCost</c> / <c>FloatMana</c> / <c>OpeningHandAction</c>) is filtered out.
+        /// </summary>
+        private static bool IsPlayableActionType(string typeName)
+        {
+            if (typeName.StartsWith("Cast")) return true;
+            return typeName == "Activate"
+                || typeName == "Special"
+                || typeName == "SpecialTurnFaceUp";
         }
 
         /// <summary>
