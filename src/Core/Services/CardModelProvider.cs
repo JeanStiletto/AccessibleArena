@@ -1563,7 +1563,18 @@ namespace AccessibleArena.Core.Services
                         string powerStr = GetStringBackedIntValue(power);
                         string toughStr = GetStringBackedIntValue(toughness);
                         if (powerStr != null && toughStr != null)
+                        {
+                            // Subtract live damage so a 3/3 that took 2 damage announces as 3/1 — the
+                            // value that matters for "how much more can it take?" Damage clears at end
+                            // of turn; +1/+1 / -1/-1 counters already fold into Toughness via the
+                            // PendingEffectOverrides path on CardData. Skip when toughness is non-
+                            // numeric (e.g. "*") since we can't meaningfully subtract from it.
+                            var damageVal = GetModelPropertyValue(dataObj, objType, "Damage");
+                            uint damage = damageVal is uint u ? u : 0u;
+                            if (damage > 0 && int.TryParse(toughStr, out int t))
+                                toughStr = Math.Max(0, t - (int)damage).ToString();
                             ptParts.Add($"{powerStr}/{toughStr}");
+                        }
                     }
                 }
 
