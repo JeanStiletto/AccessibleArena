@@ -227,6 +227,10 @@ In Sachen Modding möchte ich den Mitgliedern von Zax' Modding-Discord danken. I
 Für große Code-Beiträge möchte ich [blindndangerous](https://github.com/blindndangerous) danken, der ebenfalls viel Arbeit an diesem Projekt geleistet hat. Über die Projektlaufzeit habe ich glaube ich über 50 PRs von ihm bekommen, zu allen möglichen Problemen, von nervigem Kleinkram bis hin zu größeren UI-Vorschlägen und Barrierefreiheit für ganze Spielbildschirme.
 Weiterer Dank an Ahix, der [Refactoring-Prompts für große KI-basierte Projekte](https://github.com/ahicks92/llm-mod-refactoring-prompts) erstellt hat, die ich auf meine eigenen Refactorings angewendet habe, um Codequalität und Wartbarkeit sicherzustellen.
 
+Für Code-Beiträge möchte ich danken:
+- [blindndangerous](https://github.com/blindndangerous)
+- [LordLuceus](https://github.com/LordLuceus)
+
 Für das Testen der Betas, Feedback und Ideen möchte ich danken:
 - Alfi
 - Plüschyoda
@@ -243,6 +247,7 @@ Für das Testen der Betas, Feedback und Ideen möchte ich danken:
 - zersiax
 - kairos4901
 - [patricus3](https://github.com/patricus3)
+- [LordLuceus](https://github.com/LordLuceus)
 
 Für sehendes Testen, um visuelle Abläufe zu verstehen und Dinge zu bestätigen, möchte ich danken:
 - [mauriceKA](https://github.com/mauriceKA)

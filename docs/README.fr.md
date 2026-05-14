@@ -227,6 +227,10 @@ Sur le plan du modding, je veux remercier les membres du Discord de modding de Z
 Pour d'énormes contributions de code, je veux remercier [blindndangerous](https://github.com/blindndangerous) qui a aussi fait beaucoup de travail sur ce projet. Sur la durée du projet, je pense que j'ai reçu environ 50 PR et plus de lui concernant tous types de problèmes, des petites choses agaçantes à régler aux suggestions UI plus importantes et à l'accessibilité d'écrans entiers du jeu.
 Plus grand merci à Ahix qui a créé des [prompts de refactorisation pour de grands projets codés par IA](https://github.com/ahicks92/llm-mod-refactoring-prompts) que j'ai exécutés par-dessus mes propres refactorisations pour garantir la qualité et la maintenabilité du code.
 
+Pour les contributions de code, je veux remercier :
+- [blindndangerous](https://github.com/blindndangerous)
+- [LordLuceus](https://github.com/LordLuceus)
+
 Pour le test des bêtas, les retours et les idées, je veux remercier :
 - Alfi
 - Plüschyoda
@@ -243,6 +247,7 @@ Pour le test des bêtas, les retours et les idées, je veux remercier :
 - zersiax
 - kairos4901
 - [patricus3](https://github.com/patricus3)
+- [LordLuceus](https://github.com/LordLuceus)
 
 Pour le test avec des personnes voyantes afin de comprendre les flux visuels et de confirmer certaines choses, je veux remercier :
 - [mauriceKA](https://github.com/mauriceKA)

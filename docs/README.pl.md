@@ -227,6 +227,10 @@ Pod względem moddingu chcę podziękować członkom Discorda moddingowego Zaxa.
 Za ogromne wkłady kodowe chcę podziękować [blindndangerous](https://github.com/blindndangerous), który również wykonał wiele pracy nad tym projektem. Przez cały okres życia projektu myślę, że dostałem od niego jakieś 50 PR i więcej w sprawie wszelkich typów problemów od małych irytujących rzeczy do rozpracowania po większe sugestie UI i dostępność całych ekranów gry.
 Dalsze podziękowania dla Ahixa, który stworzył [prompty refaktoryzacyjne dla dużych projektów kodowanych przez AI](https://github.com/ahicks92/llm-mod-refactoring-prompts), które uruchomiłem na wierzchu własnych refaktoryzacji, aby zapewnić jakość i utrzymywalność kodu.
 
+Za wkład w kod chcę podziękować:
+- [blindndangerous](https://github.com/blindndangerous)
+- [LordLuceus](https://github.com/LordLuceus)
+
 Za testowanie bet, opinie i pomysły chcę podziękować:
 - Alfi
 - Plüschyoda
@@ -243,6 +247,7 @@ Za testowanie bet, opinie i pomysły chcę podziękować:
 - zersiax
 - kairos4901
 - [patricus3](https://github.com/patricus3)
+- [LordLuceus](https://github.com/LordLuceus)
 
 Za testowanie przez osoby widzące w celu zrozumienia wizualnych przepływów pracy i potwierdzenia niektórych rzeczy chcę podziękować:
 - [mauriceKA](https://github.com/mauriceKA)

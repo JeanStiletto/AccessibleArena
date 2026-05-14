@@ -227,6 +227,10 @@ Arena에는 실제 돈과 관련된 메커니즘이 일부 있고 게임 내 통
 대규모 코드 기여에 대해 이 프로젝트에 많은 작업을 해 준 [blindndangerous](https://github.com/blindndangerous)에게 감사하고 싶습니다. 프로젝트 수명 동안 그에게서 작고 성가신 것부터 더 큰 UI 제안과 게임의 전체 화면 접근성에 이르기까지 모든 종류의 문제에 대해 약 50건의 PR과 그 이상을 받은 것 같습니다.
 또한 코드 품질과 유지관리성을 보장하기 위해 제 자체 리팩토링 위에 실행한 [대규모 AI 코드 프로젝트용 리팩토링 프롬프트](https://github.com/ahicks92/llm-mod-refactoring-prompts)를 만든 Ahix에게도 감사드립니다.
 
+코드 기여에 감사하고 싶은 분들:
+- [blindndangerous](https://github.com/blindndangerous)
+- [LordLuceus](https://github.com/LordLuceus)
+
 베타 테스트, 피드백, 아이디어에 대해 감사하고 싶은 분들:
 - Alfi
 - Plüschyoda
@@ -243,6 +247,7 @@ Arena에는 실제 돈과 관련된 메커니즘이 일부 있고 게임 내 통
 - zersiax
 - kairos4901
 - [patricus3](https://github.com/patricus3)
+- [LordLuceus](https://github.com/LordLuceus)
 
 시각적 워크플로를 이해하고 몇 가지를 확인하기 위한 정안자 테스트에 감사하고 싶은 분들:
 - [mauriceKA](https://github.com/mauriceKA)

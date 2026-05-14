@@ -232,6 +232,10 @@ In terms of modding I want to thank the members of Zax's modding Discord. You no
 For huge code contributions I want to thank [blindndangerous](https://github.com/blindndangerous) who did a lot of work on this project as well. Over the project lifespan I think I got like 50 PRs and more from him regarding all types of problems from small annoying stuff to work out up to bigger UI suggestions and accessibility for whole screens of the game.
 Further thanks to Ahix who created [refactoring prompts for large AI-coded projects](https://github.com/ahicks92/llm-mod-refactoring-prompts) I ran on top of my own refactorings to ensure code quality and maintainability.
 
+For code contributions I want to thank:
+- [blindndangerous](https://github.com/blindndangerous)
+- [LordLuceus](https://github.com/LordLuceus)
+
 For testing the betas, feedback and ideas I want to thank:
 - Alfi
 - Plüschyoda
@@ -248,6 +252,7 @@ For testing the betas, feedback and ideas I want to thank:
 - zersiax
 - kairos4901
 - [patricus3](https://github.com/patricus3)
+- [LordLuceus](https://github.com/LordLuceus)
 
 For sighted testing to understand visual workflows and confirming some things I want to thank:
 - [mauriceKA](https://github.com/mauriceKA)

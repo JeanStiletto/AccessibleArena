@@ -227,6 +227,10 @@ Em termos de modding, quero agradecer aos membros do Discord de modding do Zax. 
 Para grandes contribuições de código, quero agradecer a [blindndangerous](https://github.com/blindndangerous), que também fez muito trabalho neste projeto. Durante a vida do projeto acho que recebi cerca de 50 PRs e mais dele sobre todo tipo de problemas, das pequenas coisas chatas de resolver até sugestões maiores de UI e acessibilidade de telas inteiras do jogo.
 Agradecimentos também ao Ahix, que criou [prompts de refatoração para grandes projetos feitos com IA](https://github.com/ahicks92/llm-mod-refactoring-prompts) que eu rodei sobre minhas próprias refatorações para garantir qualidade e manutenibilidade do código.
 
+Por contribuições de código, quero agradecer:
+- [blindndangerous](https://github.com/blindndangerous)
+- [LordLuceus](https://github.com/LordLuceus)
+
 Por testar as betas, dar feedback e ideias, quero agradecer:
 - Alfi
 - Plüschyoda
@@ -243,6 +247,7 @@ Por testar as betas, dar feedback e ideias, quero agradecer:
 - zersiax
 - kairos4901
 - [patricus3](https://github.com/patricus3)
+- [LordLuceus](https://github.com/LordLuceus)
 
 Por testes com pessoas videntes para entender fluxos visuais e confirmar algumas coisas, quero agradecer:
 - [mauriceKA](https://github.com/mauriceKA)
