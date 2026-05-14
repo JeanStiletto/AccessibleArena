@@ -195,8 +195,11 @@ namespace AccessibleArena.Core.Services
                 return null;
             }
 
-            // Declare blockers + untapped creatures + no blocker yet assigned
-            if (duelAnnouncer.IsInDeclareBlockersPhase)
+            // Declare blockers + untapped creatures + no blocker yet assigned.
+            // Only fires on the opponent's turn — that's when the user is the defending
+            // player and can actually declare blockers. On the user's own turn the
+            // opponent does the blocking, so a Space-skip there isn't a missed action.
+            if (duelAnnouncer.IsInDeclareBlockersPhase && !duelAnnouncer.IsUserTurn)
             {
                 var (hasUntappedCreature, hasAssignedBlocker) = ScanPlayerCreaturesForBlockerGuard();
                 if (hasUntappedCreature && !hasAssignedBlocker)
