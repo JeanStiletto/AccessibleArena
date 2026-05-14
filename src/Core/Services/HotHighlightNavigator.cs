@@ -507,6 +507,36 @@ namespace AccessibleArena.Core.Services
                             result[id] = item;
                     }
                 }
+
+                // Battlefield supplement: the same staleness pattern affects the player's own
+                // permanents with activated abilities (e.g., a creature with a `{T}: do X` ability
+                // whose HotHighlight didn't refresh after an opposing spell resolved into the
+                // graveyard). Opponent permanents are skipped — the workflow's
+                // GetInteractionsForId never returns actions for them, so the per-card reflection
+                // would just be wasted work. Battlefield-stacking dedup runs on the merged result
+                // below, so we don't need to filter stack children here.
+                var battlefieldHolder = DuelHolderCache.GetHolder("BattlefieldCardHolder");
+                if (battlefieldHolder != null)
+                {
+                    foreach (Transform t in battlefieldHolder.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (t == null || !t.gameObject.activeInHierarchy) continue;
+                        var go = t.gameObject;
+                        if (!CardDetector.IsCard(go)) continue;
+
+                        int id = go.GetInstanceID();
+                        if (result.ContainsKey(id)) continue;
+
+                        var (_, _, isOpponent) = CardDetector.GetCardCategory(go);
+                        if (isOpponent) continue;
+
+                        if (!IsCardCastableByGameState(go)) continue;
+
+                        var item = CreateHighlightedItem(go, "ActivatableNow");
+                        if (item != null)
+                            result[id] = item;
+                    }
+                }
             }
 
             // Battlefield stacking: drop highlighted children of multi-card stacks so
