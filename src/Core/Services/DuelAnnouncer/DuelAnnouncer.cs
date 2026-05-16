@@ -100,6 +100,7 @@ namespace AccessibleArena.Core.Services
             _localPlayerId = localPlayerId;
             _zoneCounts.Clear();
             _commandZoneGrpIds.Clear();
+            _announcedStackInstanceIds.Clear();
             _userTurnCount = 0;
 
             // Seed commander GrpIds from MatchManager (works for both local and opponent).

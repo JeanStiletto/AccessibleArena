@@ -16,6 +16,11 @@ namespace AccessibleArena.Core.Services
         // Track the last resolving card for damage correlation
         private string _lastResolvingCardName = null;
 
+        // Track which stack items have already been announced (by InstanceId) so an opponent's
+        // response cast isn't swallowed when it lands together with — or beneath — another stack
+        // object. Cleared when the stack empties; see ClearStackAnnouncements.
+        private readonly HashSet<uint> _announcedStackInstanceIds = new HashSet<uint>();
+
         /// <summary>
         /// Tracks if a library manipulation browser (scry, surveil, etc.) is active.
         /// Set to true when MultistepEffectStartedUXEvent fires.
@@ -330,23 +335,90 @@ namespace AccessibleArena.Core.Services
             yield return null;
             if (!_isActive) yield break;
 
-            GameObject stackCard = GetTopStackCard();
+            // Enumerate every CDC on the stack — when several land together (the canonical case:
+            // opponent casts in response to your spell and their own ability triggers off it, so
+            // the trigger lands on top) MTGA batches the zone updates and we'd otherwise only see
+            // the visible top. _announcedStackInstanceIds suppresses re-announcing items that
+            // were already heard during a previous tick.
+            var stackCards = GetAllStackCards();
 
-            if (stackCard != null)
+            if (stackCards.Count == 0)
             {
-                AnnounceToLog(BuildCastAnnouncement(stackCard), AnnouncementPriority.High);
-            }
-            else
-            {
+                // Retry once after a short wait — first frame may catch the holder mid-populate.
                 yield return new WaitForSeconds(0.2f);
                 if (!_isActive) yield break;
-                stackCard = GetTopStackCard();
-
-                if (stackCard != null)
-                    AnnounceToLog(BuildCastAnnouncement(stackCard), AnnouncementPriority.High);
-                else
+                stackCards = GetAllStackCards();
+                if (stackCards.Count == 0)
+                {
                     AnnounceToLog(Strings.SpellCast, AnnouncementPriority.High);
+                    yield break;
+                }
             }
+
+            bool announcedAny = false;
+            foreach (var card in stackCards)
+            {
+                uint instanceId = GetCardInstanceId(card);
+                if (instanceId != 0 && !_announcedStackInstanceIds.Add(instanceId))
+                    continue; // Already announced
+                AnnounceToLog(BuildCastAnnouncement(card), AnnouncementPriority.High);
+                announcedAny = true;
+            }
+
+            // Fallback for the (unusual) case where every visible card had a 0 InstanceId — at
+            // least announce the top so we don't go silent on a fresh stack update.
+            if (!announcedAny && stackCards.Count > 0)
+                AnnounceToLog(BuildCastAnnouncement(stackCards[stackCards.Count - 1]), AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Resets the announced-stack-items tracker. Called when the stack empties so the next
+        /// thing cast onto an empty stack is treated as new.
+        /// </summary>
+        internal void ClearStackAnnouncements()
+        {
+            _announcedStackInstanceIds.Clear();
+        }
+
+        /// <summary>
+        /// Enumerates all CDC GameObjects currently on the stack. Returns an empty list when the
+        /// holder isn't present yet (early scene) or the stack is empty.
+        /// </summary>
+        private List<GameObject> GetAllStackCards()
+        {
+            var result = new List<GameObject>();
+            try
+            {
+                var holder = DuelHolderCache.GetHolder("StackCardHolder");
+                if (holder == null) return result;
+
+                foreach (Transform child in holder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child != null && child.gameObject.activeInHierarchy && child.name.Contains("CDC #"))
+                        result.Add(child.gameObject);
+                }
+            }
+            catch { /* Stack holder may not exist in current game state */ }
+            return result;
+        }
+
+        /// <summary>
+        /// Pulls the underlying MtgCardInstance.InstanceId off a stack CDC GameObject so we can
+        /// dedup across multiple Update-Zone events without misidentifying cards.
+        /// </summary>
+        private uint GetCardInstanceId(GameObject cardObj)
+        {
+            try
+            {
+                var cdc = CardModelProvider.GetDuelSceneCDC(cardObj);
+                if (cdc == null) return 0;
+                var model = CardModelProvider.GetCardModel(cdc);
+                if (model == null) return 0;
+                var instanceIdObj = CardModelProvider.GetModelPropertyValue(model, model.GetType(), "InstanceId");
+                if (instanceIdObj is uint id) return id;
+            }
+            catch { /* Reflection may fail on edge-case stack objects */ }
+            return 0;
         }
 
         private string BuildCastAnnouncement(GameObject cardObj)
