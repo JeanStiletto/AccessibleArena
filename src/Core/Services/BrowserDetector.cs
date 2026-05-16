@@ -247,6 +247,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Checks if a browser type is a Surveil browser (mill chosen cards to graveyard,
+        /// keep the rest on top of library — distinct from Scry where the bottom zone is
+        /// the bottom of the library).
+        /// </summary>
+        public static bool IsSurveilBrowser(string browserType)
+        {
+            return !string.IsNullOrEmpty(browserType) && browserType.Contains("Surveil");
+        }
+
+        /// <summary>
         /// Checks if a browser type uses zone-based navigation (Scry/Surveil OR London).
         /// </summary>
         public static bool IsZoneBasedBrowser(string browserType)

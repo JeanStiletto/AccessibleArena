@@ -760,6 +760,8 @@
   "BrowserZone_BottomPile": "底部堆",
   "BrowserZone_KeepShort": "保留",
   "BrowserZone_BottomShort": "底部",
+  "BrowserZone_Surveil_Graveyard": "坟墓场",
+  "BrowserZone_Surveil_GraveyardShort": "坟墓场",
   "BrowserZone_Empty_Format": "{0}：空",
   "BrowserZone_Entry_Format": "{0}：{1}张牌。{2}，第1张，共{3}张",
   "BrowserZone_Card_Format": "{0}，{1}，第{2}张，共{3}张",

@@ -760,6 +760,8 @@
   "BrowserZone_BottomPile": "下の山",
   "BrowserZone_KeepShort": "残す",
   "BrowserZone_BottomShort": "下",
+  "BrowserZone_Surveil_Graveyard": "墓地",
+  "BrowserZone_Surveil_GraveyardShort": "墓地",
   "BrowserZone_Empty_Format": "{0}: 空",
   "BrowserZone_Entry_Format": "{0}: {1}枚。{2}、{3}中1枚目",
   "BrowserZone_Card_Format": "{0}、{1}、{3}中{2}枚目",

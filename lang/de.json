@@ -760,6 +760,8 @@
   "BrowserZone_BottomPile": "Unten-Stapel",
   "BrowserZone_KeepShort": "behalten",
   "BrowserZone_BottomShort": "unten",
+  "BrowserZone_Surveil_Graveyard": "Friedhof",
+  "BrowserZone_Surveil_GraveyardShort": "Friedhof",
   "BrowserZone_Empty_Format": "{0}: leer",
   "BrowserZone_Entry_Format": "{0}: {1} Karten. {2}, 1 von {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} von {3}",

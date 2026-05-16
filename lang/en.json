@@ -762,6 +762,8 @@
   "BrowserZone_BottomPile": "Bottom pile",
   "BrowserZone_KeepShort": "keep",
   "BrowserZone_BottomShort": "bottom",
+  "BrowserZone_Surveil_Graveyard": "Graveyard",
+  "BrowserZone_Surveil_GraveyardShort": "graveyard",
   "BrowserZone_Empty_Format": "{0}: empty",
   "BrowserZone_Entry_Format": "{0}: {1} cards. {2}, 1 of {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} of {3}",

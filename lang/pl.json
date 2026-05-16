@@ -760,6 +760,8 @@
   "BrowserZone_BottomPile": "Stos dolny",
   "BrowserZone_KeepShort": "zachowaj",
   "BrowserZone_BottomShort": "dół",
+  "BrowserZone_Surveil_Graveyard": "Cmentarz",
+  "BrowserZone_Surveil_GraveyardShort": "cmentarz",
   "BrowserZone_Empty_Format": "{0}: pusto",
   "BrowserZone_Entry_Format": "{0}: {1} kart. {2}, 1 z {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} z {3}",
