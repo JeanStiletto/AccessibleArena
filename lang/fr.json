@@ -760,6 +760,8 @@
   "BrowserZone_BottomPile": "Pile du dessous",
   "BrowserZone_KeepShort": "garder",
   "BrowserZone_BottomShort": "dessous",
+  "BrowserZone_Surveil_Graveyard": "Cimetière",
+  "BrowserZone_Surveil_GraveyardShort": "cimetière",
   "BrowserZone_Empty_Format": "{0} : vide",
   "BrowserZone_Entry_Format": "{0} : {1} cartes. {2}, 1 sur {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} sur {3}",

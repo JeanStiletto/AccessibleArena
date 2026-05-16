@@ -760,6 +760,8 @@
   "BrowserZone_BottomPile": "Pilha do fundo",
   "BrowserZone_KeepShort": "manter",
   "BrowserZone_BottomShort": "fundo",
+  "BrowserZone_Surveil_Graveyard": "Cemitério",
+  "BrowserZone_Surveil_GraveyardShort": "cemitério",
   "BrowserZone_Empty_Format": "{0}: vazio",
   "BrowserZone_Entry_Format": "{0}: {1} cartas. {2}, 1 de {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} de {3}",

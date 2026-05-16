@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v1.3
+
+Bug fixes:
+
+- Surveil browser no longer announces "moved to put on bottom" when you press Enter on a card. Surveil mills the chosen cards to the graveyard rather than putting them on the bottom of the library, but `GetZoneName` / `GetShortZoneName` were sharing the Scry phrasing. The bottom zone now reads as "Graveyard" for Surveil (announcements become "X moved to graveyard", "Graveyard: empty", etc.); Scry, Read Ahead, and Split keep their existing wording.
+
 ## v1.2
 
 Duel:

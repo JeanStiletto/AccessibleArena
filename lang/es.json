@@ -760,6 +760,8 @@
   "BrowserZone_BottomPile": "Pila de abajo",
   "BrowserZone_KeepShort": "conservar",
   "BrowserZone_BottomShort": "abajo",
+  "BrowserZone_Surveil_Graveyard": "Cementerio",
+  "BrowserZone_Surveil_GraveyardShort": "cementerio",
   "BrowserZone_Empty_Format": "{0}: vacío",
   "BrowserZone_Entry_Format": "{0}: {1} cartas. {2}, 1 de {3}",
   "BrowserZone_Card_Format": "{0}, {1}, {2} de {3}",

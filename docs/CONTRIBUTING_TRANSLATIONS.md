@@ -737,6 +737,8 @@ Zone names used in Scry, Surveil, and London mulligan browser navigation. Announ
 | `BrowserZone_BottomPile` | "Bottom pile" | | London mulligan: zone label for cards put on bottom |
 | `BrowserZone_KeepShort` | "keep" | | Short zone label suffix for keep zone |
 | `BrowserZone_BottomShort` | "bottom" | | Short zone label suffix for bottom zone |
+| `BrowserZone_Surveil_Graveyard` | "Graveyard" | | Surveil: zone label for cards going to graveyard (replaces "Put on bottom" so the bottom-zone announcement matches what surveil actually does — mill, not put on bottom of library) |
+| `BrowserZone_Surveil_GraveyardShort` | "graveyard" | | Surveil: short zone label suffix for graveyard zone |
 | `BrowserZone_Empty_Format` | "{0}: empty" | {0} = zone name | Announced when entering an empty browser zone |
 | `BrowserZone_Entry_Format` | "{0}: {1} cards. {2}, 1 of {3}" | {0} = zone name, {1} = total cards, {2} = first card name, {3} = total | Announced when entering a browser zone with cards |
 | `BrowserZone_Card_Format` | "{0}, {1}, {2} of {3}" | {0} = card name, {1} = zone label, {2} = position, {3} = total | Card position within a browser zone |
