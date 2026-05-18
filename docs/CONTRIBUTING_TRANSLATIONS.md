@@ -354,7 +354,7 @@ Spoken names for mana symbols on cards.
 | `ManaX` | "X" | | Variable mana (X) |
 | `ManaSnow` | "Snow" | | Snow mana (S) |
 | `ManaEnergy` | "Energy" | | Energy counter (E) |
-| `ManaPhyrexian_Format` | "Phyrexian {0}" | {0} = color name | Phyrexian mana (e.g., "Phyrexian Red") |
+| `ManaFree` | "Free" | | Used as the whole mana-cost line for cards costing 0 — both printed zero-cost cards (Memnite, Mox Amber) and cards discounted to 0 by cost reducers / Suspend / Cascade. Pick whatever word your locale uses for "free spell" or "no cost" — short and unambiguous when announced after "Mana Cost:". |
 | `ManaHybrid_Format` | "{0} or {1}" | {0} = color 1, {1} = color 2 | Hybrid mana (e.g., "White or Blue") |
 
 ### Settings Menu (F2)

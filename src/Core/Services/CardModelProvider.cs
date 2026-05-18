@@ -1050,9 +1050,11 @@ namespace AccessibleArena.Core.Services
                     var manaCost = _actionManaCostProp.GetValue(action);
                     if (!(manaCost is IEnumerable manaCostEnum)) continue;
 
-                    // RepeatedField<ManaRequirement> of length 0 means "free cast" or "not yet
-                    // resolved" — skip and let the next action / printed-cost fallback handle it.
-                    if (!manaCostEnum.Cast<object>().Any()) continue;
+                    // Length 0 = the cost has been reduced all the way to free (cost reducers,
+                    // Suspend / Cascade / "play without paying", etc). The game's own tile
+                    // renderer treats this as 0 and we should too — falling through to the
+                    // printed cost here would announce a fee the player will never pay.
+                    if (!manaCostEnum.Cast<object>().Any()) return manaCostEnum;
 
                     var convertedList = InvokeConvertManaCostsToList(manaCostEnum);
                     if (convertedList != null) return convertedList;

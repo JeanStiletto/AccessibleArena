@@ -853,6 +853,7 @@ namespace AccessibleArena.Core.Models
         public static string ManaSnow => L.Get("ManaSnow");
         public static string ManaEnergy => L.Get("ManaEnergy");
         public static string ManaGeneric => L.Get("ManaGeneric");
+        public static string ManaFree => L.Get("ManaFree");
         public static string ManaPhyrexianBare => L.Get("ManaPhyrexian");
         public static string ManaPhyrexian(string color) => L.Format("ManaPhyrexian_Format", color);
         public static string ManaHybrid(string color1, string color2) => L.Format("ManaHybrid_Format", color1, color2);

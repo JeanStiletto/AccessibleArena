@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v1.3
+
+Bug fixes:
+
+- 0-cost cards are now announced correctly. PR #91 wired in the live cast-action cost so reducers (Warden of Evos Isle, Goblin Electromancer, etc.) would be reflected, but treated a length-0 `Action.ManaCost` as "not yet resolved" and skipped past it — falling all the way back to `PrintedCastingCost`. The result: a card discounted to 0 still read its printed cost, so a "free" cast announced as costing one mana the player would never actually pay. Empty live-action cost is now the real 0-cost signal (cost reducers brought the spell to free, or it's a Suspend/Cascade exile cast, or it's a printed-0 artifact like Memnite); `ParseManaQuantityArray` renders an empty mana-quantity array as the localized `ManaFree` ("Free" in English), short-circuiting the fallback chain. Mana-cost block is now read for printed-0-cost cards too (Memnite, Mox Amber, Ornithopter) instead of being silently omitted.
+
 ## v1.2
 
 Duel:
