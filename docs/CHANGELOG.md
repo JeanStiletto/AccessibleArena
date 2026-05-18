@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v1.3
+
+Bug fixes:
+
+- Surveil zone tracking was broken: the mod's `_bottomCards` list was always empty, so every card read as "keep" regardless of where the player had moved it, Tab announcements lied about the selection, and Tab → Enter on a "milled" card retried the same direction instead of toggling it back to the library (no way to deselect short of cancelling the whole browser). Root cause: `RefreshSurveilCardLists` walked `BrowserCardHolder_ViewDismiss` for the bottom zone, a holder Surveil doesn't have — Surveil keeps both zones in a single `cardHolder` with `libraryGroup` / `graveyardGroup` lists tracking the split. The refresh now reads those lists directly via the public `GetLibraryCards()` / `GetGraveyardCards()` getters on `SurveilBrowser`, matching what the game itself queries when laying out the cards. As a belt-and-braces fix the tracked lists are also updated eagerly the moment an Enter-driven move succeeds, so `DetectCardZone` is correct during the 0.2 s window before the reconciling refresh coroutine fires (this also closes the equivalent gap for Scry, where the lists were correct after the delay but stale within it).
+
 ## v1.2
 
 Duel:

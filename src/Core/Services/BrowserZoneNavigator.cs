@@ -397,12 +397,39 @@ namespace AccessibleArena.Core.Services
 
             if (success)
             {
+                // Eagerly reflect the move in our tracked lists so DetectCardZone is correct
+                // before the 0.2s RefreshZoneAfterDelay coroutine runs. Without this, an
+                // immediate Tab → Enter (or D → navigate → Enter) reads the stale "keep"
+                // state and retries the same direction instead of toggling back.
+                MoveCardBetweenZonesEagerly(card, _currentZone);
+
                 // Refresh after delay
                 MelonCoroutines.Start(RefreshZoneAfterDelay(cardName));
             }
             else
             {
                 _announcer.Announce(Strings.CouldNotMove(cardName), AnnouncementPriority.High);
+            }
+        }
+
+        /// <summary>
+        /// Reflects a successful single-card move between <see cref="_topCards"/> and
+        /// <see cref="_bottomCards"/> immediately, so zone-detection queries between the
+        /// activation and the delayed <see cref="RefreshCardLists"/> coroutine see the
+        /// correct state.
+        /// </summary>
+        private void MoveCardBetweenZonesEagerly(GameObject card, BrowserZoneType fromZone)
+        {
+            if (card == null) return;
+            if (fromZone == BrowserZoneType.Top)
+            {
+                _topCards.Remove(card);
+                if (!_bottomCards.Contains(card)) _bottomCards.Add(card);
+            }
+            else if (fromZone == BrowserZoneType.Bottom)
+            {
+                _bottomCards.Remove(card);
+                if (!_topCards.Contains(card)) _topCards.Add(card);
             }
         }
 
@@ -495,52 +522,64 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Refreshes card lists for Surveil browsers from two separate holders.
+        /// Refreshes card lists for Surveil browsers by reading the browser's internal
+        /// <c>libraryGroup</c> / <c>graveyardGroup</c> lists directly. Both zones live in
+        /// the same physical <c>cardHolder</c> for Surveil — the prior implementation
+        /// walked <c>BrowserCardHolder_ViewDismiss</c> for the bottom zone, which doesn't
+        /// exist on this browser, so <c>_bottomCards</c> was always empty regardless of
+        /// the player's selections.
         /// </summary>
         private void RefreshSurveilCardLists()
         {
             _topCards.Clear();
             _bottomCards.Clear();
 
-            // Find cards in BrowserCardHolder_Default (top/keep)
-            var defaultHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderDefault);
-            if (defaultHolder != null)
+            var browser = GetBrowserController();
+            if (browser == null)
             {
-                foreach (Transform child in defaultHolder.GetComponentsInChildren<Transform>(true))
-                {
-                    if (!child.gameObject.activeInHierarchy) continue;
-                    if (!CardDetector.IsCard(child.gameObject)) continue;
-
-                    string cardName = CardDetector.GetCardName(child.gameObject);
-                    if (BrowserDetector.IsValidCardName(cardName) && !BrowserDetector.IsDuplicateCard(child.gameObject, _topCards))
-                    {
-                        _topCards.Add(child.gameObject);
-                    }
-                }
+                Log.Warn("BrowserZoneNavigator", "Browser controller not found for Surveil refresh");
+                return;
             }
 
-            // Find cards in BrowserCardHolder_ViewDismiss (bottom)
-            var dismissHolder = BrowserDetector.FindActiveGameObject(BrowserDetector.HolderViewDismiss);
-            if (dismissHolder != null)
-            {
-                foreach (Transform child in dismissHolder.GetComponentsInChildren<Transform>(true))
-                {
-                    if (!child.gameObject.activeInHierarchy) continue;
-                    if (!CardDetector.IsCard(child.gameObject)) continue;
-
-                    string cardName = CardDetector.GetCardName(child.gameObject);
-                    if (BrowserDetector.IsValidCardName(cardName) && !BrowserDetector.IsDuplicateCard(child.gameObject, _bottomCards))
-                    {
-                        _bottomCards.Add(child.gameObject);
-                    }
-                }
-            }
-
-            // Sort by horizontal position (left to right)
-            _topCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
-            _bottomCards.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+            var browserType = browser.GetType();
+            // Top = library group (cards staying on top of library)
+            FillFromCdcList(browser, browserType.GetMethod("GetLibraryCards", PublicInstance), _topCards);
+            // Bottom = graveyard group (cards being milled)
+            FillFromCdcList(browser, browserType.GetMethod("GetGraveyardCards", PublicInstance), _bottomCards);
 
             Log.Msg("BrowserZoneNavigator", $"Refreshed Surveil lists - Top: {_topCards.Count}, Bottom: {_bottomCards.Count}");
+        }
+
+        /// <summary>
+        /// Invokes a no-arg method that returns <c>List&lt;DuelScene_CDC&gt;</c> (or similar
+        /// CDC list) on the browser and copies the resulting GameObjects into <paramref name="target"/>,
+        /// filtering out the library placeholder (a CDC with no InstanceId / no real card data).
+        /// </summary>
+        private static void FillFromCdcList(object browser, MethodInfo getter, List<GameObject> target)
+        {
+            if (getter == null) return;
+            var list = getter.Invoke(browser, null) as System.Collections.IList;
+            if (list == null) return;
+            foreach (var item in list)
+            {
+                if (!(item is Component comp) || comp == null) continue;
+                var go = comp.gameObject;
+                if (go == null) continue;
+
+                // Filter out the library placeholder card SurveilBrowser inserts into libraryGroup.
+                // It has InstanceId == 0 (and no real card content), matching the Scry placeholder
+                // detection — Surveil reuses the same placeholder mechanism for its bottom card.
+                var instanceIdProp = comp.GetType().GetProperty("InstanceId", PublicInstance);
+                if (instanceIdProp != null)
+                {
+                    var id = instanceIdProp.GetValue(comp);
+                    if ((id is uint uid && uid == 0) || (id is int iid && iid == 0))
+                        continue;
+                }
+
+                if (!go.activeInHierarchy) continue;
+                if (!target.Contains(go)) target.Add(go);
+            }
         }
 
         /// <summary>
@@ -1368,6 +1407,12 @@ namespace AccessibleArena.Core.Services
 
             if (success)
             {
+                // Update our tracked lists immediately so a follow-up Tab + Enter on the
+                // same card (the natural "deselect" gesture) sees the new zone instead of
+                // the pre-move one and toggles it back. The delayed refresh below is kept
+                // as the authoritative reconcile against the game's state.
+                MoveCardBetweenZonesEagerly(card, cardZone);
+
                 // Announce the move
                 string newZoneName = cardZone == BrowserZoneType.Top
                     ? GetZoneName(BrowserZoneType.Bottom)
