@@ -28,6 +28,11 @@ namespace AccessibleArena.Core.Services
         private static MethodInfo _getFlavorTextMethod = null;
         private static bool _flavorTextProviderSearched = false;
 
+        // Cache for IGreLocProvider.GetLocalizedTextForEnumValue(string, int, bool, string) —
+        // resolved off the same GreLocProvider instance as _flavorTextProvider.
+        private static MethodInfo _getEnumValueMethod = null;
+        private static bool _getEnumValueMethodSearched = false;
+
         // Cache for artist provider
         private static object _artistProvider = null;
         private static MethodInfo _getArtistMethod = null;
@@ -48,6 +53,8 @@ namespace AccessibleArena.Core.Services
             _flavorTextProvider = null;
             _getFlavorTextMethod = null;
             _flavorTextProviderSearched = false;
+            _getEnumValueMethod = null;
+            _getEnumValueMethodSearched = false;
             _artistProvider = null;
             _getArtistMethod = null;
             _artistProviderSearched = false;
@@ -416,6 +423,76 @@ namespace AccessibleArena.Core.Services
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Looks up the localized name for an enum value via GreLocProvider, matching the
+        /// path the game uses inside LinkedInfoTextParser (e.g. enumName="SubType", value=42 →
+        /// "Wizard"). Reuses the same provider instance as GetLocalizedTextById; the only
+        /// extra reflection is locating the (string, int, bool, string) overload.
+        /// </summary>
+        internal static string GetLocalizedTextForEnumValue(string enumName, int value)
+        {
+            if (string.IsNullOrEmpty(enumName)) return null;
+
+            if (!_flavorTextProviderSearched)
+            {
+                _flavorTextProviderSearched = true;
+                FindFlavorTextProvider();
+            }
+            if (_flavorTextProvider == null) return null;
+
+            if (!_getEnumValueMethodSearched)
+            {
+                _getEnumValueMethodSearched = true;
+                _getEnumValueMethod = FindEnumValueMethod(_flavorTextProvider.GetType());
+                if (_getEnumValueMethod != null)
+                    Log.Card("CardTextProvider", $"Using {_flavorTextProvider.GetType().Name}.{_getEnumValueMethod.Name} for enum-value lookup");
+            }
+            if (_getEnumValueMethod == null) return null;
+
+            try
+            {
+                var ps = _getEnumValueMethod.GetParameters();
+                object[] args;
+                if (ps.Length == 4)
+                    args = new object[] { enumName, value, /*formatted*/ true, /*overrideLang*/ null };
+                else if (ps.Length == 3)
+                    args = new object[] { enumName, value, true };
+                else if (ps.Length == 2)
+                    args = new object[] { enumName, value };
+                else
+                    return null;
+
+                var text = _getEnumValueMethod.Invoke(_flavorTextProvider, args) as string;
+                if (string.IsNullOrEmpty(text) || text.StartsWith("$"))
+                    return null;
+                return text;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Finds <c>string GetLocalizedTextForEnumValue(string, int, ...)</c> on the provider —
+        /// the non-generic overload from <c>IGreLocProvider</c>. Skips the generic overload
+        /// (which constrains on <c>T : Enum</c> and isn't what we want here).
+        /// </summary>
+        private static MethodInfo FindEnumValueMethod(Type providerType)
+        {
+            foreach (var m in providerType.GetMethods(PublicInstance))
+            {
+                if (m.DeclaringType == typeof(object)) continue;
+                if (m.IsGenericMethod || m.IsGenericMethodDefinition) continue;
+                if (m.ReturnType != typeof(string)) continue;
+                if (!m.Name.Equals("GetLocalizedTextForEnumValue", StringComparison.Ordinal)) continue;
+                var ps = m.GetParameters();
+                if (ps.Length >= 2 && ps[0].ParameterType == typeof(string) && ps[1].ParameterType == typeof(int))
+                    return m;
+            }
+            return null;
         }
 
         /// <summary>

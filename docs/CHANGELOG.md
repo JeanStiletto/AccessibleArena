@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v1.3
+
+Duel:
+
+- Card info readout now surfaces chosen / named-card data. Cards that record a creature type (Cavern of Souls, Engineered Plague), a color (Iona, Shield of Emeria), or a card name (Pithing Needle, Meddling Mage, Cabal Therapy) display that pick in their on-card rules text for sighted players; the mod was dropping it. Arrow Down past rules text now reads "Chosen: Wizard" and "Named card: Cabal Therapy" sourced from `MtgCardInstance.LinkedInfoText` and `LinkedInfoTitleLocIds` via the same `IGreLocProvider` path the game's own `LinkedInfoTextParser` / `LinkedInfoTitleTextParser` use, so the resolved strings match what's rendered on the card face.
+
 ## v1.2
 
 Duel:

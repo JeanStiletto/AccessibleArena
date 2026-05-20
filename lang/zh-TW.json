@@ -126,6 +126,8 @@
   "CardInfoPowerToughness": "力量與防禦",
   "CardInfoType": "類型",
   "CardInfoRules": "規則",
+  "CardInfoChosen": "已選擇",
+  "CardInfoNamedCard": "指定的牌",
   "LoyaltyPlus": "加",
   "LoyaltyMinus": "減",
   "CardInfoFlavor": "背景描述",

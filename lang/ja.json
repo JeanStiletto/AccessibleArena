@@ -126,6 +126,8 @@
   "CardInfoPowerToughness": "パワーとタフネス",
   "CardInfoType": "タイプ",
   "CardInfoRules": "ルール",
+  "CardInfoChosen": "選ばれた",
+  "CardInfoNamedCard": "指定したカード",
   "LoyaltyPlus": "プラス",
   "LoyaltyMinus": "マイナス",
   "CardInfoFlavor": "フレーバー",

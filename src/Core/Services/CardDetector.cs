@@ -505,6 +505,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (!string.IsNullOrEmpty(info.RulesText))
                     blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
+                AddChosenInfoBlocks(blocks, info);
                 if (!string.IsNullOrEmpty(info.ManaCost))
                     blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
                 if (!string.IsNullOrEmpty(info.PowerToughness))
@@ -522,6 +523,7 @@ namespace AccessibleArena.Core.Services
                     blocks.Add(new CardInfoBlock(Models.Strings.CardInfoType, info.TypeLine));
                 if (!string.IsNullOrEmpty(info.RulesText))
                     blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
+                AddChosenInfoBlocks(blocks, info);
                 // Battlefield: mana cost after rules
                 if (isBattlefield && !string.IsNullOrEmpty(info.ManaCost))
                     blocks.Add(new CardInfoBlock(Models.Strings.CardInfoManaCost, info.ManaCost));
@@ -565,6 +567,7 @@ namespace AccessibleArena.Core.Services
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoType, info.TypeLine));
             if (!string.IsNullOrEmpty(info.RulesText))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoRules, info.RulesText));
+            AddChosenInfoBlocks(blocks, info);
             if (!string.IsNullOrEmpty(info.FlavorText))
                 blocks.Add(new CardInfoBlock(Models.Strings.CardInfoFlavor, info.FlavorText));
             if (!string.IsNullOrEmpty(info.Rarity))
@@ -573,6 +576,18 @@ namespace AccessibleArena.Core.Services
             AddSetAndArtistBlock(blocks, info);
 
             return blocks;
+        }
+
+        /// <summary>
+        /// Adds chosen-type and named-card blocks right after rules text — same position as the
+        /// game's own LinkedInfoTextParser, which folds those lines into rules text.
+        /// </summary>
+        private static void AddChosenInfoBlocks(List<CardInfoBlock> blocks, CardInfo info)
+        {
+            if (!string.IsNullOrEmpty(info.ChosenInfo))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoChosen, info.ChosenInfo));
+            if (!string.IsNullOrEmpty(info.NamedCards))
+                blocks.Add(new CardInfoBlock(Models.Strings.CardInfoNamedCard, info.NamedCards));
         }
 
         private static void AddSetAndArtistBlock(List<CardInfoBlock> blocks, CardInfo info)
@@ -730,6 +745,18 @@ namespace AccessibleArena.Core.Services
         /// Null or empty for single-ability cards.
         /// </summary>
         public List<string> RulesLines;
+        /// <summary>
+        /// Localized display string for any chosen type/color/etc. on the card (e.g. "Wizard"
+        /// for Cavern of Souls, "Blue" for Iona, "Wizard, Beast" if two are chosen).
+        /// Sourced from MtgCardInstance.LinkedInfoText. Empty/null when nothing is chosen.
+        /// </summary>
+        public string ChosenInfo;
+        /// <summary>
+        /// Localized comma-joined card names recorded on this card (e.g. "Cabal Therapy" for
+        /// Pithing Needle). Sourced from MtgCardInstance.LinkedInfoTitleLocIds. Empty/null
+        /// when no card has been named.
+        /// </summary>
+        public string NamedCards;
         public string FlavorText;
         public string Rarity;
         public string SetName;

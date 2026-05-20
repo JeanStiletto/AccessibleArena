@@ -126,6 +126,8 @@
   "CardInfoPowerToughness": "공격력과 방어력",
   "CardInfoType": "유형",
   "CardInfoRules": "규칙",
+  "CardInfoChosen": "선택됨",
+  "CardInfoNamedCard": "지정한 카드",
   "LoyaltyPlus": "플러스",
   "LoyaltyMinus": "마이너스",
   "CardInfoFlavor": "배경",

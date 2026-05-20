@@ -1724,6 +1724,12 @@ namespace AccessibleArena.Core.Services
                         info.RulesText = ManaTextFormatter.ParseManaSymbolsInText(overrideText);
                 }
 
+                // Chosen / named-card info - mirrors the LinkedInfoTextParser path the game uses
+                // to bake "chosen type" and "named card" lines into rules text on the battlefield.
+                var (chosenInfo, namedCards) = ChosenInfoProvider.ExtractChosenInfo(dataObj);
+                if (!string.IsNullOrEmpty(chosenInfo)) info.ChosenInfo = chosenInfo;
+                if (!string.IsNullOrEmpty(namedCards)) info.NamedCards = namedCards;
+
                 // Flavor Text - lookup via FlavorTextId
                 var flavorIdValue = GetModelPropertyValue(dataObj, objType, "FlavorTextId");
                 if (flavorIdValue != null)
