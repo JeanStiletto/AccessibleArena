@@ -77,6 +77,7 @@ namespace AccessibleArena.Core.Services
             CardStateProvider.ClearCache();
             DeckCardProvider.ClearCache();
             ExtendedCardInfoProvider.ClearCache();
+            ChosenInfoProvider.ClearCache();
         }
 
         #region Component Access
