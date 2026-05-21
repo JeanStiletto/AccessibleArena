@@ -127,6 +127,19 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private string _pendingFoldersEntryRestoreFolder = null;
 
         /// <summary>
+        /// When true, auto-enter PlayBladeEventFilters group after next OrganizeIntoGroups.
+        /// Set when the Events tab is activated, or when Backspace exits the event tile list.
+        /// </summary>
+        private bool _pendingPlayBladeEventFiltersEntry = false;
+        private int _pendingPlayBladeEventFiltersEntryIndex = -1;
+
+        /// <summary>
+        /// Last selected filter chip index in PlayBladeEventFilters (for Backspace position
+        /// restore from the event tile list back to the filter row).
+        /// </summary>
+        private int _lastEventFilterIndex = -1;
+
+        /// <summary>
         /// Specific folder name to auto-enter after entering PlayBladeFolders.
         /// Set when user selects a folder from the folders list.
         /// </summary>
@@ -347,10 +360,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         public void RequestPlayBladeTabsEntry()
         {
-            // Don't override content entry - it means a tab was just clicked
+            // Don't override a deeper-level entry already pending — tab click or
+            // chip click that triggered a blade Hide/Show would otherwise reset
+            // the cursor to the tab row.
             if (_pendingPlayBladeContentEntry)
             {
                 Log.Msg("GroupedNavigator", "Skipping PlayBladeTabs entry - content entry already pending");
+                return;
+            }
+            if (_pendingPlayBladeEventFiltersEntry)
+            {
+                Log.Msg("GroupedNavigator", "Skipping PlayBladeTabs entry - event filters entry already pending");
                 return;
             }
             _pendingPlayBladeTabsEntry = true;
@@ -368,6 +388,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeContentEntry = true;
             _pendingPlayBladeContentEntryIndex = -1; // Start at 0
             _pendingPlayBladeTabsEntry = false; // Clear tabs flag
+            _pendingPlayBladeEventFiltersEntry = false; // Clear filters flag
             Log.Msg("GroupedNavigator", "Requested PlayBladeContent auto-entry");
         }
 
@@ -380,7 +401,34 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingPlayBladeContentEntry = true;
             _pendingPlayBladeContentEntryIndex = elementIndex;
             _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeEventFiltersEntry = false;
             Log.Msg("GroupedNavigator", $"Requested PlayBladeContent auto-entry at index {elementIndex}");
+        }
+
+        /// <summary>
+        /// Request auto-entry into PlayBladeEventFilters group after next rescan.
+        /// Call when the Events tab is activated (initial drill-in) or when Backspace
+        /// exits the event tile list. Position is restored to the last-selected filter
+        /// chip via <see cref="StoreLastEventFilterIndex"/>, falling back to 0.
+        /// </summary>
+        public void RequestPlayBladeEventFiltersEntry()
+        {
+            _pendingPlayBladeEventFiltersEntry = true;
+            _pendingPlayBladeEventFiltersEntryIndex = _lastEventFilterIndex;
+            _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeContentEntry = false;
+            _pendingFoldersEntry = false;
+            Log.Msg("GroupedNavigator", $"Requested PlayBladeEventFilters auto-entry (index: {_pendingPlayBladeEventFiltersEntryIndex})");
+        }
+
+        /// <summary>
+        /// Store the current element index as the last selected event filter chip position.
+        /// Used for Backspace position restore from event tiles back to filter chips.
+        /// </summary>
+        public void StoreLastEventFilterIndex()
+        {
+            _lastEventFilterIndex = _currentElementIndex;
+            Log.Msg("GroupedNavigator", $"Stored last event filter index: {_lastEventFilterIndex}");
         }
 
         /// <summary>
@@ -393,6 +441,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingFoldersEntryRestoreFolder = restoreToFolder;
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeEventFiltersEntry = false;
             Log.Msg("GroupedNavigator", $"Requested PlayBladeFolders auto-entry{(restoreToFolder != null ? $" (restore to: {restoreToFolder})" : "")}");
         }
 
@@ -406,6 +455,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             _pendingFoldersEntry = false;
             _pendingPlayBladeContentEntry = false;
             _pendingPlayBladeTabsEntry = false;
+            _pendingPlayBladeEventFiltersEntry = false;
             Log.Msg("GroupedNavigator", $"Requested specific folder auto-entry: {folderName}");
         }
 
@@ -723,6 +773,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.MailboxList,
                 ElementGroup.MailboxContent,
                 ElementGroup.PlayBladeTabs,
+                ElementGroup.PlayBladeEventFilters,
                 ElementGroup.PlayBladeContent,
                 ElementGroup.ChallengeMain,
                 ElementGroup.SettingsMenu,
@@ -963,6 +1014,29 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         _currentElementIndex = (restoreIndex >= 0 && restoreIndex <= maxIdx) ? restoreIndex : 0;
                         autoEntryPerformed = true;
                         Log.Msg("GroupedNavigator", $"Auto-entered PlayBladeTabs with {_groups[i].Count} items at index {_currentElementIndex}");
+                        break;
+                    }
+                }
+            }
+
+            // Check for pending PlayBladeEventFilters entry (set when Events tab activated
+            // or when Backspace exits the event tile list). Position restores to the last
+            // selected filter chip; falls back to index 0 when there was no prior selection.
+            if (_pendingPlayBladeEventFiltersEntry)
+            {
+                _pendingPlayBladeEventFiltersEntry = false;
+                int requestedIndex = _pendingPlayBladeEventFiltersEntryIndex;
+                _pendingPlayBladeEventFiltersEntryIndex = -1;
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group == ElementGroup.PlayBladeEventFilters && _groups[i].Count > 0)
+                    {
+                        _currentGroupIndex = i;
+                        _navigationLevel = NavigationLevel.InsideGroup;
+                        int maxIdx = _groups[i].Count - 1;
+                        _currentElementIndex = (requestedIndex >= 0 && requestedIndex <= maxIdx) ? requestedIndex : 0;
+                        autoEntryPerformed = true;
+                        Log.Msg("GroupedNavigator", $"Auto-entered PlayBladeEventFilters with {_groups[i].Count} items at index {_currentElementIndex}");
                         break;
                     }
                 }

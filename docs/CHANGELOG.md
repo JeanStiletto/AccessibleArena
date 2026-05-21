@@ -4,6 +4,11 @@ All notable changes to Accessible Arena.
 
 ## v1.3
 
+PlayBlade / Events tab:
+
+- The Events tab is now a proper drill-down hierarchy: Tabs → Filter chips → Event tiles, parallel to how other tabs go Tabs → Folders → Decks. Filter chips ("Alle", "In Arbeit", "Neu", "Limited", "Constructed", and any format-specific chips) were previously mixed into a single 23-item flat list with the actual event tiles, sorted by screen position so they ended up between in-progress events and the rest — confusing to read and prone to misactivations (the chip would trigger a "navigate to folders list" path that had no folders, leaving the navigator stuck). Filter chips now form their own group between the tabs and the event tiles. Enter on the Events tab lands on the chip row, Enter on a chip drills into the filtered event list, Backspace climbs back up one level each press, and position restore remembers which chip and which tab the user came from. Chip detection uses the game's own `EventBladeContentView._eventTileContainer` reference: anything inside that container is a tile, anything else inside the events panel is a chip.
+- Activating an event tile no longer asks the navigator to enter a non-existent folders list. The mode/queue-type code path that called `RequestFoldersEntry()` for every `PlayBladeContent` activation now skips that step for event tiles (detected via the same `_eventTileContainer` ancestry check) and lets panel detection handle the event-page transition naturally.
+
 Duel:
 
 - Card info readout now surfaces chosen / named-card data. Cards that record a creature type (Cavern of Souls, Engineered Plague), a color (Iona, Shield of Emeria), or a card name (Pithing Needle, Meddling Mage, Cabal Therapy) display that pick in their on-card rules text for sighted players; the mod was dropping it. Arrow Down past rules text now reads "Chosen: Wizard" and "Named card: Cabal Therapy" sourced from `MtgCardInstance.LinkedInfoText` and `LinkedInfoTitleLocIds` via the same `IGreLocProvider` path the game's own `LinkedInfoTextParser` / `LinkedInfoTitleTextParser` use, so the resolved strings match what's rendered on the card face.

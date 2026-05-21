@@ -41,6 +41,7 @@ namespace AccessibleArena.Core.Services
                     // RewardsPopup handled by RewardPopupNavigator
                     ElementGroup.PlayBladeTabs => HandlePlayBladeBackspace(),
                     ElementGroup.PlayBladeContent => HandlePlayBladeBackspace(),
+                    ElementGroup.PlayBladeEventFilters => HandlePlayBladeBackspace(),
                     ElementGroup.NPE => HandleNPEBack(),
                     ElementGroup.SettingsMenu => false, // Settings handled by SettingsMenuNavigator
                     _ => false

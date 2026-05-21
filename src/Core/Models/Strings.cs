@@ -1461,6 +1461,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.PlayBladeTabs: return L.Get("GroupTabs");
                 case Services.ElementGrouping.ElementGroup.PlayBladeContent: return L.Get("GroupPlayOptions");
                 case Services.ElementGrouping.ElementGroup.PlayBladeFolders: return L.Get("GroupFolders");
+                case Services.ElementGrouping.ElementGroup.PlayBladeEventFilters: return L.Get("GroupEventFilters");
                 case Services.ElementGrouping.ElementGroup.SettingsMenu: return L.Get("GroupSettingsMenu");
                 case Services.ElementGrouping.ElementGroup.NPE: return L.Get("GroupTutorial");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderCollection: return L.Get("GroupCollection");

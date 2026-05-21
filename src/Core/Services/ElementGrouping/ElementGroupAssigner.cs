@@ -214,6 +214,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 // Tabs are the navigation buttons at top of PlayBlade
                 if (IsPlayBladeTab(name, parentPath))
                     return ElementGroup.PlayBladeTabs;
+
+                // Events tab filter chips (Alle / In Arbeit / Neu / Limited / Constructed / …)
+                // live inside EventBladeContentView but outside the _eventTileContainer.
+                // Routing them to their own group is what gives the Events tab the
+                // Tabs → Filters → Events drill-down (mirrors PlayBladeTabs → Folders → Decks).
+                if (EventAccessor.IsEventFilterChip(element))
+                    return ElementGroup.PlayBladeEventFilters;
+
                 return ElementGroup.PlayBladeContent;
             }
 

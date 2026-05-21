@@ -68,19 +68,54 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         public PlayBladeResult HandleEnter(GameObject element, ElementGroup elementGroup)
         {
             // PlayBlade tab activation (Events, Find Match, Recent)
-            // -> Navigate to content (play modes)
+            // -> Events tab drills into filter chips first (Tabs → Filters → Tiles);
+            //    other tabs drill straight into content (Tabs → Content / Folders).
             if (elementGroup == ElementGroup.PlayBladeTabs)
             {
-                _groupedNavigator.RequestPlayBladeContentEntry();
-                Log.Msg("PlayBladeHelper", $"Tab activated -> requesting content entry");
+                // Remember which tab the user is leaving so Backspace from a deeper level
+                // lands back on it. (Despite the name, this stores the last tab index of
+                // any kind — not only queue-type tabs.)
+                _groupedNavigator.StoreLastQueueTypeTabIndex();
+                // The Unity tab object is named e.g. "Blade_Tab_Nav (Events)" — non-localized.
+                bool isEventsTab = element != null && element.name.Contains("(Events)");
+                if (isEventsTab)
+                {
+                    _groupedNavigator.RequestPlayBladeEventFiltersEntry();
+                    Log.Msg("PlayBladeHelper", $"Events tab activated -> requesting filter chip entry");
+                }
+                else
+                {
+                    _groupedNavigator.RequestPlayBladeContentEntry();
+                    Log.Msg("PlayBladeHelper", $"Tab activated -> requesting content entry");
+                }
                 // No rescan needed here - blade Hide/Show will trigger it
                 return PlayBladeResult.Handled;
             }
 
-            // PlayBlade content activation (Ranked, Play, Brawl modes)
-            // -> Navigate to folders list (not directly to first folder)
+            // Event filter chip activation (Alle / In Arbeit / Neu / Limited / Constructed / …)
+            // -> Game rebuilds tile container in place; explicit rescan picks up the new tiles.
+            //    Save chip index so a later Backspace from the tile list lands back on the chip.
+            if (elementGroup == ElementGroup.PlayBladeEventFilters)
+            {
+                _groupedNavigator.StoreLastEventFilterIndex();
+                _groupedNavigator.RequestPlayBladeContentEntry();
+                Log.Msg("PlayBladeHelper", $"Filter chip activated -> requesting tile list entry");
+                // Filter clicks do NOT fire BladeContentView.Hide/Show — need explicit rescan.
+                return PlayBladeResult.RescanNeeded;
+            }
+
+            // PlayBlade content activation
+            // - Event tile (inside _eventTileContainer): blade closes to open event page;
+            //   panel detection will rescan automatically — nothing to request.
+            // - Mode/queue type button: Navigate to folders list.
             if (elementGroup == ElementGroup.PlayBladeContent)
             {
+                if (EventAccessor.IsInsideEventTileContainer(element))
+                {
+                    Log.Msg("PlayBladeHelper", $"Event tile activated -> letting panel detection handle navigation");
+                    return PlayBladeResult.Handled;
+                }
+
                 _groupedNavigator.RequestFoldersEntry();
                 Log.Msg("PlayBladeHelper", $"Mode activated -> requesting folders list entry");
                 // Rescan needed since mode selection doesn't cause panel changes
@@ -154,6 +189,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             bool isPlayBladeGroup = groupType == ElementGroup.PlayBladeTabs ||
                                     groupType == ElementGroup.PlayBladeContent ||
                                     groupType == ElementGroup.PlayBladeFolders ||
+                                    groupType == ElementGroup.PlayBladeEventFilters ||
                                     (currentGroup.Value.IsFolderGroup && _groupedNavigator.IsPlayBladeContext);
 
             if (!isPlayBladeGroup)
@@ -182,9 +218,26 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
                 else if (groupType == ElementGroup.PlayBladeContent)
                 {
-                    // Was in content (play modes) -> go back to tabs
+                    // Was in content (event tiles or play modes).
+                    // Events tab: a filter chip row sits above the tiles — go back to it.
+                    // Other tabs: no filter row — go back to tabs.
+                    if (_groupedNavigator.GetGroupByType(ElementGroup.PlayBladeEventFilters).HasValue)
+                    {
+                        _groupedNavigator.RequestPlayBladeEventFiltersEntry();
+                        Log.Msg("PlayBladeHelper", $"Backspace: exited tile list, going to filter chips");
+                    }
+                    else
+                    {
+                        _groupedNavigator.RequestPlayBladeTabsEntry();
+                        Log.Msg("PlayBladeHelper", $"Backspace: exited content, going to tabs");
+                    }
+                    return PlayBladeResult.RescanNeeded;
+                }
+                else if (groupType == ElementGroup.PlayBladeEventFilters)
+                {
+                    // Was in event filter chips -> go back to tabs
                     _groupedNavigator.RequestPlayBladeTabsEntry();
-                    Log.Msg("PlayBladeHelper", $"Backspace: exited content, going to tabs");
+                    Log.Msg("PlayBladeHelper", $"Backspace: exited filter chips, going to tabs");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeTabs)
@@ -213,9 +266,24 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
                 else if (groupType == ElementGroup.PlayBladeContent)
                 {
-                    // At content group level -> go to tabs
+                    // At content group level -> go to filter chips (Events tab) or tabs (others)
+                    if (_groupedNavigator.GetGroupByType(ElementGroup.PlayBladeEventFilters).HasValue)
+                    {
+                        _groupedNavigator.RequestPlayBladeEventFiltersEntry();
+                        Log.Msg("PlayBladeHelper", $"Backspace: at content group level, going to filter chips");
+                    }
+                    else
+                    {
+                        _groupedNavigator.RequestPlayBladeTabsEntry();
+                        Log.Msg("PlayBladeHelper", $"Backspace: at content group level, going to tabs");
+                    }
+                    return PlayBladeResult.RescanNeeded;
+                }
+                else if (groupType == ElementGroup.PlayBladeEventFilters)
+                {
+                    // At filter chips group level -> go to tabs
                     _groupedNavigator.RequestPlayBladeTabsEntry();
-                    Log.Msg("PlayBladeHelper", $"Backspace: at content group level, going to tabs");
+                    Log.Msg("PlayBladeHelper", $"Backspace: at filter chips group level, going to tabs");
                     return PlayBladeResult.RescanNeeded;
                 }
                 else if (groupType == ElementGroup.PlayBladeTabs)

@@ -6,6 +6,45 @@ Accessible navigation for MTGA's event system. Covers event tile enrichment on t
 
 ## General Event Navigation
 
+### Events Tab — Navigation Hierarchy
+
+Sighted players see two stacked regions on the Events tab: a row of filter pills
+(Alle / In Arbeit / Neu / Limited / Constructed / format-specific filters) above
+a grid of event tiles. Screen-reader navigation mirrors that with a three-level
+drill-down (parallel to PlayBladeTabs → PlayBladeFolders → folder for other tabs):
+
+```
+PlayBladeTabs            ← "Events", "Match finden", "Kürzlich gespielt", …
+  └── PlayBladeEventFilters   ← filter pills (Alle, In Arbeit, Neu, …)
+        └── PlayBladeContent  ← event tiles (PlayBladeEventTile children of _eventTileContainer)
+```
+
+**Drill-in:**
+- Enter on `Blade_Tab_Nav (Events)` → `GroupedNavigator.RequestPlayBladeEventFiltersEntry()`
+- Enter on a filter chip → stores chip index, `RequestPlayBladeContentEntry()`,
+  triggers a rescan (the game rebuilds `_eventTileContainer` in place — no
+  `BladeContentView.Hide/Show` fires)
+- Enter on an event tile → game opens event page; panel detection handles rescan
+
+**Backspace:**
+- From event tile list → returns to filter chips (restores last selected chip)
+- From filter chips → returns to tabs (restores "Events" tab via
+  `_lastQueueTypeTabIndex`, which `PlayBladeNavigationHelper.HandleEnter` now
+  stores for any tab activation, not only queue types)
+- From tabs → closes the blade
+
+**Chip detection** (`EventAccessor.IsEventFilterChip`):
+A clickable inside `EventBladeContentView` that is NOT a descendant of any
+`PlayBladeEventTile` and NOT inside `_eventTileContainer` is a filter chip.
+Tiles continue to map to `PlayBladeContent`; chips map to `PlayBladeEventFilters`.
+
+**Position restore:**
+- `_lastEventFilterIndex` (in `GroupedNavigator`) is set by
+  `StoreLastEventFilterIndex()` whenever the user enters a chip, and consumed
+  by `RequestPlayBladeEventFiltersEntry()` to restore the chip on backspace.
+- `_lastQueueTypeTabIndex` similarly remembers which top-level tab the user
+  was on when drilling down.
+
 ### Event Tiles (Play Blade)
 
 Event tiles appear in the Play Blade's events tab. Each tile is a `PlayBladeEventTile` with a `MainButton` child used for activation.

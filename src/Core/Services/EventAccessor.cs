@@ -31,6 +31,11 @@ namespace AccessibleArena.Core.Services
             public FieldInfo CurrentEventContext; // _currentEventContext (EventContext)
         }
 
+        private sealed class EventBladeContentViewHandles
+        {
+            public FieldInfo EventTileContainer; // _eventTileContainer (RectTransform)
+        }
+
         private sealed class FactionalizedEventHandles
         {
             public FieldInfo EventContexts;       // _eventContexts (Dictionary<string, FactionEventContext>)
@@ -113,6 +118,15 @@ namespace AccessibleArena.Core.Services
             validator: h => h.CurrentEventContext != null,
             logTag: "EventAccessor",
             logSubject: "EventPageContentController");
+
+        private static readonly ReflectionCache<EventBladeContentViewHandles> _eventBladeContentViewCache = new ReflectionCache<EventBladeContentViewHandles>(
+            builder: t => new EventBladeContentViewHandles
+            {
+                EventTileContainer = t.GetField("_eventTileContainer", PrivateInstance),
+            },
+            validator: h => h.EventTileContainer != null,
+            logTag: "EventAccessor",
+            logSubject: "EventBladeContentView");
 
         private static readonly ReflectionCache<FactionalizedEventHandles> _factionalizedCache = new ReflectionCache<FactionalizedEventHandles>(
             builder: t => new FactionalizedEventHandles
@@ -224,6 +238,7 @@ namespace AccessibleArena.Core.Services
         private static MonoBehaviour _cachedFactionalizedController;
         private static MonoBehaviour _cachedPacketController;
         private static MonoBehaviour _cachedCampaignGraphController;
+        private static MonoBehaviour _cachedEventBladeContentView;
 
         #region Event Tile Enrichment
 
@@ -1472,6 +1487,86 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region EventBlade Filter Detection
+
+        private static MonoBehaviour FindEventBladeContentView()
+            => FindCachedController(ref _cachedEventBladeContentView, T.EventBladeContentView, _eventBladeContentViewCache);
+
+        /// <summary>
+        /// Return the <c>_eventTileContainer</c> Transform from the active
+        /// <see cref="T.EventBladeContentView"/>, or null if the events tab isn't active.
+        /// </summary>
+        private static Transform GetEventTileContainer()
+        {
+            try
+            {
+                var view = FindEventBladeContentView();
+                if (view == null || !_eventBladeContentViewCache.IsInitialized) return null;
+                var rt = _eventBladeContentViewCache.Handles.EventTileContainer.GetValue(view) as Component;
+                return rt?.transform;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAccessor", $"GetEventTileContainer failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// True when <paramref name="element"/> is inside the PlayBlade Events tab's
+        /// <c>_eventTileContainer</c> (i.e. it is — or is part of — a <c>PlayBladeEventTile</c>).
+        /// Filter chips and the page header sit outside this container.
+        /// </summary>
+        public static bool IsInsideEventTileContainer(GameObject element)
+        {
+            if (element == null) return false;
+            var container = GetEventTileContainer();
+            if (container == null) return false;
+            Transform current = element.transform;
+            while (current != null)
+            {
+                if (current == container) return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// True when <paramref name="element"/> is anywhere inside the active
+        /// <see cref="T.EventBladeContentView"/> — used to scope filter-chip detection.
+        /// </summary>
+        public static bool IsInsideEventBladeContentView(GameObject element)
+        {
+            if (element == null) return false;
+            return FindParentComponent(element, T.EventBladeContentView) != null;
+        }
+
+        /// <summary>
+        /// True when <paramref name="element"/> is a filter chip on the PlayBlade Events tab.
+        /// Chips are siblings (not descendants) of <see cref="T.EventBladeContentView"/> inside
+        /// the SELECT_Events panel, so we cannot require an EventBladeContentView ancestor. The
+        /// rule we use instead:
+        /// <list type="bullet">
+        ///   <item>The events tab is active (an EventBladeContentView exists in the scene).</item>
+        ///   <item>The element is not part of a <c>PlayBladeEventTile</c> (so genuine event tiles
+        ///         — including featured tiles and Color Challenge — are excluded).</item>
+        ///   <item>The element is not inside <c>_eventTileContainer</c>.</item>
+        /// </list>
+        /// The caller (<see cref="AccessibleArena.Core.Services.ElementGrouping.ElementGroupAssigner"/>)
+        /// has already excluded tabs, the Play button, and other non-chip controls before reaching
+        /// this check, so anything that survives is a filter chip.
+        /// </summary>
+        public static bool IsEventFilterChip(GameObject element)
+        {
+            if (element == null) return false;
+            if (FindEventBladeContentView() == null) return false;
+            if (FindParentComponent(element, "PlayBladeEventTile") != null) return false;
+            if (IsInsideEventTileContainer(element)) return false;
+            return true;
+        }
+
+        #endregion
+
         /// <summary>
         /// Walk parent chain to find a MonoBehaviour of the given type name.
         /// </summary>
@@ -1499,6 +1594,7 @@ namespace AccessibleArena.Core.Services
             _cachedFactionalizedController = null;
             _cachedPacketController = null;
             _cachedCampaignGraphController = null;
+            _cachedEventBladeContentView = null;
         }
 
         #endregion

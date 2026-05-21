@@ -112,6 +112,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 ElementGroup.ChallengeMain => IsInsideChallengeScreen(obj),
                 ElementGroup.PlayBladeTabs => IsInsidePlayBlade(obj),
                 ElementGroup.PlayBladeContent => IsInsidePlayBlade(obj),
+                ElementGroup.PlayBladeEventFilters => IsInsidePlayBlade(obj),
                 ElementGroup.NPE => IsInsideNPEOverlay(obj),
                 _ => overlay.Value.IsFriendPanelGroup() ? IsInsideSocialPanel(obj) : true
             };

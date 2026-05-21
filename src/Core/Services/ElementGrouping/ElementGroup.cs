@@ -82,7 +82,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         PlayBladeTabs,
 
         /// <summary>
-        /// Play blade content elements (event tiles, decks, filters). Shown after selecting a tab.
+        /// Play blade content elements (event tiles, decks). Shown after selecting a tab.
+        /// On the Events tab, content is reached only after picking a filter chip first;
+        /// see <see cref="PlayBladeEventFilters"/>.
         /// </summary>
         PlayBladeContent,
 
@@ -91,6 +93,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// User selects a folder from this group, then enters the folder to see decks.
         /// </summary>
         PlayBladeFolders,
+
+        /// <summary>
+        /// Play blade filter chips for the Events tab (Alle, In Arbeit, Neu, Limited, Constructed, …).
+        /// Sits between PlayBladeTabs and PlayBladeContent: picking a chip drills down into the
+        /// filtered event tile list. Backspace returns to the chip list, then to the tabs.
+        /// </summary>
+        PlayBladeEventFilters,
 
         /// <summary>
         /// Challenge screen main settings. Flat list of spinners, buttons, and status elements.
@@ -230,6 +239,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 || group == ElementGroup.PlayBladeTabs
                 || group == ElementGroup.PlayBladeContent
                 || group == ElementGroup.PlayBladeFolders
+                || group == ElementGroup.PlayBladeEventFilters
                 || group == ElementGroup.SettingsMenu
                 || group == ElementGroup.NPE
                 || group == ElementGroup.DeckBuilderCollection
