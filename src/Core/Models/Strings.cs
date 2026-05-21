@@ -236,6 +236,8 @@ namespace AccessibleArena.Core.Models
         public static string BrowserZone_BottomPile => L.Get("BrowserZone_BottomPile");
         public static string BrowserZone_KeepShort => L.Get("BrowserZone_KeepShort");
         public static string BrowserZone_BottomShort => L.Get("BrowserZone_BottomShort");
+        public static string BrowserZone_Surveil_Graveyard => L.Get("BrowserZone_Surveil_Graveyard");
+        public static string BrowserZone_Surveil_GraveyardShort => L.Get("BrowserZone_Surveil_GraveyardShort");
         public static string BrowserZoneEmpty(string zoneName) => L.Format("BrowserZone_Empty_Format", zoneName);
         public static string BrowserZoneEntry(string zoneName, int count, string cardName) =>
             L.Format("BrowserZone_Entry_Format", zoneName, count, cardName, count);

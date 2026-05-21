@@ -1171,6 +1171,10 @@ namespace AccessibleArena.Core.Services
             {
                 return zone == BrowserZoneType.Top ? Strings.BrowserZone_KeepPile : Strings.BrowserZone_BottomPile;
             }
+            if (BrowserDetector.IsSurveilBrowser(_browserType) && zone == BrowserZoneType.Bottom)
+            {
+                return Strings.BrowserZone_Surveil_Graveyard;
+            }
             return zone == BrowserZoneType.Top ? Strings.BrowserZone_KeepOnTop : Strings.BrowserZone_PutOnBottom;
         }
 
@@ -1183,6 +1187,10 @@ namespace AccessibleArena.Core.Services
             if (BrowserDetector.IsLondonBrowser(_browserType))
             {
                 return zone == BrowserZoneType.Top ? Strings.BrowserZone_KeepShort : Strings.BrowserZone_BottomShort;
+            }
+            if (BrowserDetector.IsSurveilBrowser(_browserType) && zone == BrowserZoneType.Bottom)
+            {
+                return Strings.BrowserZone_Surveil_GraveyardShort;
             }
             return zone == BrowserZoneType.Top ? Strings.KeepOnTop : Strings.PutOnBottom;
         }
