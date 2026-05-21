@@ -126,6 +126,8 @@
   "CardInfoPowerToughness": "Сила и выносливость",
   "CardInfoType": "Тип",
   "CardInfoRules": "Правила",
+  "CardInfoChosen": "Выбрано",
+  "CardInfoNamedCard": "Названная карта",
   "LoyaltyPlus": "Плюс",
   "LoyaltyMinus": "Минус",
   "CardInfoFlavor": "Художественный текст",

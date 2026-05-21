@@ -126,6 +126,8 @@
   "CardInfoPowerToughness": "Stärke und Widerstandskraft",
   "CardInfoType": "Typ",
   "CardInfoRules": "Regeln",
+  "CardInfoChosen": "Gewählt",
+  "CardInfoNamedCard": "Genannte Karte",
   "LoyaltyPlus": "Plus",
   "LoyaltyMinus": "Minus",
   "CardInfoFlavor": "Hintergrundtext",

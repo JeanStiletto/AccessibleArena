@@ -126,6 +126,8 @@
   "CardInfoPowerToughness": "Fuerza y resistencia",
   "CardInfoType": "Tipo",
   "CardInfoRules": "Reglas",
+  "CardInfoChosen": "Elegido",
+  "CardInfoNamedCard": "Carta nombrada",
   "LoyaltyPlus": "Más",
   "LoyaltyMinus": "Menos",
   "CardInfoFlavor": "Texto de ambientación",
