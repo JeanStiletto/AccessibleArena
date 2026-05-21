@@ -140,6 +140,20 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private int _lastEventFilterIndex = -1;
 
         /// <summary>
+        /// Position to restore when the PlayBlade reopens after a transient close —
+        /// e.g. the user activated an event tile, the game closed the blade to show the
+        /// event page, and now the user has dismissed the event page and the blade is back.
+        /// Unlike <see cref="_pendingGroupRestore"/>, this slot SURVIVES the
+        /// <see cref="SetPlayBladeContext(bool)"/> false-side clear, because the standard
+        /// restore mechanism is intentionally wiped on blade close to avoid bleed between
+        /// blade sessions. Single-shot: cleared on successful restoration and on user-
+        /// initiated blade close (via <see cref="ClearBladeReopenRestore"/>).
+        /// </summary>
+        private ElementGroup? _bladeReopenRestoreGroup = null;
+        private string _bladeReopenRestoreDisplayName = null;
+        private int _bladeReopenRestoreElementIndex = -1;
+
+        /// <summary>
         /// Specific folder name to auto-enter after entering PlayBladeFolders.
         /// Set when user selects a folder from the folders list.
         /// </summary>
@@ -429,6 +443,39 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         {
             _lastEventFilterIndex = _currentElementIndex;
             Log.Msg("GroupedNavigator", $"Stored last event filter index: {_lastEventFilterIndex}");
+        }
+
+        /// <summary>
+        /// Capture the current group + element position so it can be restored the next time
+        /// the PlayBlade reopens. Call this just before triggering an action that closes the
+        /// blade temporarily (event tile activation → event page). Unlike
+        /// <see cref="SaveCurrentGroupForRestore"/>, this state outlives the
+        /// <see cref="SetPlayBladeContext(bool)"/> false-side clear.
+        /// </summary>
+        public void SaveBladeReopenRestore()
+        {
+            if (_currentGroupIndex >= 0 && _currentGroupIndex < _groups.Count
+                && _navigationLevel == NavigationLevel.InsideGroup)
+            {
+                _bladeReopenRestoreGroup = _groups[_currentGroupIndex].Group;
+                _bladeReopenRestoreDisplayName = _groups[_currentGroupIndex].DisplayName;
+                _bladeReopenRestoreElementIndex = _currentElementIndex;
+                Log.Msg("GroupedNavigator", $"Saved blade-reopen restore: {_bladeReopenRestoreGroup} ('{_bladeReopenRestoreDisplayName}') at index {_bladeReopenRestoreElementIndex}");
+            }
+        }
+
+        /// <summary>
+        /// Drop any pending blade-reopen restore. Call when the user genuinely exits the
+        /// PlayBlade (e.g. Backspace at PlayBladeTabs → CloseBlade) so the stale position
+        /// from a prior session doesn't leak into the next open.
+        /// </summary>
+        public void ClearBladeReopenRestore()
+        {
+            if (_bladeReopenRestoreGroup.HasValue)
+                Log.Msg("GroupedNavigator", $"Cleared blade-reopen restore (was: {_bladeReopenRestoreGroup})");
+            _bladeReopenRestoreGroup = null;
+            _bladeReopenRestoreDisplayName = null;
+            _bladeReopenRestoreElementIndex = -1;
         }
 
         /// <summary>
@@ -1177,6 +1224,35 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                         Log.Msg("GroupedNavigator", $"Auto-entered specific folder '{folderName}' with {_groups[i].Count} items");
                         break;
                     }
+                }
+            }
+
+            // Blade-reopen restore: if the PlayBlade just came back from an event-page
+            // round-trip (or any other transient close that captured a position via
+            // SaveBladeReopenRestore), drop the cursor back where the user was. Only runs
+            // when no Request*Entry already chose a position, and only inside PlayBlade —
+            // the same gate the standard restore uses to avoid bleeding into other screens.
+            if (!autoEntryPerformed && _isPlayBladeContext && _bladeReopenRestoreGroup.HasValue)
+            {
+                var targetGroup = _bladeReopenRestoreGroup.Value;
+                var targetName = _bladeReopenRestoreDisplayName;
+                int targetIdx = _bladeReopenRestoreElementIndex;
+                ClearBladeReopenRestore(); // single-shot
+
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    if (_groups[i].Group != targetGroup) continue;
+                    if (targetName != null && _groups[i].DisplayName != targetName) continue;
+                    if (_groups[i].Count == 0) break;
+
+                    _currentGroupIndex = i;
+                    _navigationLevel = NavigationLevel.InsideGroup;
+                    int maxIdx = _groups[i].Count - 1;
+                    _currentElementIndex = (targetIdx >= 0 && targetIdx <= maxIdx) ? targetIdx : 0;
+                    autoEntryPerformed = true;
+                    PositionWasRestored = true;
+                    Log.Msg("GroupedNavigator", $"Restored blade-reopen position: {targetGroup} ('{targetName}') at index {_currentElementIndex}");
+                    break;
                 }
             }
 
@@ -1944,7 +2020,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// </summary>
         public ElementGroupInfo? GetGroupByType(ElementGroup groupType)
         {
-            return _groups.FirstOrDefault(g => g.Group == groupType);
+            // Note: cannot use LINQ FirstOrDefault here. ElementGroupInfo is a struct,
+            // so FirstOrDefault returns a zero-initialized struct (Group=Unknown, Elements=null)
+            // when no match exists. That struct gets implicitly boxed into a non-null
+            // ElementGroupInfo?, making HasValue return true for missing groups — every caller
+            // that gates on .HasValue would then walk the false-positive path.
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (_groups[i].Group == groupType)
+                    return _groups[i];
+            }
+            return null;
         }
 
         /// <summary>

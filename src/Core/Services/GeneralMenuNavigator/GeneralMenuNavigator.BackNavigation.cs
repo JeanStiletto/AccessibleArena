@@ -341,6 +341,9 @@ namespace AccessibleArena.Core.Services
         private void ClearBladeStateAndRescan()
         {
             Log.Nav(NavigatorId, $"Clearing blade state for immediate Home navigation");
+            // User-initiated close: drop any pending blade-reopen restore so a stale
+            // position from a prior session doesn't snap the cursor back next time.
+            _groupedNavigator.ClearBladeReopenRestore();
             _playBladeHelper.OnPlayBladeClosed();
             if (_challengeHelper.IsActive)
                 _challengeHelper.OnChallengeClosed();

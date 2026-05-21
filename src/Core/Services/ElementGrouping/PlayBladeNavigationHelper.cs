@@ -106,13 +106,16 @@ namespace AccessibleArena.Core.Services.ElementGrouping
 
             // PlayBlade content activation
             // - Event tile (inside _eventTileContainer): blade closes to open event page;
-            //   panel detection will rescan automatically — nothing to request.
+            //   panel detection will rescan automatically — nothing to request, but capture
+            //   the current chip+tile position so the blade reopens at the same spot if the
+            //   user Escapes the event page.
             // - Mode/queue type button: Navigate to folders list.
             if (elementGroup == ElementGroup.PlayBladeContent)
             {
                 if (EventAccessor.IsInsideEventTileContainer(element))
                 {
-                    Log.Msg("PlayBladeHelper", $"Event tile activated -> letting panel detection handle navigation");
+                    _groupedNavigator.SaveBladeReopenRestore();
+                    Log.Msg("PlayBladeHelper", $"Event tile activated -> saved blade-reopen restore, letting panel detection handle navigation");
                     return PlayBladeResult.Handled;
                 }
 
