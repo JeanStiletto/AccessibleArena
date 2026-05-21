@@ -263,6 +263,7 @@
   "ManaSnow": "Snow",
   "ManaEnergy": "Energy",
   "ManaGeneric": "Generic",
+  "ManaFree": "Free",
   "ManaPhyrexian": "Phyrexian",
   "ManaPhyrexian_Format": "Phyrexian {0}",
   "ManaHybrid_Format": "{0} or {1}",
