@@ -77,6 +77,7 @@ namespace AccessibleArena.Core.Services
             CardStateProvider.ClearCache();
             DeckCardProvider.ClearCache();
             ExtendedCardInfoProvider.ClearCache();
+            ChosenInfoProvider.ClearCache();
         }
 
         #region Component Access
@@ -1050,9 +1051,11 @@ namespace AccessibleArena.Core.Services
                     var manaCost = _actionManaCostProp.GetValue(action);
                     if (!(manaCost is IEnumerable manaCostEnum)) continue;
 
-                    // RepeatedField<ManaRequirement> of length 0 means "free cast" or "not yet
-                    // resolved" — skip and let the next action / printed-cost fallback handle it.
-                    if (!manaCostEnum.Cast<object>().Any()) continue;
+                    // Length 0 = the cost has been reduced all the way to free (cost reducers,
+                    // Suspend / Cascade / "play without paying", etc). The game's own tile
+                    // renderer treats this as 0 and we should too — falling through to the
+                    // printed cost here would announce a fee the player will never pay.
+                    if (!manaCostEnum.Cast<object>().Any()) return manaCostEnum;
 
                     var convertedList = InvokeConvertManaCostsToList(manaCostEnum);
                     if (convertedList != null) return convertedList;
@@ -1723,6 +1726,12 @@ namespace AccessibleArena.Core.Services
                     if (!string.IsNullOrEmpty(overrideText))
                         info.RulesText = ManaTextFormatter.ParseManaSymbolsInText(overrideText);
                 }
+
+                // Chosen / named-card info - mirrors the LinkedInfoTextParser path the game uses
+                // to bake "chosen type" and "named card" lines into rules text on the battlefield.
+                var (chosenInfo, namedCards) = ChosenInfoProvider.ExtractChosenInfo(dataObj);
+                if (!string.IsNullOrEmpty(chosenInfo)) info.ChosenInfo = chosenInfo;
+                if (!string.IsNullOrEmpty(namedCards)) info.NamedCards = namedCards;
 
                 // Flavor Text - lookup via FlavorTextId
                 var flavorIdValue = GetModelPropertyValue(dataObj, objType, "FlavorTextId");

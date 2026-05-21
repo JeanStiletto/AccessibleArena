@@ -190,15 +190,19 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         internal static string ParseManaQuantityArray(IEnumerable manaQuantities)
         {
+            if (manaQuantities == null) return null;
+
             // Track colored mana grouped by symbol label (insertion-ordered)
             var colorCounts = new Dictionary<string, int>();
             var colorOrder = new List<string>();
             // Hybrid/Phyrexian symbols are kept as individual entries (can't be meaningfully grouped)
             var complexSymbols = new List<string>();
             int genericCount = 0;
+            bool sawAny = false;
 
             foreach (var mq in manaQuantities)
             {
+                sawAny = true;
                 if (mq == null) continue;
 
                 var mqType = mq.GetType();
@@ -300,7 +304,12 @@ namespace AccessibleArena.Core.Services
             // Complex symbols (hybrid, phyrexian) appended individually
             parts.AddRange(complexSymbols);
 
-            return parts.Count > 0 ? string.Join(", ", parts) : null;
+            if (parts.Count > 0) return string.Join(", ", parts);
+
+            // Empty input → genuinely free (cost discounted to 0, Suspend/Cascade exile cast,
+            // printed-0 artifacts like Memnite). Non-empty input that parsed to nothing falls
+            // through to null so the caller can try a different cost source.
+            return sawAny ? null : Strings.ManaFree;
         }
 
         /// <summary>

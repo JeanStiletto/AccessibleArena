@@ -233,6 +233,8 @@ Below is every key in `en.json` with context about where it appears and what the
 | `CardInfoPowerToughness` | "Power and Toughness" | Creature P/T |
 | `CardInfoType` | "Type" | Card type line |
 | `CardInfoRules` | "Rules" | Rules text |
+| `CardInfoChosen` | "Chosen" | Block label for the chosen type/color recorded on a card by effects like Cavern of Souls (LinkedInfoText). Read after rules text. |
+| `CardInfoNamedCard` | "Named card" | Block label for card names recorded on a card by Pithing Needle / Meddling Mage / Cabal Therapy (LinkedInfoTitleLocIds). Read after rules text. |
 | `CardInfoFlavor` | "Flavor" | Flavor text |
 | `CardInfoArtist` | "Artist" | Card artist |
 | `CardPosition_Format` | "{0}{1}, {2} of {3}" | {0} = card name, {1} = status suffix, {2} = position, {3} = total |
@@ -354,6 +356,7 @@ Spoken names for mana symbols on cards.
 | `ManaX` | "X" | | Variable mana (X) |
 | `ManaSnow` | "Snow" | | Snow mana (S) |
 | `ManaEnergy` | "Energy" | | Energy counter (E) |
+| `ManaFree` | "Free" | | Used as the whole mana-cost line for cards costing 0 — both printed zero-cost cards (Memnite, Mox Amber) and cards discounted to 0 by cost reducers / Suspend / Cascade. Pick whatever word your locale uses for "free spell" or "no cost" — short and unambiguous when announced after "Mana Cost:". |
 | `ManaPhyrexian_Format` | "Phyrexian {0}" | {0} = color name | Phyrexian mana (e.g., "Phyrexian Red") |
 | `ManaHybrid_Format` | "{0} or {1}" | {0} = color 1, {1} = color 2 | Hybrid mana (e.g., "White or Blue") |
 
