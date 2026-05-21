@@ -126,6 +126,8 @@
   "CardInfoPowerToughness": "Power and Toughness",
   "CardInfoType": "Type",
   "CardInfoRules": "Rules",
+  "CardInfoChosen": "Chosen",
+  "CardInfoNamedCard": "Named card",
   "LoyaltyPlus": "Plus",
   "LoyaltyMinus": "Minus",
   "CardInfoFlavor": "Flavor",

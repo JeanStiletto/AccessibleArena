@@ -233,6 +233,8 @@ Below is every key in `en.json` with context about where it appears and what the
 | `CardInfoPowerToughness` | "Power and Toughness" | Creature P/T |
 | `CardInfoType` | "Type" | Card type line |
 | `CardInfoRules` | "Rules" | Rules text |
+| `CardInfoChosen` | "Chosen" | Block label for the chosen type/color recorded on a card by effects like Cavern of Souls (LinkedInfoText). Read after rules text. |
+| `CardInfoNamedCard` | "Named card" | Block label for card names recorded on a card by Pithing Needle / Meddling Mage / Cabal Therapy (LinkedInfoTitleLocIds). Read after rules text. |
 | `CardInfoFlavor` | "Flavor" | Flavor text |
 | `CardInfoArtist` | "Artist" | Card artist |
 | `CardPosition_Format` | "{0}{1}, {2} of {3}" | {0} = card name, {1} = status suffix, {2} = position, {3} = total |

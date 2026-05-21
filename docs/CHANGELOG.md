@@ -4,8 +4,13 @@ All notable changes to Accessible Arena.
 
 ## v1.3
 
+Duel:
+
+- Card info readout now surfaces chosen / named-card data. Cards that record a creature type (Cavern of Souls, Engineered Plague), a color (Iona, Shield of Emeria), or a card name (Pithing Needle, Meddling Mage, Cabal Therapy) display that pick in their on-card rules text for sighted players; the mod was dropping it. Arrow Down past rules text now reads "Chosen: Wizard" and "Named card: Cabal Therapy" sourced from `MtgCardInstance.LinkedInfoText` and `LinkedInfoTitleLocIds` via the same `IGreLocProvider` path the game's own `LinkedInfoTextParser` / `LinkedInfoTitleTextParser` use, so the resolved strings match what's rendered on the card face.
+
 Bug fixes:
 
+- Surveil zone tracking was broken: the mod's `_bottomCards` list was always empty, so every card read as "keep" regardless of where the player had moved it, Tab announcements lied about the selection, and Tab → Enter on a "milled" card retried the same direction instead of toggling it back to the library (no way to deselect short of cancelling the whole browser). Root cause: `RefreshSurveilCardLists` walked `BrowserCardHolder_ViewDismiss` for the bottom zone, a holder Surveil doesn't have — Surveil keeps both zones in a single `cardHolder` with `libraryGroup` / `graveyardGroup` lists tracking the split. The refresh now reads those lists directly via the public `GetLibraryCards()` / `GetGraveyardCards()` getters on `SurveilBrowser`, matching what the game itself queries when laying out the cards. As a belt-and-braces fix the tracked lists are also updated eagerly the moment an Enter-driven move succeeds, so `DetectCardZone` is correct during the 0.2 s window before the reconciling refresh coroutine fires (this also closes the equivalent gap for Scry, where the lists were correct after the delay but stale within it).
 - 0-cost cards are now announced correctly. PR #91 wired in the live cast-action cost so reducers (Warden of Evos Isle, Goblin Electromancer, etc.) would be reflected, but treated a length-0 `Action.ManaCost` as "not yet resolved" and skipped past it — falling all the way back to `PrintedCastingCost`. The result: a card discounted to 0 still read its printed cost, so a "free" cast announced as costing one mana the player would never actually pay. Empty live-action cost is now the real 0-cost signal (cost reducers brought the spell to free, or it's a Suspend/Cascade exile cast, or it's a printed-0 artifact like Memnite); `ParseManaQuantityArray` renders an empty mana-quantity array as the localized `ManaFree` ("Free" in English), short-circuiting the fallback chain. Mana-cost block is now read for printed-0-cost cards too (Memnite, Mox Amber, Ornithopter) instead of being silently omitted.
 
 ## v1.2
