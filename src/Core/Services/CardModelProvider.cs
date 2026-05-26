@@ -934,6 +934,23 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns true if the model's <c>CardTypes</c> enumerable contains the given type
+        /// name (exact match, e.g. "Land", "Creature"). Used to suppress the "Free" mana
+        /// cost block on lands, where the empty-cost parse is just noise before the
+        /// player's Arrow Down reaches type / rules text.
+        /// </summary>
+        private static bool CardTypesContain(object dataObj, Type objType, string typeName)
+        {
+            var cardTypes = GetModelPropertyValue(dataObj, objType, "CardTypes");
+            if (!(cardTypes is IEnumerable enumerable)) return false;
+            foreach (var ct in enumerable)
+            {
+                if (ct?.ToString() == typeName) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Extracts rules text from a CardData's RulesTextOverride property.
         /// Used for modal spell mode cards where Abilities are cleared but RulesTextOverride
         /// contains the mode-specific ability text (AbilityTextOverride).
@@ -1415,6 +1432,13 @@ namespace AccessibleArena.Core.Services
                             info.ManaCost = ManaTextFormatter.ParseManaSymbolsInText(manaStr);
                     }
                 }
+
+                // Lands have no casting cost, so the empty-cost path renders them as "Free" —
+                // useless noise that adds an Arrow Down press before the player reaches the
+                // actually relevant info. Suppress for lands specifically; Memnite-style
+                // printed-0 spells still announce "Free" because they CAN be cast.
+                if (info.ManaCost == Strings.ManaFree && CardTypesContain(dataObj, objType, "Land"))
+                    info.ManaCost = null;
 
                 // Type Line - try structured Supertypes + CardTypes + Subtypes first
                 var typeLineParts = new List<string>();
@@ -2089,6 +2113,7 @@ namespace AccessibleArena.Core.Services
                 bool isCreatureCard = false;
                 bool isPlaneswalkerCard = false;
                 bool isVehicleCard = false;
+                bool isLandCard = false;
                 var cardTypesEnum = cardType.GetProperty("CardTypes")?.GetValue(cardData) as IEnumerable;
                 if (cardTypesEnum != null)
                 {
@@ -2098,8 +2123,16 @@ namespace AccessibleArena.Core.Services
                         string ctStr = ct.ToString();
                         if (ctStr.Contains("Creature")) isCreatureCard = true;
                         if (ctStr.Contains("Planeswalker")) isPlaneswalkerCard = true;
+                        if (ctStr == "Land") isLandCard = true;
                     }
                 }
+
+                // Suppress the "Free" mana-cost block on lands — same reasoning as the
+                // duel/model extraction path. Lands have no casting cost so they always
+                // parse as Free, which is just noise before the Arrow Down navigation
+                // reaches the actually relevant info.
+                if (isLandCard && info.ManaCost == Strings.ManaFree)
+                    info.ManaCost = null;
                 var subtypesEnum = cardType.GetProperty("Subtypes")?.GetValue(cardData) as IEnumerable;
                 if (subtypesEnum != null)
                 {
