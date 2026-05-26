@@ -114,6 +114,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpUpDownDetails,
                 Strings.HelpIExtendedInfo,
                 Strings.HelpOGameLog,
+                Strings.HelpNCurrentlyResolving,
 
                 // General duel commands
                 Strings.HelpCategoryDuelGeneral,

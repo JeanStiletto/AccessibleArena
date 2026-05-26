@@ -421,6 +421,7 @@ namespace AccessibleArena.Core.Models
                                   : L.Format("Duel_CounterLostPlural_Format", target, absChange, counterType));
         public static string Duel_CounterCreature => L.Get("Duel_CounterCreature");
         public static string Duel_NoCounters => L.Get("Duel_NoCounters");
+        public static string Duel_NothingResolving => L.Get("Duel_NothingResolving");
         public static string Duel_CounterEntry(int count, string type) =>
             count == 1 ? L.Format("Duel_CounterEntry_Format", count, type)
                        : L.Format("Duel_CounterEntryPlural_Format", count, type);
@@ -578,6 +579,7 @@ namespace AccessibleArena.Core.Models
         public static string LinkedToken => L.Get("LinkedToken");
         public static string HelpIExtendedInfo => L.Get("HelpIExtendedInfo");
         public static string HelpOGameLog => L.Get("HelpOGameLog");
+        public static string HelpNCurrentlyResolving => L.Get("HelpNCurrentlyResolving");
 
         // Game log (O key - navigable announcement history)
         public static string GameLogTitle => L.Get("GameLogTitle");

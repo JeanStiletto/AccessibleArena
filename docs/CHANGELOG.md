@@ -12,6 +12,7 @@ PlayBlade / Events tab:
 Duel:
 
 - Card info readout now surfaces chosen / named-card data. Cards that record a creature type (Cavern of Souls, Engineered Plague), a color (Iona, Shield of Emeria), or a card name (Pithing Needle, Meddling Mage, Cabal Therapy) display that pick in their on-card rules text for sighted players; the mod was dropping it. Arrow Down past rules text now reads "Chosen: Wizard" and "Named card: Cabal Therapy" sourced from `MtgCardInstance.LinkedInfoText` and `LinkedInfoTitleLocIds` via the same `IGreLocProvider` path the game's own `LinkedInfoTextParser` / `LinkedInfoTitleTextParser` use, so the resolved strings match what's rendered on the card face.
+- New **N** hotkey announces what's currently resolving on the stack — the topmost stack item with its rules text, in the same format the mod uses when something newly hits the stack. Workflow prompts during long combos ("Submit 0", target select, "you may discard a card") often give no clue which trigger they belong to: the auto-fired stack announcement runs once per zone update, so a prompt that opens several beats later has no spoken trace. N closes that gap on demand. Announces "Nothing on the stack" when the stack is empty.
 
 Bug fixes:
 

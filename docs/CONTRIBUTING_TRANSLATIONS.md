@@ -1003,6 +1003,7 @@ All duel event announcements. These are spoken automatically as game events occu
 | `Duel_SurveilHint` | "Surveil. Tab to see card, Enter to keep on top, Space to put in graveyard" | | Announced when surveil browser opens |
 | `Duel_EffectHint_Format` | "{0}. Tab to navigate, Enter to select" | {0} = effect name | Announced for other browser-style effects |
 | `Duel_LookAtTopCard` | "Look at top card" | | Announced for top-of-library peek effects |
+| `Duel_NothingResolving` | "Nothing on the stack" | | Announced when the player presses N to read the currently-resolving stack item and the stack is empty. Pick whatever your locale uses for the empty-stack case. |
 
 **London Mulligan:**
 

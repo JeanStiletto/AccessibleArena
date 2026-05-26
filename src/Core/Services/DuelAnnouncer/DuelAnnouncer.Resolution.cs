@@ -4,7 +4,10 @@ using AccessibleArena.Core.Models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
+using static AccessibleArena.Core.Utils.ReflectionUtils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -378,6 +381,199 @@ namespace AccessibleArena.Core.Services
         internal void ClearStackAnnouncements()
         {
             _announcedStackInstanceIds.Clear();
+        }
+
+        /// <summary>
+        /// Builds an on-demand announcement for what the game is currently asking the player
+        /// about — the trigger or spell whose prompt is on screen. The auto-fired stack
+        /// announcement runs once per stack update, so a workflow prompt that opens several
+        /// beats later (multi-trigger combos especially) has no spoken trace.
+        ///
+        /// Order of preference:
+        ///   1. <c>StackCardHolder.TargetingSourceId</c> — set by SelectTargetsWorkflow to the
+        ///      source ability's InstanceId. Critical for the multi-trigger ETB case (Bringer
+        ///      of the Last Gift returning a board): the player picks targets for each new
+        ///      trigger *before* it lands on the stack, so the trigger being prompted for is
+        ///      not yet the topmost stack item.
+        ///   2. The current workflow's <c>_request.SourceId</c> via reflection — covers the
+        ///      "you may discard a card", "select N cards", choice-modal, etc. workflows
+        ///      whose requests carry the source InstanceId but don't push it onto
+        ///      TargetingSourceId the way SelectTargetsWorkflow does.
+        ///   3. Top of stack — the next thing to resolve when no workflow is active.
+        ///   4. <see cref="Strings.Duel_NothingResolving"/> when nothing's around.
+        /// </summary>
+        public string DescribeStackTop()
+        {
+            uint sourceId = GetTargetingSourceId();
+            if (sourceId == 0)
+                sourceId = GetCurrentWorkflowSourceId();
+
+            if (sourceId != 0)
+            {
+                var sourceCard = FindCardObjectByInstanceId(sourceId);
+                if (sourceCard != null)
+                    return BuildCastAnnouncement(sourceCard);
+            }
+
+            var stackCards = GetAllStackCards();
+            if (stackCards.Count == 0)
+                return Strings.Duel_NothingResolving;
+            // Hierarchy order: index 0 is the bottom (oldest), last index is the top (next to
+            // resolve). Same end the AnnounceStackCardDelayed fallback path uses.
+            return BuildCastAnnouncement(stackCards[stackCards.Count - 1]);
+        }
+
+        /// <summary>
+        /// Pulls the source InstanceId off the current workflow's request. Most game
+        /// workflows derive from <c>SelectCardsWorkflow&lt;TRequest&gt;</c> or similar bases
+        /// with a private <c>_request</c> field. Three layers of probe in order:
+        ///   1. <c>_request.SourceId</c> — present on SelectTargetsRequest and others.
+        ///   2. <c>_request.Prompt.Parameters</c> walked for the first PromptParameter
+        ///      whose <c>Reference.Type</c> is <see cref="ReferenceType.InstanceId"/> —
+        ///      handles SearchFromGroups / SelectFromGroups workflows whose request type
+        ///      doesn't carry SourceId but does carry a GRE Prompt with a source reference.
+        /// Returns 0 when no usable source can be resolved.
+        /// </summary>
+        private uint GetCurrentWorkflowSourceId()
+        {
+            try
+            {
+                MonoBehaviour gm = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == T.GameManager)
+                    {
+                        gm = mb;
+                        break;
+                    }
+                }
+                if (gm == null) return 0;
+
+                var workflow = gm.GetType()
+                    .GetProperty("CurrentInteraction", AllInstanceFlags)
+                    ?.GetValue(gm);
+                if (workflow == null) return 0;
+
+                // _request lives on the generic SelectCardsWorkflow<TRequest> base; walk
+                // the inheritance chain so we don't depend on which concrete workflow type
+                // we're inspecting.
+                FieldInfo requestField = null;
+                for (var t = workflow.GetType(); t != null && requestField == null; t = t.BaseType)
+                    requestField = t.GetField("_request", AllInstanceFlags);
+                if (requestField == null) return 0;
+
+                var request = requestField.GetValue(workflow);
+                if (request == null) return 0;
+
+                // Layer 1: SourceId field/property directly on the request.
+                var sourceIdProp = request.GetType().GetProperty("SourceId", AllInstanceFlags);
+                if (sourceIdProp != null && sourceIdProp.PropertyType == typeof(uint)
+                    && sourceIdProp.GetValue(request) is uint u1 && u1 != 0)
+                    return u1;
+                var sourceIdField = request.GetType().GetField("SourceId", AllInstanceFlags);
+                if (sourceIdField != null && sourceIdField.FieldType == typeof(uint)
+                    && sourceIdField.GetValue(request) is uint u2 && u2 != 0)
+                    return u2;
+
+                // Layer 2: dig the GRE Prompt's parameters for an InstanceId reference.
+                uint promptSourceId = TryGetSourceFromPromptParameters(request);
+                if (promptSourceId != 0) return promptSourceId;
+            }
+            catch { /* Workflow / request layout varies per game version */ }
+            return 0;
+        }
+
+        /// <summary>
+        /// Walks <c>request.Prompt.Parameters</c> looking for the first PromptParameter that
+        /// carries a Reference of type InstanceId. The game's prompt subheaders are built
+        /// from these parameters (e.g. "{source} resolves..."), so the first card-instance
+        /// reference is reliably the prompt's source. Returns 0 if the request has no
+        /// Prompt or no instance-typed parameter.
+        /// </summary>
+        private uint TryGetSourceFromPromptParameters(object request)
+        {
+            try
+            {
+                var promptProp = request.GetType().GetProperty("Prompt", AllInstanceFlags);
+                var prompt = promptProp?.GetValue(request);
+                if (prompt == null) return 0;
+
+                var paramsProp = prompt.GetType().GetProperty("Parameters", AllInstanceFlags);
+                if (!(paramsProp?.GetValue(prompt) is IEnumerable promptParams)) return 0;
+
+                foreach (var param in promptParams)
+                {
+                    if (param == null) continue;
+                    var refProp = param.GetType().GetProperty("Reference", AllInstanceFlags);
+                    var reference = refProp?.GetValue(param);
+                    if (reference == null) continue;
+
+                    var typeProp = reference.GetType().GetProperty("Type", AllInstanceFlags);
+                    var typeVal = typeProp?.GetValue(reference);
+                    // ReferenceType.InstanceId == 1 in the GRE protobuf enum. Compare via
+                    // ToString() so we don't have to pin the enum type.
+                    if (typeVal == null || typeVal.ToString() != "InstanceId") continue;
+
+                    var idProp = reference.GetType().GetProperty("Id", AllInstanceFlags);
+                    if (idProp?.GetValue(reference) is uint id && id != 0)
+                        return id;
+                }
+            }
+            catch { /* Prompt parameter shape varies per workflow */ }
+            return 0;
+        }
+
+        /// <summary>
+        /// Reads <c>StackCardHolder.TargetingSourceId</c> via reflection. The game's
+        /// SelectTargetsWorkflow sets this to the InstanceId of the source card/ability when
+        /// a target-select prompt opens and clears it back to 0 on cleanup. Returns 0 when
+        /// no targeting workflow is active or the holder isn't reachable.
+        /// </summary>
+        private uint GetTargetingSourceId()
+        {
+            try
+            {
+                var holder = DuelHolderCache.GetHolder("StackCardHolder");
+                if (holder == null) return 0;
+                // Holder GameObject is named e.g. StackCardHolder_Desktop_16x9; the actual
+                // MonoBehaviour on it is StackCardHolder or StackCardHolder_Handheld. Both
+                // expose the TargetingSourceId property, so match on property presence
+                // rather than type name.
+                foreach (var comp in holder.GetComponents<MonoBehaviour>())
+                {
+                    if (comp == null) continue;
+                    var prop = comp.GetType().GetProperty("TargetingSourceId",
+                        BindingFlags.Public | BindingFlags.Instance);
+                    if (prop == null || prop.PropertyType != typeof(uint)) continue;
+                    var val = prop.GetValue(comp);
+                    if (val is uint u) return u;
+                }
+            }
+            catch { /* Holder layout varies across platforms / versions */ }
+            return 0;
+        }
+
+        /// <summary>
+        /// Locates the CDC GameObject for a given InstanceId by scanning the battlefield and
+        /// stack holders. Used to walk back from the targeting source's InstanceId (Terror of
+        /// the Peaks etc.) to the live card object so its name and rules text can be read.
+        /// </summary>
+        private GameObject FindCardObjectByInstanceId(uint instanceId)
+        {
+            if (instanceId == 0) return null;
+            string[] holders = { "BattlefieldCardHolder", "StackCardHolder" };
+            foreach (var holderName in holders)
+            {
+                var holder = DuelHolderCache.GetHolder(holderName);
+                if (holder == null) continue;
+                foreach (var child in holder.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child == null || !child.gameObject.activeInHierarchy) continue;
+                    if (CardStateProvider.GetCardInstanceId(child.gameObject) == instanceId)
+                        return child.gameObject;
+                }
+            }
+            return null;
         }
 
         /// <summary>
