@@ -182,6 +182,7 @@ J (Jump to attachment / target of focused card; repeated J cycles through multip
 M (Your Land Summary), Shift+M (Opponent Land Summary)
 D (Your Library), Shift+D (Opponent Library), Shift+C (Opponent Hand Count)
 O (Game Log - review recent duel announcements)
+N (Currently resolving - announces the top stack item with rules text; "Nothing on the stack" when empty)
 E (Your timer), Shift+E (Opponent timer)
 Player Info Zone: Left/Right (Switch player), Up/Down (Cycle properties), Enter (Emotes), Backspace (Exit)
 

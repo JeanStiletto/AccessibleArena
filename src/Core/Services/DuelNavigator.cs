@@ -623,6 +623,15 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // N key: announce what's currently resolving (top of stack). Useful during long
+            // combos where workflow prompts ("Submit 0", target select, "you may discard...")
+            // don't say which trigger or spell they belong to.
+            if (Input.GetKeyDown(KeyCode.N))
+            {
+                _announcer.AnnounceInterrupt(_duelAnnouncer.DescribeStackTop());
+                return true;
+            }
+
             // K key: Counter info on focused card
             if (Input.GetKeyDown(KeyCode.K))
             {
