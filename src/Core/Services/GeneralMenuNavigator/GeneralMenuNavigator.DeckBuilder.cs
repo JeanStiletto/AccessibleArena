@@ -1116,6 +1116,12 @@ namespace AccessibleArena.Core.Services
                     Log.Nav(NavigatorId, $"Shift+Enter: OpenCardViewer(MetaCardView,ICardRolloverZoom,int) not found");
                     return false;
                 }
+                // Block the upcoming Return KeyUp from reaching PopupManager.HandleKeyUp,
+                // which would call CardViewerController.OnEnter() → OnCraftClicked() and
+                // auto-spend wildcards. The plain-Enter / right-click paths already set
+                // this via CardTileActivator/UIActivator; this reflection-driven path
+                // bypasses both, so we set it here too.
+                InputManager.BlockNextEnterKeyUp = true;
                 openMethod.Invoke(actionsHandler, new object[] { metaCardView, zoomHandler, 1 });
                 _announcer.Announce(Models.Strings.ScreenCardViewer, Models.AnnouncementPriority.Normal);
                 return true;
