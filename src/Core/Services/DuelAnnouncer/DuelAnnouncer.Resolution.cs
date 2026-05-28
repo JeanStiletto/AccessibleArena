@@ -479,7 +479,13 @@ namespace AccessibleArena.Core.Services
                 uint promptSourceId = TryGetSourceFromPromptParameters(request);
                 if (promptSourceId != 0) return promptSourceId;
             }
-            catch { /* Workflow / request layout varies per game version */ }
+            catch (Exception ex)
+            {
+                // Workflow / request layout varies per game version. Log so a future
+                // game-update rename surfaces instead of silently degrading to the
+                // top-of-stack fallback.
+                Log.Warn("DuelAnnouncer", $"Workflow source probe failed: {ex.Message}");
+            }
             return 0;
         }
 
@@ -519,7 +525,10 @@ namespace AccessibleArena.Core.Services
                         return id;
                 }
             }
-            catch { /* Prompt parameter shape varies per workflow */ }
+            catch (Exception ex)
+            {
+                Log.Warn("DuelAnnouncer", $"Prompt parameter probe failed: {ex.Message}");
+            }
             return 0;
         }
 
@@ -549,7 +558,10 @@ namespace AccessibleArena.Core.Services
                     if (val is uint u) return u;
                 }
             }
-            catch { /* Holder layout varies across platforms / versions */ }
+            catch (Exception ex)
+            {
+                Log.Warn("DuelAnnouncer", $"TargetingSourceId probe failed: {ex.Message}");
+            }
             return 0;
         }
 
@@ -568,7 +580,11 @@ namespace AccessibleArena.Core.Services
                 if (holder == null) continue;
                 foreach (var child in holder.GetComponentsInChildren<Transform>(true))
                 {
+                    // Mirror GetAllStackCards: pre-filter by name so the reflection-heavy
+                    // GetCardInstanceId call only runs on actual CDC transforms, not on
+                    // every layout / glow / FX node under the holder.
                     if (child == null || !child.gameObject.activeInHierarchy) continue;
+                    if (!child.name.Contains("CDC #")) continue;
                     if (CardStateProvider.GetCardInstanceId(child.gameObject) == instanceId)
                         return child.gameObject;
                 }
