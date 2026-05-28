@@ -934,23 +934,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Returns true if the model's <c>CardTypes</c> enumerable contains the given type
-        /// name (exact match, e.g. "Land", "Creature"). Used to suppress the "Free" mana
-        /// cost block on lands, where the empty-cost parse is just noise before the
-        /// player's Arrow Down reaches type / rules text.
-        /// </summary>
-        private static bool CardTypesContain(object dataObj, Type objType, string typeName)
-        {
-            var cardTypes = GetModelPropertyValue(dataObj, objType, "CardTypes");
-            if (!(cardTypes is IEnumerable enumerable)) return false;
-            foreach (var ct in enumerable)
-            {
-                if (ct?.ToString() == typeName) return true;
-            }
-            return false;
-        }
-
-        /// <summary>
         /// Extracts rules text from a CardData's RulesTextOverride property.
         /// Used for modal spell mode cards where Abilities are cleared but RulesTextOverride
         /// contains the mode-specific ability text (AbilityTextOverride).
@@ -1433,16 +1416,10 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Lands have no casting cost, so the empty-cost path renders them as "Free" —
-                // useless noise that adds an Arrow Down press before the player reaches the
-                // actually relevant info. Suppress for lands specifically; Memnite-style
-                // printed-0 spells still announce "Free" because they CAN be cast.
-                if (info.ManaCost == Strings.ManaFree && CardTypesContain(dataObj, objType, "Land"))
-                    info.ManaCost = null;
-
                 // Type Line - try structured Supertypes + CardTypes + Subtypes first
                 var typeLineParts = new List<string>();
                 bool hasStructuredTypes = false;
+                bool isLandCard = false;
 
                 var supertypes = GetModelPropertyValue(dataObj, objType, "Supertypes");
                 if (supertypes is IEnumerable superEnum)
@@ -1473,10 +1450,18 @@ namespace AccessibleArena.Core.Services
                             {
                                 typeLineParts.Add(c);
                                 hasStructuredTypes = true;
+                                if (c == "Land") isLandCard = true;
                             }
                         }
                     }
                 }
+
+                // Lands have no casting cost, so the empty-cost path renders them as "Free" —
+                // useless noise that adds an Arrow Down press before the player reaches the
+                // type / rules text. Memnite-style printed-0 spells still announce "Free"
+                // because they CAN be cast.
+                if (isLandCard && info.ManaCost == Strings.ManaFree)
+                    info.ManaCost = null;
 
                 var subtypeList = new List<string>();
                 var subtypes = GetModelPropertyValue(dataObj, objType, "Subtypes");
