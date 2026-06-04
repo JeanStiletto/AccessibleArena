@@ -704,6 +704,7 @@
   "ScreenDraftPopup": "Драфт, всплывающее окно",
   "DraftPickedCount_One": "1 выбрано",
   "DraftPickedCount_Format": "{0} выбрано",
+  "DraftWaitingForPlayers": "Ожидание других игроков...",
   "UpDownForMore_Format": "Вверх и Вниз для {0} элементов",
   "ScreenFriends": "Друзья",
   "ScreenHomeWithEvents": "Главная с событиями",

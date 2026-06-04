@@ -704,6 +704,7 @@
   "ScreenDraftPopup": "ドラフト、ポップアップ",
   "DraftPickedCount_One": "1枚ピック済み",
   "DraftPickedCount_Format": "{0}枚ピック済み",
+  "DraftWaitingForPlayers": "他のプレイヤーを待っています...",
   "UpDownForMore_Format": "上下キーで{0}個の項目を表示",
   "ScreenFriends": "フレンド",
   "ScreenHomeWithEvents": "ホーム（イベント付き）",

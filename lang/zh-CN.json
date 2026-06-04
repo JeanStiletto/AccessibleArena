@@ -704,6 +704,7 @@
   "ScreenDraftPopup": "轮抽，弹出窗口",
   "DraftPickedCount_One": "已选1张",
   "DraftPickedCount_Format": "已选{0}张",
+  "DraftWaitingForPlayers": "正在等待其他玩家...",
   "UpDownForMore_Format": "上下键浏览{0}个项目",
   "ScreenFriends": "好友",
   "ScreenHomeWithEvents": "主页（含赛事）",

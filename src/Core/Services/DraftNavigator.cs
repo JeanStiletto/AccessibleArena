@@ -820,9 +820,37 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Deactivation check: if 0 cards and no popup for extended time, re-check screen
+            // 0 cards, no popup: our pack was submitted and we're waiting for the next pack
+            // (other players still picking). Announce the wait once, poll for the new pack so
+            // we auto-advance without a manual rescan, and deactivate only if the screen is gone.
             if (_isActive && !IsInPopupMode && _initialRescanDone && !_rescanPending && _totalCards == 0)
             {
+                // Announce the waiting state once so the screen isn't silent / repeating the confirm button.
+                // Gate on DetectScreen so we don't announce "waiting" when the draft has actually ended.
+                if (!_announcedWaiting)
+                {
+                    _announcedWaiting = true;
+                    if (DetectScreen())
+                        _announcer?.Announce(Strings.DraftWaitingForPlayers, AnnouncementPriority.Normal);
+                }
+
+                // Poll for the next pack arriving. Require two consecutive polls with the same
+                // non-zero count so we don't rescan mid-instantiation and announce a partial pack.
+                _nextPackPollCounter++;
+                if (_nextPackPollCounter >= NextPackPollFrames)
+                {
+                    _nextPackPollCounter = 0;
+                    int peek = PeekCardCount();
+                    if (peek > 0 && peek == _lastNonZeroPeek)
+                    {
+                        Log.Msg("{NavigatorId}", $"Next pack arrived during wait ({peek} cards), rescanning");
+                        _announcedWaiting = false;
+                        ForceRescan(); // announces "Draft Pick. N cards."
+                    }
+                    _lastNonZeroPeek = peek;
+                }
+
+                // Deactivation check: if still empty after extended time and the screen is gone, deactivate.
                 _emptyCardCounter++;
                 if (_emptyCardCounter >= EmptyCardDeactivateFrames)
                 {
@@ -838,6 +866,9 @@ namespace AccessibleArena.Core.Services
             else
             {
                 _emptyCardCounter = 0;
+                _nextPackPollCounter = 0;
+                _lastNonZeroPeek = 0;
+                _announcedWaiting = false;
             }
 
             // Check for close after back button
@@ -972,6 +1003,14 @@ namespace AccessibleArena.Core.Services
         private int _emptyCardCounter; // Frames with 0 cards and no popup
         private const int EmptyCardDeactivateFrames = 300; // ~5 seconds at 60fps
 
+        // Waiting-for-next-pack polling: when our pack is submitted the cards disappear
+        // (0 cards) until other players finish picking and the next pack is passed to us.
+        // The game fires no panel event for this, so poll for the new pack ourselves.
+        private int _nextPackPollCounter;
+        private int _lastNonZeroPeek; // Last peeked card count (used to confirm the pack is fully loaded)
+        private bool _announcedWaiting; // True once the "waiting for other players" message was announced for this empty state
+        private const int NextPackPollFrames = 30; // ~0.5 seconds at 60fps
+
         protected override void OnActivated()
         {
             base.OnActivated();
@@ -984,6 +1023,9 @@ namespace AccessibleArena.Core.Services
             _closeTriggered = false;
             _closeRescanCounter = 0;
             _emptyCardCounter = 0;
+            _nextPackPollCounter = 0;
+            _lastNonZeroPeek = 0;
+            _announcedWaiting = false;
             EnablePopupDetection();
         }
 

@@ -147,6 +147,14 @@ namespace AccessibleArena.Core.Services
         private float _npeButtonCheckTimer;
         private int _lastNPEButtonCount;
 
+        // Table draft queue: the game swaps the "Cancel" button for a "Ready" button (and back)
+        // in place without firing a panel event, so poll the active button signature while the
+        // queue panel is open and rescan when it changes.
+        private const float DraftQueueButtonCheckInterval = 0.5f;
+        private float _draftQueueButtonCheckTimer;
+        private string _lastDraftQueueButtonSig;
+        private bool _draftQueueWasActive;
+
         // Overlay state tracking - detect when overlays open/close to trigger rescans
         private ElementGroup? _lastKnownOverlay;
 
@@ -559,6 +567,10 @@ namespace AccessibleArena.Core.Services
             _npeButtonCheckTimer = NPEButtonCheckInterval;
             _lastNPEButtonCount = 0;
 
+            // Reset table draft queue button tracking for new scene
+            _draftQueueWasActive = false;
+            _lastDraftQueueButtonSig = null;
+
             _screenDetector.Reset();
 
             // Full reset PanelStateManager for scene change
@@ -825,6 +837,9 @@ namespace AccessibleArena.Core.Services
                     CheckForNewNPEButtons();
                 }
             }
+
+            // Table draft queue: poll for the Cancel -> Ready button swap (no panel event fires).
+            CheckForDraftQueueButtonChanges();
 
             // Overlay state change detection - trigger rescan when overlays open/close
             // This ensures navigation is refreshed when e.g. rewards popup closes
@@ -1469,6 +1484,62 @@ namespace AccessibleArena.Core.Services
                 _lastNPEButtonCount = currentCount;
                 TriggerRescan();
             }
+        }
+
+        /// <summary>
+        /// While the table draft queue ("Ready up") panel is open, the game swaps the "Cancel"
+        /// button for a "Ready" button (and back) in place without firing a panel open/close
+        /// event, so the navigator never rescans and the Ready button stays unreachable until a
+        /// manual rescan is forced. Poll the active button signature while only that panel is open
+        /// and trigger a rescan whenever it changes. Scoped strictly to that panel to avoid
+        /// affecting any other menu.
+        /// </summary>
+        private void CheckForDraftQueueButtonChanges()
+        {
+            bool queueActive = PanelStateManager.Instance?.IsPanelActive("TableDraftQueueContentController") == true;
+            if (!queueActive)
+            {
+                _draftQueueWasActive = false;
+                return;
+            }
+
+            // Don't poll while a rescan is already pending.
+            if (_rescanDelay > 0) return;
+
+            // First poll after the panel opened: capture the baseline signature without rescanning
+            // (the panel-open event already triggered the initial scan).
+            if (!_draftQueueWasActive)
+            {
+                _draftQueueWasActive = true;
+                _draftQueueButtonCheckTimer = DraftQueueButtonCheckInterval;
+                _lastDraftQueueButtonSig = GetActiveButtonSignature();
+                return;
+            }
+
+            _draftQueueButtonCheckTimer -= Time.deltaTime;
+            if (_draftQueueButtonCheckTimer > 0) return;
+            _draftQueueButtonCheckTimer = DraftQueueButtonCheckInterval;
+
+            string sig = GetActiveButtonSignature();
+            if (sig != _lastDraftQueueButtonSig)
+            {
+                Log.Nav(NavigatorId, $"Draft queue buttons changed, triggering rescan");
+                _lastDraftQueueButtonSig = sig;
+                TriggerRescan();
+            }
+        }
+
+        /// <summary>
+        /// Build an order-independent signature of the currently active CustomButton GameObjects,
+        /// used to detect in-place button swaps that fire no panel event.
+        /// </summary>
+        private string GetActiveButtonSignature()
+        {
+            var names = new List<string>();
+            foreach (var btn in GetActiveCustomButtons())
+                names.Add(btn.name);
+            names.Sort(StringComparer.Ordinal);
+            return string.Join("|", names);
         }
 
         /// <summary>

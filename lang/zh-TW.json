@@ -704,6 +704,7 @@
   "ScreenDraftPopup": "輪抽，彈出視窗",
   "DraftPickedCount_One": "已選1張",
   "DraftPickedCount_Format": "已選{0}張",
+  "DraftWaitingForPlayers": "正在等待其他玩家...",
   "UpDownForMore_Format": "上下鍵瀏覽{0}個項目",
   "ScreenFriends": "好友",
   "ScreenHomeWithEvents": "首頁（含賽事）",

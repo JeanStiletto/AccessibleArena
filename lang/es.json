@@ -704,6 +704,7 @@
   "ScreenDraftPopup": "Draft, Ventana",
   "DraftPickedCount_One": "1 elegido",
   "DraftPickedCount_Format": "{0} elegidos",
+  "DraftWaitingForPlayers": "Esperando a otros jugadores...",
   "UpDownForMore_Format": "Arriba y Abajo para {0} elementos",
   "ScreenFriends": "Amigos",
   "ScreenHomeWithEvents": "Inicio con eventos",
