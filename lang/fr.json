@@ -542,6 +542,8 @@
   "WebBrowser_Editing_Format": "Édition de {0}, {1}. Tapez pour saisir du texte, Échap pour quitter.",
   "WebBrowser_CaptchaWarning": "Vérification de sécurité détectée. Il s'agit d'un CAPTCHA visuel qui ne peut pas être résolu sans la vue. Une personne voyante pourra peut-être le cliquer pour vous. Pour de meilleurs résultats, exécutez le désinstalleur du mod avant de réessayer le paiement — cela réduit le risque d'être signalé par PayPal. Si le CAPTCHA ne fonctionne toujours pas, vous devrez choisir un autre moyen de paiement. Appuyez sur Retour arrière pour revenir.",
   "WebBrowser_LoginFailed": "Échec de la connexion. Veuillez saisir à nouveau votre mot de passe et réessayer.",
+  "WebBrowser_ThreeDSecureGuidance": "Vérification bancaire. Ce contrôle de sécurité s'exécute à l'intérieur du prestataire de paiement et le mod ne peut pas le lire. Le mode clavier direct est maintenant activé, ce que vous tapez va directement à la page. Utilisez la reconnaissance d'écran de NVDA, NVDA plus R, pour lire l'écran et cliquer sur un champ, puis saisissez le code PIN et la réponse. Appuyez sur Échap pour quitter le mode clavier direct.",
+  "WebBrowser_RawInputExited": "Mode clavier direct désactivé.",
   "WebBrowser_PasswordStar": "étoile",
   "WebBrowser_SpaceChar": "espace",
   "CouldNotMove_Format": "Impossible de déplacer {0}",

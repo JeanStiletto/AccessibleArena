@@ -542,6 +542,8 @@
   "WebBrowser_Editing_Format": "{0} 편집 중, {1}. 텍스트를 입력하세요, Escape로 나가기.",
   "WebBrowser_CaptchaWarning": "보안 인증이 감지되었습니다. 이것은 시각적 CAPTCHA로 시력 없이는 해결할 수 없습니다. 시력이 있는 분이 대신 클릭해 줄 수 있습니다. 최상의 결과를 위해 결제를 다시 시도하기 전에 모드 제거 프로그램을 실행하세요 — 이는 PayPal에 의해 플래그가 지정될 가능성을 줄입니다. CAPTCHA가 여전히 작동하지 않으면 다른 결제 방법을 선택해야 합니다. Backspace를 눌러 돌아가세요.",
   "WebBrowser_LoginFailed": "로그인에 실패했습니다. 비밀번호를 다시 입력하고 다시 시도하세요.",
+  "WebBrowser_ThreeDSecureGuidance": "은행 인증입니다. 이 보안 확인은 결제 제공업체 내부에서 실행되며 모드가 읽을 수 없습니다. 직접 키보드 모드가 켜져 입력이 페이지로 바로 전달됩니다. NVDA 화면 인식, NVDA 플러스 R로 화면을 읽고 필드를 클릭한 다음 PIN과 답변을 입력하세요. Escape 키를 눌러 직접 키보드 모드를 종료합니다.",
+  "WebBrowser_RawInputExited": "직접 키보드 모드 꺼짐.",
   "WebBrowser_PasswordStar": "별표",
   "WebBrowser_SpaceChar": "공백",
   "CouldNotMove_Format": "{0}을(를) 이동할 수 없습니다",

@@ -542,6 +542,8 @@
   "WebBrowser_Editing_Format": "Editando {0}, {1}. Escriba texto, Escape para salir.",
   "WebBrowser_CaptchaWarning": "Verificación de seguridad detectada. Es un CAPTCHA visual que no se puede resolver sin vista. Una persona vidente podría hacer clic por usted. Para mejores resultados, ejecute el desinstalador del mod antes de reintentar el pago — esto reduce la probabilidad de ser marcado por PayPal. Si el CAPTCHA sigue sin funcionar, tendrá que elegir otro método de pago. Pulse Retroceso para volver.",
   "WebBrowser_LoginFailed": "Inicio de sesión fallido. Por favor, vuelva a introducir su contraseña e inténtelo de nuevo.",
+  "WebBrowser_ThreeDSecureGuidance": "Verificación bancaria. Esta comprobación de seguridad se ejecuta dentro del proveedor de pago y el mod no puede leerla. El modo de teclado directo está activado, así que lo que escriba va directo a la página. Use el reconocimiento de pantalla de NVDA, NVDA más R, para leer la pantalla y hacer clic en un campo, y luego escriba el PIN y la respuesta. Pulse Escape para salir del modo de teclado directo.",
+  "WebBrowser_RawInputExited": "Modo de teclado directo desactivado.",
   "WebBrowser_PasswordStar": "estrella",
   "WebBrowser_SpaceChar": "espacio",
   "CouldNotMove_Format": "No se pudo mover {0}",

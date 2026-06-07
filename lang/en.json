@@ -544,6 +544,8 @@
   "WebBrowser_Editing_Format": "Editing {0}, {1}. Type to enter text, Escape to exit.",
   "WebBrowser_CaptchaWarning": "Security verification detected. This is a visual CAPTCHA that cannot be solved without sight. A sighted helper may be able to click it for you. For best results, run the mod uninstaller before retrying payment — this reduces the chance of being flagged by PayPal. If the CAPTCHA still does not work, you will need to choose a different payment method. Press Backspace to go back.",
   "WebBrowser_LoginFailed": "Login failed. Please re-enter your password and try again.",
+  "WebBrowser_ThreeDSecureGuidance": "Bank verification. This security check runs inside the payment provider and the mod cannot read it. Direct keyboard mode is now on, so your typing goes straight to the page. Use NVDA screen recognition, NVDA plus R, to read the screen and click a field, then type the PIN and answer. Press Escape to leave direct keyboard mode.",
+  "WebBrowser_RawInputExited": "Direct keyboard mode off.",
   "WebBrowser_PasswordStar": "star",
   "WebBrowser_SpaceChar": "space",
   "CouldNotMove_Format": "Could not move {0}",

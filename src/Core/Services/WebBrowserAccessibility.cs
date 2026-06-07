@@ -67,8 +67,17 @@ namespace AccessibleArena.Core.Services
         // CAPTCHA / security check detection
         private int _emptyRescanCount;
         private bool _captchaDetected;
+        private string _captchaUrl; // url that tripped _captchaDetected; lets reloads of the
+                                    // same captcha be swallowed while a navigation to any
+                                    // other url re-evaluates the page (so a 3DS form that
+                                    // loads after a captcha/redirect still gets read)
         private bool _captchaCheckCompleted; // one-shot guard, reset on URL change
         private bool _emptyLoadingAnnounced;  // suppress repeated "loading…" announcements on the same page
+        private bool _threeDSecureGuidanceAnnounced; // suppress repeated 3-D Secure guidance on the same page
+        private bool _rawPassthroughActive;   // auto-engaged on unreadable cross-origin bank pages:
+                                              // forwards ALL keystrokes to CEF's focused frame so the
+                                              // user can type into the cross-origin form after focusing
+                                              // a field with NVDA screen recognition. Escape exits.
         private const int MaxEmptyRescansBeforeCheck = 3; // ~4.5 seconds of empty rescans
 
         // Click cooldown — prevents double-activation of payment buttons
@@ -132,8 +141,11 @@ namespace AccessibleArena.Core.Services
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
             _captchaDetected = false;
+            _captchaUrl = null;
             _captchaCheckCompleted = false;
             _emptyLoadingAnnounced = false;
+            _threeDSecureGuidanceAnnounced = false;
+            _rawPassthroughActive = false;
             _clickCooldownUntil = 0;
             _mutationObserverActive = false;
             _mutationPollTimer = 0;
@@ -210,8 +222,11 @@ namespace AccessibleArena.Core.Services
             _secondRescanTimer = 0;
             _emptyRescanCount = 0;
             _captchaDetected = false;
+            _captchaUrl = null;
             _captchaCheckCompleted = false;
             _emptyLoadingAnnounced = false;
+            _threeDSecureGuidanceAnnounced = false;
+            _rawPassthroughActive = false;
             _clickCooldownUntil = 0;
             _mutationObserverActive = false;
             _mutationPollTimer = 0;
@@ -308,6 +323,16 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return;
 
+            // Raw passthrough (auto-engaged on unreadable cross-origin bank challenges):
+            // the page lives in a frame we cannot read, so we forward EVERYTHING to CEF's
+            // focused frame and only intercept Escape (to leave the mode). Takes precedence
+            // over the loading/cooldown gates below so typing is never swallowed.
+            if (_rawPassthroughActive)
+            {
+                HandleRawPassthroughInput();
+                return;
+            }
+
             // While loading, block input
             if (_isLoading)
             {
@@ -365,6 +390,68 @@ namespace AccessibleArena.Core.Services
         private void StartClickCooldown(float seconds)
         {
             _clickCooldownUntil = Time.realtimeSinceStartup + seconds;
+        }
+
+        /// <summary>
+        /// Raw-passthrough input handler. The page content is in a frame the mod cannot
+        /// read (e.g. a checkout.com 3-D Secure challenge in a cross-origin iframe), so
+        /// every key except Escape is left UNconsumed and flows Unity OnGUI → PointerUIGUI
+        /// → CEF, reaching whatever frame the user focused with NVDA screen recognition.
+        /// Escape leaves the mode and returns to normal (empty) navigation on the same page.
+        /// </summary>
+        private void HandleRawPassthroughInput()
+        {
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                InputManager.ConsumeKey(KeyCode.Escape);
+                ExitRawPassthrough(announce: true);
+                return;
+            }
+            // Everything else (digits, letters, Backspace, Tab, Enter, arrows) is deliberately
+            // NOT consumed so CEF's focused frame receives native, trusted key events.
+        }
+
+        /// <summary>
+        /// Engage raw passthrough: select the browser GameObject so Unity forwards physical
+        /// keystrokes to CEF (same mechanism as password passthrough), and stop the rescan
+        /// churn (the cross-origin page will never become JS-readable; recovery happens via
+        /// a real top-level navigation in OnPageLoad, or a same-origin DOM change picked up
+        /// by the MutationObserver). Idempotent.
+        /// </summary>
+        private void EngageRawPassthrough()
+        {
+            if (_rawPassthroughActive) return;
+            _rawPassthroughActive = true;
+            _isEditingField = false;
+            _passthroughMode = false;
+            _pendingRescan = false;   // stop the 4s empty-rescan loop while raw mode is active
+            if (_browserInputForwarder != null)
+            {
+                _browserInputForwarder.enableInput = true;
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                if (es != null)
+                    es.SetSelectedGameObject(_browserInputForwarder.gameObject);
+            }
+            Log.Msg("WebBrowser", "Raw passthrough engaged (unreadable cross-origin bank challenge)");
+        }
+
+        /// <summary>
+        /// Leave raw passthrough and deselect the browser so normal navigation resumes.
+        /// </summary>
+        private void ExitRawPassthrough(bool announce)
+        {
+            if (!_rawPassthroughActive) return;
+            _rawPassthroughActive = false;
+            if (_browserInputForwarder != null)
+            {
+                _browserInputForwarder.enableInput = true;
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                if (es != null && es.currentSelectedGameObject == _browserInputForwarder.gameObject)
+                    es.SetSelectedGameObject(null);
+            }
+            Log.Msg("WebBrowser", "Raw passthrough exited");
+            if (announce)
+                _announcer.AnnounceInterrupt(Strings.WebBrowser_RawInputExited);
         }
 
         #endregion
@@ -745,6 +832,7 @@ namespace AccessibleArena.Core.Services
             _isEditingField = false;
             _useNativeInput = false;
             _passthroughMode = false;
+            _rawPassthroughActive = false; // a real navigation left the cross-origin page
             if (_browserInputForwarder != null)
             {
                 _browserInputForwarder.enableInput = true;
@@ -1009,6 +1097,18 @@ namespace AccessibleArena.Core.Services
 
             Log.Msg("WebBrowser", $"Extracted {_elements.Count} elements ({webElementCount} from page, interactive={foundInteractive})");
 
+            // Raw passthrough is engaged on an unreadable cross-origin bank page. If a
+            // readable (same-origin) form has since appeared, leave raw mode and fall
+            // through to normal navigation. If the page is still unreadable, stay in raw
+            // mode and do NOT restart the rescan churn / loading announcements.
+            if (_rawPassthroughActive)
+            {
+                if (webElementCount > 0)
+                    ExitRawPassthrough(announce: false);
+                else
+                    return;
+            }
+
             // Layer 1: No web elements at all — iframes may still be loading
             if (webElementCount == 0 && !_pendingRescan)
             {
@@ -1191,24 +1291,36 @@ namespace AccessibleArena.Core.Services
 
             if (!_isActive) return;
 
-            // If CAPTCHA was already detected, swallow further page loads silently.
-            // PayPal's failed-login flow keeps reloading the same captcha URL ~1×/sec;
-            // without this short-circuit the warning would spam on every reload.
+            string url = _browser?.Url ?? "";
+
+            // A previously-detected CAPTCHA is only "still here" if the SAME url is
+            // reloading (PayPal's failed-login flow reloads the captcha URL ~1×/sec —
+            // swallow those so the warning doesn't spam). Any navigation to a different
+            // URL means we're on a new page that must be re-evaluated from scratch —
+            // critically, this lets a readable 3-D Secure form that loads after a real
+            // captcha (or after a credorax "/challenge" redirect) get read instead of
+            // being permanently suppressed by a sticky flag.
             if (_captchaDetected)
             {
-                Log.Msg("WebBrowser", "CAPTCHA already detected, ignoring redirect page load");
-                return;
+                if (string.Equals(url, _captchaUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Msg("WebBrowser", "CAPTCHA url reloaded, ignoring redirect page load");
+                    return;
+                }
+                Log.Msg("WebBrowser", "New URL after CAPTCHA — re-evaluating page");
+                _captchaDetected = false;
+                _captchaUrl = null;
             }
 
             // Check for CAPTCHA / auth-failure URL patterns BEFORE resetting state.
             // PayPal does rapid redirect chains (login → CAPTCHA → back to login) that
             // complete in ~3 seconds. The old approach of waiting for 3 empty rescans
             // (~4.5s) never triggered because each OnPageLoad reset the counter.
-            string url = _browser?.Url ?? "";
-            if (IsCaptchaUrl(url))
+            if (WebBrowserSecurity.IsCaptchaUrl(url))
             {
                 Log.Msg("WebBrowser", "CAPTCHA/security URL detected on page load, announcing warning");
                 _captchaDetected = true;
+                _captchaUrl = url;
                 _pendingRescan = false;
                 _secondRescanTimer = 0;
                 _mutationObserverActive = false;
@@ -1218,7 +1330,7 @@ namespace AccessibleArena.Core.Services
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
                 return;
             }
-            if (IsLoginFailureUrl(url))
+            if (WebBrowserSecurity.IsLoginFailureUrl(url))
             {
                 // Soft login failure: PayPal re-prompts for credentials on the same
                 // login page rather than showing a visual CAPTCHA. Announce a retry
@@ -1234,6 +1346,7 @@ namespace AccessibleArena.Core.Services
             _emptyRescanCount = 0;
             _captchaCheckCompleted = false;  // new page → re-allow one CAPTCHA probe
             _emptyLoadingAnnounced = false;  // new page → allow one "loading…" announcement
+            _threeDSecureGuidanceAnnounced = false; // new page → allow one 3-D Secure guidance announcement
             _clickCooldownUntil = 0; // New page = new buttons, clear cooldown
             _mutationObserverActive = false; // Will be re-installed after extraction
             _hasInteractiveElements = false;
@@ -1471,7 +1584,7 @@ namespace AccessibleArena.Core.Services
             // Scoped strictly to PayPal login URLs so card-entry forms on Xsolla and other
             // checkout pages keep the JS path with per-character echo.
             bool isPasswordField = elem.InputType == "password";
-            bool isPayPalLoginText = IsPayPalLoginPage(_browser?.Url)
+            bool isPayPalLoginText = WebBrowserSecurity.IsPayPalLoginPage(_browser?.Url)
                 && (elem.InputType == "email" || elem.InputType == "text" || elem.InputType == "tel");
             _passthroughMode = isPasswordField || isPayPalLoginText;
 
@@ -1537,73 +1650,21 @@ namespace AccessibleArena.Core.Services
 
         #region CAPTCHA Detection
 
-        /// <summary>
-        /// Quick URL-based check for CAPTCHA / security verification pages.
-        /// Called on every page load for immediate detection.
-        /// </summary>
-        private static bool IsCaptchaUrl(string url)
-        {
-            if (string.IsNullOrEmpty(url)) return false;
-            string lower = url.ToLowerInvariant();
-
-            // Generic CAPTCHA / challenge page patterns (single keyword is too broad,
-            // but these specific paths are reliable indicators)
-            if (lower.Contains("/challenge") || lower.Contains("/captcha"))
-                return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// URL patterns PayPal uses when credentials were rejected but the user is
-        /// being bounced back to the login page to retry (not a visual CAPTCHA).
-        /// These used to be treated as hard CAPTCHA but that produced a false warning
-        /// — the user saw another login page, not a challenge.
-        /// </summary>
-        private static bool IsLoginFailureUrl(string url)
-        {
-            if (string.IsNullOrEmpty(url)) return false;
-            string lower = url.ToLowerInvariant();
-
-            // PayPal: Base64 "adsddcaptcha" param added to failed login redirects
-            // e.g. &YWRzZGRjYXB0Y2hh=1
-            if (lower.Contains("ywrzzgrjyxb0y2hh"))
-                return true;
-
-            // PayPal: step-up auth flow combined with login failure
-            // e.g. /signin/return?flowFrom=anw-stepup&...&failedBecause=invalid_input
-            if (lower.Contains("stepup") && lower.Contains("failedbecause"))
-                return true;
-
-            return false;
-        }
-
-        // PayPal login-form hosts where the email field is a React-controlled input.
-        // Typing via execCommand('insertText') updates the DOM but PayPal's React state
-        // stays empty → server rejects with failedBecause=invalid_input + adsddcaptcha
-        // regardless of the password. On these URLs the email field must take the same
-        // passthrough path as the password field. Scoped narrowly so unrelated paypal.com
-        // pages (and other checkout hosts like Xsolla card forms) keep the JS input path.
-        private static bool IsPayPalLoginPage(string url)
-        {
-            if (string.IsNullOrEmpty(url)) return false;
-            string lower = url.ToLowerInvariant();
-            if (!lower.Contains("paypal.com")) return false;
-            return lower.Contains("/signin")
-                || lower.Contains("/agreements/approve")
-                || lower.Contains("/webapps/hermes")
-                || lower.Contains("/checkoutweb");
-        }
+        // Pure URL / iframe classification lives in WebBrowserSecurity (unit-tested).
+        // IsCaptchaUrl, IsLoginFailureUrl, IsPayPalLoginPage and
+        // ContainsUserFacingCaptchaVendor moved there.
 
         private void CheckForCaptcha()
         {
             Log.Msg("WebBrowser", "Checking for CAPTCHA / security verification...");
 
-            // Check the URL for known security step-up patterns
+            // Only a URL pointing at a known visual-CAPTCHA vendor is suspicious on its
+            // own. The previous generic "authflow"/"challenge"/"stepup" matches were
+            // dropped: they falsely flagged 3-D Secure bank challenge pages (which are
+            // readable PIN/passphrase forms). The iframe-vendor probe below is the
+            // primary, reliable signal for an actual visual CAPTCHA.
             string url = _browser?.Url?.ToLowerInvariant() ?? "";
-            bool urlSuspicious = IsCaptchaUrl(url) ||
-                                 url.Contains("authflow") || url.Contains("challenge") ||
-                                 url.Contains("stepup");
+            bool urlSuspicious = WebBrowserSecurity.IsCaptchaUrl(url);
 
             // Inspect iframe sources for known user-facing CAPTCHA vendors only.
             // Bare "cross-origin iframe present" was too broad: PayPal silently embeds
@@ -1613,7 +1674,7 @@ namespace AccessibleArena.Core.Services
                 .Then(result =>
                 {
                     string json = (string)result ?? "";
-                    bool hasUserFacingCaptchaIframe = ContainsUserFacingCaptchaVendor(json);
+                    bool hasUserFacingCaptchaIframe = WebBrowserSecurity.ContainsUserFacingCaptchaVendor(json);
 
                     Log.Msg("WebBrowser", $"CAPTCHA check: urlSuspicious={urlSuspicious}, vendorIframe={hasUserFacingCaptchaIframe}, details={json}");
 
@@ -1621,8 +1682,31 @@ namespace AccessibleArena.Core.Services
                     if (urlSuspicious || hasUserFacingCaptchaIframe)
                     {
                         _captchaDetected = true;
+                        _captchaUrl = _browser?.Url;
                         Log.Msg("WebBrowser", "CAPTCHA detected! Stopping rescan loop.");
                         _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
+                    }
+                    else if (WebBrowserSecurity.IsEmbeddedBankChallenge(json))
+                    {
+                        // The page has no readable elements and its content lives in a
+                        // cross-origin iframe that is NOT a visual-CAPTCHA vendor — this
+                        // is an embedded bank / 3-D Secure challenge (e.g. checkout.com
+                        // "confirm on smartphone"). The mod cannot read inside that frame
+                        // (ZFBrowser only evals JS in the main frame, and the Same-Origin
+                        // Policy blocks reading a cross-origin child). Instead of looping
+                        // on a silent "loading…", give the user actionable guidance once.
+                        Log.Msg("WebBrowser", "Embedded bank / 3-D Secure challenge in cross-origin iframe — announcing guidance, engaging raw passthrough");
+                        // Auto-engage raw passthrough so the user can type into the
+                        // cross-origin form after focusing a field with NVDA screen
+                        // recognition. EngageRawPassthrough stops the rescan loop; a real
+                        // top-level navigation (OnPageLoad) or a same-origin DOM change
+                        // (MutationObserver → readable elements) disengages it again.
+                        EngageRawPassthrough();
+                        if (!_threeDSecureGuidanceAnnounced)
+                        {
+                            _announcer.AnnounceInterrupt(Strings.WebBrowser_ThreeDSecureGuidance);
+                            _threeDSecureGuidanceAnnounced = true;
+                        }
                     }
                     else
                     {
@@ -1645,6 +1729,7 @@ namespace AccessibleArena.Core.Services
                     if (urlSuspicious)
                     {
                         _captchaDetected = true;
+                        _captchaUrl = _browser?.Url;
                         _announcer.AnnounceInterrupt(Strings.WebBrowser_CaptchaWarning);
                     }
                     else
@@ -1657,35 +1742,6 @@ namespace AccessibleArena.Core.Services
                         }
                     }
                 });
-        }
-
-        // Hostnames/path tokens for CAPTCHA iframes.
-        // This check only runs once per page from CheckForCaptcha(), which is gated on
-        // "no extractable elements after ~4.5s of rescans". That gate means the iframe
-        // in question IS the page content, so a matching token indicates a user-facing
-        // blocker — not a silent background script. Keeps third-party vendors AND
-        // PayPal's ddc/captcha endpoint (served directly when PayPal flags the session;
-        // verified via user OCR showing "confirm you're human" on /agreements/approve).
-        private static readonly string[] UserFacingCaptchaTokens =
-        {
-            "recaptcha",       // google reCAPTCHA (recaptcha.net, google.com/recaptcha, gstatic.com/recaptcha)
-            "hcaptcha",        // hCaptcha (hcaptcha.com, newassets.hcaptcha.com)
-            "arkoselabs",      // Arkose Labs / FunCaptcha
-            "funcaptcha",
-            "challenges.cloudflare.com",  // Cloudflare Turnstile / challenge platform
-            "turnstile",
-            "ddc.paypal.com/captcha",     // PayPal's device-data-collection captcha (blocker variant)
-        };
-
-        private static bool ContainsUserFacingCaptchaVendor(string iframeJson)
-        {
-            if (string.IsNullOrEmpty(iframeJson)) return false;
-            string lower = iframeJson.ToLowerInvariant();
-            foreach (var token in UserFacingCaptchaTokens)
-            {
-                if (lower.Contains(token)) return true;
-            }
-            return false;
         }
 
         #endregion
