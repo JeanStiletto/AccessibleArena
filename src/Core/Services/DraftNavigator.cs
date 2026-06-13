@@ -51,6 +51,11 @@ namespace AccessibleArena.Core.Services
             public PropertyInfo CurrentCard;
             public PropertyInfo MetaCardViewCard;
             public PropertyInfo CardDataGrpId;
+            // Pick timer (human draft only) — read off the controller's DraftPod (IDraftPod)
+            public PropertyInfo DraftPodProp;       // DraftContentController.DraftPod
+            public PropertyInfo PodDraftMode;       // IDraftPod.DraftMode (DraftModes enum)
+            public PropertyInfo PodPickRemaining;   // IDraftPod.PickSecondsRemaining (live)
+            public PropertyInfo PodPickTotal;       // IDraftPod.PickSecondsTotal
         }
 
         private static readonly ReflectionCache<DraftHandles> _draftCache = new ReflectionCache<DraftHandles>(
@@ -60,7 +65,18 @@ namespace AccessibleArena.Core.Services
 
                 var controllerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftContentController");
                 if (controllerType != null)
+                {
                     h.DraftDeckManager = controllerType.GetField("_draftDeckManager", PrivateInstance);
+                    h.DraftPodProp = controllerType.GetProperty("DraftPod", PublicInstance);
+                }
+
+                var podType = FindType("Wotc.Mtga.Wrapper.Draft.IDraftPod");
+                if (podType != null)
+                {
+                    h.PodDraftMode = podType.GetProperty("DraftMode", PublicInstance);
+                    h.PodPickRemaining = podType.GetProperty("PickSecondsRemaining", PublicInstance);
+                    h.PodPickTotal = podType.GetProperty("PickSecondsTotal", PublicInstance);
+                }
 
                 var managerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftDeckManager");
                 if (managerType != null)
@@ -183,23 +199,34 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Get the DraftContentController MonoBehaviour from the controller GameObject.
+        /// </summary>
+        private MonoBehaviour GetControllerComponent()
+        {
+            if (_draftControllerObject == null) return null;
+
+            foreach (var mb in _draftControllerObject.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                if (mb.GetType().Name == T.DraftContentController)
+                    return mb;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Get the DraftDeckManager instance from the controller MonoBehaviour.
         /// </summary>
         private object GetDraftDeckManager()
         {
-            if (_draftControllerObject == null || _draftCache.Handles.DraftDeckManager == null) return null;
+            if (_draftCache.Handles.DraftDeckManager == null) return null;
 
             try
             {
-                // Find the DraftContentController component
-                foreach (var mb in _draftControllerObject.GetComponents<MonoBehaviour>())
-                {
-                    if (mb == null) continue;
-                    if (mb.GetType().Name == T.DraftContentController)
-                    {
-                        return _draftCache.Handles.DraftDeckManager.GetValue(mb);
-                    }
-                }
+                var controller = GetControllerComponent();
+                if (controller != null)
+                    return _draftCache.Handles.DraftDeckManager.GetValue(controller);
             }
             catch (Exception ex)
             {
@@ -207,6 +234,82 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Get the active IDraftPod from the controller (null if unavailable).
+        /// The pod exposes the live pick timer (human draft only).
+        /// </summary>
+        private object GetDraftPod()
+        {
+            if (_draftCache.Handles.DraftPodProp == null) return null;
+
+            try
+            {
+                var controller = GetControllerComponent();
+                if (controller != null)
+                    return _draftCache.Handles.DraftPodProp.GetValue(controller);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Error getting DraftPod: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// True only when this pod runs the auto-pick countdown (DraftModes.HumanDraft).
+        /// Bot/quick drafts are untimed, so timer announcements are suppressed for them.
+        /// </summary>
+        private bool IsHumanDraftPod(object pod)
+        {
+            if (pod == null || _draftCache.Handles.PodDraftMode == null) return false;
+
+            try
+            {
+                var mode = _draftCache.Handles.PodDraftMode.GetValue(pod);
+                return mode != null && mode.ToString() == "HumanDraft";
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Live seconds remaining before the game auto-picks. Negative/zero once elapsed.
+        /// Returns float.NaN if it can't be read.
+        /// </summary>
+        private float GetPickSecondsRemaining(object pod)
+        {
+            if (pod == null || _draftCache.Handles.PodPickRemaining == null) return float.NaN;
+
+            try
+            {
+                var val = _draftCache.Handles.PodPickRemaining.GetValue(pod);
+                if (val is float f) return f;
+            }
+            catch { /* best effort */ }
+
+            return float.NaN;
+        }
+
+        /// <summary>
+        /// Total seconds allotted for the current pick (0 before the first pick window).
+        /// </summary>
+        private float GetPickSecondsTotal(object pod)
+        {
+            if (pod == null || _draftCache.Handles.PodPickTotal == null) return 0f;
+
+            try
+            {
+                var val = _draftCache.Handles.PodPickTotal.GetValue(pod);
+                if (val is float f) return f;
+            }
+            catch { /* best effort */ }
+
+            return 0f;
         }
 
         /// <summary>
@@ -576,6 +679,13 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
+            // E: Announce remaining pick time (human draft auto-pick countdown)
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                AnnouncePickTimer();
+                return;
+            }
+
             // F11: Dump current card details for debugging
             if (Input.GetKeyDown(KeyCode.F11))
             {
@@ -871,6 +981,22 @@ namespace AccessibleArena.Core.Services
                 _announcedWaiting = false;
             }
 
+            // Poll the human-draft pick timer so we can warn the player before auto-pick.
+            // Only while a pack is actually shown (cards present, no popup owning the screen).
+            if (_isActive && !IsInPopupMode && _totalCards > 0)
+            {
+                _timerPollCounter++;
+                if (_timerPollCounter >= TimerPollFrames)
+                {
+                    _timerPollCounter = 0;
+                    PollPickTimer();
+                }
+            }
+            else
+            {
+                _timerPollCounter = 0;
+            }
+
             // Check for close after back button
             if (_isActive && _closeTriggered)
             {
@@ -998,6 +1124,95 @@ namespace AccessibleArena.Core.Services
             return count;
         }
 
+        /// <summary>
+        /// Poll the live pick timer and emit threshold warnings (human draft only).
+        /// Detects a fresh pick window (timer jumps back up) and re-arms the warnings.
+        /// </summary>
+        private void PollPickTimer()
+        {
+            var pod = GetDraftPod();
+            if (!IsHumanDraftPod(pod)) return; // bot/quick drafts are untimed
+
+            float total = GetPickSecondsTotal(pod);
+            float remaining = GetPickSecondsRemaining(pod);
+            if (total <= 0f || float.IsNaN(remaining)) return;
+
+            // New pick window? The timer resets to (roughly) total when the next pack arrives,
+            // so the remaining value jumps up. Also treat a changed total or the first reading
+            // as a new window. Re-arm thresholds relative to the new starting time.
+            bool newWindow = _lastPickRemaining < 0f
+                             || remaining > _lastPickRemaining + 2f
+                             || (_lastPickTotal > 0f && Math.Abs(total - _lastPickTotal) > 0.5f);
+            if (newWindow)
+                ResetPickWarnings(remaining);
+
+            _lastPickRemaining = remaining;
+            _lastPickTotal = total;
+
+            if (remaining <= 0f) return; // already elapsed; auto-pick handled by the game
+
+            // Fire the most urgent un-announced threshold that has been crossed. Setting the
+            // lower flags too keeps lighter warnings from firing after a more urgent one.
+            if (!_warned5 && remaining <= Warn5)
+            {
+                _warned5 = _warned10 = _warned30 = true;
+                _announcer?.AnnounceInterrupt(Strings.DraftTimerHurry);
+            }
+            else if (!_warned10 && remaining <= Warn10)
+            {
+                // 10s left: interrupt card reading — queuing it could arrive after auto-pick.
+                _warned10 = _warned30 = true;
+                _announcer?.AnnounceInterrupt(Strings.DraftTimerWarning(10));
+            }
+            else if (!_warned30 && remaining <= Warn30)
+            {
+                // 30s left: gentle, non-interrupting nudge.
+                _warned30 = true;
+                _announcer?.Announce(Strings.DraftTimerWarning(30), AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Re-arm threshold warnings for a new pick window. Thresholds already passed at the
+        /// window's start (e.g. when rejoining a draft mid-pick) are suppressed.
+        /// </summary>
+        private void ResetPickWarnings(float remaining)
+        {
+            _warned30 = remaining <= Warn30;
+            _warned10 = remaining <= Warn10;
+            _warned5 = remaining <= Warn5;
+        }
+
+        /// <summary>
+        /// On-demand readout of the remaining pick time (E key).
+        /// </summary>
+        private void AnnouncePickTimer()
+        {
+            var pod = GetDraftPod();
+            if (pod == null)
+            {
+                _announcer?.AnnounceInterrupt(Strings.DraftTimerUnavailable);
+                return;
+            }
+
+            if (!IsHumanDraftPod(pod))
+            {
+                _announcer?.AnnounceInterrupt(Strings.DraftTimerNoLimit);
+                return;
+            }
+
+            float total = GetPickSecondsTotal(pod);
+            float remaining = GetPickSecondsRemaining(pod);
+            if (total <= 0f || float.IsNaN(remaining) || remaining <= 0f)
+            {
+                _announcer?.AnnounceInterrupt(Strings.DraftTimerTimeUp);
+                return;
+            }
+
+            int secs = Mathf.Max(1, Mathf.CeilToInt(remaining));
+            _announcer?.AnnounceInterrupt(Strings.DraftTimerRemaining(secs));
+        }
+
         private bool _closeTriggered;
         private int _closeRescanCounter;
         private int _emptyCardCounter; // Frames with 0 cards and no popup
@@ -1010,6 +1225,18 @@ namespace AccessibleArena.Core.Services
         private int _lastNonZeroPeek; // Last peeked card count (used to confirm the pack is fully loaded)
         private bool _announcedWaiting; // True once the "waiting for other players" message was announced for this empty state
         private const int NextPackPollFrames = 30; // ~0.5 seconds at 60fps
+
+        // Human-draft pick timer: the game auto-picks when the per-pick timer expires and gives
+        // no sound, so we poll the live PickSecondsRemaining and announce threshold warnings.
+        private int _timerPollCounter;
+        private const int TimerPollFrames = 15; // ~0.25s at 60fps — enough for second-granularity warnings
+        private float _lastPickRemaining = -1f; // last polled remaining seconds (-1 = no reading yet)
+        private float _lastPickTotal = -1f;     // last polled total seconds (detects a new pick window)
+        // Per-window "already announced" flags for the 30s / 10s / 5s thresholds.
+        private bool _warned30, _warned10, _warned5;
+        private const float Warn30 = 30f;
+        private const float Warn10 = 10f;
+        private const float Warn5 = 5f;
 
         protected override void OnActivated()
         {
@@ -1026,6 +1253,10 @@ namespace AccessibleArena.Core.Services
             _nextPackPollCounter = 0;
             _lastNonZeroPeek = 0;
             _announcedWaiting = false;
+            _timerPollCounter = 0;
+            _lastPickRemaining = -1f;
+            _lastPickTotal = -1f;
+            _warned30 = _warned10 = _warned5 = false;
             EnablePopupDetection();
         }
 

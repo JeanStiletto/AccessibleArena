@@ -15,6 +15,11 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 
 | Short Name | Full Namespace | DLL |
 |---|---|---|
+| DraftContentController | Wotc.Mtga.Wrapper.Draft.DraftContentController | Core |
+| DraftTimer | Wotc.Mtga.Wrapper.Draft.DraftTimer | Core |
+| IDraftPod | Wotc.Mtga.Wrapper.Draft.IDraftPod | Core |
+| HumanDraftPod | Wotc.Mtga.Wrapper.Draft.HumanDraftPod | Core |
+| DraftModes | Wotc.Mtga.Wrapper.Draft.DraftModes | Core |
 | TableDraftQueueContentController | Wotc.Mtga.Wrapper.Draft.TableDraftQueueContentController | Core |
 | TableDraftQueueView | Wotc.Mtga.Wrapper.Draft.TableDraftQueueView | Core |
 | TableDraftQueueFunctions | Wotc.Mtga.Wrapper.Draft.TableDraftQueueFunctions | Core |

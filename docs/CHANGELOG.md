@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## Unreleased
+
+Draft (human / table draft):
+
+- The pick timer is now communicated to blind players. In human drafts the game auto-picks for you when a per-pick countdown expires; sighted players see a shrinking timer bar and "auto-select" tags appear on the cards in the last 5 seconds, but there is no sound, so a blind player had no warning before the game chose a card for them. The mod now polls the pod's live `PickSecondsRemaining` while a pack is shown and announces escalating warnings as the deadline approaches: a gentle, non-interrupting nudge at 30 seconds, an interrupting "10 seconds to pick" at 10 seconds, and an urgent "5 seconds, pick now or the game will choose" at 5 seconds. Each warning fires once per pick window and re-arms when the next pack arrives (detected by the timer jumping back up); warnings already passed at the start of a window — e.g. when rejoining a draft mid-pick — are suppressed. A new **E** key reads the remaining pick time on demand ("23 seconds to pick"), matching the duel timer key. Bot/quick drafts are untimed, so timer announcements are suppressed there and E reports "No pick timer in this draft". Read off `DraftContentController.DraftPod` (`IDraftPod`) — `DraftMode`, `PickSecondsRemaining` (live, computed from the pick deadline), and `PickSecondsTotal`; mirrors the data the game's own `DraftContentController.Coroutine_StartTimer` / `DraftTimer.UpdateTime` use. Untested against a live human draft (no logs available).
+
 ## v1.3
 
 PlayBlade / Events tab:

@@ -1366,6 +1366,14 @@ namespace AccessibleArena.Core.Models
         public static string DraftPickedCount(int count) =>
             count == 1 ? L.Get("DraftPickedCount_One") : L.Format("DraftPickedCount_Format", count);
         public static string DraftWaitingForPlayers => L.Get("DraftWaitingForPlayers");
+        // Human-draft pick timer (auto-pick countdown). Only meaningful in HumanDraft mode.
+        public static string DraftTimerRemaining(int seconds) =>
+            seconds == 1 ? L.Get("DraftTimerRemaining_One") : L.Format("DraftTimerRemaining_Format", seconds);
+        public static string DraftTimerWarning(int seconds) => L.Format("DraftTimerWarning_Format", seconds);
+        public static string DraftTimerHurry => L.Get("DraftTimerHurry");
+        public static string DraftTimerTimeUp => L.Get("DraftTimerTimeUp");
+        public static string DraftTimerNoLimit => L.Get("DraftTimerNoLimit");
+        public static string DraftTimerUnavailable => L.Get("DraftTimerUnavailable");
         // Human ("table") draft queue / ready-up lobby
         public static string ScreenTableDraftQueue => L.Get("ScreenTableDraftQueue");
         public static string TableDraftQueueStatusQueueing => L.Get("TableDraftQueueStatusQueueing");
