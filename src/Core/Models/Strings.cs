@@ -1366,6 +1366,19 @@ namespace AccessibleArena.Core.Models
         public static string DraftPickedCount(int count) =>
             count == 1 ? L.Get("DraftPickedCount_One") : L.Format("DraftPickedCount_Format", count);
         public static string DraftWaitingForPlayers => L.Get("DraftWaitingForPlayers");
+        // Human ("table") draft queue / ready-up lobby
+        public static string ScreenTableDraftQueue => L.Get("ScreenTableDraftQueue");
+        public static string TableDraftQueueStatusQueueing => L.Get("TableDraftQueueStatusQueueing");
+        public static string TableDraftQueueStatusReadyUp => L.Get("TableDraftQueueStatusReadyUp");
+        public static string TableDraftQueueStatusConfirmed => L.Get("TableDraftQueueStatusConfirmed");
+        public static string TableDraftQueueStatusStarting => L.Get("TableDraftQueueStatusStarting");
+        public static string TableDraftQueuePlayers(int inPod, int capacity) => L.Format("TableDraftQueuePlayers_Format", inPod, capacity);
+        public static string TableDraftQueuePlayersNoCap(int inPod) => L.Format("TableDraftQueuePlayersNoCap_Format", inPod);
+        public static string TableDraftQueueReadyCount(int ready, int total) => L.Format("TableDraftQueueReadyCount_Format", ready, total);
+        public static string TableDraftQueueTimeQueue(string time) => L.Format("TableDraftQueueTimeQueue_Format", time);
+        public static string TableDraftQueueTimeReady(string time) => L.Format("TableDraftQueueTimeReady_Format", time);
+        public static string TableDraftQueueReadyButton => L.Get("TableDraftQueueReadyButton");
+        public static string TableDraftQueueCancelButton => L.Get("TableDraftQueueCancelButton");
         public static string UpDownForMore(int count) => L.Format("UpDownForMore_Format", count);
         public static string ScreenFriends => L.Get("ScreenFriends");
         public static string ScreenHomeWithEvents => L.Get("ScreenHomeWithEvents");

@@ -48,6 +48,7 @@ namespace AccessibleArena.Core.Constants
         public const string LearnToPlayControllerV2 = "LearnToPlayControllerV2";
         public const string DeckManagerController = "DeckManagerController";
         public const string DraftContentController = "DraftContentController";
+        public const string TableDraftQueueContentController = "TableDraftQueueContentController";
         public const string ProgressionTracksContentController = "ProgressionTracksContentController";
         public const string ContentControllerStoreCarousel = "ContentController_StoreCarousel";
         public const string WrapperDeckBuilder = "WrapperDeckBuilder";
@@ -123,6 +124,7 @@ namespace AccessibleArena.Core.Constants
 
         // --- Fully-Qualified Type Names (for FindType lookups) ---
         public const string NavContentControllerFQ = "Wotc.Mtga.Wrapper.NavContentController";
+        public const string TableDraftQueueContentControllerFQ = "Wotc.Mtga.Wrapper.Draft.TableDraftQueueContentController";
         public const string SettingsMenuFQ = "Wotc.Mtga.Wrapper.SettingsMenu";
         public const string BladeContentViewFQ = "Wizards.Mtga.PlayBlade.BladeContentView";
         public const string BladeContentView = "BladeContentView";

@@ -15,6 +15,14 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 
 | Short Name | Full Namespace | DLL |
 |---|---|---|
+| TableDraftQueueContentController | Wotc.Mtga.Wrapper.Draft.TableDraftQueueContentController | Core |
+| TableDraftQueueView | Wotc.Mtga.Wrapper.Draft.TableDraftQueueView | Core |
+| TableDraftQueueFunctions | Wotc.Mtga.Wrapper.Draft.TableDraftQueueFunctions | Core |
+| TableDraftSeatView | Wotc.Mtga.Wrapper.Draft.TableDraftSeatView | Core |
+| TextChronometer | TextChronometer | Core |
+| PodQueueNotification | Wizards.Unification.Models.Draft.PodQueueNotification | Wizards.Arena.Models |
+| DraftNotification | Wizards.Unification.Models.Draft.DraftNotification | Wizards.Arena.Models |
+| EDraftNotificationType | Wizards.Unification.Models.Draft.EDraftNotificationType | Wizards.Arena.Models |
 | ContentController_StoreCarousel | ContentController_StoreCarousel | Core |
 | StoreItemBase | StoreItemBase | Core |
 | StoreConfirmationModal | StoreConfirmationModal | Core |

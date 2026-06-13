@@ -14,6 +14,7 @@ using System.Reflection;
 using static AccessibleArena.Core.Constants.SceneNames;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+using GameTypeNames = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -29,7 +30,7 @@ namespace AccessibleArena.Core.Services
         public override int Priority => 65;
         protected override bool SupportsCardNavigation => false;
 
-        private enum ScreenMode { None, MatchEnd, PreGame, Matchmaking, GameLoading }
+        private enum ScreenMode { None, MatchEnd, PreGame, Matchmaking, GameLoading, TableDraftQueue }
         private ScreenMode _currentMode = ScreenMode.None;
 
         // Polling for late-loading UI
@@ -56,6 +57,58 @@ namespace AccessibleArena.Core.Services
         // GameLoading: InfoText reference for status messages
         private TMP_Text _loadingInfoText;
         private string _lastLoadingStatusText = "";
+
+        // TableDraftQueue: human-draft "ready up" lobby (NavContentController in MainNavigation).
+        // The controller pushes pod-fill / ready-count updates through PodQueue/Draft notifications
+        // (captured by TableDraftQueueState); the timer ticks live on the controller's chronometer.
+        private MonoBehaviour _tableDraftController;
+        private GameObject _tdqCancelButton;  // current cancel/ready primary actions (for shortcuts)
+        private GameObject _tdqReadyButton;
+        // Snapshot for change-driven announcements (set at activation, compared each poll).
+        private bool _tdqSnapshotInitialized;
+        private int _tdqLastNumInPod;
+        private int _tdqLastNumReady;
+        private bool _tdqLastReadyRequested;
+        private bool _tdqLastConfirmed;
+        private bool _tdqLastStarting;
+
+        private sealed class TableDraftHandles
+        {
+            public FieldInfo CancelButton, ReadyButton;
+            public FieldInfo TextChronometer, ChronometerContextText, Animator;
+            public FieldInfo PrevNumInPod, IsLocalPlayerReady, DraftId;
+            public FieldInfo ChronoTimeText;   // TextChronometer._timeWaitingText
+            public FieldInfo ChronoTickUp;     // TextChronometer._tickUp
+        }
+
+        private static readonly ReflectionCache<TableDraftHandles> _tdqCache = new ReflectionCache<TableDraftHandles>(
+            builder: _ =>
+            {
+                var h = new TableDraftHandles();
+                var ctrl = FindType(GameTypeNames.TableDraftQueueContentControllerFQ)
+                           ?? FindType(GameTypeNames.TableDraftQueueContentController);
+                if (ctrl != null)
+                {
+                    h.CancelButton = ctrl.GetField("_cancelButton", PrivateInstance);
+                    h.ReadyButton = ctrl.GetField("_readyButton", PrivateInstance);
+                    h.TextChronometer = ctrl.GetField("_textChronometer", PrivateInstance);
+                    h.ChronometerContextText = ctrl.GetField("_chronometerContextText", PrivateInstance);
+                    h.Animator = ctrl.GetField("_animator", PrivateInstance);
+                    h.PrevNumInPod = ctrl.GetField("_prevNumInPod", PrivateInstance);
+                    h.IsLocalPlayerReady = ctrl.GetField("_isLocalPlayerReady", PrivateInstance);
+                    h.DraftId = ctrl.GetField("_draftId", PrivateInstance);
+                }
+                var chrono = FindType("TextChronometer");
+                if (chrono != null)
+                {
+                    h.ChronoTimeText = chrono.GetField("_timeWaitingText", PrivateInstance);
+                    h.ChronoTickUp = chrono.GetField("_tickUp", PrivateInstance);
+                }
+                return h;
+            },
+            validator: h => h.ReadyButton != null && h.CancelButton != null,
+            logTag: "LoadingScreen",
+            logSubject: "TableDraftQueueContentController");
 
         // Survey popup: interactive Good/Bad/Skip buttons, UI starts INACTIVE (animator intro)
         private bool _isSurveyPopup;
@@ -100,6 +153,8 @@ namespace AccessibleArena.Core.Services
                     return Strings.ScreenSearchingForMatch;
                 case ScreenMode.GameLoading:
                     return Strings.ScreenLoading;
+                case ScreenMode.TableDraftQueue:
+                    return Strings.ScreenTableDraftQueue;
                 default:
                     return Strings.ScreenLoading;
             }
@@ -131,6 +186,12 @@ namespace AccessibleArena.Core.Services
             if (DetectMatchmaking())
             {
                 _currentMode = ScreenMode.Matchmaking;
+                return true;
+            }
+
+            if (DetectTableDraftQueue())
+            {
+                _currentMode = ScreenMode.TableDraftQueue;
                 return true;
             }
 
@@ -172,6 +233,37 @@ namespace AccessibleArena.Core.Services
             return scene.name == AssetPrep;
         }
 
+        /// <summary>
+        /// Detect the human-draft "ready up" lobby. The panel is a NavContentController tracked
+        /// by class name (FinishOpen → PanelStateManager), so a cheap stack lookup gates the
+        /// (one-time) object scan. If panel tracking ever misses, LoadingScreen simply doesn't
+        /// claim the screen and GeneralMenuNavigator handles it as a plain button menu (the prior,
+        /// still-functional behaviour) — no break.
+        /// </summary>
+        private bool DetectTableDraftQueue()
+        {
+            if (PanelStateManager.Instance?.IsPanelActive(GameTypeNames.TableDraftQueueContentController) != true)
+            {
+                _tableDraftController = null;
+                return false;
+            }
+
+            // Resolve (and cache) the live controller MonoBehaviour.
+            if (_tableDraftController == null || !_tableDraftController || !_tableDraftController.gameObject.activeInHierarchy)
+            {
+                _tableDraftController = null;
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                    if (mb.GetType().Name != GameTypeNames.TableDraftQueueContentController) continue;
+                    _tableDraftController = mb;
+                    break;
+                }
+            }
+
+            return _tableDraftController != null;
+        }
+
         private bool DetectMatchmaking()
         {
             // Matchmaking detection: look for FindMatch active state with cancel button
@@ -207,8 +299,220 @@ namespace AccessibleArena.Core.Services
                 case ScreenMode.GameLoading:
                     DiscoverGameLoadingElements();
                     break;
+                case ScreenMode.TableDraftQueue:
+                    DiscoverTableDraftQueueElements();
+                    break;
             }
         }
+
+        #region TableDraftQueue
+
+        /// <summary>
+        /// Build the navigable blocks for the human-draft lobby: a status line (your phase),
+        /// the pod fill count, the live timer, and the current primary action button
+        /// (Cancel while queueing, Ready once the table is found).
+        /// </summary>
+        private void DiscoverTableDraftQueueElements()
+        {
+            _tdqCancelButton = null;
+            _tdqReadyButton = null;
+
+            var ctrl = _tableDraftController;
+            if (ctrl == null) return;
+
+            _tdqCache.EnsureInitialized(typeof(LoadingScreenNavigator));
+
+            bool ready = TdqReadyRequested(ctrl);
+            bool confirmed = TdqIsLocalReady(ctrl) && ready;
+            bool starting = TableDraftQueueState.TableStarting;
+
+            int numInPod = TableDraftQueueState.NumInPod > 0 ? TableDraftQueueState.NumInPod : TdqPrevNumInPod(ctrl);
+            int capacity = TableDraftQueueState.PodCapacity;
+            int numReady = TableDraftQueueState.NumReady;
+
+            // Info blocks are read-only text blocks (null GameObject) so they can share no UI
+            // anchor and never collide with AddElement's instance-ID de-duplication.
+
+            // 1. Status line (your current phase).
+            string status = starting ? Strings.TableDraftQueueStatusStarting
+                          : confirmed ? Strings.TableDraftQueueStatusConfirmed
+                          : ready ? Strings.TableDraftQueueStatusReadyUp
+                          : Strings.TableDraftQueueStatusQueueing;
+            AddTextBlock(status);
+
+            // 2. Pod fill count (+ ready count once the table is forming).
+            string players = capacity > 0
+                ? Strings.TableDraftQueuePlayers(numInPod, capacity)
+                : Strings.TableDraftQueuePlayersNoCap(numInPod);
+            if (ready && numReady > 0)
+                players += ", " + Strings.TableDraftQueueReadyCount(numReady, capacity > 0 ? capacity : numInPod);
+            AddTextBlock(players);
+
+            // 3. Live timer (counts up while queueing, down once readying).
+            string time = TdqChronometerText(ctrl);
+            if (!string.IsNullOrEmpty(time))
+            {
+                bool tickUp = TdqChronometerTickUp(ctrl);
+                AddTextBlock(tickUp
+                    ? Strings.TableDraftQueueTimeQueue(time)
+                    : Strings.TableDraftQueueTimeReady(time));
+            }
+
+            // 4. Primary action button. Ready replaces Cancel in place once the table is found.
+            var readyBtn = TdqButtonGameObject(ctrl, _tdqCache.Handles.ReadyButton);
+            var cancelBtn = TdqButtonGameObject(ctrl, _tdqCache.Handles.CancelButton);
+            _tdqReadyButton = (readyBtn != null && readyBtn.activeInHierarchy) ? readyBtn : null;
+            _tdqCancelButton = (cancelBtn != null && cancelBtn.activeInHierarchy) ? cancelBtn : null;
+
+            if (ready && !confirmed && _tdqReadyButton != null)
+            {
+                AddElement(_tdqReadyButton,
+                    BuildLabel(Strings.TableDraftQueueReadyButton, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
+                    default, null, null, UIElementClassifier.ElementRole.Button);
+            }
+            else if (!confirmed && _tdqCancelButton != null)
+            {
+                AddElement(_tdqCancelButton,
+                    BuildLabel(Strings.TableDraftQueueCancelButton, Models.Strings.RoleButton, UIElementClassifier.ElementRole.Button),
+                    default, null, null, UIElementClassifier.ElementRole.Button);
+            }
+        }
+
+        // --- Reflection readers (all best-effort; return safe defaults on failure) ---
+
+        private bool TdqReadyRequested(MonoBehaviour ctrl)
+        {
+            if (TableDraftQueueState.ReadyRequested) return true;
+            try
+            {
+                var id = _tdqCache.Handles.DraftId?.GetValue(ctrl) as string;
+                return !string.IsNullOrEmpty(id);
+            }
+            catch { return false; }
+        }
+
+        private bool TdqIsLocalReady(MonoBehaviour ctrl)
+        {
+            try { return _tdqCache.Handles.IsLocalPlayerReady?.GetValue(ctrl) is bool b && b; }
+            catch { return false; }
+        }
+
+        private int TdqPrevNumInPod(MonoBehaviour ctrl)
+        {
+            try { return _tdqCache.Handles.PrevNumInPod?.GetValue(ctrl) is int n ? n : 0; }
+            catch { return 0; }
+        }
+
+        private string TdqChronometerText(MonoBehaviour ctrl)
+        {
+            try
+            {
+                var chrono = _tdqCache.Handles.TextChronometer?.GetValue(ctrl);
+                if (chrono == null) return null;
+                var tmp = _tdqCache.Handles.ChronoTimeText?.GetValue(chrono) as TMP_Text;
+                string t = tmp?.text?.Trim();
+                return string.IsNullOrEmpty(t) ? null : t;
+            }
+            catch { return null; }
+        }
+
+        private bool TdqChronometerTickUp(MonoBehaviour ctrl)
+        {
+            try
+            {
+                var chrono = _tdqCache.Handles.TextChronometer?.GetValue(ctrl);
+                if (chrono == null) return true;
+                return _tdqCache.Handles.ChronoTickUp?.GetValue(chrono) is bool b ? b : true;
+            }
+            catch { return true; }
+        }
+
+        private GameObject TdqButtonGameObject(MonoBehaviour ctrl, FieldInfo field)
+        {
+            try
+            {
+                var btn = field?.GetValue(ctrl) as MonoBehaviour;
+                return btn != null ? btn.gameObject : null;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Announce only meaningful changes between polls: ready-up prompt, players joining/leaving,
+        /// ready-count progress, confirmation, and start. The timer is intentionally never announced
+        /// (it ticks every frame); the user reads it by arrowing to the timer block.
+        /// </summary>
+        private void AnnounceTableDraftQueueTransitions()
+        {
+            var ctrl = _tableDraftController;
+            if (ctrl == null) return;
+
+            bool ready = TdqReadyRequested(ctrl);
+            bool confirmed = TdqIsLocalReady(ctrl) && ready;
+            bool starting = TableDraftQueueState.TableStarting;
+            int numInPod = TableDraftQueueState.NumInPod > 0 ? TableDraftQueueState.NumInPod : TdqPrevNumInPod(ctrl);
+            int capacity = TableDraftQueueState.PodCapacity;
+            int numReady = TableDraftQueueState.NumReady;
+
+            if (!_tdqSnapshotInitialized)
+            {
+                // Seed the snapshot at activation so we don't re-announce the initial state.
+                _tdqLastNumInPod = numInPod;
+                _tdqLastNumReady = numReady;
+                _tdqLastReadyRequested = ready;
+                _tdqLastConfirmed = confirmed;
+                _tdqLastStarting = starting;
+                _tdqSnapshotInitialized = true;
+                return;
+            }
+
+            // Highest-signal transitions first.
+            if (starting && !_tdqLastStarting)
+            {
+                _announcer.AnnounceInterrupt(Strings.TableDraftQueueStatusStarting);
+            }
+            else if (confirmed && !_tdqLastConfirmed)
+            {
+                _announcer.AnnounceInterrupt(Strings.TableDraftQueueStatusConfirmed);
+            }
+            else if (ready && !_tdqLastReadyRequested)
+            {
+                // Table found — prompt to ready up and move focus to the Ready button so Enter works.
+                FocusTableDraftActionButton();
+                _announcer.AnnounceInterrupt(Strings.TableDraftQueueStatusReadyUp);
+            }
+            else if (numInPod != _tdqLastNumInPod)
+            {
+                string players = capacity > 0
+                    ? Strings.TableDraftQueuePlayers(numInPod, capacity)
+                    : Strings.TableDraftQueuePlayersNoCap(numInPod);
+                _announcer.Announce(players, AnnouncementPriority.Normal);
+            }
+            else if (ready && numReady != _tdqLastNumReady && numReady > 0)
+            {
+                _announcer.Announce(Strings.TableDraftQueueReadyCount(numReady, capacity > 0 ? capacity : numInPod),
+                    AnnouncementPriority.Normal);
+            }
+
+            _tdqLastNumInPod = numInPod;
+            _tdqLastNumReady = numReady;
+            _tdqLastReadyRequested = ready;
+            _tdqLastConfirmed = confirmed;
+            _tdqLastStarting = starting;
+        }
+
+        /// <summary>Move the cursor onto the Ready/Cancel button element if present.</summary>
+        private void FocusTableDraftActionButton()
+        {
+            int idx = _elements.FindIndex(e => e.Role == UIElementClassifier.ElementRole.Button);
+            if (idx >= 0)
+            {
+                _currentIndex = idx;
+                UpdateEventSystemSelection();
+            }
+        }
+
+        #endregion
 
         private void DiscoverMatchEndElements()
         {
@@ -638,6 +942,16 @@ namespace AccessibleArena.Core.Services
                         return $"{Strings.ScreenLoading}. {loadingStatus}";
                     return $"{Strings.ScreenLoading}.";
 
+                case ScreenMode.TableDraftQueue:
+                    // Lead with the screen name and the first block (status line), then the
+                    // navigate hint + item count, mirroring the MatchEnd/PreGame announcements.
+                    string head = Strings.ScreenTableDraftQueue;
+                    if (_elements.Count > 0)
+                        head = $"{head}. {_elements[0].Label}";
+                    if (_elements.Count > 0)
+                        return Strings.WithHint(head, "NavigateHint") + $" {Strings.ItemCount(_elements.Count)}.";
+                    return $"{head}.";
+
                 default:
                     return base.GetActivationAnnouncement();
             }
@@ -658,11 +972,30 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // TableDraftQueue: Space = ready up (primary positive action) when the table is found.
+            if (_currentMode == ScreenMode.TableDraftQueue && Input.GetKeyDown(KeyCode.Space))
+            {
+                if (_tdqReadyButton != null && _tdqReadyButton.activeInHierarchy)
+                {
+                    Log.Nav(NavigatorId, "Space -> activating Ready button");
+                    UIActivator.Activate(_tdqReadyButton);
+                }
+                return true;
+            }
+
             // Backspace: quick action per mode
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 switch (_currentMode)
                 {
+                    case ScreenMode.TableDraftQueue:
+                        if (_tdqCancelButton != null && _tdqCancelButton.activeInHierarchy)
+                        {
+                            Log.Nav(NavigatorId, "Backspace -> activating draft-queue Cancel button");
+                            UIActivator.Activate(_tdqCancelButton);
+                        }
+                        return true;
+
                     case ScreenMode.MatchEnd:
                         // Activate Continue (back to menu)
                         if (_continueButton != null && _continueButton.activeInHierarchy)
@@ -715,6 +1048,17 @@ namespace AccessibleArena.Core.Services
                 Log.Nav(NavigatorId, $"Activating MatchEnd button: {element.name}");
                 UIActivator.SimulatePointerClick(element);
                 return true;
+            }
+
+            // TableDraftQueue: only the action button (Ready/Cancel) is activatable; info blocks no-op.
+            if (_currentMode == ScreenMode.TableDraftQueue)
+            {
+                if (_elements[index].Role == UIElementClassifier.ElementRole.Button)
+                {
+                    Log.Nav(NavigatorId, $"Activating draft-queue button: {element.name}");
+                    UIActivator.Activate(element);
+                }
+                return true; // Consume Enter on info blocks (no action)
             }
 
             // PreGame: only buttons are actionable (Cancel, Settings)
@@ -927,6 +1271,13 @@ namespace AccessibleArena.Core.Services
                 // (MatchEnd survey, GameLoading SystemMessageView for forced-restart etc).
                 PanelStateManager.Instance?.ClearSceneLoadingGate();
             }
+            else if (_currentMode == ScreenMode.TableDraftQueue)
+            {
+                // Surface SystemMessage dialogs (removed-from-queue / network error) that the queue
+                // can raise. IsSceneLoading is already clear here (MainNavigation has live panels).
+                EnablePopupDetection();
+                _tdqSnapshotInitialized = false; // reseed transition snapshot from current state
+            }
         }
 
         private void StartPolling()
@@ -1087,8 +1438,9 @@ namespace AccessibleArena.Core.Services
                             Log.Nav(NavigatorId, $"Status update (silent): {_lastLoadingStatusText}");
                         }
                     }
-                    else
+                    else if (_currentMode != ScreenMode.TableDraftQueue)
                     {
+                        // TableDraftQueue drives its own change-only announcements below.
                         _announcer.AnnounceInterrupt(GetActivationAnnouncement());
                     }
                 }
@@ -1102,8 +1454,14 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                // Stop polling after timeout (PreGame and GameLoading keep polling)
-                if (_currentMode != ScreenMode.PreGame && _currentMode != ScreenMode.GameLoading && _pollElapsed >= MaxPollDuration)
+                // TableDraftQueue: announce meaningful state changes (player joined, ready up,
+                // ready count, confirmed, starting) each poll regardless of element-count change.
+                if (_currentMode == ScreenMode.TableDraftQueue)
+                    AnnounceTableDraftQueueTransitions();
+
+                // Stop polling after timeout (PreGame, GameLoading and TableDraftQueue keep polling)
+                if (_currentMode != ScreenMode.PreGame && _currentMode != ScreenMode.GameLoading
+                    && _currentMode != ScreenMode.TableDraftQueue && _pollElapsed >= MaxPollDuration)
                 {
                     Log.Nav(NavigatorId, $"Polling timeout reached ({MaxPollDuration}s), stopping");
                     _polling = false;
@@ -1143,6 +1501,11 @@ namespace AccessibleArena.Core.Services
 
                 case ScreenMode.GameLoading:
                     if (!DetectGameLoading())
+                        return false;
+                    break;
+
+                case ScreenMode.TableDraftQueue:
+                    if (!DetectTableDraftQueue())
                         return false;
                     break;
             }
@@ -1208,6 +1571,13 @@ namespace AccessibleArena.Core.Services
             _lastDiscoverySignature = "";
             _discoveryLogBuffer.Clear();
             _bufferDiscoveryLogs = false;
+
+            // TableDraftQueue cleanup
+            _tableDraftController = null;
+            _tdqCancelButton = null;
+            _tdqReadyButton = null;
+            _tdqSnapshotInitialized = false;
+            TableDraftQueueState.Reset();
 
             // Clean up virtual View Log element
             if (_viewLogElement != null)

@@ -73,6 +73,9 @@ namespace AccessibleArena.Patches
                 // Try to patch ContentControllerPlayerInbox (mailbox)
                 PatchMailboxController(harmony);
 
+                // Try to patch the table (human) draft queue notification handlers
+                PatchTableDraftQueue(harmony);
+
                 _patchApplied = true;
                 Log.Patch("PanelStatePatch", $"Harmony patches applied successfully");
 
@@ -521,6 +524,45 @@ namespace AccessibleArena.Patches
                 Log.Warn("PanelStatePatch", "ContentControllerPlayerInbox.OnLetterSelected not found");
             TryPatchPostfix(harmony, onLetterSelectedMethod, nameof(MailLetterSelectedPostfix),
                 "ContentControllerPlayerInbox.OnLetterSelected()");
+        }
+
+        /// <summary>
+        /// Patch the human-draft queue ("ready up" lobby) notification handlers so we can mirror
+        /// pod fill / ready counts / phase into TableDraftQueueState. These are the game's own
+        /// per-update callbacks — the authoritative source for "how many players are in", since
+        /// PodCapacity/NumReady are not retained on the controller after being pushed to the view.
+        /// </summary>
+        private static void PatchTableDraftQueue(HarmonyLib.Harmony harmony)
+        {
+            var controllerType = FindType(T.TableDraftQueueContentControllerFQ)
+                ?? FindType(T.TableDraftQueueContentController);
+            if (controllerType == null)
+            {
+                Log.Warn("PanelStatePatch", "Could not find TableDraftQueueContentController type");
+                return;
+            }
+
+            Log.Patch("PanelStatePatch", $"Found TableDraftQueueContentController: {controllerType.FullName}");
+
+            TryPatchPostfix(harmony, controllerType.GetMethod("HandlePodQueueNotification", AllInstanceFlags),
+                nameof(PodQueueNotificationPostfix), "TableDraftQueueContentController.HandlePodQueueNotification()");
+            TryPatchPostfix(harmony, controllerType.GetMethod("HandleDraftNotification", AllInstanceFlags),
+                nameof(DraftNotificationPostfix), "TableDraftQueueContentController.HandleDraftNotification()");
+
+            // Reset captured state cleanly whenever the queue panel opens/closes.
+            Core.Services.TableDraftQueueState.EnsureSubscribed();
+        }
+
+        public static void PodQueueNotificationPostfix(object podQueueNotification)
+        {
+            try { Core.Services.TableDraftQueueState.RecordPodQueue(podQueueNotification); }
+            catch (Exception ex) { Log.Warn("PanelStatePatch", $"PodQueueNotificationPostfix error: {ex.Message}"); }
+        }
+
+        public static void DraftNotificationPostfix(object draftNotification)
+        {
+            try { Core.Services.TableDraftQueueState.RecordDraftNotification(draftNotification); }
+            catch (Exception ex) { Log.Warn("PanelStatePatch", $"DraftNotificationPostfix error: {ex.Message}"); }
         }
 
         public static void MailboxOpenPostfix(object __instance)
