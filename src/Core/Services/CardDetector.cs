@@ -46,6 +46,16 @@ namespace AccessibleArena.Core.Services
 
         private static bool IsCardInternal(GameObject obj)
         {
+            // Guard: interactive CustomToggle widgets (e.g. the deck builder's
+            // "Suggest Lands" / Ländervorschlagen AutoLandsToggle) are styled like a
+            // pool tile and live next to the land cards, so the name/parent heuristics
+            // below would otherwise mis-detect them as cards. A CustomToggle is a control,
+            // never a card — bail out early so Enter activates the toggle instead of
+            // opening the card-info viewer, and Arrow Up/Down doesn't read card blocks.
+            // (Checks self + children: the CustomToggle may sit on a child of the prefab root.)
+            if (UIElementClassifier.GetCustomToggleComponent(obj) != null)
+                return false;
+
             // Fast check 1: Object name patterns (most common)
             string name = obj.name;
             if (name.Contains("CardAnchor") ||

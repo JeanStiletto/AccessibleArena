@@ -188,7 +188,7 @@ Include the following information:
 
 <h2>Known issues</h2>
 The game should cover nearly every screen in the game but there might be some edge cases not fully functioning. PayPal blocks blind users with an illegal non-audio captcha so you have to use sighted help or other payment methods if you wanna spend real money on the game.
-Some specific events might not be fully working. Drafting with real players has a lobby screen not supported yet, but in quickdraft you pick cards against bots before you face human opponents, this is functional and a recommended mode for everyone who likes this kind of experience. Cube mode is untouched. I don't even really know what this is about and it costs a lot of in-game resources. So I will do this if I have time or on request.
+Some specific events might not be fully working. Drafting now works, both quickdraft (where you pick cards against bots) and drafts against real players, including the ready-up lobby and the pick timer. Cube mode is untouched. I don't even really know what this is about and it costs a lot of in-game resources. So I will do this if I have time or on request.
 The cosmetics system of the game with Emotes, Pets, card styles and titles is only partly supported yet.
 The mod is only tested on Windows with NVDA and JAWS and still relies on the unmodified Tolk library. I cannot test Mac or Linux compatibility here, and cross-platform libraries like Prism didn't fully support the old .NET versions the game depends on at this point. So I will only switch to a broader library if people can help out with testing for either other platforms or Asian screen readers that aren't fully supported by unmodified Tolk. So don't hesitate to contact me if you want me working on this.
 

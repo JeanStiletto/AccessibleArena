@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using MelonLoader;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using AccessibleArena.Core.Utils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -181,6 +182,7 @@ namespace AccessibleArena.Core.Services
                 ?? TryClassifyAsStepperControl(obj, objName)
                 ?? TryClassifyAsStepperNavControl(obj, objName)
                 ?? TryClassifyAsSettingsDropdown(obj, objName)
+                ?? TryClassifyAsCustomToggle(obj, text)
                 ?? TryClassifyAsToggle(obj, objName, text)
                 ?? TryClassifyAsSlider(obj, objName)
                 ?? TryClassifyAsDropdown(obj, text)
@@ -311,6 +313,68 @@ namespace AccessibleArena.Core.Services
                 !string.IsNullOrEmpty(value) ? $"{label}: {value}" : label,
                 Models.Strings.RoleDropdown,
                 true, true);
+        }
+
+        /// <summary>
+        /// Classify MTGA's CustomToggle (a CustomButton-backed on/off control that is NOT a
+        /// Unity Toggle), e.g. the deck builder's "Suggest Lands"/Ländervorschlagen AutoLandsToggle.
+        /// Read the current on/off state from the public <c>Value</c> field so the screen reader
+        /// announces "checkbox, checked/unchecked" instead of a generic button.
+        /// </summary>
+        private static ClassificationResult TryClassifyAsCustomToggle(GameObject obj, string text)
+        {
+            var customToggle = GetCustomToggleComponent(obj);
+            if (customToggle == null)
+                return null;
+
+            bool isOn = GetCustomToggleValue(customToggle);
+            string label = GetCleanLabel(text, obj.name);
+
+            return CreateResult(
+                ElementRole.Toggle,
+                label,
+                Models.Strings.RoleCheckboxState(isOn),
+                true, true);
+        }
+
+        /// <summary>
+        /// Get a CustomToggle component (matched by type name) from a GameObject, or null.
+        /// Checks the object itself first, then descendants — the AutoLandsToggle prefab may
+        /// host the CustomToggle/CustomButton on the navigated root or on a child.
+        /// </summary>
+        public static MonoBehaviour GetCustomToggleComponent(GameObject obj)
+        {
+            if (obj == null) return null;
+            foreach (var mb in obj.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == T.CustomToggle)
+                    return mb;
+            }
+            foreach (var mb in obj.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == T.CustomToggle)
+                    return mb;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Read CustomToggle.Value (public bool field). Returns false if unavailable.
+        /// </summary>
+        public static bool GetCustomToggleValue(MonoBehaviour customToggle)
+        {
+            if (customToggle == null) return false;
+            try
+            {
+                var valueField = customToggle.GetType().GetField("Value", PublicInstance);
+                if (valueField != null && valueField.FieldType == typeof(bool))
+                    return (bool)valueField.GetValue(customToggle);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warn("UIElementClassifier", $"Failed to read CustomToggle.Value: {ex.Message}");
+            }
+            return false;
         }
 
         private static ClassificationResult TryClassifyAsToggle(GameObject obj, string objName, string text)

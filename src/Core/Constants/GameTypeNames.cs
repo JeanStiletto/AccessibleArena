@@ -24,6 +24,7 @@ namespace AccessibleArena.Core.Constants
         // --- UI Component Types ---
         public const string CustomButton = "CustomButton";
         public const string CustomButtonWithTooltip = "CustomButtonWithTooltip";
+        public const string CustomToggle = "CustomToggle";
         public const string SystemMessageButtonView = "SystemMessageButtonView";
         public const string CustomTMPDropdown = "cTMP_Dropdown";
 

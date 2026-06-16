@@ -183,6 +183,27 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // Try CustomToggle (MTGA's CustomButton-backed on/off control, e.g. the deck
+            // builder's "Suggest Lands"/Ländervorschlagen AutoLandsToggle). It is NOT a Unity
+            // Toggle, so the block above misses it. Clicking the backing CustomButton flips
+            // CustomToggle.Value (via its Button_OnClick listener), which the game observes on
+            // the next frame to run its logic (BasicLandSuggester.SuggestLand for auto-lands).
+            // We read Value before/after so we can announce the resulting checked/unchecked state.
+            var customToggle = UIElementClassifier.GetCustomToggleComponent(element);
+            if (customToggle != null)
+            {
+                // Click the CustomToggle's own GameObject (which carries the required CustomButton),
+                // not necessarily the navigated root — they differ if the toggle is on a child.
+                var toggleObj = customToggle.gameObject;
+                bool before = UIElementClassifier.GetCustomToggleValue(customToggle);
+                Log.Activation("UIActivator", $"CustomToggle detected ('{element.name}' -> '{toggleObj.name}'): value {before}, clicking");
+                SimulatePointerClick(toggleObj);
+                bool after = UIElementClassifier.GetCustomToggleValue(customToggle);
+                string state = after ? Models.Strings.RoleChecked : Models.Strings.RoleUnchecked;
+                Log.Activation("UIActivator", $"CustomToggle '{element.name}' value after click: {after} ({state})");
+                return new ActivationResult(true, state, ActivationType.Toggle);
+            }
+
             // Check for CustomButton BEFORE standard Button
             // MTGA uses CustomButton for most interactions - the game logic responds to pointer events,
             // not to Button.onClick. If element has CustomButton, use pointer simulation.

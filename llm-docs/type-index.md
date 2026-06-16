@@ -95,6 +95,9 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 |---|---|---|
 | CustomButton | CustomButton | Core |
 | CustomButtonWithTooltip | CustomButtonWithTooltip | Core |
+| CustomToggle | CustomToggle | Core |
+| AutoLandsToggle | AutoLandsToggle | Core |
+| BasicLandSuggester | BasicLandSuggester | Core |
 | SystemMessageButtonView | SystemMessageButtonView | Asm |
 | cTMP_Dropdown | cTMP_Dropdown | Asm |
 | TooltipTrigger | TooltipTrigger | Asm |

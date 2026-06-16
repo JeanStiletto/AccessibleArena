@@ -238,6 +238,22 @@ namespace AccessibleArena.Core.Services
                     label = label.Substring(0, checkboxIdx) + $", {Strings.RoleCheckboxState(toggle.isOn)}";
                 }
             }
+            else if (role == UIElementClassifier.ElementRole.Toggle)
+            {
+                // CustomToggle (MTGA's CustomButton-backed on/off control, e.g. the deck builder's
+                // Suggest Lands toggle) is not a Unity Toggle — refresh its state from Value.
+                var customToggle = UIElementClassifier.GetCustomToggleComponent(obj);
+                if (customToggle != null)
+                {
+                    string checkboxRole = Strings.RoleCheckbox;
+                    int checkboxIdx = label.LastIndexOf($", {checkboxRole}");
+                    if (checkboxIdx >= 0)
+                    {
+                        bool isOn = UIElementClassifier.GetCustomToggleValue(customToggle);
+                        label = label.Substring(0, checkboxIdx) + $", {Strings.RoleCheckboxState(isOn)}";
+                    }
+                }
+            }
 
             // Update content for input fields - re-read current text with password masking
             var tmpInput = obj.GetComponent<TMPro.TMP_InputField>();
