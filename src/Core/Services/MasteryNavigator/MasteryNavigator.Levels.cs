@@ -312,6 +312,29 @@ namespace AccessibleArena.Core.Services
                 _levelData.Add(levelData);
             }
 
+            // Pad every level to the same number of tiers (at least Free + Premium) so the columns
+            // line up across all levels — this lets the user arrow Up/Down a single column and hear
+            // "No reward" on levels with nothing in that slot (issue #104). Tiers is a reference
+            // inside the struct, so mutating the list in place is sufficient (no write-back needed).
+            int maxTiers = 2;
+            foreach (var ld in _levelData)
+                if (ld.Tiers != null && ld.Tiers.Count > maxTiers) maxTiers = ld.Tiers.Count;
+            foreach (var ld in _levelData)
+            {
+                if (ld.Tiers == null) continue;
+                while (ld.Tiers.Count < maxTiers)
+                {
+                    int t = ld.Tiers.Count;
+                    ld.Tiers.Add(new TierReward
+                    {
+                        TierName = TierNameForIndex(t),
+                        RewardName = Strings.MasteryNoReward,
+                        Quantity = 0,
+                        Description = ""
+                    });
+                }
+            }
+
             // Find current player level in our list (the in-progress level)
             // curLevelIndex is the Index field of the current level, which equals list position
             if (curLevelIndex >= 0)
@@ -333,6 +356,22 @@ namespace AccessibleArena.Core.Services
 
             Log.Msg("Mastery", $"Built {_levelData.Count} levels, current={_currentPlayerLevel}, " +
                 $"curLevelIdx={curLevelIndex}, track={_trackTitle}");
+        }
+
+        /// <summary>
+        /// Localized tier label for a reward column by its positional index
+        /// (0 = Free, 1 = Premium, 2 = Renewal). Built per-call rather than cached because the
+        /// localized strings change with the active language.
+        /// </summary>
+        private static string TierNameForIndex(int t)
+        {
+            switch (t)
+            {
+                case 0: return Strings.MasteryFree;
+                case 1: return Strings.MasteryPremium;
+                case 2: return Strings.MasteryRenewal;
+                default: return $"Tier {t + 1}";
+            }
         }
 
         private LevelData ExtractLevelData(object level, int listIndex, IList rewardDataList, int curLevelIndex)
@@ -369,7 +408,11 @@ namespace AccessibleArena.Core.Services
             bool isComplete = curLevelIndex >= 0 && levelIndex < curLevelIndex;
             bool isCurrent = curLevelIndex >= 0 && levelIndex == curLevelIndex;
 
-            // Extract reward tiers
+            // Extract reward tiers. The reward array is POSITIONALLY aligned: index 0 = Free,
+            // 1 = Premium, 2 = Renewal. A null entry means "no reward in that slot" (commonly the
+            // free slot on premium-only levels). We KEEP the column and label it "No reward" so the
+            // Free / Premium columns stay aligned across every level — otherwise a null free slot
+            // collapses and the premium reward slides into the free position (issue #104 bug 1).
             var tiers = new List<TierReward>();
             if (rewardDataList != null && listIndex < rewardDataList.Count)
             {
@@ -378,23 +421,30 @@ namespace AccessibleArena.Core.Services
                     var rewardsArray = rewardDataList[listIndex] as Array;
                     if (rewardsArray != null)
                     {
-                        string[] tierNames = { Strings.MasteryFree, Strings.MasteryPremium, Strings.MasteryRenewal };
                         for (int t = 0; t < rewardsArray.Length; t++)
                         {
                             var reward = rewardsArray.GetValue(t);
-                            if (reward == null) continue;
-
-                            string tierName = t < tierNames.Length ? tierNames[t] : $"Tier {t + 1}";
-                            string rewardName = ResolveLocString(_levelsCache.Handles.RewardMainText?.GetValue(reward));
+                            string tierName = TierNameForIndex(t);
+                            string rewardName = null;
                             int quantity = 0;
-                            if (_levelsCache.Handles.RewardQuantity != null)
-                                quantity = (int)_levelsCache.Handles.RewardQuantity.GetValue(reward);
-                            string description = ResolveLocString(_levelsCache.Handles.RewardSecondary?.GetValue(reward));
+                            string description = null;
+
+                            if (reward != null)
+                            {
+                                rewardName = ResolveLocString(_levelsCache.Handles.RewardMainText?.GetValue(reward));
+                                if (_levelsCache.Handles.RewardQuantity != null)
+                                    quantity = (int)_levelsCache.Handles.RewardQuantity.GetValue(reward);
+                                description = ResolveLocString(_levelsCache.Handles.RewardSecondary?.GetValue(reward));
+
+                                if (string.IsNullOrEmpty(rewardName) || rewardName.StartsWith("$"))
+                                    rewardName = ResolveLocString(_levelsCache.Handles.RewardDescText?.GetValue(reward));
+                            }
 
                             if (string.IsNullOrEmpty(rewardName) || rewardName.StartsWith("$"))
-                                rewardName = ResolveLocString(_levelsCache.Handles.RewardDescText?.GetValue(reward));
-                            if (string.IsNullOrEmpty(rewardName) || rewardName.StartsWith("$"))
+                            {
                                 rewardName = Strings.MasteryNoReward;
+                                quantity = 0;
+                            }
 
                             tiers.Add(new TierReward
                             {
@@ -683,14 +733,27 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            string reward = GetPrimaryRewardName(level);
             string status = GetLevelStatus(level);
 
             // _currentLevelIndex starts at 1 for real levels (0 is status item)
             string pos = Strings.PositionOf(_currentLevelIndex, _totalLevels);
-            _announcer.AnnounceInterrupt(
-                (pos != "" ? $"{pos}: " : "") +
-                Strings.MasteryLevel(level.LevelNumber, reward, status));
+            string prefix = pos != "" ? $"{pos}: " : "";
+
+            // If the user has selected a non-default column (Premium/Renewal via Left/Right), keep
+            // announcing that column as they arrow through levels, so they can walk it top to bottom
+            // and hear "No reward" where the slot is empty (issue #104). The Free column (index 0)
+            // uses the normal level summary.
+            if (_currentTierIndex > 0 && level.Tiers != null && _currentTierIndex < level.Tiers.Count)
+            {
+                var tier = level.Tiers[_currentTierIndex];
+                int tierQty = RewardNameAlreadyHasQuantity(tier.RewardName, tier.Quantity) ? 1 : tier.Quantity;
+                string tierText = Strings.MasteryTier(tier.TierName, tier.RewardName, tierQty);
+                _announcer.AnnounceInterrupt(prefix + Strings.MasteryLevel(level.LevelNumber, tierText, status));
+                return;
+            }
+
+            string reward = GetPrimaryRewardName(level);
+            _announcer.AnnounceInterrupt(prefix + Strings.MasteryLevel(level.LevelNumber, reward, status));
         }
 
         private void AnnounceCurrentTier()
@@ -893,16 +956,9 @@ namespace AccessibleArena.Core.Services
                 Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
             {
                 if (_currentLevelIndex > 0)
-                {
-                    _currentLevelIndex--;
-                    _currentTierIndex = 0;
-                    SyncPageForLevel();
-                    AnnounceCurrentLevel();
-                }
+                    GoToLevel(_currentLevelIndex - 1);
                 else
-                {
                     _announcer.AnnounceInterruptVerbose(Strings.BeginningOfList);
-                }
                 return;
             }
 
@@ -910,16 +966,9 @@ namespace AccessibleArena.Core.Services
                 (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
             {
                 if (_currentLevelIndex < _levelData.Count - 1)
-                {
-                    _currentLevelIndex++;
-                    _currentTierIndex = 0;
-                    SyncPageForLevel();
-                    AnnounceCurrentLevel();
-                }
+                    GoToLevel(_currentLevelIndex + 1);
                 else
-                {
                     _announcer.AnnounceInterruptVerbose(Strings.EndOfList);
-                }
                 return;
             }
 
@@ -939,37 +988,26 @@ namespace AccessibleArena.Core.Services
             // Home/End: Jump to first/last
             if (Input.GetKeyDown(KeyCode.Home))
             {
-                _currentLevelIndex = 0;
-                _currentTierIndex = 0;
-                AnnounceCurrentLevel();
+                GoToLevel(0);
                 return;
             }
 
             if (Input.GetKeyDown(KeyCode.End))
             {
-                _currentLevelIndex = _levelData.Count - 1;
-                _currentTierIndex = 0;
-                SyncPageForLevel();
-                AnnounceCurrentLevel();
+                GoToLevel(_levelData.Count - 1);
                 return;
             }
 
             // PageUp/PageDown: Jump ~10 levels
             if (Input.GetKeyDown(KeyCode.PageUp))
             {
-                _currentLevelIndex = Math.Max(0, _currentLevelIndex - LevelsPerPageJump);
-                _currentTierIndex = 0;
-                SyncPageForLevel();
-                AnnounceCurrentLevel();
+                GoToLevel(_currentLevelIndex - LevelsPerPageJump);
                 return;
             }
 
             if (Input.GetKeyDown(KeyCode.PageDown))
             {
-                _currentLevelIndex = Math.Min(_levelData.Count - 1, _currentLevelIndex + LevelsPerPageJump);
-                _currentTierIndex = 0;
-                SyncPageForLevel();
-                AnnounceCurrentLevel();
+                GoToLevel(_currentLevelIndex + LevelsPerPageJump);
                 return;
             }
 
@@ -1000,6 +1038,39 @@ namespace AccessibleArena.Core.Services
                 NavigateToHome();
                 return;
             }
+        }
+
+        /// <summary>
+        /// Move to a level by index (clamped), keeping the user in the same reward column where it
+        /// makes sense, then sync the page and announce. The column (tier) is preserved when moving
+        /// between real levels so the user can arrow Up/Down a single Free or Premium column
+        /// (issue #104). It resets to the first column when entering or leaving the virtual status
+        /// item (index 0), whose tiers are status/buttons rather than reward columns.
+        /// </summary>
+        private void GoToLevel(int newIndex)
+        {
+            if (_levelData.Count == 0) return;
+
+            int prev = _currentLevelIndex;
+            _currentLevelIndex = Math.Max(0, Math.Min(_levelData.Count - 1, newIndex));
+
+            if (prev == 0 || _currentLevelIndex == 0)
+                _currentTierIndex = 0;
+            else
+                ClampTierToCurrentLevel();
+
+            SyncPageForLevel();
+            AnnounceCurrentLevel();
+        }
+
+        /// <summary>Clamp the current column index to the current level's tier count.</summary>
+        private void ClampTierToCurrentLevel()
+        {
+            if (_currentLevelIndex < 0 || _currentLevelIndex >= _levelData.Count) { _currentTierIndex = 0; return; }
+            int count = _levelData[_currentLevelIndex].Tiers?.Count ?? 0;
+            if (count <= 0) { _currentTierIndex = 0; return; }
+            if (_currentTierIndex >= count) _currentTierIndex = count - 1;
+            if (_currentTierIndex < 0) _currentTierIndex = 0;
         }
 
         private void CycleTier(int direction)
