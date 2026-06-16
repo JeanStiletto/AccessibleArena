@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "Zweite Hauptphase",
   "PhaseStop_EndStep": "Endschritt",
   "HelpPFullControl": "P: Volle Kontrolle, Umschalt plus P: Volle Kontrolle sperren",
+  "HelpSkipKeys": "Umschalt plus Rücktaste: Weitergeben, bis der Gegner handelt, Strg plus Rücktaste: Zug überspringen",
   "HelpNumberPhaseStops": "1 bis 0: Phasenstopps umschalten (Versorgungsphase bis Endschritt)",
   "CurrencyGold": "Gold",
   "CurrencyGems": "Edelsteine",

@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "Segunda fase principal",
   "PhaseStop_EndStep": "Etapa final",
   "HelpPFullControl": "P: Controle total, Shift mais P: Travar controle total",
+  "HelpSkipKeys": "Shift mais Backspace: Passar até o oponente agir, Ctrl mais Backspace: Pular turno",
   "HelpNumberPhaseStops": "1 a 0: Alternar paradas de fase (manutenção até etapa final)",
   "CurrencyGold": "Ouro",
   "CurrencyGems": "Gemas",

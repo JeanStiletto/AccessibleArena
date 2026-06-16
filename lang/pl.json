@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "Druga faza główna",
   "PhaseStop_EndStep": "Krok końcowy",
   "HelpPFullControl": "P: Pełna kontrola, Shift+P: Zablokuj pełną kontrolę",
+  "HelpSkipKeys": "Shift+Backspace: Pasuj, aż przeciwnik wykona akcję, Ctrl+Backspace: Pomiń turę",
   "HelpNumberPhaseStops": "1 do 0: Przełącz stopy fazowe (utrzymanie do kroku końcowego)",
   "CurrencyGold": "Złoto",
   "CurrencyGems": "Klejnoty",

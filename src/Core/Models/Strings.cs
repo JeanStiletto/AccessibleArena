@@ -1602,6 +1602,7 @@ namespace AccessibleArena.Core.Models
         // Help entries for full control and phase stops
         public static string HelpPFullControl => L.Get("HelpPFullControl");
         public static string HelpNumberPhaseStops => L.Get("HelpNumberPhaseStops");
+        public static string HelpSkipKeys => L.Get("HelpSkipKeys");
 
         // ===========================================
         // UI ROLE LABELS (for screen reader announcements)

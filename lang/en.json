@@ -1027,6 +1027,7 @@
   "PhaseStop_SecondMain": "Second main",
   "PhaseStop_EndStep": "End step",
   "HelpPFullControl": "P: Full control, Shift plus P: Lock full control",
+  "HelpSkipKeys": "Shift plus Backspace: Pass until opponent acts, Ctrl plus Backspace: Skip turn",
   "HelpNumberPhaseStops": "1 to 0: Toggle phase stops (upkeep through end step)",
   "CurrencyGold": "Gold",
   "CurrencyGems": "Gems",

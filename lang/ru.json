@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "Вторая основная фаза",
   "PhaseStop_EndStep": "Завершающий шаг",
   "HelpPFullControl": "P: Полный контроль, Shift+P: Заблокировать полный контроль",
+  "HelpSkipKeys": "Shift+Backspace: Пасовать до действия соперника, Ctrl+Backspace: Пропустить ход",
   "HelpNumberPhaseStops": "1–0: Переключение остановок фаз (поддержка до завершающего шага)",
   "CurrencyGold": "Золото",
   "CurrencyGems": "Самоцветы",

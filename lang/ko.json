@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "두 번째 본단계",
   "PhaseStop_EndStep": "종료단계",
   "HelpPFullControl": "P: 풀 컨트롤, Shift+P: 풀 컨트롤 잠금",
+  "HelpSkipKeys": "Shift+Backspace: 상대가 행동할 때까지 넘기기, Ctrl+Backspace: 턴 건너뛰기",
   "HelpNumberPhaseStops": "1~0: 페이즈 정지 전환 (유지단계부터 종료단계까지)",
   "CurrencyGold": "골드",
   "CurrencyGems": "젬",

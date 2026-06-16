@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "Seconde phase principale",
   "PhaseStop_EndStep": "Étape de fin",
   "HelpPFullControl": "P : Contrôle total, Maj plus P : Verrouiller le contrôle total",
+  "HelpSkipKeys": "Maj plus Retour arrière : Passer jusqu'à l'action de l'adversaire, Ctrl plus Retour arrière : Sauter le tour",
   "HelpNumberPhaseStops": "1 à 0 : Activer/désactiver les arrêts de phase (entretien jusqu'à l'étape de fin)",
   "CurrencyGold": "Or",
   "CurrencyGems": "Gemmes",

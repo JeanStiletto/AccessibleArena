@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "第2メイン",
   "PhaseStop_EndStep": "終了ステップ",
   "HelpPFullControl": "P: フルコントロール、Shift+P: フルコントロールをロック",
+  "HelpSkipKeys": "Shift+Backspace: 相手が行動するまでパス、Ctrl+Backspace: ターンをスキップ",
   "HelpNumberPhaseStops": "1～0: フェイズストップの切り替え（アップキープから終了ステップまで）",
   "CurrencyGold": "ゴールド",
   "CurrencyGems": "ジェム",

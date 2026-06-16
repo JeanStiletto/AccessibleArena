@@ -1025,6 +1025,7 @@
   "PhaseStop_SecondMain": "第二行動階段",
   "PhaseStop_EndStep": "結束步驟",
   "HelpPFullControl": "P：完全控制，Shift+P：鎖定完全控制",
+  "HelpSkipKeys": "Shift+Backspace：傳遞直到對手行動，Ctrl+Backspace：跳過回合",
   "HelpNumberPhaseStops": "1～0：切換階段停止（維持到結束步驟）",
   "CurrencyGold": "金幣",
   "CurrencyGems": "寶石",

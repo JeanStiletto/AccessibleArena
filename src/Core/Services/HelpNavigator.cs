@@ -124,6 +124,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpYUndo,
                 Strings.HelpQQFloatMana,
                 Strings.HelpPFullControl,
+                Strings.HelpSkipKeys,
                 Strings.HelpNumberPhaseStops,
 
                 // Combat
