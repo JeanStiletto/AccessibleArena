@@ -377,7 +377,7 @@ When a planeswalker is activated, the game opens a SelectCards browser with one 
 
 To get the correct ability text, the mod uses a two-step approach:
 1. **Parent cache**: When processing any card with abilities, `_abilityParentCache` maps each `abilityId → (parentCardGrpId, allAbilityIds, cardTitleId)`. This is populated during the normal `Abilities` loop in `ExtractCardInfoFromObject`.
-2. **Fallback lookup**: When a model has empty AbilityIds and its GrpId is found in the cache, the ability text provider is called with the parent card's context: `GetAbilityTextByCardAbilityGrpId(parentGrpId, abilityGrpId, allAbilityIds, titleId)`. Some abilities resolve without parent context (self-lookup), others require it (e.g., abilities that reference the card name).
+2. **Fallback lookup**: When a model has empty AbilityIds and its GrpId is found in the cache, the ability text provider is called with the parent card's context: `GetAbilityTextByCardGrpIds(new[]{ parentGrpId }, abilityGrpId, lang, formatted)`. The card identity is a collection of grp-ids (the provider resolves the per-card ability text-id internally); `GetKeywordText(abilityGrpId, …)` is the no-context fallback. `CardTextProvider` resolves the method by name (newest-API-first) because `IAbilityTextProvider` is version-sensitive. Some abilities resolve without parent context (self-lookup), others require it (e.g., abilities that reference the card name).
 
 The provider's response is filtered to reject garbage strings: `$`-prefixed, `#`-prefixed (e.g., `#NoTranslationNeeded`), `Ability #NNNNN` patterns, and `Unknown` strings.
 

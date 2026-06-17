@@ -2,6 +2,13 @@
 
 All notable changes to Accessible Arena.
 
+## v1.4.1
+
+Fixes for game update 2026.60 (provider API changes):
+
+- Rules/ability text reads again — `IAbilityTextProvider` was refactored (`GetAbilityTextByCardGrpIds` / `GetKeywordText`); resolve the method by name instead of "first string(uint) method".
+- Card names in the deck details popup (and other grp-id name lookups) read again — `ICardTitleProvider.GetCardTitle` gained a `skinCode` param; resolve it by name + uint first arg instead of an exact signature match.
+
 ## v1.4
 
 Deck builder:

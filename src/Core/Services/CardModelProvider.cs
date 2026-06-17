@@ -512,8 +512,8 @@ namespace AccessibleArena.Core.Services
                                             Log.Card("CardModelProvider", $"CardTitleProvider.{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))}) -> {m.ReturnType.Name}");
                                         }
 
-                                        // Use GetCardTitle(UInt32, Boolean, String) method
-                                        var getMethod = providerType.GetMethod("GetCardTitle", new[] { typeof(uint), typeof(bool), typeof(string) });
+                                        // Resolve the single-card GetCardTitle (signature is version-sensitive)
+                                        var getMethod = FindCardTitleMethod(providerType);
 
                                         if (getMethod != null)
                                         {
@@ -692,7 +692,7 @@ namespace AccessibleArena.Core.Services
                                         if (titleProvider != null)
                                         {
                                             var providerType = titleProvider.GetType();
-                                            var getMethod = providerType.GetMethod("GetCardTitle", new[] { typeof(uint), typeof(bool), typeof(string) });
+                                            var getMethod = FindCardTitleMethod(providerType);
                                             if (getMethod != null)
                                             {
                                                 _idNameProvider = titleProvider;
@@ -721,6 +721,48 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Finds the single-card <c>GetCardTitle</c> method on a CardTitleProvider, tolerant of the
+        /// version-sensitive signature. Game 2026.60 inserted a <c>skinCode</c> param:
+        /// <c>GetCardTitle(uint grpId, string skinCode, bool formatted, string lang, bool hideRebalanceIcon)</c>
+        /// (was <c>GetCardTitle(uint, bool, string)</c>). Matches by name + uint first param so it
+        /// also catches the old shape; skips the <c>ICollection&lt;uint&gt;</c> overload.
+        /// </summary>
+        private static MethodInfo FindCardTitleMethod(Type providerType)
+        {
+            foreach (var m in providerType.GetMethods(PublicInstance))
+            {
+                if (m.Name != "GetCardTitle" || m.ReturnType != typeof(string)) continue;
+                var ps = m.GetParameters();
+                if (ps.Length >= 1 && ps[0].ParameterType == typeof(uint))
+                    return m;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Builds the argument array for a grpId-keyed title/name method (first param uint).
+        /// The grpId fills slot 0; trailing params get safe defaults — bool=false (formatted and
+        /// hideRebalanceIcon off, matching prior behaviour), string=null (skinCode/overrideLanguageCode),
+        /// other value types = default(T). Tolerant of param-count changes across game versions.
+        /// </summary>
+        private static object[] BuildGrpIdArgs(ParameterInfo[] parameters, uint grpId)
+        {
+            var args = new object[parameters.Length];
+            args[0] = grpId;
+            for (int i = 1; i < parameters.Length; i++)
+            {
+                var pt = parameters[i].ParameterType;
+                if (pt == typeof(bool))
+                    args[i] = false;
+                else if (pt == typeof(string))
+                    args[i] = null;
+                else
+                    args[i] = pt.IsValueType ? Activator.CreateInstance(pt) : null;
+            }
+            return args;
+        }
+
+        /// <summary>
         /// Gets the card name from a GrpId (card database ID) using CardTitleProvider lookup.
         /// Returns null if lookup fails.
         /// </summary>
@@ -745,22 +787,31 @@ namespace AccessibleArena.Core.Services
                 var parameters = _getNameMethod.GetParameters();
                 object result = null;
 
-                // GetCardTitle(UInt32, Boolean, String) - call with grpId, false, null
-                if (parameters.Length == 3 &&
-                    parameters[0].ParameterType == typeof(uint) &&
-                    parameters[1].ParameterType == typeof(bool))
+                if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(uint))
                 {
-                    result = _getNameMethod.Invoke(_idNameProvider, new object[] { grpId, false, null });
+                    // GrpId-keyed lookup. Covers GetName(uint), GetName(uint,bool), the old
+                    // GetCardTitle(uint,bool,string) and the new GetCardTitle(uint, string skinCode,
+                    // bool formatted, string lang, bool hideRebalanceIcon). Leading arg is the grpId;
+                    // trailing params get safe defaults: bool=false (formatted/hideRebalanceIcon off),
+                    // string=null (skinCode/overrideLanguageCode → default printing & language).
+                    result = _getNameMethod.Invoke(_idNameProvider, BuildGrpIdArgs(parameters, grpId));
                 }
-                else if (parameters.Length == 1)
+                else if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(string))
                 {
-                    result = _getNameMethod.Invoke(_idNameProvider, new object[] { grpId });
-                }
-                else if (parameters.Length == 2)
-                {
-                    // GetLocalizedText(string, ValueTuple[]) - try string key
-                    var emptyArray = Array.CreateInstance(parameters[1].ParameterType.GetElementType() ?? typeof(object), 0);
-                    result = _getNameMethod.Invoke(_idNameProvider, new object[] { grpId.ToString(), emptyArray });
+                    // LocManager.GetLocalizedText(string key, ...) - use grpId as the string key.
+                    var args = new object[parameters.Length];
+                    args[0] = grpId.ToString();
+                    for (int i = 1; i < parameters.Length; i++)
+                    {
+                        var pt = parameters[i].ParameterType;
+                        if (pt.IsArray)
+                            args[i] = Array.CreateInstance(pt.GetElementType() ?? typeof(object), 0);
+                        else if (pt == typeof(bool))
+                            args[i] = false;
+                        else
+                            args[i] = pt.IsValueType ? Activator.CreateInstance(pt) : null;
+                    }
+                    result = _getNameMethod.Invoke(_idNameProvider, args);
                 }
 
                 string name = result?.ToString();

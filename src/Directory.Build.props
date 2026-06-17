@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <ModVersion>1.4</ModVersion>
+    <ModVersion>1.4.1</ModVersion>
     <Version>$(ModVersion)</Version>
   </PropertyGroup>
 </Project>

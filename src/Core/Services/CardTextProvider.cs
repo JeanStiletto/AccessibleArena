@@ -164,25 +164,8 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                var parameters = _getAbilityTextMethod.GetParameters();
-                object result = null;
-
-                if (parameters.Length == 6)
-                {
-                    IEnumerable<uint> abilityIdsList = abilityIds ?? Array.Empty<uint>();
-                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] {
-                        cardGrpId,
-                        abilityId,
-                        abilityIdsList,
-                        cardTitleId,
-                        null,   // overrideLanguageCode
-                        false   // formatted
-                    });
-                }
-                else if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(uint))
-                {
-                    result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] { abilityId });
-                }
+                var args = BuildAbilityTextArgs(_getAbilityTextMethod, cardGrpId, abilityId, abilityIds, cardTitleId);
+                object result = args != null ? _getAbilityTextMethod.Invoke(_abilityTextProvider, args) : null;
 
                 string text = result?.ToString();
                 if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.StartsWith("#") && !text.StartsWith("Ability #") && !text.Contains("Unknown"))
@@ -206,6 +189,61 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Builds the argument array for the resolved ability-text method, keyed off its first
+        /// parameter type so it works across the API rename. Two live shapes (game 2026.60):
+        ///   GetAbilityTextByCardGrpIds(IEnumerable&lt;uint&gt; cardGrpIds, uint abilityGrpId, string lang, bool formatted)
+        ///   GetKeywordText(uint abilityGrpId, string lang, bool formatted)
+        /// The legacy 6-param GetAbilityTextByCardAbilityGrpId(uint, uint, IEnumerable, uint, ...)
+        /// is also still handled. Returns null if the signature is unrecognized. We always request
+        /// formatted=false to get raw MTGA mana notation, which ManaTextFormatter parses downstream.
+        /// </summary>
+        private static object[] BuildAbilityTextArgs(MethodInfo method, uint cardGrpId, uint abilityId, uint[] abilityIds, uint cardTitleId)
+        {
+            var ps = method.GetParameters();
+            if (ps.Length == 0) return null;
+
+            IEnumerable<uint> cardGrpIds = cardGrpId != 0 ? new[] { cardGrpId } : Array.Empty<uint>();
+            IEnumerable<uint> abilityIdsList = abilityIds ?? Array.Empty<uint>();
+
+            // Legacy: GetAbilityTextByCardAbilityGrpId(uint cardGrpId, uint abilityGrpId, IEnumerable, uint titleId, string, bool)
+            if (ps.Length == 6 && ps[0].ParameterType == typeof(uint))
+                return new object[] { cardGrpId, abilityId, abilityIdsList, cardTitleId, null, false };
+
+            // New card-context: GetAbilityTextByCardGrpIds(IEnumerable<uint> cardGrpIds, uint abilityGrpId, string, bool)
+            if (typeof(System.Collections.IEnumerable).IsAssignableFrom(ps[0].ParameterType) && ps[0].ParameterType != typeof(string))
+                return BuildLeading(ps, cardGrpIds, abilityId);
+
+            // Keyword fallback: GetKeywordText(uint abilityGrpId, string, bool)
+            if (ps[0].ParameterType == typeof(uint))
+                return BuildLeading(ps, abilityId);
+
+            return null;
+        }
+
+        /// <summary>
+        /// Builds an argument array of the method's parameter length: the supplied leading values
+        /// fill the first slots; trailing params get their natural default (null for reference
+        /// types — which is the real default for overrideLanguageCode — and default(T) for value
+        /// types) except a trailing bool 'formatted', which is forced to false for raw text.
+        /// (We pass explicit defaults rather than Type.Missing because the plain Invoke overload
+        /// does not honor optional-parameter binding.)
+        /// </summary>
+        private static object[] BuildLeading(ParameterInfo[] ps, params object[] leading)
+        {
+            var args = new object[ps.Length];
+            for (int i = 0; i < ps.Length; i++)
+            {
+                if (i < leading.Length)
+                    args[i] = leading[i];
+                else if (ps[i].ParameterType == typeof(bool) && ps[i].Name == "formatted")
+                    args[i] = false;
+                else
+                    args[i] = ps[i].ParameterType.IsValueType ? Activator.CreateInstance(ps[i].ParameterType) : null;
+            }
+            return args;
         }
 
         /// <summary>
@@ -307,12 +345,48 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static void FindAbilityTextProvider()
         {
+            // The IAbilityTextProvider API is version-sensitive — game 2026.60 refactored it from
+            // GetAbilityTextByCardAbilityGrpId(uint cardGrpId, uint abilityGrpId, IEnumerable<uint>
+            // abilityIds, uint titleId, ...) to:
+            //   GetAbilityTextByCardGrpIds(IEnumerable<uint> cardGrpIds, uint abilityGrpId, ...)  [preferred — card context]
+            //   GetKeywordText(uint abilityGrpId, ...)                                            [fallback — ability default text]
+            // We can't reuse FindStringFromUintMethod here: the preferred method's first param is
+            // IEnumerable<uint>, not uint, so that helper would skip it and silently grab some
+            // other string(uint) method (e.g. GetKeywordText with a param count our invoke can't
+            // satisfy → "Number of parameters specified does not match the expected number").
+            // Resolve by name, newest-API-first, tolerating the old name if a build still has it.
+            string[] methodNames = { "GetAbilityTextByCardGrpIds", "GetAbilityTextByCardAbilityGrpId", "GetKeywordText" };
             var result = SearchCardDatabaseProviders("ability text provider", cardDb =>
-                ExtractProviderFromCardDb(
-                    cardDb,
-                    p => p.Name.Contains("Text") || p.Name.Contains("Ability"),
-                    methodFilter: null,
-                    logLabel: "ability text"));
+            {
+                foreach (var prop in cardDb.GetType().GetProperties(PublicInstance))
+                {
+                    if (!(prop.Name.Contains("Text") || prop.Name.Contains("Ability"))) continue;
+                    object provider;
+                    try { provider = prop.GetValue(cardDb); }
+                    catch { continue; }
+                    if (provider == null) continue;
+
+                    var providerType = provider.GetType();
+                    foreach (var name in methodNames)
+                    {
+                        MethodInfo m;
+                        // GetMethod throws AmbiguousMatchException if the name ever gains an overload;
+                        // fall back to the first string-returning overload of that name.
+                        try { m = providerType.GetMethod(name, PublicInstance); }
+                        catch (AmbiguousMatchException)
+                        {
+                            m = providerType.GetMethods(PublicInstance)
+                                .FirstOrDefault(x => x.Name == name && x.ReturnType == typeof(string));
+                        }
+                        if (m != null && m.ReturnType == typeof(string))
+                        {
+                            Log.Card("CardTextProvider", $"Using {prop.Name}.{m.Name} for ability text lookup");
+                            return ((object, MethodInfo)?)(provider, m);
+                        }
+                    }
+                }
+                return null;
+            });
             if (result.HasValue)
             {
                 _abilityTextProvider = result.Value.provider;

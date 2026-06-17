@@ -982,17 +982,37 @@ The `GameManager.CardDatabase` provides access to card data and localization.
 
 ### Key Lookup Methods
 
-**Card Names:**
+**Card Names** (`ICardTitleProvider`, `Wotc.Mtga.Cards.Database`):
 ```csharp
-CardDatabase.CardTitleProvider.GetCardTitle(uint grpId, bool formatted, string overrideLang)
-```
+// game 2026.60 inserted a skinCode param (was GetCardTitle(uint, bool, string)).
+// Pass skinCode=null for the default printing.
+CardDatabase.CardTitleProvider.GetCardTitle(
+    uint grpId, string skinCode, bool formatted = true,
+    string overrideLanguageCode = null, bool hideRebalanceIcon = false)
 
-**Ability Text:**
-```csharp
-CardDatabase.AbilityTextProvider.GetAbilityTextByCardAbilityGrpId(
-    uint cardGrpId, uint abilityGrpId, IEnumerable<uint> abilityIds,
-    uint cardTitleId, string overrideLangCode, bool formatted)
+// Look up by titleId instead of grpId (e.g. from CardPrintingData.TitleId)
+CardDatabase.CardTitleProvider.GetLocalizedTitle(uint titleId, bool formatted, string overrideLang)
 ```
+The mod resolves `GetCardTitle` by name + uint first param in `CardModelProvider`
+(`FindCardTitleMethod`/`BuildGrpIdArgs`), since this interface is version-sensitive.
+
+**Ability Text** (`IAbilityTextProvider`, `Wotc.Mtga.Cards.Database`):
+```csharp
+// Card-context lookup — card identity is a collection of grp-ids; the provider
+// resolves the per-card ability text-id internally. Wrap a single card as new[]{ grpId }.
+CardDatabase.AbilityTextProvider.GetAbilityTextByCardGrpIds(
+    IEnumerable<uint> cardGrpIds, uint abilityGrpId, string overrideLangCode, bool formatted)
+
+// Keyword / ability-default text (no card context, text-id 0)
+CardDatabase.AbilityTextProvider.GetKeywordText(
+    uint abilityGrpId, string overrideLangCode, bool formatted)
+
+// Resolve alt-printing/skin ability grp-id
+CardDatabase.AbilityTextProvider.GetCardAbilityGrpId(uint grpId, string skinCode)
+```
+The mod resolves the method by name (newest-API-first) in `CardTextProvider`, since
+this interface is version-sensitive. Pass `formatted: false` to get raw MTGA mana
+notation, which `ManaTextFormatter` parses downstream.
 
 **Flavor Text / Type Line Text (via GreLocProvider):**
 ```csharp

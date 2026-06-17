@@ -52,6 +52,9 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | AbilityPrintingRecord | GreClient.CardData.AbilityPrintingRecord | Shared |
 | DynamicAbilityPrintingData | GreClient.CardData.DynamicAbilityPrintingData | Shared |
 | AbilityTextProvider | Wotc.Mtga.Cards.Database.AbilityTextProvider | Shared |
+| IAbilityTextProvider | Wotc.Mtga.Cards.Database.IAbilityTextProvider | Shared |
+| CardTitleProvider | Wotc.Mtga.Cards.Database.CardTitleProvider | Shared |
+| ICardTitleProvider | Wotc.Mtga.Cards.Database.ICardTitleProvider | Shared |
 | CardNameTextProvider | Wotc.Mtga.Cards.Database.CardNameTextProvider | Shared |
 | DynamicAbilityDataProvider | Wotc.Mtga.Cards.Database.DynamicAbilityDataProvider | Shared |
 | CardDatabase | Wotc.Mtga.Cards.Database.CardDatabase | Shared |
