@@ -512,14 +512,13 @@ namespace AccessibleArena.Core.Services
                                             Log.Card("CardModelProvider", $"CardTitleProvider.{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))}) -> {m.ReturnType.Name}");
                                         }
 
-                                        // Use GetCardTitle(UInt32, Boolean, String) method
-                                        var getMethod = providerType.GetMethod("GetCardTitle", new[] { typeof(uint), typeof(bool), typeof(string) });
+                                        var getMethod = FindCardTitleMethod(providerType);
 
                                         if (getMethod != null)
                                         {
                                             _idNameProvider = titleProvider;
                                             _getNameMethod = getMethod;
-                                            Log.Card("CardModelProvider", $"Using CardTitleProvider.GetCardTitle for name lookup");
+                                            Log.Card("CardModelProvider", $"Using CardTitleProvider.{getMethod.Name} for name lookup");
                                             return;
                                         }
                                     }
@@ -692,12 +691,12 @@ namespace AccessibleArena.Core.Services
                                         if (titleProvider != null)
                                         {
                                             var providerType = titleProvider.GetType();
-                                            var getMethod = providerType.GetMethod("GetCardTitle", new[] { typeof(uint), typeof(bool), typeof(string) });
+                                            var getMethod = FindCardTitleMethod(providerType);
                                             if (getMethod != null)
                                             {
                                                 _idNameProvider = titleProvider;
                                                 _getNameMethod = getMethod;
-                                                Log.Card("CardModelProvider", $"Using {typeName}.CardDatabase.CardTitleProvider for name lookup");
+                                                Log.Card("CardModelProvider", $"Using {typeName}.CardDatabase.CardTitleProvider.{getMethod.Name} for name lookup");
                                                 return;
                                             }
                                         }
@@ -718,6 +717,12 @@ namespace AccessibleArena.Core.Services
             {
                 Log.Card("CardModelProvider", $"Error finding IdNameProvider: {ex.Message}");
             }
+        }
+
+        private static MethodInfo FindCardTitleMethod(Type providerType)
+        {
+            return providerType.GetMethod("GetCardTitle", new[] { typeof(uint), typeof(string), typeof(bool), typeof(string), typeof(bool) })
+                ?? providerType.GetMethod("GetCardTitle", new[] { typeof(uint), typeof(bool), typeof(string) });
         }
 
         /// <summary>
@@ -745,8 +750,18 @@ namespace AccessibleArena.Core.Services
                 var parameters = _getNameMethod.GetParameters();
                 object result = null;
 
+                // GetCardTitle(UInt32, String, Boolean, String, Boolean) - call with no skin/language override.
+                if (parameters.Length == 5 &&
+                    parameters[0].ParameterType == typeof(uint) &&
+                    parameters[1].ParameterType == typeof(string) &&
+                    parameters[2].ParameterType == typeof(bool) &&
+                    parameters[3].ParameterType == typeof(string) &&
+                    parameters[4].ParameterType == typeof(bool))
+                {
+                    result = _getNameMethod.Invoke(_idNameProvider, new object[] { grpId, null, false, null, false });
+                }
                 // GetCardTitle(UInt32, Boolean, String) - call with grpId, false, null
-                if (parameters.Length == 3 &&
+                else if (parameters.Length == 3 &&
                     parameters[0].ParameterType == typeof(uint) &&
                     parameters[1].ParameterType == typeof(bool))
                 {
@@ -933,6 +948,44 @@ namespace AccessibleArena.Core.Services
             return value?.ToString();
         }
 
+        internal static uint[] ExtractAbilityIds(object abilityIdsValue)
+        {
+            if (abilityIdsValue == null) return null;
+            if (abilityIdsValue is uint[] abilityIdArray) return abilityIdArray;
+            if (abilityIdsValue is IEnumerable<uint> abilityIdEnumerable) return abilityIdEnumerable.ToArray();
+            if (!(abilityIdsValue is IEnumerable enumerable)) return null;
+
+            var ids = new List<uint>();
+            foreach (var item in enumerable)
+            {
+                if (item == null) continue;
+                if (item is uint id)
+                {
+                    ids.Add(id);
+                    continue;
+                }
+
+                var itemType = item.GetType();
+                object idValue = null;
+                var idProp = itemType.GetProperty("Id", PublicInstance) ?? itemType.GetProperty("Item1", PublicInstance);
+                if (idProp != null)
+                {
+                    idValue = idProp.GetValue(item);
+                }
+                else
+                {
+                    var idField = itemType.GetField("Id", PublicInstance) ?? itemType.GetField("Item1", PublicInstance);
+                    if (idField != null)
+                        idValue = idField.GetValue(item);
+                }
+
+                if (idValue is uint tupleId)
+                    ids.Add(tupleId);
+            }
+
+            return ids.Count > 0 ? ids.ToArray() : null;
+        }
+
         /// <summary>
         /// Extracts rules text from a CardData's RulesTextOverride property.
         /// Used for modal spell mode cards where Abilities are cleared but RulesTextOverride
@@ -949,13 +1002,13 @@ namespace AccessibleArena.Core.Services
                 var abilityGrpIdSetField = overrideType.GetField("_abilityGrpIdSet", PrivateInstance);
                 if (abilityGrpIdSetField == null) return null;
 
-                var abilityGrpIds = abilityGrpIdSetField.GetValue(rulesOverride) as System.Collections.IList;
-                if (abilityGrpIds == null || abilityGrpIds.Count == 0) return null;
+                var abilityGrpIds = abilityGrpIdSetField.GetValue(rulesOverride) as IEnumerable;
+                if (abilityGrpIds == null) return null;
 
                 var sourceGrpIdSetField = overrideType.GetField("_sourceGrpIdSet", PrivateInstance);
                 var titleIdField = overrideType.GetField("_titleId", PrivateInstance);
 
-                var sourceGrpIds = sourceGrpIdSetField?.GetValue(rulesOverride) as System.Collections.IList;
+                var sourceGrpIds = sourceGrpIdSetField?.GetValue(rulesOverride) as IEnumerable;
                 uint overrideTitleId = cardTitleId;
                 if (titleIdField != null)
                 {
@@ -1656,11 +1709,7 @@ namespace AccessibleArena.Core.Services
                 if (titleIdVal is uint tid) cardTitleId = tid;
 
                 var abilityIdsVal = GetModelPropertyValue(dataObj, objType, "AbilityIds");
-                uint[] abilityIds = null;
-                if (abilityIdsVal is IEnumerable<uint> aidEnum)
-                    abilityIds = aidEnum.ToArray();
-                else if (abilityIdsVal is uint[] aidArray)
-                    abilityIds = aidArray;
+                uint[] abilityIds = ExtractAbilityIds(abilityIdsVal);
 
                 var abilities = GetModelPropertyValue(dataObj, objType, "Abilities");
                 if (abilities is IEnumerable abilityEnum)

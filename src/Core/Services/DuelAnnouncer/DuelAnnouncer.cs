@@ -257,7 +257,12 @@ namespace AccessibleArena.Core.Services
         private DuelEventType ClassifyEvent(object uxEvent)
         {
             var typeName = uxEvent.GetType().Name;
-            return _eventTypeMap.TryGetValue(typeName, out var eventType) ? eventType : DuelEventType.Ignored;
+            return ClassifyEventName(typeName, _eventTypeMap);
+        }
+
+        internal static DuelEventType ClassifyEventName(string typeName, IDictionary<string, DuelEventType> eventTypeMap)
+        {
+            return eventTypeMap.TryGetValue(typeName, out var eventType) ? eventType : DuelEventType.Ignored;
         }
 
         private string BuildAnnouncement(DuelEventType eventType, object uxEvent)
@@ -697,7 +702,7 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private Dictionary<string, DuelEventType> BuildEventTypeMap()
+        internal Dictionary<string, DuelEventType> BuildEventTypeMap()
         {
             return new Dictionary<string, DuelEventType>
             {
@@ -742,6 +747,7 @@ namespace AccessibleArena.Core.Services
 
                 // Zone transfers (creature deaths)
                 { "ZoneTransferGroup", DuelEventType.ZoneTransferGroup },
+                { "ZoneTransferUXEvent", DuelEventType.ZoneTransferGroup },
 
                 // Combat events
                 { "CombatFrame", DuelEventType.CombatFrame },

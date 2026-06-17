@@ -167,7 +167,29 @@ namespace AccessibleArena.Core.Services
                 var parameters = _getAbilityTextMethod.GetParameters();
                 object result = null;
 
-                if (parameters.Length == 6)
+                if (parameters.Length >= 2 &&
+                    typeof(IEnumerable<uint>).IsAssignableFrom(parameters[0].ParameterType) &&
+                    parameters[1].ParameterType == typeof(uint))
+                {
+                    var cardGrpIds = cardGrpId > 0 ? new uint[] { cardGrpId } : Array.Empty<uint>();
+                    if (parameters.Length == 4)
+                    {
+                        result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] {
+                            cardGrpIds,
+                            abilityId,
+                            null,   // overrideLanguageCode
+                            false   // formatted
+                        });
+                    }
+                    else if (parameters.Length == 2)
+                    {
+                        result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] {
+                            cardGrpIds,
+                            abilityId
+                        });
+                    }
+                }
+                else if (parameters.Length == 6)
                 {
                     IEnumerable<uint> abilityIdsList = abilityIds ?? Array.Empty<uint>();
                     result = _getAbilityTextMethod.Invoke(_abilityTextProvider, new object[] {
@@ -308,16 +330,51 @@ namespace AccessibleArena.Core.Services
         private static void FindAbilityTextProvider()
         {
             var result = SearchCardDatabaseProviders("ability text provider", cardDb =>
-                ExtractProviderFromCardDb(
-                    cardDb,
-                    p => p.Name.Contains("Text") || p.Name.Contains("Ability"),
-                    methodFilter: null,
-                    logLabel: "ability text"));
+                ExtractAbilityTextProviderFromCardDb(cardDb));
             if (result.HasValue)
             {
                 _abilityTextProvider = result.Value.provider;
                 _getAbilityTextMethod = result.Value.method;
             }
+        }
+
+        private static (object provider, MethodInfo method)? ExtractAbilityTextProviderFromCardDb(object cardDb)
+        {
+            foreach (var prop in cardDb.GetType().GetProperties(PublicInstance))
+            {
+                if (!(prop.Name.Contains("Text") || prop.Name.Contains("Ability"))) continue;
+                var provider = prop.GetValue(cardDb);
+                if (provider == null) continue;
+
+                var method = FindAbilityTextMethod(provider.GetType());
+                if (method != null)
+                {
+                    Log.Card("CardTextProvider", $"Using {prop.Name}.{method.Name} for ability text lookup");
+                    return (provider, method);
+                }
+            }
+            return null;
+        }
+
+        private static MethodInfo FindAbilityTextMethod(Type providerType)
+        {
+            MethodInfo fallback = null;
+            foreach (var m in providerType.GetMethods(PublicInstance))
+            {
+                if (m.DeclaringType == typeof(object)) continue;
+                if (m.ReturnType != typeof(string)) continue;
+                var ps = m.GetParameters();
+                if (ps.Length >= 2 &&
+                    typeof(IEnumerable<uint>).IsAssignableFrom(ps[0].ParameterType) &&
+                    ps[1].ParameterType == typeof(uint) &&
+                    m.Name.Contains("AbilityText"))
+                {
+                    return m;
+                }
+                if (fallback == null && ps.Length >= 1 && ps[0].ParameterType == typeof(uint))
+                    fallback = m;
+            }
+            return fallback;
         }
 
         /// <summary>

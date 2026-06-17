@@ -142,6 +142,12 @@ namespace AccessibleArena.Core.Services
                 // Log fields for discovery (once)
                 LogEventFieldsOnce(uxEvent, "ZONE TRANSFER GROUP");
 
+                if (uxEvent.GetType().Name == "ZoneTransferUXEvent")
+                {
+                    LogEventFieldsOnce(uxEvent, "ZONE TRANSFER UX EVENT");
+                    return ProcessZoneTransfer(uxEvent);
+                }
+
                 // Get the _zoneTransfers list which contains individual ZoneTransferUXEvent items
                 var zoneTransfers = GetFieldValue<object>(uxEvent, "_zoneTransfers");
                 if (zoneTransfers == null) return null;
