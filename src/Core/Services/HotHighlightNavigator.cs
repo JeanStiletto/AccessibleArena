@@ -1480,7 +1480,25 @@ namespace AccessibleArena.Core.Services
                 }
 
                 if (shouldAnnounce)
-                    _announcer.Announce(currentText, AnnouncementPriority.High);
+                {
+                    // Enrich the button with the game's own prompt instruction (e.g. "Bezahle 2"
+                    // / "Pay 2" for a ward cost, "Choose a target", etc.). This is localized text
+                    // straight from the game, so it tells the user what they're paying/doing and
+                    // how much. Empty for some prompts (e.g. plain pass/"Resolve"), in which case
+                    // we just announce the bare button. Dedup stays on the raw button text below,
+                    // so the suffix adds context without extra chatter.
+                    // Skip during combat: the phase is already announced and the count button
+                    // ("2 Angreifer") changes on every toggle, so repeating "Bestimme Angreifer"
+                    // would be noise.
+                    string instruction = isInCombatPhase ? null : GetPromptInstructionText();
+
+                    string announcement = currentText;
+                    if (!string.IsNullOrEmpty(instruction)
+                        && !string.Equals(instruction, currentText, StringComparison.OrdinalIgnoreCase))
+                        announcement = $"{currentText}, {instruction}";
+
+                    _announcer.Announce(announcement, AnnouncementPriority.High);
+                }
                 _lastPromptButtonText = currentText;
             }
         }
