@@ -780,6 +780,7 @@ namespace AccessibleArena.Core.Services
         private static PropertyInfo _gameManagerCurrentInteractionProp;
         private static FieldInfo _greInteractionTypeField;
         private static FieldInfo _greInteractionCanAffordField;
+        private static PropertyInfo _greInteractionIsActiveProp;
         private static MonoBehaviour _cachedGameManager;
 
         /// <summary>
@@ -831,6 +832,8 @@ namespace AccessibleArena.Core.Services
                 {
                     _greInteractionTypeField = greType.GetField("Type", PublicInstance);
                     _greInteractionCanAffordField = greType.GetField("CanAffordToCast", PublicInstance);
+                    // IsActive is a PROPERTY (get; private set;), not a field like Type/CanAffordToCast.
+                    _greInteractionIsActiveProp = greType.GetProperty("IsActive", PublicInstance);
                 }
 
                 // GameManager exposes WorkflowBase CurrentInteraction => WorkflowController.CurrentWorkflow.
@@ -841,14 +844,16 @@ namespace AccessibleArena.Core.Services
                 bool ok = _getInteractionsForIdMethod != null
                        && _gameManagerCurrentInteractionProp != null
                        && _greInteractionTypeField != null
-                       && _greInteractionCanAffordField != null;
+                       && _greInteractionCanAffordField != null
+                       && _greInteractionIsActiveProp != null;
                 Log.Nav("HotHighlightNavigator",
                     ok ? "Hand-castable supplement: GreInteraction pipeline ready"
                        : $"Hand-castable supplement: GreInteraction pipeline NOT fully resolvable " +
                          $"(GetInteractionsForId={_getInteractionsForIdMethod != null}, " +
                          $"GameManager.CurrentInteraction={_gameManagerCurrentInteractionProp != null}, " +
                          $"GreInteraction.Type={_greInteractionTypeField != null}, " +
-                         $"GreInteraction.CanAffordToCast={_greInteractionCanAffordField != null}) — disabled");
+                         $"GreInteraction.CanAffordToCast={_greInteractionCanAffordField != null}, " +
+                         $"GreInteraction.IsActive={_greInteractionIsActiveProp != null}) — disabled");
             }
             catch (Exception ex)
             {
@@ -858,13 +863,23 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Returns true when MTGA's <c>ActionsAvailableWorkflow</c> has a playable
-        /// <see cref="GreInteraction"/> for this card with <c>CanAffordToCast == true</c> —
-        /// "playable" being any Cast variant, plain <c>Activate</c> (cycling, channel,
-        /// foretell-the-card, plot-the-card, ninjutsu, …), or non-payment <c>Special</c>
-        /// actions (see <see cref="IsPlayableActionType"/>). That's the game's own answer
-        /// to "is the user able to do something with this card right now?", computed when
-        /// the workflow built each interaction (via <c>Action.CanAffordToCast()</c> against
-        /// the current <c>AutoTapSolution</c>).
+        /// <see cref="GreInteraction"/> for this card that is <c>IsActive</c> AND has
+        /// <c>CanAffordToCast == true</c> — "playable" being any Cast variant, plain
+        /// <c>Activate</c> (cycling, channel, foretell-the-card, plot-the-card, ninjutsu, …),
+        /// or non-payment <c>Special</c> actions (see <see cref="IsPlayableActionType"/>).
+        /// That's the game's own answer to "is the user able to do something with this card
+        /// right now?", computed when the workflow built each interaction (via
+        /// <c>Action.CanAffordToCast()</c> against the current <c>AutoTapSolution</c>).
+        ///
+        /// The <c>IsActive</c> gate is essential: <c>ApplyInteractionInternal</c> adds BOTH
+        /// <c>_request.Actions</c> (IsActive=true) and <c>_request.InactiveActions</c>
+        /// (IsActive=false, disqualified) to the per-card interaction list. A disqualified
+        /// action — e.g. a planeswalker that already used loyalty this turn, or a tapped
+        /// creature's <c>{T}:</c> ability — keeps a playable Type and (for free abilities)
+        /// <c>CanAffordToCast == true</c>, so without the IsActive check it would wrongly
+        /// surface in Tab. The game's own <c>HighlightUtil.GetHighlightForAction</c> (which
+        /// produces the visual glow) and <c>CanClick</c> both gate on <c>IsActive</c>, so
+        /// requiring it here makes this supplement match the game exactly.
         /// </summary>
         private bool IsCardCastableByGameState(GameObject card)
         {
@@ -876,7 +891,8 @@ namespace AccessibleArena.Core.Services
             if (_getInteractionsForIdMethod == null
                 || _gameManagerCurrentInteractionProp == null
                 || _greInteractionTypeField == null
-                || _greInteractionCanAffordField == null)
+                || _greInteractionCanAffordField == null
+                || _greInteractionIsActiveProp == null)
                 return false;
 
             if (_cachedGameManager == null || !_cachedGameManager)
@@ -910,6 +926,14 @@ namespace AccessibleArena.Core.Services
             foreach (var interaction in interactions)
             {
                 if (interaction == null) continue;
+
+                // Skip disqualified actions (already-used loyalty, tapped {T}: ability, etc.).
+                // These live in _request.InactiveActions but still carry a playable Type and
+                // (for free abilities) CanAffordToCast == true. The game itself never lets you
+                // click them (CanClick gates on IsActive), so they must not appear in Tab.
+                var activeVal = _greInteractionIsActiveProp.GetValue(interaction);
+                if (!(activeVal is bool active && active)) continue;
+
                 var typeVal = _greInteractionTypeField.GetValue(interaction);
                 if (typeVal == null) continue;
                 string typeName = typeVal.ToString();
