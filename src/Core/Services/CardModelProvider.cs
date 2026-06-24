@@ -985,6 +985,52 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Normalizes a model's <c>AbilityIds</c> value to a <c>uint[]</c>. Game 2026.60 can hand
+        /// this back not just as <c>uint[]</c> / <c>IEnumerable&lt;uint&gt;</c> but as a collection of
+        /// wrapper objects/tuples (each exposing the id via an <c>Id</c> / <c>Item1</c> property or
+        /// field). The old code only recognized the plain-uint shapes and dropped the wrapped one to
+        /// null, so cards whose ability list arrived wrapped (e.g. modal "pick one" spells) resolved
+        /// no rules text and read as just the card name. Returns null when nothing usable is found.
+        /// </summary>
+        internal static uint[] ExtractAbilityIds(object abilityIdsValue)
+        {
+            if (abilityIdsValue == null) return null;
+            if (abilityIdsValue is uint[] abilityIdArray) return abilityIdArray;
+            if (abilityIdsValue is IEnumerable<uint> abilityIdEnumerable) return abilityIdEnumerable.ToArray();
+            if (!(abilityIdsValue is IEnumerable enumerable)) return null;
+
+            var ids = new List<uint>();
+            foreach (var item in enumerable)
+            {
+                if (item == null) continue;
+                if (item is uint id)
+                {
+                    ids.Add(id);
+                    continue;
+                }
+
+                var itemType = item.GetType();
+                object idValue = null;
+                var idProp = itemType.GetProperty("Id", PublicInstance) ?? itemType.GetProperty("Item1", PublicInstance);
+                if (idProp != null)
+                {
+                    idValue = idProp.GetValue(item);
+                }
+                else
+                {
+                    var idField = itemType.GetField("Id", PublicInstance) ?? itemType.GetField("Item1", PublicInstance);
+                    if (idField != null)
+                        idValue = idField.GetValue(item);
+                }
+
+                if (idValue is uint tupleId)
+                    ids.Add(tupleId);
+            }
+
+            return ids.Count > 0 ? ids.ToArray() : null;
+        }
+
+        /// <summary>
         /// Extracts rules text from a CardData's RulesTextOverride property.
         /// Used for modal spell mode cards where Abilities are cleared but RulesTextOverride
         /// contains the mode-specific ability text (AbilityTextOverride).
@@ -1000,13 +1046,16 @@ namespace AccessibleArena.Core.Services
                 var abilityGrpIdSetField = overrideType.GetField("_abilityGrpIdSet", PrivateInstance);
                 if (abilityGrpIdSetField == null) return null;
 
-                var abilityGrpIds = abilityGrpIdSetField.GetValue(rulesOverride) as System.Collections.IList;
-                if (abilityGrpIds == null || abilityGrpIds.Count == 0) return null;
+                // Read as the non-generic IEnumerable rather than IList: 2026.60 can back these
+                // sets with a collection type that doesn't implement IList, which the old cast
+                // silently turned into null (no override rules text). foreach handles empties.
+                var abilityGrpIds = abilityGrpIdSetField.GetValue(rulesOverride) as IEnumerable;
+                if (abilityGrpIds == null) return null;
 
                 var sourceGrpIdSetField = overrideType.GetField("_sourceGrpIdSet", PrivateInstance);
                 var titleIdField = overrideType.GetField("_titleId", PrivateInstance);
 
-                var sourceGrpIds = sourceGrpIdSetField?.GetValue(rulesOverride) as System.Collections.IList;
+                var sourceGrpIds = sourceGrpIdSetField?.GetValue(rulesOverride) as IEnumerable;
                 uint overrideTitleId = cardTitleId;
                 if (titleIdField != null)
                 {
@@ -1707,11 +1756,7 @@ namespace AccessibleArena.Core.Services
                 if (titleIdVal is uint tid) cardTitleId = tid;
 
                 var abilityIdsVal = GetModelPropertyValue(dataObj, objType, "AbilityIds");
-                uint[] abilityIds = null;
-                if (abilityIdsVal is IEnumerable<uint> aidEnum)
-                    abilityIds = aidEnum.ToArray();
-                else if (abilityIdsVal is uint[] aidArray)
-                    abilityIds = aidArray;
+                uint[] abilityIds = ExtractAbilityIds(abilityIdsVal);
 
                 var abilities = GetModelPropertyValue(dataObj, objType, "Abilities");
                 if (abilities is IEnumerable abilityEnum)

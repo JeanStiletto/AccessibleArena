@@ -230,6 +230,7 @@ Shift+Вверх/Вниз: Переключение рядов поля битв
 За вклад в код я хочу поблагодарить:
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 За тестирование бет, отзывы и идеи я хочу поблагодарить:
 - Alfi
@@ -248,6 +249,7 @@ Shift+Вверх/Вниз: Переключение рядов поля битв
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 За тестирование зрячими для понимания визуальных процессов и подтверждения некоторых вещей я хочу поблагодарить:
 - [mauriceKA](https://github.com/mauriceKA)

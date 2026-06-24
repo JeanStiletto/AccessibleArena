@@ -142,6 +142,15 @@ namespace AccessibleArena.Core.Services
                 // Log fields for discovery (once)
                 LogEventFieldsOnce(uxEvent, "ZONE TRANSFER GROUP");
 
+                // A bare ZoneTransferUXEvent (not a group) has no _zoneTransfers list to unwrap —
+                // it IS the individual transfer, so process it directly. The game fires these for
+                // single moves like a land entering the battlefield.
+                if (uxEvent.GetType().Name == "ZoneTransferUXEvent")
+                {
+                    LogEventFieldsOnce(uxEvent, "ZONE TRANSFER UX EVENT");
+                    return ProcessZoneTransfer(uxEvent);
+                }
+
                 // Get the _zoneTransfers list which contains individual ZoneTransferUXEvent items
                 var zoneTransfers = GetFieldValue<object>(uxEvent, "_zoneTransfers");
                 if (zoneTransfers == null) return null;

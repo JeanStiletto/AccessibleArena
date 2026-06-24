@@ -230,6 +230,7 @@ Weiterer Dank an Ahix, der [Refactoring-Prompts für große KI-basierte Projekte
 Für Code-Beiträge möchte ich danken:
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Für das Testen der Betas, Feedback und Ideen möchte ich danken:
 - Alfi
@@ -248,6 +249,7 @@ Für das Testen der Betas, Feedback und Ideen möchte ich danken:
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Für sehendes Testen, um visuelle Abläufe zu verstehen und Dinge zu bestätigen, möchte ich danken:
 - [mauriceKA](https://github.com/mauriceKA)

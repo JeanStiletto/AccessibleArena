@@ -230,6 +230,7 @@ Inoltre grazie ad Ahix che ha creato [prompt di refactoring per grandi progetti 
 Per i contributi al codice voglio ringraziare:
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Per i test delle beta, i feedback e le idee voglio ringraziare:
 - Alfi
@@ -248,6 +249,7 @@ Per i test delle beta, i feedback e le idee voglio ringraziare:
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Per i test con persone vedenti per capire i flussi visivi e confermare alcune cose voglio ringraziare:
 - [mauriceKA](https://github.com/mauriceKA)

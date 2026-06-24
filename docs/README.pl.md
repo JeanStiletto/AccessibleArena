@@ -230,6 +230,7 @@ Dalsze podziękowania dla Ahixa, który stworzył [prompty refaktoryzacyjne dla 
 Za wkład w kod chcę podziękować:
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Za testowanie bet, opinie i pomysły chcę podziękować:
 - Alfi
@@ -248,6 +249,7 @@ Za testowanie bet, opinie i pomysły chcę podziękować:
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Za testowanie przez osoby widzące w celu zrozumienia wizualnych przepływów pracy i potwierdzenia niektórych rzeczy chcę podziękować:
 - [mauriceKA](https://github.com/mauriceKA)

@@ -230,6 +230,7 @@ Plus grand merci à Ahix qui a créé des [prompts de refactorisation pour de gr
 Pour les contributions de code, je veux remercier :
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Pour le test des bêtas, les retours et les idées, je veux remercier :
 - Alfi
@@ -248,6 +249,7 @@ Pour le test des bêtas, les retours et les idées, je veux remercier :
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Pour le test avec des personnes voyantes afin de comprendre les flux visuels et de confirmer certaines choses, je veux remercier :
 - [mauriceKA](https://github.com/mauriceKA)

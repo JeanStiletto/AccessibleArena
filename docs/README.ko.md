@@ -230,6 +230,7 @@ Arena에는 실제 돈과 관련된 메커니즘이 일부 있고 게임 내 통
 코드 기여에 감사하고 싶은 분들:
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 베타 테스트, 피드백, 아이디어에 대해 감사하고 싶은 분들:
 - Alfi
@@ -248,6 +249,7 @@ Arena에는 실제 돈과 관련된 메커니즘이 일부 있고 게임 내 통
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 시각적 워크플로를 이해하고 몇 가지를 확인하기 위한 정안자 테스트에 감사하고 싶은 분들:
 - [mauriceKA](https://github.com/mauriceKA)

@@ -235,6 +235,7 @@ Further thanks to Ahix who created [refactoring prompts for large AI-coded proje
 For code contributions I want to thank:
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 For testing the betas, feedback and ideas I want to thank:
 - Alfi
@@ -253,6 +254,7 @@ For testing the betas, feedback and ideas I want to thank:
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 For sighted testing to understand visual workflows and confirming some things I want to thank:
 - [mauriceKA](https://github.com/mauriceKA)

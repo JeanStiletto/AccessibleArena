@@ -230,6 +230,7 @@ Agradecimentos também ao Ahix, que criou [prompts de refatoração para grandes
 Por contribuições de código, quero agradecer:
 - [blindndangerous](https://github.com/blindndangerous)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Por testar as betas, dar feedback e ideias, quero agradecer:
 - Alfi
@@ -248,6 +249,7 @@ Por testar as betas, dar feedback e ideias, quero agradecer:
 - kairos4901
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
+- [lilmike](https://github.com/lilmike)
 
 Por testes com pessoas videntes para entender fluxos visuais e confirmar algumas coisas, quero agradecer:
 - [mauriceKA](https://github.com/mauriceKA)

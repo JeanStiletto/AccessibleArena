@@ -734,8 +734,12 @@ namespace AccessibleArena.Core.Services
                 // Card model updates (might contain damage info)
                 { "UpdateCardModelUXEvent", DuelEventType.CardModelUpdate },
 
-                // Zone transfers (creature deaths)
+                // Zone transfers (creature deaths). The game may fire a single ZoneTransferUXEvent
+                // directly (not wrapped in a ZoneTransferGroup) — e.g. a land entering the
+                // battlefield — which previously fell through to Ignored, so lands being played
+                // never read. Route the bare event through the same handler.
                 { "ZoneTransferGroup", DuelEventType.ZoneTransferGroup },
+                { "ZoneTransferUXEvent", DuelEventType.ZoneTransferGroup },
 
                 // Combat events
                 { "CombatFrame", DuelEventType.CombatFrame },
