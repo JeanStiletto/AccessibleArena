@@ -148,12 +148,6 @@ Tested on Windows 10 and Windows 11 with NVDA and JAWS. Other Windows versions a
 
 ---
 
-### Emblems in Command Zone
-
-Emblems created by planeswalkers live in the Command zone (`ZoneType.Command`) as `GameObjectType.Emblem`. It is unclear whether the current W key (Command Zone navigator) already picks them up, or if additional detection is needed. Needs in-game testing with emblem-producing planeswalkers.
-
----
-
 ## Not Reproducible Yet
 
 ### Event-Specific Quests Show English Text
@@ -173,7 +167,7 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 
 ### Upcoming
  
-1. Display emblems in command zone and modified player properties (max hand size, extra turns, etc.)
+1. Display modified player properties (max hand size, extra turns, etc.)
 2. Sylvan Library support — the card has a unique draw-then-choose UI that needs accessible navigation. Planned for when Strixhaven Remastered releases on Arena. Reference: https://magic.wizards.com/en/news/mtg-arena/dev-diary-sylvan-library
 
 ### Polish
@@ -184,7 +178,6 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 4. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
 5. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
 6. Replace Tolk with Prism library — Tolk covers the major Western screen readers (NVDA, JAWS, Narrator) but lacks support for several Asian ones. A switch to Prism may be considered if Asian screen reader users request it. Two blockers remain: the official Prism .NET binding currently targets .NET 10, while this mod runs on .NET Framework 4.7.2; and the mod would need to be confirmed portable to macOS, which requires a contributor with access to a Mac (the maintainer does not have one).
-7. Commander display improvements — properly announce commanders in Brawl/Commander: show mana cost, display commander tax on the commander card (not just on cast), handle partner commanders correctly. PR #76 has initial work on cast-time tax announcements but needs a broader approach for on-demand cost checking.
-8. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
-9. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
+7. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
+8. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
 

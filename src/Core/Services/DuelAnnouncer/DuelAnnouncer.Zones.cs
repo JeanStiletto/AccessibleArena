@@ -293,15 +293,6 @@ namespace AccessibleArena.Core.Services
                 string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
                 string announcement = null;
 
-                // Track commander ownership permanently (for opponent commander detection).
-                // Don't overwrite data already seeded from MatchManager — zone transfer events
-                // have unreliable isOpponent detection (ControllerId is 0 for opponent commanders).
-                if (toZoneTypeStr == "Command" && grpId != 0 && !_commandZoneGrpIds.ContainsKey(grpId))
-                {
-                    _commandZoneGrpIds[grpId] = isOpponent;
-                    Log.Msg("DuelAnnouncer", $"Tracking commander from zone event: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
-                }
-
                 // Determine announcement based on zone transfer type
                 switch (toZoneTypeStr)
                 {

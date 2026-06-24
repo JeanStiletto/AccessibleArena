@@ -1,8 +1,7 @@
-using MelonLoader;
 using AccessibleArena.Core.Models;
-using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
@@ -12,56 +11,342 @@ namespace AccessibleArena.Core.Services
 {
     public partial class DuelAnnouncer
     {
-        // Reflection caches for reading CommanderGrpIds (3-type chain:
-        // GameManager → MatchManager → PlayerInfo). Each type is only reachable
-        // via a live instance from the previous step, so three caches seeded
-        // independently at point of use.
+        /// <summary>
+        /// A single command-zone card (commander or emblem), resolved live from the game state.
+        /// <see cref="Cdc"/> is the real card GameObject when a card view exists — navigating it
+        /// gives the full card experience (actual cost, extended info, counters, attachments).
+        /// When no instantiated view exists (e.g. an uncast commander), <see cref="Cdc"/> is null
+        /// and only <see cref="GrpId"/> is available for a card-database fallback.
+        /// </summary>
+        public struct CommandZoneCardRef
+        {
+            public uint InstanceId;
+            public GameObject Cdc;
+            public uint GrpId;
+        }
+
+        // The opponent's commander is read straight from the live game state, mirroring Arena's
+        // own ExamineCommanderCard: GameManager.CurrentGameState.Opponent.CommanderIds gives the
+        // instance IDs, ViewManager.TryGetCardView resolves each to a live card view, and the
+        // card database (via GrpId) is the fallback when no view exists. This replaces the old
+        // MatchManager.PlayerInfo.CommanderGrpIds reflection chain (removed by the game in 2026.60)
+        // and the unreliable zone-event ownership tracking (ControllerId is 0 for opponents).
         private sealed class GameManagerHandles
         {
-            public PropertyInfo MatchManager;
+            public PropertyInfo CurrentGameState;
+            public PropertyInfo ViewManager;
         }
-        private sealed class MatchManagerHandles
+        private sealed class GameStateHandles
         {
-            public PropertyInfo LocalPlayerInfo;
-            public PropertyInfo OpponentInfo;
+            public PropertyInfo Opponent;
+            public PropertyInfo LocalPlayer;
+            public PropertyInfo Command;
+            public MethodInfo GetCardById;
         }
-        private sealed class PlayerInfoHandles
+        private sealed class PlayerHandles
         {
-            public PropertyInfo CommanderGrpIds;
+            public FieldInfo CommanderIds;
+            public FieldInfo InstanceId;
+            public FieldInfo Designations;
+            public PropertyInfo IsLocalPlayer;
+        }
+        private sealed class ViewManagerHandles
+        {
+            public MethodInfo TryGetCardView;
+        }
+        private sealed class CardInstanceHandles
+        {
+            public PropertyInfo GrpId;
+            public FieldInfo ObjectType;
+            public FieldInfo Controller;
+            public FieldInfo InstanceId;
+        }
+        private sealed class ZoneHandles
+        {
+            public FieldInfo VisibleCards;
         }
 
         private static readonly ReflectionCache<GameManagerHandles> _gmCache = new ReflectionCache<GameManagerHandles>(
-            builder: t => new GameManagerHandles { MatchManager = t.GetProperty("MatchManager", PublicInstance) },
-            validator: h => h.MatchManager != null,
-            logTag: "DuelAnnouncer",
-            logSubject: "GameManager");
-
-        private static readonly ReflectionCache<MatchManagerHandles> _mmCache = new ReflectionCache<MatchManagerHandles>(
-            builder: t => new MatchManagerHandles
+            builder: t => new GameManagerHandles
             {
-                LocalPlayerInfo = t.GetProperty("LocalPlayerInfo", PublicInstance),
-                OpponentInfo = t.GetProperty("OpponentInfo", PublicInstance),
+                CurrentGameState = t.GetProperty("CurrentGameState", PublicInstance),
+                ViewManager = t.GetProperty("ViewManager", PublicInstance),
             },
-            validator: h => h.LocalPlayerInfo != null && h.OpponentInfo != null,
+            validator: h => h.CurrentGameState != null && h.ViewManager != null,
             logTag: "DuelAnnouncer",
-            logSubject: "MatchManager");
+            logSubject: "GameManager(Commander)");
 
-        private static readonly ReflectionCache<PlayerInfoHandles> _piCache = new ReflectionCache<PlayerInfoHandles>(
-            builder: t => new PlayerInfoHandles { CommanderGrpIds = t.GetProperty("CommanderGrpIds", PublicInstance) },
-            validator: h => h.CommanderGrpIds != null,
+        private static readonly ReflectionCache<GameStateHandles> _gsCache = new ReflectionCache<GameStateHandles>(
+            builder: t => new GameStateHandles
+            {
+                Opponent = t.GetProperty("Opponent", PublicInstance),
+                LocalPlayer = t.GetProperty("LocalPlayer", PublicInstance),
+                Command = t.GetProperty("Command", PublicInstance),
+                GetCardById = t.GetMethod("GetCardById", PublicInstance, null, new[] { typeof(uint) }, null),
+            },
+            validator: h => h.Opponent != null,
             logTag: "DuelAnnouncer",
-            logSubject: "PlayerInfo");
+            logSubject: "MtgGameState");
+
+        private static readonly ReflectionCache<PlayerHandles> _playerCache = new ReflectionCache<PlayerHandles>(
+            builder: t => new PlayerHandles
+            {
+                CommanderIds = t.GetField("CommanderIds", PublicInstance),
+                InstanceId = t.GetField("InstanceId", PublicInstance),
+                Designations = t.GetField("Designations", PublicInstance),
+                IsLocalPlayer = t.GetProperty("IsLocalPlayer", PublicInstance),
+            },
+            validator: h => h.CommanderIds != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "MtgPlayer");
+
+        private static readonly ReflectionCache<ViewManagerHandles> _vmCache = new ReflectionCache<ViewManagerHandles>(
+            // EntityViewManager implements many interfaces; resolve by name + (uint, out) shape
+            // to avoid AmbiguousMatchException from GetMethod(name).
+            builder: t => new ViewManagerHandles
+            {
+                TryGetCardView = t.GetMethods(PublicInstance).FirstOrDefault(m =>
+                {
+                    if (m.Name != "TryGetCardView") return false;
+                    var ps = m.GetParameters();
+                    return ps.Length == 2 && ps[0].ParameterType == typeof(uint) && ps[1].IsOut;
+                }),
+            },
+            validator: h => h.TryGetCardView != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "ViewManager");
+
+        private static readonly ReflectionCache<CardInstanceHandles> _ciCache = new ReflectionCache<CardInstanceHandles>(
+            builder: t => new CardInstanceHandles
+            {
+                GrpId = t.GetProperty("GrpId", PublicInstance),
+                ObjectType = t.GetField("ObjectType", PublicInstance),
+                Controller = t.GetField("Controller", PublicInstance),
+                InstanceId = t.GetField("InstanceId", PublicInstance),
+            },
+            validator: h => h.GrpId != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "MtgCardInstance(Commander)");
+
+        private static readonly ReflectionCache<ZoneHandles> _zoneCache = new ReflectionCache<ZoneHandles>(
+            builder: t => new ZoneHandles { VisibleCards = t.GetField("VisibleCards", PublicInstance) },
+            validator: h => h.VisibleCards != null,
+            logTag: "DuelAnnouncer",
+            logSubject: "MtgZone");
+
+        // GameManager persists for the duration of a match; cache it and re-find if destroyed.
+        private MonoBehaviour _gameManager;
+
+        private MonoBehaviour GetGameManager()
+        {
+            if (_gameManager != null) return _gameManager;
+            foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == "GameManager")
+                {
+                    _gameManager = mb;
+                    return _gameManager;
+                }
+            }
+            return null;
+        }
 
         /// <summary>
-        /// Gets the opponent's commander GrpId for Brawl/Commander games.
-        /// Uses ownership tracked when cards first entered the Command zone.
+        /// Resolves the opponent's commander(s) live from the game state. Supports partner
+        /// commanders (multiple entries). Each entry carries the live card GameObject when one
+        /// exists, plus the GrpId for a card-database fallback.
+        /// </summary>
+        public List<CommandZoneCardRef> GetOpponentCommanders()
+        {
+            var result = new List<CommandZoneCardRef>();
+            try
+            {
+                var gm = GetGameManager();
+                if (gm == null) return result;
+                if (!_gmCache.EnsureInitialized(gm.GetType())) return result;
+
+                var gameState = _gmCache.Handles.CurrentGameState.GetValue(gm);
+                var viewManager = _gmCache.Handles.ViewManager.GetValue(gm);
+                if (gameState == null) return result;
+
+                if (!_gsCache.EnsureInitialized(gameState.GetType())) return result;
+                var opponent = _gsCache.Handles.Opponent.GetValue(gameState);
+                if (opponent == null) return result;
+
+                if (!_playerCache.EnsureInitialized(opponent.GetType())) return result;
+                var player = _playerCache.Handles;
+
+                bool vmReady = viewManager != null && _vmCache.EnsureInitialized(viewManager.GetType());
+
+                var commanderIds = player.CommanderIds.GetValue(opponent) as IList;
+                if (commanderIds != null && commanderIds.Count > 0)
+                {
+                    foreach (var idObj in commanderIds)
+                    {
+                        uint instanceId = System.Convert.ToUInt32(idObj);
+                        if (instanceId == 0) continue;
+
+                        GameObject cdc = vmReady ? TryResolveCardView(viewManager, instanceId) : null;
+                        uint grpId = GetGrpIdForInstance(gameState, instanceId);
+
+                        result.Add(new CommandZoneCardRef { InstanceId = instanceId, Cdc = cdc, GrpId = grpId });
+                        Log.Msg("DuelAnnouncer",
+                            $"Opponent commander: instanceId={instanceId}, grpId={grpId}, hasView={(cdc != null)}");
+                    }
+                    return result;
+                }
+
+                // Fallback: no CommanderIds populated yet — read the Commander designation(s).
+                AddCommandersFromDesignations(opponent, player.Designations, result);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warn("DuelAnnouncer", $"GetOpponentCommanders failed: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Resolves the emblems currently in the command zone for one side. Emblems are regular
+        /// card instances (ObjectType == Emblem) living in MtgGameState.Command — there is no
+        /// dedicated examine path for them, so we read them straight from the zone and resolve each
+        /// to its live card view. Includes Ring/other-sourced emblems regardless of origin.
+        /// </summary>
+        /// <param name="opponent">True for the opponent's emblems, false for the local player's.</param>
+        public List<CommandZoneCardRef> GetCommandZoneEmblems(bool opponent)
+        {
+            var result = new List<CommandZoneCardRef>();
+            try
+            {
+                var gm = GetGameManager();
+                if (gm == null) return result;
+                if (!_gmCache.EnsureInitialized(gm.GetType())) return result;
+
+                var gameState = _gmCache.Handles.CurrentGameState.GetValue(gm);
+                var viewManager = _gmCache.Handles.ViewManager.GetValue(gm);
+                if (gameState == null) return result;
+
+                if (!_gsCache.EnsureInitialized(gameState.GetType())) return result;
+                if (_gsCache.Handles.Command == null) return result;
+                var commandZone = _gsCache.Handles.Command.GetValue(gameState);
+                if (commandZone == null) return result;
+
+                if (!_zoneCache.EnsureInitialized(commandZone.GetType())) return result;
+                var visible = _zoneCache.Handles.VisibleCards.GetValue(commandZone) as IList;
+                if (visible == null) return result;
+
+                bool vmReady = viewManager != null && _vmCache.EnsureInitialized(viewManager.GetType());
+
+                foreach (var inst in visible)
+                {
+                    if (inst == null) continue;
+                    if (!_ciCache.EnsureInitialized(inst.GetType())) continue;
+                    var ci = _ciCache.Handles;
+                    if (ci.ObjectType == null || ci.Controller == null || ci.InstanceId == null) continue;
+
+                    if (ci.ObjectType.GetValue(inst)?.ToString() != "Emblem") continue;
+
+                    var controller = ci.Controller.GetValue(inst);
+                    if (!IsControllerOnSide(controller, opponent)) continue;
+
+                    uint instanceId = System.Convert.ToUInt32(ci.InstanceId.GetValue(inst));
+                    uint grpId = System.Convert.ToUInt32(ci.GrpId.GetValue(inst));
+                    GameObject cdc = vmReady ? TryResolveCardView(viewManager, instanceId) : null;
+
+                    result.Add(new CommandZoneCardRef { InstanceId = instanceId, Cdc = cdc, GrpId = grpId });
+                    Log.Msg("DuelAnnouncer",
+                        $"Command-zone emblem: instanceId={instanceId}, grpId={grpId}, opponent={opponent}, hasView={(cdc != null)}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warn("DuelAnnouncer", $"GetCommandZoneEmblems failed: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>True if the card's controller is on the requested side (opponent vs local).</summary>
+        private bool IsControllerOnSide(object controller, bool opponent)
+        {
+            if (controller == null) return false;
+            if (!_playerCache.EnsureInitialized(controller.GetType())) return false;
+            if (_playerCache.Handles.IsLocalPlayer == null) return false;
+            bool isLocal = (bool)_playerCache.Handles.IsLocalPlayer.GetValue(controller);
+            return opponent ? !isLocal : isLocal;
+        }
+
+        /// <summary>Invokes ViewManager.TryGetCardView(instanceId, out cdc) and returns the CDC GameObject.</summary>
+        private GameObject TryResolveCardView(object viewManager, uint instanceId)
+        {
+            var args = new object[] { instanceId, null };
+            bool ok = (bool)_vmCache.Handles.TryGetCardView.Invoke(viewManager, args);
+            if (!ok) return null;
+            return (args[1] as Component)?.gameObject;
+        }
+
+        /// <summary>Reads MtgCardInstance.GrpId for a commander instance via MtgGameState.GetCardById.</summary>
+        private uint GetGrpIdForInstance(object gameState, uint instanceId)
+        {
+            try
+            {
+                if (_gsCache.Handles.GetCardById == null) return 0;
+                var instance = _gsCache.Handles.GetCardById.Invoke(gameState, new object[] { instanceId });
+                if (instance == null) return 0;
+                if (!_ciCache.EnsureInitialized(instance.GetType())) return 0;
+                return System.Convert.ToUInt32(_ciCache.Handles.GrpId.GetValue(instance));
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>
+        /// Reads commander GrpIds from the opponent's Designation list (Type == Commander).
+        /// Used only when CommanderIds is empty; produces view-less, GrpId-only entries.
+        /// </summary>
+        private void AddCommandersFromDesignations(object opponent, FieldInfo designationsField, List<CommandZoneCardRef> result)
+        {
+            if (designationsField == null) return;
+            var designations = designationsField.GetValue(opponent) as IList;
+            if (designations == null) return;
+
+            foreach (var d in designations)
+            {
+                if (d == null) continue;
+                var dType = d.GetType();
+                var typeField = dType.GetField("Type", PublicInstance);
+                if (typeField == null || typeField.GetValue(d)?.ToString() != "Commander") continue;
+
+                var grpField = dType.GetField("GrpId", PublicInstance);
+                uint grpId = grpField != null ? System.Convert.ToUInt32(grpField.GetValue(d)) : 0;
+                if (grpId == 0) continue;
+
+                result.Add(new CommandZoneCardRef { InstanceId = 0, Cdc = null, GrpId = grpId });
+                Log.Msg("DuelAnnouncer", $"Opponent commander from designation: grpId={grpId}");
+            }
+        }
+
+        /// <summary>
+        /// Gets all opponent commander GrpIds (supports partner commanders).
+        /// </summary>
+        public List<uint> GetAllOpponentCommanderGrpIds()
+        {
+            var result = new List<uint>();
+            foreach (var c in GetOpponentCommanders())
+            {
+                if (c.GrpId != 0)
+                    result.Add(c.GrpId);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Gets the opponent's commander GrpId (first, for single-commander games).
         /// </summary>
         public uint GetOpponentCommanderGrpId()
         {
-            foreach (var kvp in _commandZoneGrpIds)
+            foreach (var c in GetOpponentCommanders())
             {
-                if (kvp.Value) // isOpponent == true
-                    return kvp.Key;
+                if (c.GrpId != 0)
+                    return c.GrpId;
             }
             return 0;
         }
@@ -85,91 +370,6 @@ namespace AccessibleArena.Core.Services
             uint grpId = GetOpponentCommanderGrpId();
             if (grpId == 0) return null;
             return CardModelProvider.GetNameFromGrpId(grpId);
-        }
-
-        /// <summary>
-        /// Gets all opponent commander GrpIds (supports partner commanders).
-        /// </summary>
-        public List<uint> GetAllOpponentCommanderGrpIds()
-        {
-            var result = new List<uint>();
-            foreach (var kvp in _commandZoneGrpIds)
-            {
-                if (kvp.Value) // isOpponent == true
-                    result.Add(kvp.Key);
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Populates commander GrpIds from MatchManager player info.
-        /// Called during Activate() to seed the command zone data before any zone events arrive.
-        /// This is essential for the opponent's commander which never generates zone transfer events.
-        /// </summary>
-        private void PopulateCommandersFromMatchManager()
-        {
-            try
-            {
-                // Find GameManager MonoBehaviour
-                MonoBehaviour gameManager = null;
-                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
-                {
-                    if (mb != null && mb.GetType().Name == "GameManager")
-                    {
-                        gameManager = mb;
-                        break;
-                    }
-                }
-                if (gameManager == null)
-                {
-                    Log.Msg("DuelAnnouncer", "GameManager not found, skipping commander population");
-                    return;
-                }
-
-                if (!_gmCache.EnsureInitialized(gameManager.GetType())) return;
-
-                var matchManager = _gmCache.Handles.MatchManager.GetValue(gameManager);
-                if (matchManager == null) return;
-
-                if (!_mmCache.EnsureInitialized(matchManager.GetType())) return;
-                var mm = _mmCache.Handles;
-
-                // Read local player commanders
-                PopulateCommandersForPlayer(matchManager, mm.LocalPlayerInfo, isOpponent: false);
-
-                // Read opponent commanders
-                PopulateCommandersForPlayer(matchManager, mm.OpponentInfo, isOpponent: true);
-            }
-            catch (System.Exception ex)
-            {
-                Log.Warn("DuelAnnouncer", $"Failed to populate commanders from MatchManager: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Reads CommanderGrpIds from a player info object and populates _commandZoneGrpIds.
-        /// </summary>
-        private void PopulateCommandersForPlayer(object matchManager, PropertyInfo playerInfoProp, bool isOpponent)
-        {
-            if (playerInfoProp == null) return;
-
-            var playerInfo = playerInfoProp.GetValue(matchManager);
-            if (playerInfo == null) return;
-
-            if (!_piCache.EnsureInitialized(playerInfo.GetType())) return;
-
-            var grpIds = _piCache.Handles.CommanderGrpIds.GetValue(playerInfo) as IList;
-            if (grpIds == null || grpIds.Count == 0) return;
-
-            foreach (var id in grpIds)
-            {
-                uint grpId = System.Convert.ToUInt32(id);
-                if (grpId == 0) continue;
-
-                _commandZoneGrpIds[grpId] = isOpponent;
-                string cardName = CardModelProvider.GetNameFromGrpId(grpId) ?? "Unknown";
-                Log.Msg("DuelAnnouncer", $"Commander from MatchManager: GrpId={grpId} ({cardName}), isOpponent={isOpponent}");
-            }
         }
     }
 }

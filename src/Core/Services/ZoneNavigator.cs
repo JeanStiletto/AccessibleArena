@@ -562,20 +562,32 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void PopulateCommandZoneFromHand()
         {
-            if (!_zones.TryGetValue(ZoneType.Command, out var commandZone)) return;
-            if (commandZone.Cards.Count > 0) return; // Already has cards, don't override
+            if (_zones.TryGetValue(ZoneType.Command, out var commandZone))
+                AddCommandersFromHand(commandZone);
+        }
 
+        /// <summary>
+        /// Adds the local player's castable commander(s) (hand cards whose model zone is "Command")
+        /// to the given Command zone, deduped by instance id. Operates on the passed zone directly
+        /// so it works both during sub-holder discovery (before the zone is in <see cref="_zones"/>)
+        /// and on refresh.
+        /// </summary>
+        private void AddCommandersFromHand(ZoneInfo commandZone)
+        {
             if (!_zones.TryGetValue(ZoneType.Hand, out var handZone)) return;
 
             foreach (var card in handZone.Cards)
             {
-                string modelZone = CardStateProvider.GetCardZoneTypeName(card);
-                if (modelZone == "Command")
-                {
-                    commandZone.Cards.Add(card);
-                    string cardName = CardDetector.GetCardName(card);
-                    Log.Msg("ZoneNavigator", $"Added commander {cardName} to Command zone from hand");
-                }
+                if (CardStateProvider.GetCardZoneTypeName(card) != "Command") continue;
+
+                // Dedup — the zone may already hold emblems or a commander from a prior pass.
+                uint id = CardStateProvider.GetCardInstanceId(card);
+                if (commandZone.Cards.Exists(c => CardStateProvider.GetCardInstanceId(c) == id))
+                    continue;
+
+                commandZone.Cards.Add(card);
+                string cardName = CardDetector.GetCardName(card);
+                Log.Msg("ZoneNavigator", $"Added commander {cardName} to Command zone from hand");
             }
         }
 
@@ -585,6 +597,16 @@ namespace AccessibleArena.Core.Services
         private void DiscoverCardsInZone(ZoneInfo zone)
         {
             zone.Cards.Clear();
+
+            // The opponent's commander is never a card under the (empty) "Command PlayerId: #<opp>"
+            // holder — Arena renders it as a portrait overlay. Source it from the live game state
+            // instead, so we get the real card view when one exists. Holder-independent and
+            // refresh-safe (RefreshIfDirty re-derives the same way).
+            if (zone.Type == ZoneType.OpponentCommand)
+            {
+                PopulateOpponentCommandZone(zone);
+                return;
+            }
 
             if (zone.Holder == null) return;
 
@@ -658,6 +680,16 @@ namespace AccessibleArena.Core.Services
                 // mismatch where the list size doesn't match the announced count.
                 if (zone.Type == ZoneType.OpponentHand)
                     zone.Cards.RemoveAll(c => !IsRealHandCard(c));
+            }
+
+            // Your commander + emblems live in the Command zone but not under its (unreliable)
+            // holder — the commander shows in the hand holder, emblems come from the game state.
+            // Source both here so W picks them up and they survive RefreshIfDirty. (The opponent
+            // side is handled wholesale in PopulateOpponentCommandZone.)
+            if (zone.Type == ZoneType.Command)
+            {
+                AddCommandZoneEmblems(zone, opponent: false);
+                AddCommandersFromHand(zone);
             }
         }
 
@@ -1248,16 +1280,111 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Announces the opponent's commander card name (Brawl/Commander).
-        /// Supports multiple commanders (e.g., partner commanders).
-        /// Filters out commanders that are currently in non-command zones (battlefield, graveyard, etc.).
+        /// Navigates the opponent's command zone (Shift+W) for Brawl/Commander.
+        /// Prefers the live card path: when the commander has a real card view, it is added to the
+        /// zone and navigated like any other card (full info via Arrow Up/Down, I, K, J). Falls back
+        /// to a card-database announcement when no live view exists (commander uncast, not yet
+        /// instantiated). Supports partner commanders.
         /// </summary>
         private void AnnounceOpponentCommander()
         {
-            // Diagnostic: Arena renders opp's commander as a CommanderLayout overlay on the portrait,
-            // not a card GameObject in 'Command PlayerId: #<opp>'. Logged to catch any future change.
-            LogOpponentCommandSubHolder();
+            // (Re)build the OpponentCommand zone from the live game state. Holder-independent —
+            // the per-player sub-holder is always empty, so we don't rely on it existing.
+            var zoneInfo = EnsureOpponentCommandZone();
 
+            if (zoneInfo.Cards.Count > 0)
+            {
+                // Live card(s) present — navigate like a normal zone so every card feature works.
+                SetCurrentZone(ZoneType.OpponentCommand, "NavigateToZone");
+                _cardIndexInZone = 0;
+                AnnounceCurrentCard(includeZoneName: true, priority: AnnouncementPriority.High);
+                return;
+            }
+
+            AnnounceOpponentCommanderFromDatabase();
+        }
+
+        /// <summary>
+        /// Ensures the OpponentCommand zone exists in <see cref="_zones"/> and is freshly populated
+        /// from the live game state. Returns the zone info.
+        /// </summary>
+        private ZoneInfo EnsureOpponentCommandZone()
+        {
+            if (!_zones.TryGetValue(ZoneType.OpponentCommand, out var zoneInfo))
+            {
+                zoneInfo = new ZoneInfo { Type = ZoneType.OpponentCommand, Holder = null, ZoneId = 0, OwnerId = 0 };
+                _zones[ZoneType.OpponentCommand] = zoneInfo;
+            }
+            DiscoverCardsInZone(zoneInfo); // routes to PopulateOpponentCommandZone
+            return zoneInfo;
+        }
+
+        /// <summary>
+        /// Populates a zone with the opponent's commander card view(s) read from the live game state.
+        /// Only includes commanders whose model is currently in the Command zone — a cast commander
+        /// has a live view elsewhere (battlefield/graveyard) that must not appear under Shift+W.
+        /// </summary>
+        private void PopulateOpponentCommandZone(ZoneInfo zone)
+        {
+            zone.Cards.Clear();
+
+            var duelAnnouncer = DuelAnnouncer.Instance;
+            if (duelAnnouncer == null) return;
+
+            foreach (var commander in duelAnnouncer.GetOpponentCommanders())
+            {
+                if (commander.Cdc == null) continue;
+
+                string modelZone = CardStateProvider.GetCardZoneTypeName(commander.Cdc);
+                bool inCommandZone = modelZone == "Command";
+                Log.Msg("ZoneNavigator",
+                    $"OpponentCommand candidate: instanceId={commander.InstanceId}, grpId={commander.GrpId}, " +
+                    $"modelZone={modelZone ?? "null"}, active={commander.Cdc.activeInHierarchy}, included={inCommandZone}");
+
+                if (inCommandZone)
+                    zone.Cards.Add(commander.Cdc);
+            }
+
+            AddCommandZoneEmblems(zone, opponent: true);
+        }
+
+        /// <summary>
+        /// Adds the command-zone emblems for one side as live navigable cards. Emblems are regular
+        /// card objects (no dedicated examine path), so once added they read like any other card.
+        /// Deduplicates by instance id against whatever is already in the zone.
+        /// </summary>
+        private void AddCommandZoneEmblems(ZoneInfo zone, bool opponent)
+        {
+            var duelAnnouncer = DuelAnnouncer.Instance;
+            if (duelAnnouncer == null) return;
+
+            foreach (var emblem in duelAnnouncer.GetCommandZoneEmblems(opponent))
+            {
+                if (emblem.Cdc == null || !emblem.Cdc.activeInHierarchy) continue;
+
+                bool duplicate = false;
+                foreach (var existing in zone.Cards)
+                {
+                    if (CardStateProvider.GetCardInstanceId(existing) == emblem.InstanceId)
+                    {
+                        duplicate = true;
+                        break;
+                    }
+                }
+                if (duplicate) continue;
+
+                zone.Cards.Add(emblem.Cdc);
+                Log.Msg("ZoneNavigator",
+                    $"Added emblem to {zone.Type}: instanceId={emblem.InstanceId}, grpId={emblem.GrpId}");
+            }
+        }
+
+        /// <summary>
+        /// Card-database fallback for the opponent's commander when no live card view exists.
+        /// Announces the name(s) and prepares card info from the database via GrpId.
+        /// </summary>
+        private void AnnounceOpponentCommanderFromDatabase()
+        {
             var duelAnnouncer = DuelAnnouncer.Instance;
             if (duelAnnouncer == null)
             {
@@ -1266,11 +1393,6 @@ namespace AccessibleArena.Core.Services
             }
 
             var allGrpIds = duelAnnouncer.GetAllOpponentCommanderGrpIds();
-            if (allGrpIds.Count == 0)
-            {
-                _announcer.Announce(Strings.ZoneEmpty(Strings.GetZoneName(ZoneType.OpponentCommand)), AnnouncementPriority.High);
-                return;
-            }
 
             // Filter out commanders currently in non-command zones (battlefield, graveyard, exile, stack)
             var inZoneGrpIds = new List<uint>();
@@ -1327,20 +1449,6 @@ namespace AccessibleArena.Core.Services
                     cardNavigator?.PrepareForCardInfo(blocks, names[0]);
                 }
             }
-        }
-
-        private void LogOpponentCommandSubHolder()
-        {
-            if (!_zones.TryGetValue(ZoneType.OpponentCommand, out var zone))
-            {
-                Log.Msg("ZoneNavigator", "OpponentCommand sub-holder: not discovered");
-                return;
-            }
-            string names = zone.Cards.Count == 0
-                ? "(empty)"
-                : string.Join(", ", zone.Cards.ConvertAll(c => CardDetector.GetCardName(c) ?? "?"));
-            Log.Msg("ZoneNavigator",
-                $"OpponentCommand sub-holder '{zone.Holder?.name}': {zone.Cards.Count} cards [{names}]");
         }
 
         #endregion

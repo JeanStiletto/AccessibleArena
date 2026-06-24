@@ -2,6 +2,13 @@
 
 All notable changes to Accessible Arena.
 
+## v1.4.2
+
+Duel:
+
+- The opponent's command zone (Shift+W) now reads the opponent's commander as a full, live card — actual cost (including commander tax) rather than just the printed cost, with the extended-info menu (I), counters (K), and attachment/target jumps (J) all working, exactly as on any other card. Partner commanders are supported: Shift+W lists both and Left/Right walks between them. The old approach read the commander identity from `MatchManager.PlayerInfo.CommanderGrpIds`, a private property the game removed in update 2026.60 — so since the v1.4.1 hotfix the opponent command zone announced "empty" even in Brawl. It also relied on a secondary zone-event tracker that mis-tagged opponent commanders as the player's own (their `ControllerId` is 0). The zone is now sourced live from the game state, mirroring Arena's own commander-examine path: `GameManager.CurrentGameState.Opponent.CommanderIds` gives the commander instance IDs, `ViewManager.TryGetCardView` resolves each to the real card view (the same `DuelScene_CDC` object the mod drives everywhere, so the whole card pipeline works for free), and the card database is the fallback by GrpId when no live view exists. Only commanders actually in the command zone are shown — once cast, the commander correctly drops off Shift+W and is found on the battlefield. These are central, long-lived APIs, so the feature is far less fragile to future game updates than the removed private property was.
+- Emblems in the command zone are now readable as cards (untested — well-founded but not yet verified in-game). Emblems (e.g. from planeswalker ultimates, or "The Ring") live in the command zone but have no dedicated examine widget — they are ordinary card objects (`MtgCardInstance` with `ObjectType == Emblem`). They now appear in command-zone navigation alongside the commander: **W** picks up your emblems, **Shift+W** the opponent's, each as a full navigable card (rules text via the I menu, etc.). They are read live from `MtgGameState.Command.VisibleCards`, split by controller and resolved to their card view the same way the commander is, and deduplicated against the commander so nothing is listed twice. This reuses the (confirmed-working) commander plumbing, but the emblem path itself has not been exercised in a live game, so treat it as speculative until tested with an emblem-producing card.
+
 ## v1.4.1
 
 Fixes for game update 2026.60 (provider API changes):

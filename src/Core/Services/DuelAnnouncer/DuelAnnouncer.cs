@@ -49,10 +49,6 @@ namespace AccessibleArena.Core.Services
         private BattlefieldNavigator _battlefieldNavigator;
         private DateTime _lastSpellResolvedTime = DateTime.MinValue;
 
-        // Track commander GrpIds for command zone access (Brawl/Commander)
-        // Maps GrpId -> isOpponent, set when cards first enter the Command zone
-        private readonly Dictionary<uint, bool> _commandZoneGrpIds = new Dictionary<uint, bool>();
-
         // Track which event labels have been field-logged (replaces per-type boolean flags)
         private static readonly HashSet<string> _fieldLoggedLabels = new HashSet<string>();
 
@@ -99,14 +95,12 @@ namespace AccessibleArena.Core.Services
             _isActive = true;
             _localPlayerId = localPlayerId;
             _zoneCounts.Clear();
-            _commandZoneGrpIds.Clear();
             _announcedStackInstanceIds.Clear();
             _userTurnCount = 0;
 
-            // Seed commander GrpIds from MatchManager (works for both local and opponent).
-            // MTGA never fires zone transfer events for the opponent's commander,
-            // so this is the only way to discover their commander identity.
-            PopulateCommandersFromMatchManager();
+            // GameManager is per-match; drop the cached reference so commander lookups
+            // re-resolve against the new match's game state.
+            _gameManager = null;
 
             // Check if this is an NPE tutorial game (NpeDirector != null)
             _npeCheckDone = false;
