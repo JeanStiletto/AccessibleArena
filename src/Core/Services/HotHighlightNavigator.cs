@@ -49,6 +49,13 @@ namespace AccessibleArena.Core.Services
         // Track prompt button text to announce when meaningful choices appear
         private string _lastPromptButtonText;
 
+        // Time of the last prompt announcement, so PriorityAnnouncer can stay silent when a
+        // prompt just told the user they can act. Large negative = "never announced yet".
+        private float _lastPromptAnnounceTime = -100f;
+
+        /// <summary>Seconds since the last prompt-button announcement (large if none yet).</summary>
+        public float TimeSinceLastPromptAnnounce => UnityEngine.Time.time - _lastPromptAnnounceTime;
+
         // Default primary-button text seen at start of the current combat phase
         // (e.g. "All Attack" / "Alle greifen an"). Used to suppress re-announcing the
         // default when the user deselects the last attacker/blocker, which would
@@ -1498,6 +1505,7 @@ namespace AccessibleArena.Core.Services
                         announcement = $"{currentText}, {instruction}";
 
                     _announcer.Announce(announcement, AnnouncementPriority.High);
+                    _lastPromptAnnounceTime = UnityEngine.Time.time;
                 }
                 _lastPromptButtonText = currentText;
             }

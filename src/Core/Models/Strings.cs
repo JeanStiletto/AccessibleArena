@@ -333,6 +333,7 @@ namespace AccessibleArena.Core.Models
         public static string Duel_YourTurn(int turnNum) => L.Format("Duel_YourTurn_Format", turnNum);
         public static string Duel_OpponentTurn => L.Get("Duel_OpponentTurn");
         public static string Duel_TurnChanged => L.Get("Duel_TurnChanged");
+        public static string Duel_PriorityReceived => L.Get("Duel_PriorityReceived");
 
         public static string Duel_Drew(int count) =>
             count == 1 ? L.Get("Duel_Drew_One") : L.Format("Duel_Drew_Format", count);
@@ -933,6 +934,8 @@ namespace AccessibleArena.Core.Models
         public static string SettingBriefOpponentAnnouncements => L.Get("SettingBriefOpponentAnnouncements");
         public static string SettingBriefOpponentAnnouncementsDesc => L.Get("SettingBriefOpponentAnnouncementsDesc");
         public static string SettingPhaseSkipWarning => L.Get("SettingPhaseSkipWarning");
+        public static string SettingPriorityAnnouncements => L.Get("SettingPriorityAnnouncements");
+        public static string SettingPriorityAnnouncementsDesc => L.Get("SettingPriorityAnnouncementsDesc");
         public static string SettingPositionCounts => L.Get("SettingPositionCounts");
         public static string SettingPositionCountsDesc => L.Get("SettingPositionCountsDesc");
         public static string SettingManaColorlessLabel => L.Get("SettingManaColorlessLabel");

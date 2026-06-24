@@ -27,6 +27,7 @@ namespace AccessibleArena.Core.Services
         public bool BriefCastAnnouncements { get; set; } = true;
         public bool BriefOpponentAnnouncements { get; set; } = false;
         public bool PhaseSkipWarning { get; set; } = true;
+        public bool PriorityAnnouncements { get; set; } = true;
         public bool PositionCounts { get; set; } = true;
         public bool ManaColorlessLabel { get; set; } = true;
         public bool ManaGroupColors { get; set; } = true;
@@ -50,7 +51,7 @@ namespace AccessibleArena.Core.Services
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, BattlefieldStacking={settings.BattlefieldStacking}, CheckForUpdates={settings.CheckForUpdates}");
+                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PriorityAnnouncements={settings.PriorityAnnouncements}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, BattlefieldStacking={settings.BattlefieldStacking}, CheckForUpdates={settings.CheckForUpdates}");
             }
             catch (Exception ex)
             {
@@ -146,6 +147,7 @@ namespace AccessibleArena.Core.Services
                    $"  \"BriefCastAnnouncements\": {(BriefCastAnnouncements ? "true" : "false")},\n" +
                    $"  \"BriefOpponentAnnouncements\": {(BriefOpponentAnnouncements ? "true" : "false")},\n" +
                    $"  \"PhaseSkipWarning\": {(PhaseSkipWarning ? "true" : "false")},\n" +
+                   $"  \"PriorityAnnouncements\": {(PriorityAnnouncements ? "true" : "false")},\n" +
                    $"  \"PositionCounts\": {(PositionCounts ? "true" : "false")},\n" +
                    $"  \"ManaColorlessLabel\": {(ManaColorlessLabel ? "true" : "false")},\n" +
                    $"  \"ManaGroupColors\": {(ManaGroupColors ? "true" : "false")},\n" +
@@ -163,6 +165,7 @@ namespace AccessibleArena.Core.Services
             BriefCastAnnouncements = ReadJsonBool(json, "BriefCastAnnouncements") ?? BriefCastAnnouncements;
             BriefOpponentAnnouncements = ReadJsonBool(json, "BriefOpponentAnnouncements") ?? BriefOpponentAnnouncements;
             PhaseSkipWarning = ReadJsonBool(json, "PhaseSkipWarning") ?? PhaseSkipWarning;
+            PriorityAnnouncements = ReadJsonBool(json, "PriorityAnnouncements") ?? PriorityAnnouncements;
             PositionCounts = ReadJsonBool(json, "PositionCounts") ?? PositionCounts;
             ManaColorlessLabel = ReadJsonBool(json, "ManaColorlessLabel") ?? ManaColorlessLabel;
             ManaGroupColors = ReadJsonBool(json, "ManaGroupColors") ?? ManaGroupColors;

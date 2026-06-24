@@ -39,6 +39,7 @@ namespace AccessibleArena.Core.Services
         private SpinnerNavigator _spinnerNavigator;
         private PlayerPortraitNavigator _portraitNavigator;
         private PriorityController _priorityController;
+        private PriorityAnnouncer _priorityAnnouncer;
         private DuelAnnouncer _duelAnnouncer;
         private DuelChatNavigator _duelChatNavigator;
         private List<GameObject> _deactivatedSocialObjects = new List<GameObject>();
@@ -86,6 +87,7 @@ namespace AccessibleArena.Core.Services
             _spinnerNavigator = new SpinnerNavigator(announcer);
             _portraitNavigator = new PlayerPortraitNavigator(announcer);
             _priorityController = new PriorityController();
+            _priorityAnnouncer = new PriorityAnnouncer(announcer, _zoneNavigator);
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
             _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
@@ -169,6 +171,7 @@ namespace AccessibleArena.Core.Services
         protected override void OnDeactivating()
         {
             RestoreSocialUISelectables();
+            _priorityAnnouncer.Reset();
             base.OnDeactivating();
         }
 
@@ -471,6 +474,13 @@ namespace AccessibleArena.Core.Services
             _hotHighlightNavigator.MonitorPromptButtons(
                 _duelAnnouncer.TimeSinceLastPhaseChange,
                 _duelAnnouncer.IsInDeclareAttackersPhase || _duelAnnouncer.IsInDeclareBlockersPhase);
+
+            // Announce when we gain priority in a "silent" moment (opponent acted, we can respond,
+            // but nothing else announced it). Suppressed whenever a phase/turn/prompt just spoke.
+            _priorityAnnouncer.Update(
+                _duelAnnouncer.IsUserTurn,
+                _duelAnnouncer.TimeSinceLastPhaseChange,
+                _hotHighlightNavigator.TimeSinceLastPromptAnnounce);
 
             // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions
