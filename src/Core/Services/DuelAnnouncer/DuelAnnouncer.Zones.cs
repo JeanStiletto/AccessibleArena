@@ -70,9 +70,11 @@ namespace AccessibleArena.Core.Services
                 {
                     if (diff > 0)
                     {
-                        return isLocal
-                            ? Strings.Duel_Drew(diff)
-                            : Strings.Duel_OpponentDrew(diff);
+                        // Local draws are announced with card names via the ZoneTransfer path
+                        // (HandleZoneTransferGroup) — suppress the generic count here to avoid
+                        // double-speak. Opponent draws are hidden information, so announce the
+                        // count only. (Same suppression pattern used for Graveyard entries.)
+                        return isLocal ? null : Strings.Duel_OpponentDrew(diff);
                     }
                     else if (diff < 0 && isOpponent)
                     {
@@ -142,51 +144,124 @@ namespace AccessibleArena.Core.Services
                 // Log fields for discovery (once)
                 LogEventFieldsOnce(uxEvent, "ZONE TRANSFER GROUP");
 
-                // A bare ZoneTransferUXEvent (not a group) has no _zoneTransfers list to unwrap —
-                // it IS the individual transfer, so process it directly. The game fires these for
-                // single moves like a land entering the battlefield.
+                // Build a flat list of individual transfers. A bare ZoneTransferUXEvent (not a
+                // group) has no _zoneTransfers list to unwrap — it IS the individual transfer
+                // (e.g. a single land entering the battlefield), so treat it as a one-item list.
+                var transfers = new List<object>();
                 if (uxEvent.GetType().Name == "ZoneTransferUXEvent")
                 {
                     LogEventFieldsOnce(uxEvent, "ZONE TRANSFER UX EVENT");
-                    return ProcessZoneTransfer(uxEvent);
+                    transfers.Add(uxEvent);
                 }
-
-                // Get the _zoneTransfers list which contains individual ZoneTransferUXEvent items
-                var zoneTransfers = GetFieldValue<object>(uxEvent, "_zoneTransfers");
-                if (zoneTransfers == null) return null;
-
-                var transferList = zoneTransfers as System.Collections.IEnumerable;
-                if (transferList == null) return null;
-
-                var announcements = new List<string>();
-
-                foreach (var transfer in transferList)
+                else
                 {
-                    if (transfer == null) continue;
-
-                    // Log ZoneTransferUXEvent fields once for discovery
-                    LogEventFieldsOnce(transfer, "ZONE TRANSFER UX EVENT");
-
-                    // Extract zone transfer details
-                    var announcement = ProcessZoneTransfer(transfer);
-                    if (!string.IsNullOrEmpty(announcement))
+                    var zoneTransfers = GetFieldValue<object>(uxEvent, "_zoneTransfers");
+                    if (zoneTransfers is System.Collections.IEnumerable transferList)
                     {
-                        announcements.Add(announcement);
+                        foreach (var transfer in transferList)
+                        {
+                            if (transfer == null) continue;
+                            LogEventFieldsOnce(transfer, "ZONE TRANSFER UX EVENT");
+                            transfers.Add(transfer);
+                        }
                     }
                 }
 
-                if (announcements.Count > 0)
+                if (transfers.Count == 0) return null;
+
+                // Local-player draws (Library -> Hand) are aggregated into a single
+                // count+names announcement; everything else is announced per-transfer.
+                var drawNames = new List<string>();
+                var announcements = new List<string>();
+
+                foreach (var transfer in transfers)
                 {
-                    return string.Join(". ", announcements);
+                    string drawName = TryGetLocalDrawCardName(transfer);
+                    if (drawName != null)
+                    {
+                        drawNames.Add(drawName);
+                        continue;
+                    }
+
+                    var announcement = ProcessZoneTransfer(transfer);
+                    if (!string.IsNullOrEmpty(announcement))
+                        announcements.Add(announcement);
                 }
 
-                return null;
+                // Announce draws first (the card you drew, then any downstream effects).
+                // Skip the pre-game opening hand / mulligan redraws: those fire before turn 1's
+                // first phase (so _currentStep is still null) and the Mulligan browser already
+                // gives its own grouped hand summary — announcing all 7 names here is redundant.
+                if (drawNames.Count > 0 && _currentStep != null)
+                    announcements.Insert(0, BuildLocalDrawAnnouncement(drawNames));
+
+                return announcements.Count > 0 ? string.Join(". ", announcements) : null;
             }
             catch (Exception ex)
             {
                 Log.Warn("DuelAnnouncer", $"Error handling zone transfer: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Builds the local-player draw announcement:
+        ///   one card  -> "&lt;name&gt; drawn"
+        ///   many cards -> "&lt;count&gt; cards drawn. &lt;name1&gt;, &lt;name2&gt;, ..."
+        /// </summary>
+        private string BuildLocalDrawAnnouncement(List<string> drawNames)
+        {
+            if (drawNames.Count == 1)
+                return Strings.Duel_DrewCard(drawNames[0]);
+            return Strings.Duel_DrewCards(drawNames.Count, string.Join(", ", drawNames));
+        }
+
+        /// <summary>
+        /// If this transfer is the local player drawing a card (Library -> Hand, owned by us),
+        /// returns the drawn card's name; otherwise null. Opponent draws are hidden information
+        /// and always return null (those stay a count-only announcement via UpdateZoneUXEvent).
+        /// </summary>
+        private string TryGetLocalDrawCardName(object transfer)
+        {
+            string toZoneType = GetFieldValue<object>(transfer, "ToZoneType")?.ToString() ?? "";
+            string fromZoneType = GetFieldValue<object>(transfer, "FromZoneType")?.ToString() ?? "";
+            if (toZoneType != "Hand" || fromZoneType != "Library")
+                return null;
+
+            // Ownership: for draws, both the Library (from) and Hand (to) zone strings carry the
+            // owner tag, e.g. "Library (PlayerPlayer: 1 (LocalPlayer), 0 cards)". Mirror the
+            // zone-string ownership checks used by ProcessZoneTransfer.
+            string fromZoneStr = GetFieldValue<object>(transfer, "FromZone")?.ToString() ?? "";
+            string toZoneStr = GetFieldValue<object>(transfer, "ToZone")?.ToString() ?? "";
+            TryUpdateLocalPlayerIdFromZoneString(fromZoneStr);
+            TryUpdateLocalPlayerIdFromZoneString(toZoneStr);
+
+            string zoneToCheck = fromZoneStr.Contains("Player") ? fromZoneStr : toZoneStr;
+            bool isOpponent;
+            if (zoneToCheck.Contains("Opponent"))
+                isOpponent = true;
+            else if (zoneToCheck.Contains("LocalPlayer"))
+                isOpponent = false;
+            else if (zoneToCheck.Contains($"Player: {_localPlayerId}") || zoneToCheck.Contains($"Player:{_localPlayerId}"))
+                isOpponent = false;
+            else
+                isOpponent = zoneToCheck.Contains("Player"); // some other player ref = opponent
+            if (isOpponent)
+                return null;
+
+            // Card name from the instance's GrpId
+            var cardInstance = GetFieldValue<object>(transfer, "NewInstance")
+                ?? GetFieldValue<object>(transfer, "OldInstance");
+            if (cardInstance == null) return null;
+
+            uint grpId = 0;
+            var printing = GetNestedPropertyValue<object>(cardInstance, "Printing");
+            if (printing != null) grpId = GetNestedPropertyValue<uint>(printing, "GrpId");
+            if (grpId == 0) grpId = GetNestedPropertyValue<uint>(cardInstance, "GrpId");
+            if (grpId == 0) return null;
+
+            string cardName = CardModelProvider.GetNameFromGrpId(grpId);
+            return string.IsNullOrEmpty(cardName) ? null : cardName;
         }
 
         /// <summary>
@@ -564,8 +639,9 @@ namespace AccessibleArena.Core.Services
                 return Strings.Duel_ReturnedToHand(ownerPrefix, cardName);
             }
 
-            // From library = draw, but we handle this via UpdateZoneUXEvent with count
-            // Don't duplicate the announcement
+            // From library = draw. Local-player draws are aggregated (with card names) in
+            // HandleZoneTransferGroup before reaching here, so this path only runs for opponent
+            // draws — which are hidden information and announced as a count via UpdateZoneUXEvent.
             if (fromZone == "Library")
             {
                 return null;

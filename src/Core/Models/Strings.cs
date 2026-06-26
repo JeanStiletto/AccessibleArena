@@ -337,6 +337,13 @@ namespace AccessibleArena.Core.Models
 
         public static string Duel_Drew(int count) =>
             count == 1 ? L.Get("Duel_Drew_One") : L.Format("Duel_Drew_Format", count);
+        // Local-player draw announced with card name(s):
+        //   one card  -> "<name> drawn"
+        //   many cards -> "<count> cards drawn. <name1>, <name2>, ..."
+        public static string Duel_DrewCard(string cardName) =>
+            L.Format("Duel_DrewCard_Format", cardName);
+        public static string Duel_DrewCards(int count, string cardNames) =>
+            L.Format("Duel_DrewCards_Format", count, cardNames);
         public static string Duel_OpponentDrew(int count) =>
             count == 1 ? L.Get("Duel_OpponentDrew_One") : L.Format("Duel_OpponentDrew_Format", count);
         public static string Duel_OpponentPlayedCard => L.Get("Duel_OpponentPlayedCard");

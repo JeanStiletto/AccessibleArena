@@ -857,6 +857,8 @@
   "Duel_PriorityReceived": "You have priority",
   "Duel_Drew_One": "Drew 1 card",
   "Duel_Drew_Format": "Drew {0} cards",
+  "Duel_DrewCard_Format": "{0} drawn",
+  "Duel_DrewCards_Format": "{0} cards drawn. {1}",
   "Duel_OpponentDrew_One": "Opponent drew 1 card",
   "Duel_OpponentDrew_Format": "Opponent drew {0} cards",
   "Duel_OpponentPlayedCard": "Opponent played a card",

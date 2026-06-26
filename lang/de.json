@@ -855,6 +855,8 @@
   "Duel_PriorityReceived": "Du hast Priorität",
   "Duel_Drew_One": "1 Karte gezogen",
   "Duel_Drew_Format": "{0} Karten gezogen",
+  "Duel_DrewCard_Format": "{0} gezogen",
+  "Duel_DrewCards_Format": "{0} Karten gezogen. {1}",
   "Duel_OpponentDrew_One": "Gegner zieht 1 Karte",
   "Duel_OpponentDrew_Format": "Gegner zieht {0} Karten",
   "Duel_OpponentPlayedCard": "Gegner spielt eine Karte",

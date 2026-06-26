@@ -1203,6 +1203,44 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Attempts to commit the given player (local or opponent) as the current target,
+        /// if the game currently highlights that player's portrait as a valid target.
+        /// Used by PlayerPortraitNavigator so Enter on a focused player in the player info
+        /// zone targets that player during targeting, instead of opening the emote/mute menu.
+        /// Returns true if a highlighted player target was found and clicked (input consumed).
+        /// </summary>
+        public bool TryTargetPlayer(bool isLocal)
+        {
+            if (!_isActive) return false;
+
+            RefreshOrRebuildHighlights();
+
+            // IsOpponent is false for the local player, true for the opponent.
+            var item = _items.FirstOrDefault(i => i.IsPlayer && i.IsOpponent != isLocal);
+            if (item == null || item.GameObject == null)
+                return false;
+
+            var result = UIActivator.SimulatePointerClick(item.GameObject);
+            if (result.Success)
+            {
+                _announcer.Announce(Strings.Target_Targeted(item.Name), AnnouncementPriority.Normal);
+                Log.Msg("HotHighlightNavigator", $"Targeted player from info zone: {item.Name}");
+            }
+            else
+            {
+                _announcer.Announce(Strings.CouldNotTarget(item.Name), AnnouncementPriority.High);
+                Log.Warn("HotHighlightNavigator", $"Player target click failed: {result.Message}");
+            }
+
+            // Clear state after activation - highlights will update
+            _items.Clear();
+            _currentIndex = -1;
+            _opponentIndex = -1;
+            _snapshotValid = false;
+            return true;
+        }
+
+        /// <summary>
         /// Detects zone from parent hierarchy.
         /// </summary>
         private string DetectZone(GameObject obj)

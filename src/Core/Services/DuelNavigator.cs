@@ -111,6 +111,10 @@ namespace AccessibleArena.Core.Services
             // Connect HotHighlightNavigator to BattlefieldNavigator for syncing position on Tab
             _hotHighlightNavigator.SetBattlefieldNavigator(_battlefieldNavigator);
 
+            // Connect PlayerPortraitNavigator to HotHighlightNavigator so Enter on a focused
+            // player in the player info zone commits that player as a target during targeting
+            _portraitNavigator.SetHotHighlightNavigator(_hotHighlightNavigator);
+
             // Connect PriorityController to PhaseSkipGuard for phase skip warning
             PhaseSkipGuard.SetPriorityController(_priorityController);
             PhaseSkipGuard.SetModalNavigatorCheck(() => BrowserNavigator.IsActive || _chooseXNavigator.IsActive || _spinnerNavigator.IsActive);

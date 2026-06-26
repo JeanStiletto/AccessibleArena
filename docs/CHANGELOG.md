@@ -2,6 +2,17 @@
 
 All notable changes to Accessible Arena.
 
+## v1.4.3
+
+Duel:
+
+- Players can now be targeted from the Player Info Zone. While a spell or ability is targeting, pressing Enter on a player you've focused with **V** selects that player as the target — previously Enter there only opened the emote wheel (you) or toggled mute (opponent), so players could only be targeted by tabbing to their portrait. Falls back to the old emote/mute behavior when nothing is targeting.
+- Drawn cards are now announced by name. A draw speaks "<card> drawn" for one card, or "<N> cards drawn" followed by the names for multiple — instead of just a count. Your draws only; opponent draws stay a count (hidden information). The pre-game opening hand and mulligan redraws stay silent here, since the Mulligan browser already lists those cards.
+
+Bug fixes:
+
+- Filled in the missing translations for the v1.4.2 "Announce priority" strings, which had shipped only in English and German. The other ten languages no longer fall back to English for the priority announcement and its setting.
+
 ## v1.4.2
 
 Duel:

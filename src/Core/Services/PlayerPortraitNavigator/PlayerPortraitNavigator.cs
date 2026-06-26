@@ -16,6 +16,7 @@ namespace AccessibleArena.Core.Services
     public partial class PlayerPortraitNavigator
     {
         private readonly IAnnouncementService _announcer;
+        private HotHighlightNavigator _hotHighlightNavigator;
         private bool _isActive;
 
         // State machine for V key navigation
@@ -31,6 +32,15 @@ namespace AccessibleArena.Core.Services
         public PlayerPortraitNavigator(IAnnouncementService announcer)
         {
             _announcer = announcer;
+        }
+
+        /// <summary>
+        /// Connects the unified highlight navigator so Enter on a focused player can commit
+        /// that player as a target when the game highlights it as a valid target.
+        /// </summary>
+        public void SetHotHighlightNavigator(HotHighlightNavigator hotHighlightNavigator)
+        {
+            _hotHighlightNavigator = hotHighlightNavigator;
         }
 
         public void Activate()
@@ -336,6 +346,14 @@ namespace AccessibleArena.Core.Services
             {
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 Log.Nav("PlayerPortrait", $"Enter pressed (shift={shift}, playerIndex={_currentPlayerIndex})");
+
+                // During targeting, the game highlights the player's portrait as a valid target.
+                // Commit that player as the target rather than opening the emote/mute menu.
+                if (!shift && _hotHighlightNavigator != null &&
+                    _hotHighlightNavigator.TryTargetPlayer(_currentPlayerIndex == 0))
+                {
+                    return true;
+                }
 
                 if (_currentPlayerIndex == 0)
                 {
