@@ -31,6 +31,166 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        // ---- Mass zone-transfer aggregation (board wipes, mass mill/discard, combat deaths) ----
+
+        // Verbs we count-and-list when several cards leave for the same reason+owner in one batch.
+        private enum RemovalVerb { Died, Destroyed, Sacrificed, Exiled, PutToGraveyard, Milled, Discarded }
+
+        // Result of processing a single zone transfer: either a ready-made line (Text) or an
+        // aggregatable removal (Verb/IsOpponent/CardName) that gets bucketed and counted.
+        private class TransferOutcome
+        {
+            public string Text;
+            public bool Aggregatable;
+            public RemovalVerb Verb;
+            public bool IsOpponent;
+            public string CardName;
+        }
+
+        // Reserves a removal bucket's position in first-seen output order.
+        private class BucketRef
+        {
+            public string Key;
+            public BucketRef(string key) { Key = key; }
+        }
+
+        private static TransferOutcome OutcomeText(string text) =>
+            string.IsNullOrEmpty(text) ? null : new TransferOutcome { Text = text };
+
+        private static TransferOutcome OutcomeRemoval(RemovalVerb verb, bool isOpponent, string cardName) =>
+            string.IsNullOrEmpty(cardName) ? null
+            : new TransferOutcome { Aggregatable = true, Verb = verb, IsOpponent = isOpponent, CardName = cardName };
+
+        // Flattens a UX event into its individual ZoneTransferUXEvents. Handles both a bare
+        // ZoneTransferUXEvent and a ZoneTransferGroup wrapping a _zoneTransfers list.
+        private void CollectTransfers(object uxEvent, List<object> into)
+        {
+            if (uxEvent == null) return;
+            string typeName = uxEvent.GetType().Name;
+            if (typeName == "ZoneTransferUXEvent")
+            {
+                into.Add(uxEvent);
+                return;
+            }
+            if (typeName == "ZoneTransferGroup")
+            {
+                var list = GetFieldValue<object>(uxEvent, "_zoneTransfers");
+                if (list is System.Collections.IEnumerable e)
+                    foreach (var t in e) if (t != null) into.Add(t);
+            }
+        }
+
+        // Turns per-transfer outcomes into announcement lines: aggregatable removals are bucketed
+        // by (verb, owner) and rendered as "[owner] N <verb>: name1, name2" when a bucket holds 2+,
+        // or the single-card line when it holds one. Non-removal lines pass through in first-seen
+        // order; each bucket renders at the position of its first member.
+        private List<string> AggregateOutcomes(List<TransferOutcome> outcomes)
+        {
+            var result = new List<string>();
+            if (outcomes == null || outcomes.Count == 0) return result;
+
+            var buckets = new Dictionary<string, List<string>>();
+            var bucketVerb = new Dictionary<string, RemovalVerb>();
+            var bucketOpp = new Dictionary<string, bool>();
+            var slots = new List<object>();
+
+            foreach (var o in outcomes)
+            {
+                if (o == null) continue;
+                if (o.Aggregatable)
+                {
+                    string key = ((int)o.Verb) + "|" + (o.IsOpponent ? "1" : "0");
+                    if (!buckets.TryGetValue(key, out var names))
+                    {
+                        names = new List<string>();
+                        buckets[key] = names;
+                        bucketVerb[key] = o.Verb;
+                        bucketOpp[key] = o.IsOpponent;
+                        slots.Add(new BucketRef(key));
+                    }
+                    names.Add(o.CardName);
+                }
+                else if (!string.IsNullOrEmpty(o.Text))
+                {
+                    slots.Add(o.Text);
+                }
+            }
+
+            foreach (var slot in slots)
+            {
+                if (slot is BucketRef br)
+                {
+                    var names = buckets[br.Key];
+                    string ownerPrefix = bucketOpp[br.Key] ? Strings.Duel_OwnerPrefix_Opponent : "";
+                    result.Add(names.Count == 1
+                        ? SingleRemovalText(bucketVerb[br.Key], ownerPrefix, names[0])
+                        : ManyRemovalText(bucketVerb[br.Key], ownerPrefix, names.Count, string.Join(", ", names)));
+                }
+                else
+                {
+                    result.Add((string)slot);
+                }
+            }
+            return result;
+        }
+
+        private string SingleRemovalText(RemovalVerb verb, string ownerPrefix, string name)
+        {
+            switch (verb)
+            {
+                case RemovalVerb.Died: return Strings.Duel_Died(ownerPrefix, name);
+                case RemovalVerb.Destroyed: return Strings.Duel_Destroyed(ownerPrefix, name);
+                case RemovalVerb.Sacrificed: return Strings.Duel_Sacrificed(ownerPrefix, name);
+                case RemovalVerb.Exiled: return Strings.Duel_Exiled(ownerPrefix, name);
+                case RemovalVerb.Milled: return Strings.Duel_Milled(ownerPrefix, name);
+                case RemovalVerb.Discarded: return Strings.Duel_Discarded(ownerPrefix, name);
+                default: return Strings.Duel_WentToGraveyard(ownerPrefix, name);
+            }
+        }
+
+        private string ManyRemovalText(RemovalVerb verb, string ownerPrefix, int count, string names)
+        {
+            switch (verb)
+            {
+                case RemovalVerb.Died: return Strings.Duel_DiedMany(ownerPrefix, count, names);
+                case RemovalVerb.Destroyed: return Strings.Duel_DestroyedMany(ownerPrefix, count, names);
+                case RemovalVerb.Sacrificed: return Strings.Duel_SacrificedMany(ownerPrefix, count, names);
+                case RemovalVerb.Exiled: return Strings.Duel_ExiledMany(ownerPrefix, count, names);
+                case RemovalVerb.Milled: return Strings.Duel_MilledMany(ownerPrefix, count, names);
+                case RemovalVerb.Discarded: return Strings.Duel_DiscardedMany(ownerPrefix, count, names);
+                default: return Strings.Duel_PutToGraveyardMany(ownerPrefix, count, names);
+            }
+        }
+
+        // Walks a CombatFrame DamageBranch chain and collects the death/removal zone transfers the
+        // game nested in its leaf events (combat-damage deaths are pulled out of the normal
+        // zone-transfer pipeline into the CombatFrame, so this is the only place to read them).
+        private void CollectBranchRemovals(object branch, List<TransferOutcome> outcomes)
+        {
+            var current = branch;
+            int depth = 0;
+            while (current != null && depth < 10)
+            {
+                var leaves = GetFieldValue<object>(current, "_leafEvents");
+                if (leaves is System.Collections.IEnumerable le)
+                {
+                    foreach (var leaf in le)
+                    {
+                        if (leaf == null) continue;
+                        var transfers = new List<object>();
+                        CollectTransfers(leaf, transfers);
+                        foreach (var t in transfers)
+                        {
+                            var outcome = ProcessZoneTransfer(t);
+                            if (outcome != null) outcomes.Add(outcome);
+                        }
+                    }
+                }
+                current = GetFieldValue<object>(current, "_nextBranch");
+                depth++;
+            }
+        }
+
         private string HandleUpdateZoneEvent(object uxEvent)
         {
             var zoneField = uxEvent.GetType().GetField("_zone", PrivateInstance);
@@ -91,10 +251,11 @@ namespace AccessibleArena.Core.Services
                     }
                     else if (diff < 0)
                     {
-                        int removed = Math.Abs(diff);
-                        // Battlefield is a shared zone - can't determine ownership from zone string
-                        // Graveyard/Exile announcements will specify correct ownership
-                        return Strings.Duel_LeftBattlefield(removed);
+                        // Cards leaving the battlefield are announced by name (with the cause verb
+                        // and a count for mass events) via the ZoneTransferGroup path, or via the
+                        // CombatFrame path for combat-damage deaths. The old generic "N permanents
+                        // left battlefield" line here just double-spoke those, so it is suppressed;
+                        // the count is still tracked above so navigators refresh.
                     }
                 }
                 else if (zoneName == "Graveyard" && diff > 0)
@@ -143,39 +304,27 @@ namespace AccessibleArena.Core.Services
             {
                 // Log fields for discovery (once)
                 LogEventFieldsOnce(uxEvent, "ZONE TRANSFER GROUP");
-
-                // Build a flat list of individual transfers. A bare ZoneTransferUXEvent (not a
-                // group) has no _zoneTransfers list to unwrap — it IS the individual transfer
-                // (e.g. a single land entering the battlefield), so treat it as a one-item list.
-                var transfers = new List<object>();
                 if (uxEvent.GetType().Name == "ZoneTransferUXEvent")
-                {
                     LogEventFieldsOnce(uxEvent, "ZONE TRANSFER UX EVENT");
-                    transfers.Add(uxEvent);
-                }
-                else
-                {
-                    var zoneTransfers = GetFieldValue<object>(uxEvent, "_zoneTransfers");
-                    if (zoneTransfers is System.Collections.IEnumerable transferList)
-                    {
-                        foreach (var transfer in transferList)
-                        {
-                            if (transfer == null) continue;
-                            LogEventFieldsOnce(transfer, "ZONE TRANSFER UX EVENT");
-                            transfers.Add(transfer);
-                        }
-                    }
-                }
 
+                // Flatten into individual transfers. A bare ZoneTransferUXEvent (not a group) has
+                // no _zoneTransfers list to unwrap — it IS the individual transfer (e.g. a single
+                // land entering the battlefield), so CollectTransfers treats it as one item.
+                var transfers = new List<object>();
+                CollectTransfers(uxEvent, transfers);
                 if (transfers.Count == 0) return null;
 
-                // Local-player draws (Library -> Hand) are aggregated into a single
-                // count+names announcement; everything else is announced per-transfer.
+                // Local-player draws (Library -> Hand) are aggregated into a single count+names
+                // announcement; everything else becomes a TransferOutcome that AggregateOutcomes
+                // buckets so mass events (board wipes, mass mill/discard) read as "N <verb>: names".
                 var drawNames = new List<string>();
-                var announcements = new List<string>();
+                var outcomes = new List<TransferOutcome>();
 
                 foreach (var transfer in transfers)
                 {
+                    if (transfer == null) continue;
+                    LogEventFieldsOnce(transfer, "ZONE TRANSFER UX EVENT");
+
                     string drawName = TryGetLocalDrawCardName(transfer);
                     if (drawName != null)
                     {
@@ -183,17 +332,21 @@ namespace AccessibleArena.Core.Services
                         continue;
                     }
 
-                    var announcement = ProcessZoneTransfer(transfer);
-                    if (!string.IsNullOrEmpty(announcement))
-                        announcements.Add(announcement);
+                    var outcome = ProcessZoneTransfer(transfer);
+                    if (outcome != null)
+                        outcomes.Add(outcome);
                 }
+
+                var announcements = new List<string>();
 
                 // Announce draws first (the card you drew, then any downstream effects).
                 // Skip the pre-game opening hand / mulligan redraws: those fire before turn 1's
                 // first phase (so _currentStep is still null) and the Mulligan browser already
                 // gives its own grouped hand summary — announcing all 7 names here is redundant.
                 if (drawNames.Count > 0 && _currentStep != null)
-                    announcements.Insert(0, BuildLocalDrawAnnouncement(drawNames));
+                    announcements.Add(BuildLocalDrawAnnouncement(drawNames));
+
+                announcements.AddRange(AggregateOutcomes(outcomes));
 
                 return announcements.Count > 0 ? string.Join(". ", announcements) : null;
             }
@@ -268,7 +421,7 @@ namespace AccessibleArena.Core.Services
         /// Processes a single zone transfer event to announce game state changes.
         /// Handles: land plays, creatures dying, cards discarded, exiled, bounced, tokens created, etc.
         /// </summary>
-        private string ProcessZoneTransfer(object transfer)
+        private TransferOutcome ProcessZoneTransfer(object transfer)
         {
             try
             {
@@ -375,27 +528,28 @@ namespace AccessibleArena.Core.Services
                 }
 
                 string ownerPrefix = isOpponent ? Strings.Duel_OwnerPrefix_Opponent : "";
-                string announcement = null;
+                TransferOutcome outcome = null;
 
-                // Determine announcement based on zone transfer type
+                // Determine outcome based on zone transfer type
                 switch (toZoneTypeStr)
                 {
                     case "Battlefield":
-                        announcement = ProcessBattlefieldEntry(fromZoneTypeStr, reasonStr, cardName, grpId, newInstance, isOpponent);
-                        if (announcement != null)
+                        var bfText = ProcessBattlefieldEntry(fromZoneTypeStr, reasonStr, cardName, grpId, newInstance, isOpponent);
+                        if (bfText != null)
                             _lastSpellResolvedTime = DateTime.Now;
+                        outcome = OutcomeText(bfText);
                         break;
 
                     case "Graveyard":
-                        announcement = ProcessGraveyardEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix, transfer);
+                        outcome = ProcessGraveyardOutcome(fromZoneTypeStr, reasonStr, cardName, ownerPrefix, isOpponent, transfer);
                         break;
 
                     case "Exile":
-                        announcement = ProcessExileEntry(fromZoneTypeStr, reasonStr, cardName, ownerPrefix, transfer);
+                        outcome = ProcessExileOutcome(fromZoneTypeStr, reasonStr, cardName, ownerPrefix, isOpponent, transfer);
                         break;
 
                     case "Hand":
-                        announcement = ProcessHandEntry(fromZoneTypeStr, reasonStr, cardName, isOpponent);
+                        outcome = OutcomeText(ProcessHandEntry(fromZoneTypeStr, reasonStr, cardName, isOpponent));
                         break;
 
                     case "Stack":
@@ -403,12 +557,12 @@ namespace AccessibleArena.Core.Services
                         break;
                 }
 
-                if (!string.IsNullOrEmpty(announcement))
+                if (outcome != null)
                 {
-                    Log.Announce("DuelAnnouncer", $"Zone transfer announcement: {announcement}");
+                    Log.Announce("DuelAnnouncer", $"Zone transfer outcome: {(outcome.Aggregatable ? outcome.Verb + " " + cardName : outcome.Text)}");
                 }
 
-                return announcement;
+                return outcome;
             }
             catch (Exception ex)
             {
@@ -550,80 +704,88 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Process card entering graveyard - death, destruction, discard, mill, counter
+        /// Process card entering graveyard - death, destruction, discard, mill, counter.
+        /// Returns an aggregatable removal (so board wipes / mass mill read as "N <verb>: names")
+        /// or a dedicated line for countered spells and the legend rule.
         /// </summary>
-        private string ProcessGraveyardEntry(string fromZone, string reason, string cardName, string ownerPrefix, object transfer)
+        private TransferOutcome ProcessGraveyardOutcome(string fromZone, string reason, string cardName, string ownerPrefix, bool isOpponent, object transfer)
         {
-            // Use reason for specific language if available
+            // Countered spells/abilities and the legend rule read as their own dedicated line.
+            if (reason == "Countered")
+                return OutcomeText(BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: false));
+            if (reason == "Legend" || reason == "World")
+                return OutcomeText(Strings.Duel_LegendRule(ownerPrefix, cardName));
+
+            RemovalVerb? verb = ClassifyGraveyardVerb(fromZone, reason);
+            if (verb == null)
+                return null; // e.g. Stack -> Graveyard (spell resolved, announced elsewhere)
+            return OutcomeRemoval(verb.Value, isOpponent, cardName);
+        }
+
+        /// <summary>
+        /// Maps the game's ZoneTransferReason (enum .ToString(), e.g. "Destroy", "ZeroToughness")
+        /// to the verb we announce. Only creatures can leave via ZeroToughness/Damage/Deathtouch,
+        /// so those are the genuine "dies"; everything else uses a type-neutral verb. Unknown
+        /// reasons fall back by source zone (never a blanket "died", which mislabels non-creatures).
+        /// </summary>
+        private RemovalVerb? ClassifyGraveyardVerb(string fromZone, string reason)
+        {
             switch (reason)
             {
-                case "Died":
-                    return Strings.Duel_Died(ownerPrefix, cardName);
-                case "Destroyed":
-                    return Strings.Duel_Destroyed(ownerPrefix, cardName);
-                case "Sacrificed":
-                    return Strings.Duel_Sacrificed(ownerPrefix, cardName);
-                case "Countered":
-                    return BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: false);
-                case "Discarded":
-                    return Strings.Duel_Discarded(ownerPrefix, cardName);
-                case "Milled":
-                    return Strings.Duel_Milled(ownerPrefix, cardName);
+                case "ZeroToughness":
+                case "Damage":
+                case "Deathtouch":
+                    return RemovalVerb.Died;
+                case "Destroy":
+                case "DestroyNoRegenerate":
+                    return RemovalVerb.Destroyed;
+                case "Sacrifice":
+                    return RemovalVerb.Sacrificed;
+                case "Discard":
+                case "Cycle":
+                    return RemovalVerb.Discarded;
+                case "Mill":
+                    return RemovalVerb.Milled;
+                case "Put":
+                case "ZoneTransferWithoutIdChange":
+                case "ZeroLoyalty":
+                    return RemovalVerb.PutToGraveyard;
             }
 
-            // Fallback based on source zone
+            // Unknown/empty reason: fall back on the source zone.
             switch (fromZone)
             {
-                case "Battlefield":
-                    return Strings.Duel_Died(ownerPrefix, cardName);
-                case "Hand":
-                    return Strings.Duel_Discarded(ownerPrefix, cardName);
-                case "Stack":
-                    // Don't announce "countered" as fallback - countering is only when reason == "Countered"
-                    // Normal spell resolution (instant/sorcery) also goes Stack -> Graveyard
-                    // "Spell resolved" is already announced via UpdateZoneUXEvent, so skip here
-                    return null;
-                case "Library":
-                    return Strings.Duel_Milled(ownerPrefix, cardName);
-                default:
-                    return Strings.Duel_WentToGraveyard(ownerPrefix, cardName);
+                case "Battlefield": return RemovalVerb.PutToGraveyard;
+                case "Hand": return RemovalVerb.Discarded;
+                case "Library": return RemovalVerb.Milled;
+                case "Stack": return null; // spell/ability resolved — announced elsewhere
+                default: return RemovalVerb.PutToGraveyard;
             }
         }
 
         /// <summary>
-        /// Process card entering exile
+        /// Process card entering exile. Battlefield -> exile is an aggregatable removal (so mass
+        /// exile reads as "N permanents exiled: names"); other sources keep their dedicated lines.
         /// </summary>
-        private string ProcessExileEntry(string fromZone, string reason, string cardName, string ownerPrefix, object transfer)
+        private TransferOutcome ProcessExileOutcome(string fromZone, string reason, string cardName, string ownerPrefix, bool isOpponent, object transfer)
         {
-            // Check for countered spells that exile (e.g., Dissipate, Syncopate)
+            // Countered spells that exile (e.g., Dissipate, Syncopate)
             if (reason == "Countered")
-            {
-                return BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: true);
-            }
+                return OutcomeText(BuildCounteredAnnouncement(ownerPrefix, cardName, transfer, exiled: true));
 
             if (fromZone == "Battlefield")
-            {
-                return Strings.Duel_Exiled(ownerPrefix, cardName);
-            }
+                return OutcomeRemoval(RemovalVerb.Exiled, isOpponent, cardName);
             if (fromZone == "Graveyard")
-            {
-                return Strings.Duel_ExiledFromGraveyard(ownerPrefix, cardName);
-            }
+                return OutcomeText(Strings.Duel_ExiledFromGraveyard(ownerPrefix, cardName));
             if (fromZone == "Hand")
-            {
-                return Strings.Duel_ExiledFromHand(ownerPrefix, cardName);
-            }
+                return OutcomeText(Strings.Duel_ExiledFromHand(ownerPrefix, cardName));
             if (fromZone == "Library")
-            {
-                return Strings.Duel_ExiledFromLibrary(ownerPrefix, cardName);
-            }
+                return OutcomeText(Strings.Duel_ExiledFromLibrary(ownerPrefix, cardName));
             if (fromZone == "Stack")
-            {
-                // Spell from stack to exile without Countered reason - could be an effect
-                // Skip announcement since "Spell resolved" handles the stack clearing
+                // Spell from stack to exile without Countered reason — "Spell resolved" handles it
                 return null;
-            }
-            return Strings.Duel_Exiled(ownerPrefix, cardName);
+
+            return OutcomeRemoval(RemovalVerb.Exiled, isOpponent, cardName);
         }
 
         /// <summary>

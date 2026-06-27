@@ -479,6 +479,16 @@ namespace AccessibleArena.Core.Models
         public static string Duel_Discarded(string owner, string name) => L.Format("Duel_Discarded_Format", owner, name);
         public static string Duel_Milled(string owner, string name) => L.Format("Duel_Milled_Format", owner, name);
         public static string Duel_WentToGraveyard(string owner, string name) => L.Format("Duel_WentToGraveyard_Format", owner, name);
+        public static string Duel_LegendRule(string owner, string name) => L.Format("Duel_LegendRule_Format", owner, name);
+
+        // Zone transfers - mass removal (board wipes, mass mill/discard): owner prefix, count, names
+        public static string Duel_DiedMany(string owner, int count, string names) => L.Format("Duel_DiedMany_Format", owner, count, names);
+        public static string Duel_DestroyedMany(string owner, int count, string names) => L.Format("Duel_DestroyedMany_Format", owner, count, names);
+        public static string Duel_SacrificedMany(string owner, int count, string names) => L.Format("Duel_SacrificedMany_Format", owner, count, names);
+        public static string Duel_ExiledMany(string owner, int count, string names) => L.Format("Duel_ExiledMany_Format", owner, count, names);
+        public static string Duel_PutToGraveyardMany(string owner, int count, string names) => L.Format("Duel_PutToGraveyardMany_Format", owner, count, names);
+        public static string Duel_MilledMany(string owner, int count, string names) => L.Format("Duel_MilledMany_Format", owner, count, names);
+        public static string Duel_DiscardedMany(string owner, int count, string names) => L.Format("Duel_DiscardedMany_Format", owner, count, names);
 
         // Zone transfers - exile
         public static string Duel_Exiled(string owner, string name) => L.Format("Duel_Exiled_Format", owner, name);

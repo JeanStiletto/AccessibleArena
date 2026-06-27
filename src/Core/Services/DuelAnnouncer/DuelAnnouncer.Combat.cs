@@ -382,6 +382,11 @@ namespace AccessibleArena.Core.Services
 
                 var announcements = new List<string>();
 
+                // Combat-damage deaths are nested inside each branch's leaf events (the game pulls
+                // them out of the normal zone-transfer pipeline into the CombatFrame). Collect them
+                // and aggregate the same way as a board wipe so they read by name with a count.
+                var deathOutcomes = new List<TransferOutcome>();
+
                 // Log total damage for analysis
                 var opponentDamage = GetFieldValue<int>(uxEvent, "OpponentDamageDealt");
                 Log.Announce("DuelAnnouncer", $"CombatFrame: OpponentDamageDealt={opponentDamage}");
@@ -407,6 +412,9 @@ namespace AccessibleArena.Core.Services
                         foreach (var branch in branchList)
                         {
                             if (branch == null) continue;
+
+                            // Names of creatures that died from this branch's damage.
+                            CollectBranchRemovals(branch, deathOutcomes);
 
                             // Get damage chain from this branch (attacker + blocker if present)
                             var damageChain = ExtractDamageChain(branch);
@@ -448,6 +456,10 @@ namespace AccessibleArena.Core.Services
                         Log.Announce("DuelAnnouncer", $"Total branches: {branchIndex}");
                     }
                 }
+
+                // Append combat deaths after the damage lines (e.g. "Bear deals 2 to Elf. 2
+                // creatures died: Bear, Elf").
+                announcements.AddRange(AggregateOutcomes(deathOutcomes));
 
                 if (announcements.Count > 0)
                 {
