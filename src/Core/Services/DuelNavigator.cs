@@ -598,7 +598,13 @@ namespace AccessibleArena.Core.Services
                 else
                 {
                     string turnPhaseInfo = _duelAnnouncer.GetTurnPhaseInfo();
-                    _announcer.AnnounceInterrupt(turnPhaseInfo);
+                    // Append whichever player's timer is currently running (only one is ever
+                    // on the clock). Omitted entirely when no timer is running (e.g. vs AI).
+                    string timerInfo = _portraitNavigator.GetActiveTimerText();
+                    string message = string.IsNullOrEmpty(timerInfo)
+                        ? turnPhaseInfo
+                        : $"{turnPhaseInfo}. {timerInfo}";
+                    _announcer.AnnounceInterrupt(message);
                 }
                 return true;
             }

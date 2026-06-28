@@ -176,7 +176,7 @@ Row Switching: Shift+Up (Previous row), Shift+Down (Next row)
 Within Row: Left/Right (Navigate cards), Home/End (Jump to first/last)
 
 **Duel - Info:**
-T (Turn), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descriptions + other faces)
+T (Turn, phase, and the active player's running timer), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descriptions + other faces)
 K (Counter info on focused card)
 J (Jump to attachment / target of focused card; repeated J cycles through multiple relations)
 M (Your Land Summary), Shift+M (Opponent Land Summary)

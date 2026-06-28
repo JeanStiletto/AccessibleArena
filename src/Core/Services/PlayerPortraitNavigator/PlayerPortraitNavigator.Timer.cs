@@ -162,6 +162,33 @@ namespace AccessibleArena.Core.Services
 
             DiscoverTimerElements();
 
+            string message = BuildTimerTextForSide(opponent);
+            _announcer.AnnounceInterrupt(message ?? Strings.TimerNoMatchClock);
+        }
+
+        /// <summary>
+        /// Returns the announcement for whichever side currently has a running timer
+        /// (match clock or rope), including that side's owner label, or null if no
+        /// timer is running for either player. Used by the T shortcut to append the
+        /// active timer to the turn/phase announcement. Only one player is ever on the
+        /// clock at a time (the priority holder), so the running side is unambiguous;
+        /// local is probed first as a deterministic tie-break.
+        /// </summary>
+        public string GetActiveTimerText()
+        {
+            if (!_isActive) return null;
+
+            DiscoverTimerElements();
+
+            return BuildTimerTextForSide(false) ?? BuildTimerTextForSide(true);
+        }
+
+        /// <summary>
+        /// Builds the timer announcement for one side: match clock first (Bo3, timed
+        /// events), then rope (turn) timer. Returns null if that side has no running timer.
+        /// </summary>
+        private string BuildTimerTextForSide(bool opponent)
+        {
             // Try match clock first (Bo3, timed events)
             string matchClockText = GetTimerFromModel(opponent);
             if (matchClockText != null)
@@ -169,26 +196,22 @@ namespace AccessibleArena.Core.Services
                 int timeouts = GetTimeoutCount(opponent ? "Opponent" : "LocalPlayer");
                 if (timeouts < 0) timeouts = 0;
 
-                string message = opponent
+                return opponent
                     ? Strings.TimerOpponentAnnounce(matchClockText, timeouts)
                     : Strings.TimerAnnounce(matchClockText, timeouts);
-                _announcer.AnnounceInterrupt(message);
-                return;
             }
 
             // Fall back to rope timer (turn timer from LowTimeWarning)
             var ropeResult = GetRopeTimerFromModel(opponent);
             if (ropeResult != null)
             {
-                string message = opponent
+                return opponent
                     ? Strings.TimerOpponentRopeAnnounce(ropeResult.Value.timerText, ropeResult.Value.timeouts)
                     : Strings.TimerRopeAnnounce(ropeResult.Value.timerText, ropeResult.Value.timeouts);
-                _announcer.AnnounceInterrupt(message);
-                return;
             }
 
-            // No timer info at all
-            _announcer.AnnounceInterrupt(Strings.TimerNoMatchClock);
+            // No timer running on this side
+            return null;
         }
 
         /// <summary>

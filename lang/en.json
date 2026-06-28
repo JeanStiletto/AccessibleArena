@@ -344,7 +344,7 @@
   "HelpSStack": "S: Stack",
   "HelpDLibrary": "D: Your library, Shift plus D: Opponent library",
   "HelpLLifeTotals": "L: Life totals",
-  "HelpTTurnPhase": "T: Turn and phase",
+  "HelpTTurnPhase": "T: Turn, phase, and the active player's timer",
   "HelpVPlayerInfo": "V: Player info zone",
   "HelpMLandSummary": "M: Your land summary, Shift plus M: Opponent land summary",
   "HelpETimer": "E: Your timer and timeouts, Shift plus E: Opponent timer and timeouts",

@@ -344,7 +344,7 @@
   "HelpSStack": "S: Stapel",
   "HelpDLibrary": "D: Deine Bibliothek, Umschalt plus D: Gegnerische Bibliothek",
   "HelpLLifeTotals": "L: Leben",
-  "HelpTTurnPhase": "T: Runde und Phase",
+  "HelpTTurnPhase": "T: Runde, Phase und Timer des aktiven Spielers",
   "HelpVPlayerInfo": "V: Spielerinfo-Zone",
   "HelpMLandSummary": "M: Deine Länderzusammenfassung, Umschalt plus M: Gegnerische Länderzusammenfassung",
   "HelpETimer": "E: Dein Timer und Timeouts, Umschalttaste plus E: Gegner-Timer und Timeouts",
