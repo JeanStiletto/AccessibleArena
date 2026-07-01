@@ -184,35 +184,37 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Builds the timer announcement for one side: match clock first (Bo3, timed
-        /// events), then rope (turn) timer. Returns null if that side has no running timer.
+        /// Builds the timer announcement for one side: the active turn timer first,
+        /// then the match clock (Bo3, timed events). Returns null if neither is running.
         /// </summary>
         private string BuildTimerTextForSide(bool opponent)
         {
-            // Try match clock first (Bo3, timed events)
+            string turnTimerMessage = null;
+            var ropeResult = GetRopeTimerFromModel(opponent);
+            if (ropeResult != null)
+            {
+                turnTimerMessage = opponent
+                    ? Strings.TimerOpponentRopeAnnounce(ropeResult.Value.timerText, ropeResult.Value.timeouts)
+                    : Strings.TimerRopeAnnounce(ropeResult.Value.timerText, ropeResult.Value.timeouts);
+            }
+
+            string matchClockMessage = null;
             string matchClockText = GetTimerFromModel(opponent);
             if (matchClockText != null)
             {
                 int timeouts = GetTimeoutCount(opponent ? "Opponent" : "LocalPlayer");
                 if (timeouts < 0) timeouts = 0;
 
-                return opponent
+                matchClockMessage = opponent
                     ? Strings.TimerOpponentAnnounce(matchClockText, timeouts)
                     : Strings.TimerAnnounce(matchClockText, timeouts);
             }
 
-            // Fall back to rope timer (turn timer from LowTimeWarning)
-            var ropeResult = GetRopeTimerFromModel(opponent);
-            if (ropeResult != null)
-            {
-                return opponent
-                    ? Strings.TimerOpponentRopeAnnounce(ropeResult.Value.timerText, ropeResult.Value.timeouts)
-                    : Strings.TimerRopeAnnounce(ropeResult.Value.timerText, ropeResult.Value.timeouts);
-            }
-
-            // No timer running on this side
-            return null;
+            return SelectActiveTimer(turnTimerMessage, matchClockMessage);
         }
+
+        internal static string SelectActiveTimer(string turnTimer, string matchClock)
+            => turnTimer ?? matchClock;
 
         /// <summary>
         /// Reads remaining time from MtgTimer model via reflection.
