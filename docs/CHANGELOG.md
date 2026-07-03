@@ -22,6 +22,10 @@ What's New popup (set releases / announcements):
 
 - The "What's New" popup now reads the actual content of each page. Previously navigating it announced only "Page 1 of 4", "Page 2 of 4", … with no text — the page title was extracted internally but only written to the log and never spoken, and the descriptions were never read at all, so the whole screen was a dead end for a screen reader. Now the current page's title and body are announced when the popup opens, are re-read whenever you move to a different page (via the page dots), and are available as a text item you can re-read with Enter. Content is read from the popup panel itself (menu chrome behind the modal is excluded) and only the visible page is read. Note: any art, or text baked into an image rather than real text, still can't be read.
 
+Packs:
+
+- Wildcards opened in booster packs now read as wildcards with their rarity — "Rare Wildcard", "Mythic Rare Wildcard", and so on — instead of falling back to the navbar's vault-progress text (e.g. "+99"). A wildcard tile has no card name of its own, so the name lookup used to come up empty and the on-screen vault-progress text was read in its place. The tile's group id is now checked against the game's own `CardCategory.IsWildcard`, and the rarity is read from the pack entry's `CardData.Rarity`. The label prefers the game's localized wildcard term (`MainNav/General/{Rarity}Wildcard`, translated in some languages and English in others) and falls back to English; the Packs-screen wildcard-progress readout uses the same wording for consistency. Contributed by **@lilmike** (PR #108).
+
 Bug fixes:
 
 - Filled in the missing translations for the v1.4.2 "Announce priority" strings, which had shipped only in English and German. The other ten languages no longer fall back to English for the priority announcement and its setting.

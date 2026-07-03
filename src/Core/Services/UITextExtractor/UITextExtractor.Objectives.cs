@@ -322,8 +322,8 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Build the label
-            string label = rarity != null ? $"{rarity} Wildcard" : "Wildcard";
+            // Build the label. Prefer the game's localized wildcard term, English fallback.
+            string label = WildcardLabelFormatter.Format(rarity, ResolveLocKey);
 
             if (!string.IsNullOrEmpty(progressValue))
                 return $"{label}: {progressValue}";

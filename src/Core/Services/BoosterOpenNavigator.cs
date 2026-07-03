@@ -293,7 +293,7 @@ namespace AccessibleArena.Core.Services
                 else
                 {
                     string displayName = null;
-                    string wildcardLabel = GetWildcardLabelFromData(dataIndex);
+                    string wildcardLabel = GetWildcardLabelForEntry(entry);
                     if (!string.IsNullOrEmpty(wildcardLabel))
                         displayName = wildcardLabel;
                     else if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
@@ -1305,23 +1305,37 @@ namespace AccessibleArena.Core.Services
             return CardModelProvider.GetCardInfoFromGrpId(grpId);
         }
 
-        private string GetWildcardLabelFromData(int dataIndex)
+        /// <summary>
+        /// Returns a localized "{Rarity} Wildcard" label if the entry is a wildcard,
+        /// otherwise null. Wildcards carry no real card name, so this stands in for the
+        /// card-name lookup (which would otherwise read the on-screen vault-progress text).
+        /// </summary>
+        private string GetWildcardLabelForEntry(object entry)
         {
-            var cards = GetCardsToOpen(_controller);
-            if (cards == null || dataIndex < 0 || dataIndex >= cards.Count) return null;
+            if (entry == null) return null;
 
-            var entry = cards[dataIndex];
             uint grpId = GetGrpIdFromEntry(entry);
             if (grpId == 0 || !IsWildcard(grpId)) return null;
+
+            return WildcardLabelFormatter.Format(GetRarityStringFromEntry(entry), UITextExtractor.ResolveLocKey);
+        }
+
+        /// <summary>
+        /// Reads the CardData.Rarity enum on a _cardsToOpen entry as a string
+        /// (e.g. "Rare", "MythicRare"). Returns null when unavailable.
+        /// </summary>
+        private string GetRarityStringFromEntry(object entry)
+        {
+            if (entry == null) return null;
 
             if (_cardDataField == null)
                 _cardDataField = entry.GetType().GetField("CardData", PublicInstance);
             var cardData = _cardDataField?.GetValue(entry);
-            if (cardData == null) return FormatWildcardLabel(null);
+            if (cardData == null) return null;
 
             if (_rarityProp == null)
                 _rarityProp = cardData.GetType().GetProperty("Rarity", PublicInstance);
-            return FormatWildcardLabel(_rarityProp?.GetValue(cardData)?.ToString());
+            return _rarityProp?.GetValue(cardData)?.ToString();
         }
 
         private static bool IsWildcard(uint grpId)
@@ -1329,7 +1343,7 @@ namespace AccessibleArena.Core.Services
             if (!_isWildcardMethodSearched)
             {
                 _isWildcardMethodSearched = true;
-                var cardCategoryType = ResolveWildcardCategoryType(FindType);
+                var cardCategoryType = FindType("Wizards.Unification.Models.Cards.CardCategory");
                 _isWildcardMethod = cardCategoryType?.GetMethod("IsWildcard",
                     BindingFlags.Public | BindingFlags.Static,
                     null, new[] { typeof(uint) }, null);
@@ -1345,20 +1359,6 @@ namespace AccessibleArena.Core.Services
             {
                 return false;
             }
-        }
-
-        public static Type ResolveWildcardCategoryType(Func<string, Type> resolver)
-        {
-            return resolver("Wizards.Unification.Models.Cards.CardCategory");
-        }
-
-        public static string FormatWildcardLabel(string rarity)
-        {
-            if (string.IsNullOrWhiteSpace(rarity) || rarity == "None" || rarity == "0")
-                return "Wildcard";
-
-            if (rarity == "MythicRare") rarity = "Mythic Rare";
-            return $"{rarity} Wildcard";
         }
 
         /// <summary>
@@ -1386,7 +1386,7 @@ namespace AccessibleArena.Core.Services
 
             // Announce the card name
             var cardInfo = GetCardInfoFromData(dataIndex);
-            string wildcardLabel = GetWildcardLabelFromData(dataIndex);
+            string wildcardLabel = GetWildcardLabelForEntry(entry);
             if (!string.IsNullOrEmpty(wildcardLabel))
             {
                 _announcer.AnnounceInterrupt(wildcardLabel);
@@ -1413,15 +1413,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void PlayFlipSoundForEntry(object entry)
         {
-            if (_cardDataField == null)
-                _cardDataField = entry.GetType().GetField("CardData", PublicInstance);
-            var cardData = _cardDataField?.GetValue(entry);
-            if (cardData == null) return;
-
-            if (_rarityProp == null)
-                _rarityProp = cardData.GetType().GetProperty("Rarity", PublicInstance);
-            var rarity = _rarityProp?.GetValue(cardData);
-            string rarityName = rarity?.ToString() ?? "";
+            string rarityName = GetRarityStringFromEntry(entry) ?? "";
 
             string eventName;
             if (rarityName == "MythicRare") eventName = "sfx_ui_boost_card_flip_mythic_rare";
