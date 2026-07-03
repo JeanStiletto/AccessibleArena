@@ -78,6 +78,9 @@ namespace AccessibleArena.Tests
             "ActivationWithItems_Format",
             "BrowserOptions_Format",
             "Card_EnchantedBy_Many_Format",
+            "WildcardInPacks_One",     // UITextExtractor wildcard-track countdown (via Plural)
+            "WildcardInPacks_Few",
+            "WildcardInPacks_Format",
         };
 
         private static string FindRepoRoot()

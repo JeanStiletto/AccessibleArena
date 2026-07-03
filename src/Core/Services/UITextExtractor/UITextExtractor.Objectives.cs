@@ -311,78 +311,105 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Extracts text from wildcard progress elements on the Packs screen.
-        /// These show progress toward earning wildcards of specific rarities.
-        /// Parent names: "WildcardProgressUncommon", "Wildcard Progress Rare"
+        /// Data-driven text for the two wildcard-track rings on the pack-opening screen
+        /// (parents "WildcardProgressUncommon" / "Wildcard Progress Rare").
+        ///
+        /// The game's WildcardTrack has only two fill rings: an Uncommon ring and a
+        /// shared Rare/Mythic ring — not one bar per rarity. Progress is a countdown of
+        /// packs until the next wildcard, derived entirely from
+        /// InventoryManager.Inventory.wcTrackPosition (0-29), which the track caches in
+        /// its private _trackPosition field. We read that field and replicate the game's
+        /// own arithmetic (WildcardTrack.SetTrackPosition/updateText) so the announced
+        /// numbers exactly match the game's tooltips — including the Mythic countdown and
+        /// the Rare↔Mythic distinction, which the old fill-image / fraction scraping
+        /// missed entirely (and which produced inconsistent "1/6" vs "83%" output).
         /// </summary>
         private static string TryGetWildcardProgressText(GameObject gameObject, string parentName)
         {
-            // Extract rarity from parent name
-            string rarity = null;
             string parentLower = parentName.ToLowerInvariant();
-            if (parentLower.Contains("uncommon"))
-                rarity = "Uncommon";
-            else if (parentLower.Contains("rare"))
-                rarity = "Rare";
-            else if (parentLower.Contains("mythic"))
-                rarity = "Mythic";
-            else if (parentLower.Contains("common"))
-                rarity = "Common";
+            bool isUncommon = parentLower.Contains("uncommon");
+            bool isRare = !isUncommon && parentLower.Contains("rare");
+            if (!isUncommon && !isRare)
+                return null; // Unknown ring — let generic extraction handle it
 
-            // Look for progress value in children (same structure as objectives)
-            string progressValue = null;
-            string fillPercentage = null;
+            int pos = GetWildcardTrackPosition(gameObject);
 
-            // Search all child transforms for text elements
-            var allTexts = gameObject.GetComponentsInChildren<TMP_Text>(true);
-            foreach (var tmpText in allTexts)
+            if (isUncommon)
             {
-                if (tmpText == null) continue;
+                string uncommonLabel = WildcardLabelFormatter.Format("Uncommon", ResolveLocKey);
+                if (pos < 0)
+                    return uncommonLabel; // No track data — honest label, no bogus number
 
-                string objName = tmpText.gameObject.name;
-                string content = CleanText(tmpText.text);
-
-                if (string.IsNullOrEmpty(content)) continue;
-
-                // Text_GoalProgress contains the fraction (e.g., "3/6")
-                if (objName == "Text_GoalProgress" || objName.Contains("GoalProgress"))
-                {
-                    progressValue = content;
-                }
-                // TextLine may contain additional text
-                else if (objName == "TextLine" || objName.Contains("TextLine"))
-                {
-                    // If it looks like a progress value, use it
-                    if (content.Contains("/"))
-                        progressValue = content;
-                }
+                // Uncommon wildcard every 6 packs. num = packs completed in the cycle.
+                int packsToUncommon = 6 - ((pos + 4) % 6);
+                return FormatWildcardCountdown(uncommonLabel, packsToUncommon);
             }
 
-            // Also check for Image fill amount as a fallback for percentage
-            var images = gameObject.GetComponentsInChildren<Image>(true);
-            foreach (var img in images)
+            // The "Rare" ring is shared with Mythic: the game shows both countdowns in its
+            // tooltip. Announce both, each explicitly labeled, so the Rare↔Mythic ordering
+            // is unambiguous (whichever number is smaller comes next).
+            string rareLabel = WildcardLabelFormatter.Format("Rare", ResolveLocKey);
+            if (pos < 0)
+                return rareLabel;
+
+            int packsToMythic = (pos >= 17) ? (30 - pos + 17) : (17 - pos);
+            bool mythicIsNextRare = pos >= 11 && pos < 17;
+            int packsToRare = mythicIsNextRare ? (packsToMythic + 6) : (6 - ((pos + 1) % 6));
+
+            string mythicLabel = WildcardLabelFormatter.Format("MythicRare", ResolveLocKey);
+            string rareSeg = FormatWildcardCountdown(rareLabel, packsToRare);
+            string mythicSeg = FormatWildcardCountdown(mythicLabel, packsToMythic);
+            return rareSeg + ", " + mythicSeg;
+        }
+
+        /// <summary>
+        /// Builds a singular-aware "{rarity} in {N} packs" phrase from mod locale strings.
+        /// </summary>
+        private static string FormatWildcardCountdown(string rarityLabel, int packs)
+        {
+            if (LocaleManager.Instance == null)
+                return $"{rarityLabel} in {packs} pack{(packs == 1 ? "" : "s")}";
+
+            // Plural picks WildcardInPacks_One / _Few / _Format per the active language's
+            // plural rules (e.g. Slavic 2-4 uses _Few). Template args: {0}=packs, {1}=rarity.
+            return LocaleManager.Instance.Plural(packs, "WildcardInPacks", rarityLabel);
+        }
+
+        // WildcardTrack._trackPosition (private int) — the cached wcTrackPosition (0-29).
+        private static System.Type _wildcardTrackType;
+        private static bool _wildcardTrackTypeSearched;
+        private static FieldInfo _wildcardTrackPositionField;
+
+        /// <summary>
+        /// Reads the wildcard track position (0-29) by walking up from a progress element
+        /// to the WildcardTrack component and reading its private _trackPosition field.
+        /// The track caches InventoryManager.Inventory.wcTrackPosition, so this is the same
+        /// value the game's own arithmetic uses. Returns -1 when unavailable.
+        /// </summary>
+        private static int GetWildcardTrackPosition(GameObject gameObject)
+        {
+            if (gameObject == null) return -1;
+
+            if (!_wildcardTrackTypeSearched)
             {
-                if (img == null) continue;
-                string imgName = img.gameObject.name.ToLowerInvariant();
-                if (imgName.Contains("fill") || imgName.Contains("progress"))
-                {
-                    if (img.type == Image.Type.Filled && img.fillAmount > 0 && img.fillAmount < 1)
-                    {
-                        int percent = Mathf.RoundToInt(img.fillAmount * 100);
-                        fillPercentage = $"{percent}%";
-                    }
-                }
+                _wildcardTrackTypeSearched = true;
+                _wildcardTrackType = FindType("WildcardTrack");
+                if (_wildcardTrackType != null)
+                    _wildcardTrackPositionField = _wildcardTrackType.GetField("_trackPosition", PrivateInstance);
             }
+            if (_wildcardTrackType == null || _wildcardTrackPositionField == null)
+                return -1;
 
-            // Build the label. Prefer the game's localized wildcard term, English fallback.
-            string label = WildcardLabelFormatter.Format(rarity, ResolveLocKey);
-
-            if (!string.IsNullOrEmpty(progressValue))
-                return $"{label}: {progressValue}";
-            else if (!string.IsNullOrEmpty(fillPercentage))
-                return $"{label}: {fillPercentage}";
-            else
-                return label;
+            // WildcardTrack lives on an ancestor of the progress element.
+            Transform current = gameObject.transform;
+            while (current != null)
+            {
+                var comp = current.GetComponent(_wildcardTrackType);
+                if (comp != null)
+                    return _wildcardTrackPositionField.GetValue(comp) is int p ? p : -1;
+                current = current.parent;
+            }
+            return -1;
         }
 
         /// <summary>
