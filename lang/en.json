@@ -527,6 +527,8 @@
   "TabPositionOf_Format": "{2}, tab {0} of {1}",
   "OptionsAvailable_Format": "{0} options available. {1}",
   "Continuing": "Continuing",
+  "SeasonEndHint": "Press Enter to continue",
+  "SeasonRevealing": "Revealing, please wait",
   "FoundRewards_Format": "Found {0} rewards",
   "Characters_Format": "{0} characters",
   "PaymentPage_Format": "Payment page. {0} elements.",

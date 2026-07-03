@@ -525,6 +525,8 @@
   "TabPositionOf_Format": "{2}、タブ {0}/{1}",
   "OptionsAvailable_Format": "{0}個のオプションが利用可能。{1}",
   "Continuing": "続行中",
+  "SeasonEndHint": "Enterで続行",
+  "SeasonRevealing": "公開中です。お待ちください",
   "FoundRewards_Format": "{0}個の報酬が見つかりました",
   "Characters_Format": "{0}文字",
   "PaymentPage_Format": "支払いページ。{0}個の要素。",

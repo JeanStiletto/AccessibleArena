@@ -32,6 +32,18 @@ namespace AccessibleArena.Core.Services
         private string _seasonDisplayText; // Extracted rank text for season end announcements
         private int _lastRescanElementCount; // Suppress duplicate announcements in ForceRescan
 
+        // Season-end phase, derived from which display objects are active rather than
+        // the game's _endOfSeasonDisplayState enum (observed stuck at OldRankDisplay
+        // across all three phases in user logs). Drives reward enumeration, the
+        // activation announcement, and the input mode.
+        private enum SeasonPhase { NotSeason, RankDisplay, RewardsReveal }
+        private SeasonPhase _seasonPhase = SeasonPhase.NotSeason;
+
+        // Last spoken season announcement — suppresses the identical-text repeats
+        // seen when every rescan re-announces via AnnounceInterrupt (Immediate is
+        // exempt from the announcer's consecutive-duplicate filter).
+        private string _lastSeasonAnnouncement;
+
         // Pre-extracted pack set names from ContentControllerRewards._packReward data
         // Uses List+index instead of Queue because rescans re-discover elements but
         // the game's ToAdd queue gets consumed after first display
@@ -241,6 +253,31 @@ namespace AccessibleArena.Core.Services
             _packSetNameIndex = 0;
             _seasonDisplayText = null;
             _lastRescanElementCount = 0;
+            _seasonPhase = SeasonPhase.NotSeason;
+            _lastSeasonAnnouncement = null;
+        }
+
+        /// <summary>
+        /// Find the ContentControllerRewards component inside the active popup.
+        /// Central lookup used by all season/reward reflection helpers.
+        /// </summary>
+        private MonoBehaviour FindRewardsController()
+        {
+            if (_activePopup == null) return null;
+
+            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb != null && mb.GetType().Name == "ContentControllerRewards")
+                    return mb;
+            }
+            return null;
+        }
+
+        /// <summary>Read a private instance field off the rewards controller (null-safe).</summary>
+        private object ReadControllerField(MonoBehaviour controller, string fieldName)
+        {
+            var fi = controller?.GetType().GetField(fieldName, PrivateInstance);
+            return fi?.GetValue(controller);
         }
 
         /// <summary>
@@ -249,23 +286,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private int GetSeasonEndState()
         {
-            if (_activePopup == null) return 0;
-
             try
             {
-                foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-                {
-                    if (mb != null && mb.GetType().Name == "ContentControllerRewards")
-                    {
-                        var field = mb.GetType().GetField("_endOfSeasonDisplayState", PrivateInstance);
-                        if (field != null)
-                        {
-                            object val = field.GetValue(mb);
-                            return (int)val;
-                        }
-                        break;
-                    }
-                }
+                var controller = FindRewardsController();
+                var val = ReadControllerField(controller, "_endOfSeasonDisplayState");
+                if (val != null) return (int)val;
             }
             catch (System.Exception ex)
             {
@@ -273,6 +298,71 @@ namespace AccessibleArena.Core.Services
             }
 
             return 0;
+        }
+
+        /// <summary>
+        /// Determine the current season-end phase from active display objects.
+        /// Independent of _endOfSeasonDisplayState (unreliable in the field) and of
+        /// localized title text: the game keeps the SeasonEndRankDisplay objects
+        /// active only during the old/new rank phases and explicitly deactivates
+        /// them during the rewards reveal.
+        /// </summary>
+        private SeasonPhase DetermineSeasonPhase()
+        {
+            var controller = FindRewardsController();
+            if (controller == null) return SeasonPhase.NotSeason;
+
+            // Are we in an end-of-season context at all?
+            bool isSeason = false;
+            var state = ReadControllerField(controller, "_endOfSeasonDisplayState");
+            if (state != null && (int)state != 0) isSeason = true;
+            if (!isSeason)
+            {
+                var eosGo = ReadControllerField(controller, "_endOfSeasonGameObject") as GameObject;
+                if (eosGo != null && eosGo.activeInHierarchy) isSeason = true;
+            }
+            if (!isSeason) return SeasonPhase.NotSeason;
+
+            return IsAnyRankDisplayActive(controller)
+                ? SeasonPhase.RankDisplay
+                : SeasonPhase.RewardsReveal;
+        }
+
+        /// <summary>True if either SeasonEndRankDisplay (constructed/limited) is active.</summary>
+        private bool IsAnyRankDisplayActive(MonoBehaviour controller)
+        {
+            foreach (string fieldName in new[] { "_endSeasonRankDisplayConstructed", "_endSeasonRankDisplayLimited" })
+            {
+                var disp = ReadControllerField(controller, fieldName) as MonoBehaviour;
+                if (disp != null && disp.gameObject.activeInHierarchy) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Read the localized rewards title (e.g. "Season Rewards") for context.</summary>
+        private string ReadRewardsTitle()
+        {
+            var controller = FindRewardsController();
+            var tmp = ReadControllerField(controller, "_rewardsTitleText") as TMPro.TMP_Text;
+            if (tmp == null) return null;
+            return UITextExtractor.StripRichText(tmp.text)?.Trim();
+        }
+
+        /// <summary>
+        /// True while the game is still revealing season rewards (card flips, page
+        /// reveals, running coroutines). Mirrors the guard in OnClaimClicked_Unity
+        /// that absorbs clicks — so we can tell the user to wait instead of advancing.
+        /// </summary>
+        private bool IsSeasonRevealBusy()
+        {
+            var controller = FindRewardsController();
+            if (controller == null) return false;
+
+            var still = ReadControllerField(controller, "_stillDisplayingSubpagesForRewardItem");
+            if (still is bool b && b) return true;
+            if (ReadControllerField(controller, "_seasonRewardCoroutine") != null) return true;
+            if (ReadControllerField(controller, "_claimRewardsCoroutine") != null) return true;
+            return false;
         }
 
         /// <summary>
@@ -284,30 +374,18 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-                {
-                    if (mb != null && mb.GetType().Name == "ContentControllerRewards")
-                    {
-                        // Check _endOfSeasonGameObject active
-                        var goField = mb.GetType().GetField("_endOfSeasonGameObject", PrivateInstance);
-                        if (goField != null)
-                        {
-                            var go = goField.GetValue(mb) as GameObject;
-                            if (go != null && go.activeInHierarchy)
-                                return true;
-                        }
+                var controller = FindRewardsController();
+                if (controller == null) return false;
 
-                        // Check SeasonEndRankDisplay components active
-                        var constructedField = mb.GetType().GetField("_endSeasonRankDisplayConstructed", PrivateInstance);
-                        if (constructedField != null)
-                        {
-                            var display = constructedField.GetValue(mb) as MonoBehaviour;
-                            if (display != null && display.gameObject.activeInHierarchy)
-                                return true;
-                        }
-                        break;
-                    }
-                }
+                // Check _endOfSeasonGameObject active
+                var go = ReadControllerField(controller, "_endOfSeasonGameObject") as GameObject;
+                if (go != null && go.activeInHierarchy)
+                    return true;
+
+                // Check SeasonEndRankDisplay component active
+                var display = ReadControllerField(controller, "_endSeasonRankDisplayConstructed") as MonoBehaviour;
+                if (display != null && display.gameObject.activeInHierarchy)
+                    return true;
             }
             catch (System.Exception ex)
             {
@@ -328,16 +406,9 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
-                {
-                    if (mb != null && mb.GetType().Name == "ContentControllerRewards")
-                    {
-                        var field = mb.GetType().GetField("_stillDisplayingSubpagesForRewardItem", PrivateInstance);
-                        if (field != null)
-                            return (bool)field.GetValue(mb);
-                        break;
-                    }
-                }
+                var controller = FindRewardsController();
+                var val = ReadControllerField(controller, "_stillDisplayingSubpagesForRewardItem");
+                if (val is bool b) return b;
             }
             catch (Exception ex)
             {
@@ -385,12 +456,21 @@ namespace AccessibleArena.Core.Services
             _cardIndex = 0;
             var addedObjects = new HashSet<GameObject>();
 
-            // _seasonEndState already set by DetectScreen
             _seasonDisplayText = null;
 
-            if (_seasonEndState == 1 || _seasonEndState == 3)  // OldRank or NewRank
+            // Derive the phase from active display objects, not the unreliable
+            // _endOfSeasonDisplayState enum (see DetermineSeasonPhase).
+            _seasonPhase = DetermineSeasonPhase();
+
+            if (_seasonPhase == SeasonPhase.RankDisplay)  // OldRank or NewRank
             {
                 DiscoverSeasonRankElements(addedObjects);
+            }
+            else if (_seasonPhase == SeasonPhase.RewardsReveal)
+            {
+                // Season reward reveal: enumerate what was actually earned instead of
+                // treating it as a rank screen (the old bug left this phase silent).
+                DiscoverSeasonRewardElements(addedObjects);
             }
             else
             {
@@ -405,10 +485,13 @@ namespace AccessibleArena.Core.Services
                     DiscoverRewardsFromControllerData(addedObjects);
             }
 
-            // Also discover buttons (ClaimButton, etc.)
-            DiscoverButtons(addedObjects);
+            // Only expose buttons on the normal (non-season) rewards popup. On the
+            // season screens the game's buttons are unlabeled coin/card hitboxes
+            // ("Button", "Button", ...) — advancing is handled by Enter/Space here.
+            if (_seasonPhase == SeasonPhase.NotSeason)
+                DiscoverButtons(addedObjects);
 
-            Log.Msg("{NavigatorId}", $"Discovered {_elements.Count} elements ({_rewardCount} rewards, seasonState={_seasonEndState})");
+            Log.Msg("{NavigatorId}", $"Discovered {_elements.Count} elements ({_rewardCount} rewards, phase={_seasonPhase}, seasonState={_seasonEndState})");
         }
 
         /// <summary>
@@ -426,6 +509,36 @@ namespace AccessibleArena.Core.Services
                 Log.Msg("{NavigatorId}", $"Season rank text: {_seasonDisplayText}");
                 AddElement(_activePopup, _seasonDisplayText);
                 addedObjects.Add(_activePopup);
+            }
+        }
+
+        /// <summary>
+        /// Discover the rewards earned during the season reward-reveal phase.
+        /// Reuses the standard reward-prefab discovery (card names, pack set names)
+        /// with the controller-data summary as a fallback, then builds a concise
+        /// spoken summary. Guarantees at least one navigable element so the screen
+        /// always announces and Enter can advance even before prefabs have spawned.
+        /// </summary>
+        private void DiscoverSeasonRewardElements(HashSet<GameObject> addedObjects)
+        {
+            string title = ReadRewardsTitle();
+
+            ExtractPackSetNames();
+            DiscoverRewardElements(addedObjects);
+            if (_rewardCount == 0)
+                DiscoverRewardsFromControllerData(addedObjects);
+
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(title)) parts.Add(title);
+            parts.AddRange(_elements.Select(e => e.Label));
+            _seasonDisplayText = parts.Count > 0 ? string.Join(". ", parts) : title;
+
+            if (_elements.Count == 0)
+            {
+                string fallback = title ?? Strings.ScreenRewards;
+                AddElement(_activePopup, fallback);
+                addedObjects.Add(_activePopup);
+                if (string.IsNullOrEmpty(_seasonDisplayText)) _seasonDisplayText = fallback;
             }
         }
 
@@ -1224,11 +1337,12 @@ namespace AccessibleArena.Core.Services
 
         protected override string GetActivationAnnouncement()
         {
-            // Season rank display phases: announce the extracted rank text
-            if (_seasonEndState == 1 || _seasonEndState == 3)
+            // Season phases (rank display or reward reveal): announce the extracted
+            // text with the season-specific "Press Enter to continue" hint.
+            if (_seasonPhase != SeasonPhase.NotSeason)
             {
-                string rankText = _seasonDisplayText ?? Strings.ScreenRewards;
-                return Strings.WithHint(rankText, "RewardPopupHint");
+                string text = _seasonDisplayText ?? Strings.ScreenRewards;
+                return Strings.WithHint(text, "SeasonEndHint");
             }
 
             // Standard rewards
@@ -1240,6 +1354,13 @@ namespace AccessibleArena.Core.Services
         protected override void HandleInput()
         {
             if (HandleCustomInput()) return;
+
+            // Season-end screens use a dedicated, single-action flow.
+            if (_seasonPhase != SeasonPhase.NotSeason)
+            {
+                HandleSeasonInput();
+                return;
+            }
 
             // Left/Right navigation (hold-to-repeat)
             if (_holdRepeater.Check(KeyCode.LeftArrow, () => MovePrevious())) return;
@@ -1295,12 +1416,76 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Input handling for the end-of-season sequence (old rank → rewards → new
+        /// placement). One clear action: Enter/Space advances to the next screen.
+        /// Left/Right still browse multiple reward items when present.
+        /// </summary>
+        private void HandleSeasonInput()
+        {
+            // Browse reward items if there is more than one
+            if (_holdRepeater.Check(KeyCode.LeftArrow, () => MovePrevious())) return;
+            if (_holdRepeater.Check(KeyCode.RightArrow, () => MoveNext())) return;
+            if (Input.GetKeyDown(KeyCode.Home)) { MoveFirst(); return; }
+            if (Input.GetKeyDown(KeyCode.End)) { MoveLast(); return; }
+
+            // Enter/Space = advance. Consume so the key never double-fires into the
+            // game's own reward controller (which would advance twice / skip a screen).
+            bool enter = InputManager.GetKeyDownAndConsume(KeyCode.Return)
+                       | InputManager.GetKeyDownAndConsume(KeyCode.KeypadEnter);
+            bool space = InputManager.GetKeyDownAndConsume(KeyCode.Space);
+            if (enter || space)
+            {
+                if (IsSeasonRevealBusy())
+                {
+                    // The game absorbs clicks while revealing (stuck counter) — tell
+                    // the user to wait rather than letting a press appear to do nothing.
+                    _announcer.AnnounceInterrupt(Strings.SeasonRevealing);
+                }
+                else
+                {
+                    AdvanceSeason();
+                }
+                return;
+            }
+
+            // Backspace re-reads the current screen. The season sequence can't be
+            // dismissed mid-way (a background click just advances), so treating
+            // Backspace as "dismiss" would be misleading and could skip unread info.
+            if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                _lastSeasonAnnouncement = null; // force re-announce
+                _announcer.AnnounceInterrupt(GetActivationAnnouncement());
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Advance the end-of-season sequence to the next screen by clicking the
+        /// background blocker (the game maps that to "continue" / advance phase).
+        /// </summary>
+        private void AdvanceSeason()
+        {
+            Log.Msg("{NavigatorId}", $"Advancing season screen (phase={_seasonPhase})");
+            _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
+            _lastSeasonAnnouncement = null; // let the next phase announce even if text repeats
+            ClickBackgroundBlocker();
+            ForceRescan();
+        }
+
+        /// <summary>
         /// Dismiss the rewards popup by clicking the Background_ClickBlocker.
         /// Copied exactly from GeneralMenuNavigator.DismissRewardsPopup().
         /// </summary>
         private bool DismissRewardsPopup()
         {
             Log.Msg("{NavigatorId}", $"Dismissing rewards popup");
+
+            if (ClickBackgroundBlocker())
+            {
+                _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
+                ForceRescan();
+                return true;
+            }
 
             var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
             if (screenspacePopups == null)
@@ -1326,18 +1511,6 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            var clickBlocker = rewardsController.GetComponentsInChildren<Transform>(true)
-                .FirstOrDefault(t => t.name == "Background_ClickBlocker" && t.gameObject.activeInHierarchy);
-
-            if (clickBlocker != null)
-            {
-                Log.Msg("{NavigatorId}", $"Clicking Background_ClickBlocker to dismiss rewards popup");
-                _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
-                UIActivator.SimulatePointerClick(clickBlocker.gameObject);
-                ForceRescan();
-                return true;
-            }
-
             var dismissButton = rewardsController.GetComponentsInChildren<Transform>(true)
                 .FirstOrDefault(t => (t.name.Contains("Dismiss") || t.name.Contains("Close") ||
                                       t.name.Contains("Continue") || t.name.Contains("Back")) &&
@@ -1354,6 +1527,37 @@ namespace AccessibleArena.Core.Services
 
             Log.Msg("{NavigatorId}", $"No dismiss element found in rewards popup");
             return false;
+        }
+
+        /// <summary>
+        /// Click the active Background_ClickBlocker inside the rewards controller.
+        /// The game routes this to OnBackgroundClicked_Unity → OnClaimClicked_Unity,
+        /// which advances the reward/season sequence. Returns false if not found.
+        /// </summary>
+        private bool ClickBackgroundBlocker()
+        {
+            var screenspacePopups = GameObject.Find("Canvas - Screenspace Popups");
+            if (screenspacePopups == null) return false;
+
+            Transform rewardsController = null;
+            foreach (Transform child in screenspacePopups.transform)
+            {
+                if (child.name.Contains("ContentController") && child.name.Contains("Rewards") &&
+                    child.gameObject.activeInHierarchy)
+                {
+                    rewardsController = child;
+                    break;
+                }
+            }
+            if (rewardsController == null) return false;
+
+            var clickBlocker = rewardsController.GetComponentsInChildren<Transform>(true)
+                .FirstOrDefault(t => t.name == "Background_ClickBlocker" && t.gameObject.activeInHierarchy);
+            if (clickBlocker == null) return false;
+
+            Log.Msg("{NavigatorId}", $"Clicking Background_ClickBlocker");
+            UIActivator.SimulatePointerClick(clickBlocker.gameObject);
+            return true;
         }
 
         #endregion
@@ -1381,10 +1585,22 @@ namespace AccessibleArena.Core.Services
                 Log.Msg("{NavigatorId}", $"Rescan found {_elements.Count} elements");
                 UpdateEventSystemSelection();
 
-                if (_elements.Count != _lastRescanElementCount)
+                string announcement = GetActivationAnnouncement();
+
+                if (_seasonPhase != SeasonPhase.NotSeason)
+                {
+                    // Season screens: dedup on the spoken text (element counts flip
+                    // 1↔9↔1 between phases, so count-based dedup re-announces every time).
+                    if (announcement != _lastSeasonAnnouncement)
+                    {
+                        _lastSeasonAnnouncement = announcement;
+                        _announcer.AnnounceInterrupt(announcement);
+                    }
+                }
+                else if (_elements.Count != _lastRescanElementCount)
                 {
                     _lastRescanElementCount = _elements.Count;
-                    _announcer.AnnounceInterrupt(GetActivationAnnouncement());
+                    _announcer.AnnounceInterrupt(announcement);
                 }
             }
             else
@@ -1397,6 +1613,11 @@ namespace AccessibleArena.Core.Services
         {
             base.OnActivated();
             _lastRescanElementCount = 0;
+            // Seed the season dedup with the text TryActivate is about to speak, so the
+            // first post-activation rescan with identical text doesn't repeat it.
+            _lastSeasonAnnouncement = _seasonPhase != SeasonPhase.NotSeason
+                ? GetActivationAnnouncement()
+                : null;
         }
 
         #endregion
@@ -1426,6 +1647,8 @@ namespace AccessibleArena.Core.Services
             // Pack names are cleared by ClearPopupState() when the popup actually disappears.
             _activePopup = null;
             _seasonEndState = 0;
+            _seasonPhase = SeasonPhase.NotSeason;
+            _lastSeasonAnnouncement = null;
             _popupDetectedTime = -1f;
             _timeoutFallbackFired = false;
             _revealingWasSeen = false;

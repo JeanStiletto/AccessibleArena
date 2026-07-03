@@ -525,6 +525,8 @@
   "TabPositionOf_Format": "{2}，标签 {0}/{1}",
   "OptionsAvailable_Format": "{0}个选项可用。{1}",
   "Continuing": "继续中",
+  "SeasonEndHint": "Enter继续",
+  "SeasonRevealing": "正在揭示，请稍候",
   "FoundRewards_Format": "找到{0}个奖励",
   "Characters_Format": "{0}个字符",
   "PaymentPage_Format": "支付页面。{0}个元素。",

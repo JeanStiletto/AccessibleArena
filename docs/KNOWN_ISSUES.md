@@ -94,17 +94,23 @@ In the SelectGroup browser (e.g. Curator of Destinies / Fact or Fiction pile sel
 
 ### Season Rewards Popup (Monthly Reset)
 
-Season end rewards popup now uses content-gated detection (NPE-style): the navigator stays inactive until actual content is loaded, and activates once with a clean announcement. Season rank display phases (old rank, new rank) extract title, subtitle, and per-format rank details from `SeasonEndRankDisplay` components. ForceRescan suppresses duplicate announcements by tracking element count. Monitor whether:
-- Old rank phase announces correctly (e.g., "Season Rankings. Final Results. Constructed: Gold Tier 2. Limited: Silver Tier 4")
-- Rewards phase activates only after reward prefabs appear (no repeated "Rewards." during loading)
-- New rank phase announces the new season name and placement ranks
-- Transitions between phases work smoothly (navigator deactivates during empty transitions, reactivates for next phase)
-- Enter/Backspace still advance through phases via the game's click blocker
-- Pack fallback label includes quantity (e.g., "Booster Pack x3") when set name data is unavailable
+Reworked after a July 2026 user log showed the middle "rewards" phase reading as silent/unlabeled "Button" elements and the user getting stuck. Root cause: `_endOfSeasonDisplayState` read as `OldRankDisplay` for the entire sequence, so the rewards-reveal phase was routed through the rank-display path (which only reads a title) and never enumerated what was earned; the game also absorbs clicks during reveal animations (a "stuck counter"), so repeated presses appeared to do nothing.
 
-**Testable:** May 2025 (next monthly season reset)
+Current behavior:
+- Phase is derived from active display objects (`SeasonEndRankDisplay` active → rank phase; inactive within a season context → rewards reveal), NOT from `_endOfSeasonDisplayState`. See `DetermineSeasonPhase`.
+- Rewards-reveal phase enumerates rewards via the standard path (`DiscoverRewardElements` → `DiscoverRewardsFromControllerData` fallback), with a guaranteed non-empty element so the screen always announces.
+- Season input is a dedicated single-action flow (`HandleSeasonInput`): Enter/Space = advance (via `ClickBackgroundBlocker`, announced "Continuing"); Enter during an active reveal announces "Revealing, please wait" (`IsSeasonRevealBusy`); Backspace re-reads the current screen; Left/Right browse items. The junk coin-hitbox buttons are no longer added on season screens.
+- Duplicate announcements suppressed by text (`_lastSeasonAnnouncement`), not element count.
 
-**Files:** `RewardPopupNavigator.cs` (CheckRewardsPopupOpenInternal, GetSeasonEndState, HasActiveSeasonDisplay, ExtractSeasonRankText, DiscoverSeasonRankElements, ForceRescan override)
+Still to confirm at the next reset (monitor the log):
+- Old rank, rewards, and new-placement phases each announce once with correct content.
+- The rewards phase lists actual packs/cards earned (not just "Season Rewards").
+- Advancing closes the final screen cleanly (no accidental matchmaking via "Play").
+- The "Revealing, please wait" feedback fires instead of silent no-ops during animations.
+
+**Testable:** next monthly season reset
+
+**Files:** `RewardPopupNavigator.cs` (DetermineSeasonPhase, IsAnyRankDisplayActive, DiscoverSeasonRewardElements, HandleSeasonInput, AdvanceSeason, ClickBackgroundBlocker, IsSeasonRevealBusy, ForceRescan override)
 
 ---
 

@@ -1297,6 +1297,7 @@ namespace AccessibleArena.Core.Models
         }
         public static string OptionsAvailable(int count, string hint) => L.Format("OptionsAvailable_Format", count, hint);
         public static string Continuing => L.Get("Continuing");
+        public static string SeasonRevealing => L.Get("SeasonRevealing");
         public static string FoundRewards(int count) => L.Format("FoundRewards_Format", count);
         public static string Characters(int count) => L.Format("Characters_Format", count);
         public static string HasCharacters(int count) => L.Format("HasCharacters_Format", count);

@@ -525,6 +525,8 @@
   "TabPositionOf_Format": "{2}, 탭 {0}/{1}",
   "OptionsAvailable_Format": "{0}개의 옵션 사용 가능. {1}",
   "Continuing": "계속 중",
+  "SeasonEndHint": "Enter로 계속",
+  "SeasonRevealing": "공개 중입니다. 잠시 기다려 주세요",
   "FoundRewards_Format": "{0}개의 보상을 찾았습니다",
   "Characters_Format": "{0}글자",
   "PaymentPage_Format": "결제 페이지. {0}개의 요소.",

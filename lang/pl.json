@@ -525,6 +525,8 @@
   "TabPositionOf_Format": "{2}, karta {0} z {1}",
   "OptionsAvailable_Format": "{0} dostępnych opcji. {1}",
   "Continuing": "Kontynuowanie",
+  "SeasonEndHint": "Enter aby kontynuować",
+  "SeasonRevealing": "Odkrywanie, proszę czekać",
   "FoundRewards_Format": "Znaleziono {0} nagród",
   "Characters_Format": "{0} znaków",
   "PaymentPage_Format": "Strona płatności. {0} elementów.",

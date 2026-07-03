@@ -525,6 +525,8 @@
   "TabPositionOf_Format": "{2}, вкладка {0} из {1}",
   "OptionsAvailable_Format": "{0} вариантов доступно. {1}",
   "Continuing": "Продолжение",
+  "SeasonEndHint": "Enter для продолжения",
+  "SeasonRevealing": "Идёт показ, подождите",
   "FoundRewards_Format": "Найдено {0} наград",
   "Characters_Format": "{0} символов",
   "PaymentPage_Format": "Страница оплаты. {0} элементов.",

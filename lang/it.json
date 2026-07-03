@@ -525,6 +525,8 @@
   "TabPositionOf_Format": "{2}, scheda {0} di {1}",
   "OptionsAvailable_Format": "{0} opzioni disponibili. {1}",
   "Continuing": "Continuo",
+  "SeasonEndHint": "Invio per continuare",
+  "SeasonRevealing": "Rivelazione in corso, attendi",
   "FoundRewards_Format": "{0} ricompense trovate",
   "Characters_Format": "{0} caratteri",
   "PaymentPage_Format": "Pagina di pagamento. {0} elementi.",
