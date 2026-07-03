@@ -12,6 +12,21 @@ namespace AccessibleArena.Core.Services
 {
     public static partial class UITextExtractor
     {
+        private sealed class BattlePassObjectiveHandles
+        {
+            public FieldInfo LevelLabel;
+        }
+
+        private static readonly ReflectionCache<BattlePassObjectiveHandles> _battlePassObjectiveCache =
+            new ReflectionCache<BattlePassObjectiveHandles>(
+                builder: t => new BattlePassObjectiveHandles
+                {
+                    LevelLabel = ReflectionWalk.FindField(t, "_eppLevelLabel", AllInstanceFlags)
+                },
+                validator: h => h.LevelLabel != null,
+                logTag: "UITextExtractor",
+                logSubject: "BattlePassObjective");
+
         /// <summary>
         /// Extracts text from objective/quest elements with full context.
         /// For quests: includes description + progress (e.g., "Cast 20 spells, 14/20")
@@ -222,6 +237,8 @@ namespace AccessibleArena.Core.Services
                 else if (objectiveType == "BattlePass - Level")
                 {
                     // BattlePass: "Level 7, 400/1000 EP"
+                    mainValue = ChooseBattlePassLevelText(
+                        TryGetBattlePassLevelText(gameObject), mainValue);
                     if (!string.IsNullOrEmpty(mainValue) && !string.IsNullOrEmpty(progressValue))
                         return $"{typeLabel}: {mainValue}, {progressValue}";
                     else if (!string.IsNullOrEmpty(mainValue))
@@ -253,6 +270,41 @@ namespace AccessibleArena.Core.Services
                     if (fallbackParts.Count > 0)
                         return $"{typeLabel}: {string.Join(", ", fallbackParts)}";
                 }
+            }
+
+            return null;
+        }
+
+        internal static string ChooseBattlePassLevelText(string dedicatedLevel, string circleFallback)
+        {
+            return !string.IsNullOrWhiteSpace(dedicatedLevel) ? dedicatedLevel : circleFallback;
+        }
+
+        private static string TryGetBattlePassLevelText(GameObject gameObject)
+        {
+            try
+            {
+                var parent = gameObject?.transform.parent;
+                if (parent == null) return null;
+
+                foreach (var component in parent.GetComponents<MonoBehaviour>())
+                {
+                    if (component == null ||
+                        !component.GetType().Name.EndsWith("ObjectiveBubble", StringComparison.Ordinal))
+                        continue;
+
+                    if (!_battlePassObjectiveCache.EnsureInitialized(component.GetType()))
+                        continue;
+
+                    var levelLabel = _battlePassObjectiveCache.Handles.LevelLabel.GetValue(component) as MonoBehaviour;
+                    if (levelLabel == null) return null;
+
+                    return TryGetLocalizeText(levelLabel.gameObject);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Msg("UITextExtractor", $"Error reading battle pass level label: {ex.Message}");
             }
 
             return null;
