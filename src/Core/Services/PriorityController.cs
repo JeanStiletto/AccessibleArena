@@ -378,7 +378,11 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void BuildPhaseStopMap()
         {
-            _phaseStopMap = new Dictionary<int, List<object>>();
+            // Build into a local map and only commit to the cache once fully populated.
+            // If the phase ladder isn't present yet (e.g. during mulligan, where the phase
+            // timeline is hidden), leaving _phaseStopMap null lets TogglePhaseStop retry on a
+            // later press instead of caching an empty map that stays broken for the whole duel.
+            var map = new Dictionary<int, List<object>>();
 
             var ladder = FindPhaseLadder();
             var lh = _phaseLadderCache.Handles;
@@ -434,15 +438,21 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                _phaseStopMap[i] = buttons;
+                map[i] = buttons;
             }
 
             int populatedCount = 0;
-            foreach (var kv in _phaseStopMap)
+            foreach (var kv in map)
             {
                 if (kv.Value.Count > 0) populatedCount++;
             }
-            Log.Msg("PriorityController", $"Phase stop map: {populatedCount}/{_phaseStopMap.Count} keys mapped");
+            Log.Msg("PriorityController", $"Phase stop map: {populatedCount}/{map.Count} keys mapped");
+
+            // Only commit a map that actually resolved buttons. An all-empty map means the
+            // ladder wasn't ready — leave the cache null so the next press rebuilds it.
+            if (populatedCount == 0) return;
+
+            _phaseStopMap = map;
         }
 
         /// <summary>

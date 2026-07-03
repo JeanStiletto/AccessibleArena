@@ -5,12 +5,6 @@ Active bugs, limitations, and planned work for Accessible Arena.
  
 ## Active Bugs
 
-### Phase Stop System Breaks During Mulligan
-
-Phase stops (a game feature made accessible by the mod, toggled with keys 1-0) break if you try to use them while still in the mulligan phase. Once broken, they stay broken for the rest of the match. Workaround: wait until turn 1 begins before touching phase stop keys.
-
----
-
 ### Sphere Buy Button Announced Twice
 
 The buy button for Spheres (mastery/cosmetics store) is announced twice when focused. Likely a duplicate element being picked up by the scan.
