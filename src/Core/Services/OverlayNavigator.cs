@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using AccessibleArena.Core.Utils;
@@ -20,6 +21,10 @@ namespace AccessibleArena.Core.Services
         private string _overlayType;
         private float _nextTypeRecheckTime;
         private const float TypeRecheckInterval = 0.5f;
+
+        // Current What's New page content (title + body), read from the popup panel so
+        // it can be announced instead of only "Page N of M".
+        private string _whatsNewContent;
 
         public override string NavigatorId => "Overlay";
         public override string ScreenName => GetOverlayScreenName();
@@ -156,40 +161,28 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverWhatsNewElements(HashSet<GameObject> addedObjects)
         {
-            // Find carousel content - look for text elements that might contain news
-            var allTexts = GameObject.FindObjectsOfType<TMPro.TMP_Text>()
-                .Where(t => t.gameObject.activeInHierarchy)
-                .ToList();
-
-            // Try to find main content text (title, description)
-            string mainContent = ExtractMainContent(allTexts);
-            if (!string.IsNullOrEmpty(mainContent))
+            // Read the current page's actual content (title + body) so it can be
+            // announced — the old behaviour extracted only the title and merely logged
+            // it, so blind users heard just "Page N of M" with no content. Scoped to
+            // the popup panel so menu chrome behind the modal isn't read.
+            var panel = FindWhatsNewPanel();
+            _whatsNewContent = ReadWhatsNewContent(panel);
+            if (!string.IsNullOrEmpty(_whatsNewContent))
             {
-                // Create a virtual element for content announcement
-                Log.Msg("{NavigatorId}", $"Found content: {mainContent}");
+                Log.Msg("{NavigatorId}", $"What's New content: {_whatsNewContent}");
+                // First element, so it's the landing item on open and Enter re-reads it.
+                AddTextBlock(_whatsNewContent);
             }
 
             // Find navigation dots (for carousel position)
             var navPips = GameObject.FindObjectsOfType<Button>()
-                .Where(b => b.gameObject.activeInHierarchy && b.gameObject.name.Contains("NavPip"))
+                .Where(b => b.gameObject.activeInHierarchy
+                    && b.gameObject.name.Contains("NavPip")
+                    && !IsUnderHomePageBanners(b.transform))
                 .OrderBy(b => b.transform.position.x)
                 .ToList();
 
-            int currentPage = 1;
             int totalPages = navPips.Count;
-            for (int i = 0; i < navPips.Count; i++)
-            {
-                // Try to detect which page is currently selected
-                var navPip = navPips[i];
-                var images = navPip.GetComponentsInChildren<Image>();
-                bool isSelected = images.Any(img => img.color.a > 0.8f);
-                if (isSelected) currentPage = i + 1;
-            }
-
-            if (totalPages > 0)
-            {
-                Log.Msg("{NavigatorId}", $"Carousel page {currentPage} of {totalPages}");
-            }
 
             // Find Continue/dismiss button - this is the main actionable element
             FindDismissButtons(addedObjects);
@@ -197,13 +190,100 @@ namespace AccessibleArena.Core.Services
             // Add carousel navigation if multiple pages
             if (totalPages > 1)
             {
-                foreach (var pip in navPips)
+                for (int i = 0; i < navPips.Count; i++)
                 {
-                    int pageNum = navPips.IndexOf(pip) + 1;
-                    AddElement(pip.gameObject, Strings.PageOf(pageNum, totalPages));
-                    addedObjects.Add(pip.gameObject);
+                    AddElement(navPips[i].gameObject, Strings.PageOf(i + 1, totalPages));
+                    addedObjects.Add(navPips[i].gameObject);
                 }
             }
+        }
+
+        /// <summary>
+        /// Find the top-level panel of the What's New popup (the direct child of its
+        /// Canvas), starting from a pagination dot. Scoping content reads to this
+        /// panel keeps menu chrome behind the modal out of the announcement.
+        /// </summary>
+        private GameObject FindWhatsNewPanel()
+        {
+            var pip = GameObject.FindObjectsOfType<Button>()
+                .FirstOrDefault(b => b.gameObject.activeInHierarchy
+                    && b.gameObject.name.Contains("NavPip")
+                    && !IsUnderHomePageBanners(b.transform));
+            if (pip == null) return null;
+
+            Transform t = pip.transform;
+            Transform topChild = t;
+            while (t.parent != null && t.GetComponent<Canvas>() == null)
+            {
+                topChild = t;
+                t = t.parent;
+            }
+            return topChild.gameObject;
+        }
+
+        /// <summary>
+        /// Read the visible page's title + body text from the What's New panel.
+        /// Only active, non-faded text is read (inactive/off pages are excluded),
+        /// ordered top-to-bottom, deduplicated. Returns null if nothing readable.
+        /// </summary>
+        private string ReadWhatsNewContent(GameObject panel)
+        {
+            if (panel == null) return null;
+
+            var parts = new List<string>();
+            var seen = new HashSet<string>();
+
+            var texts = panel.GetComponentsInChildren<TMPro.TMP_Text>(false)
+                .Where(t => t != null && t.gameObject.activeInHierarchy
+                    && !t.gameObject.name.Contains("NavPip")
+                    && GetParentCanvasGroupAlpha(t.gameObject) > 0.5f)
+                .OrderByDescending(t => t.transform.position.y)
+                .ThenBy(t => t.transform.position.x);
+
+            foreach (var t in texts)
+            {
+                string content = CleanText(t.text);
+                if (string.IsNullOrEmpty(content) || content.Length < 2) continue;
+                if (seen.Add(content)) parts.Add(content);
+            }
+
+            return parts.Count > 0 ? string.Join(". ", parts) : null;
+        }
+
+        /// <summary>
+        /// When a What's New page dot is activated, the game switches to that page.
+        /// Click it ourselves, then rescan after the transition so the new page's
+        /// content is read (not just the page number).
+        /// </summary>
+        protected override bool OnElementActivated(int index, GameObject element)
+        {
+            if (_overlayType == "WhatsNew" && element != null && element.name.Contains("NavPip"))
+            {
+                UIActivator.Activate(element);
+                MelonCoroutines.Start(RescanWhatsNewAfterDelay());
+                return true; // handled — suppress default activation
+            }
+            return false;
+        }
+
+        private IEnumerator RescanWhatsNewAfterDelay()
+        {
+            // Wait for the page transition/animation to settle before re-reading.
+            yield return new WaitForSeconds(0.35f);
+            if (_isActive && _overlayType == "WhatsNew")
+                ForceRescan();
+        }
+
+        /// <summary>Minimum CanvasGroup alpha up the parent chain (detects faded-out carousel pages).</summary>
+        private static float GetParentCanvasGroupAlpha(GameObject obj)
+        {
+            float alpha = 1f;
+            for (var t = obj.transform; t != null; t = t.parent)
+            {
+                var cg = t.GetComponent<CanvasGroup>();
+                if (cg != null) alpha = Mathf.Min(alpha, cg.alpha);
+            }
+            return alpha;
         }
 
         private void DiscoverRewardElements(HashSet<GameObject> addedObjects)
@@ -387,34 +467,6 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private string ExtractMainContent(List<TMPro.TMP_Text> texts)
-        {
-            // Look for title/header text
-            foreach (var text in texts)
-            {
-                string objName = text.gameObject.name.ToLower();
-                if (objName.Contains("title") || objName.Contains("header") || objName.Contains("headline"))
-                {
-                    string content = CleanText(text.text);
-                    if (!string.IsNullOrEmpty(content) && content.Length > 2)
-                        return content;
-                }
-            }
-
-            // Fallback: find the largest/most prominent text
-            var sortedBySize = texts
-                .Where(t => !string.IsNullOrEmpty(t.text?.Trim()) && t.text.Length > 3)
-                .OrderByDescending(t => t.fontSize)
-                .ToList();
-
-            if (sortedBySize.Count > 0)
-            {
-                return CleanText(sortedBySize[0].text);
-            }
-
-            return null;
-        }
-
         private string CleanText(string text)
         {
             if (string.IsNullOrEmpty(text)) return null;
@@ -435,10 +487,12 @@ namespace AccessibleArena.Core.Services
         {
             string countInfo = _elements.Count > 1 ? $" {_elements.Count} items." : "";
 
-            // Try to include content summary for What's New
+            // Include the current page's content for What's New, not just page numbers.
             if (_overlayType == "WhatsNew")
             {
-                string core = $"{ScreenName} overlay.{countInfo}".TrimEnd();
+                string core = string.IsNullOrEmpty(_whatsNewContent)
+                    ? $"{ScreenName} overlay.{countInfo}".TrimEnd()
+                    : $"{ScreenName}. {_whatsNewContent}";
                 return Strings.WithHint(core, "NavigateHint");
             }
 

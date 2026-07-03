@@ -18,6 +18,10 @@ Season end / rewards:
 - No more repetition: identical season announcements are suppressed, so re-scans after each keypress no longer re-read the same rank/placement line over and over.
 - This handling was rebuilt from a real end-of-season log and should now work, but the screen only appears once a month so it hasn't been verified live yet. Extra diagnostic logging was added around phase detection to make the next occurrence easy to check — if anything still misbehaves at your next season reset, please send the MelonLoader log so it can be fixed.
 
+What's New popup (set releases / announcements):
+
+- The "What's New" popup now reads the actual content of each page. Previously navigating it announced only "Page 1 of 4", "Page 2 of 4", … with no text — the page title was extracted internally but only written to the log and never spoken, and the descriptions were never read at all, so the whole screen was a dead end for a screen reader. Now the current page's title and body are announced when the popup opens, are re-read whenever you move to a different page (via the page dots), and are available as a text item you can re-read with Enter. Content is read from the popup panel itself (menu chrome behind the modal is excluded) and only the visible page is read. Note: any art, or text baked into an image rather than real text, still can't be read.
+
 Bug fixes:
 
 - Filled in the missing translations for the v1.4.2 "Announce priority" strings, which had shipped only in English and German. The other ten languages no longer fall back to English for the priority announcement and its setting.
