@@ -42,8 +42,10 @@ namespace AccessibleArena.Core.Services
         private static PropertyInfo _grpIdProp;     // CardData.GrpId
         private static PropertyInfo _rarityProp;    // CardData.Rarity
         private static PropertyInfo _revealedProp;  // CardDataAndRevealStatus.Revealed
-        private static MethodInfo _isWildcardMethod; // CardCategory.IsWildcard(uint)
-        private static bool _isWildcardMethodSearched;
+        private static PropertyInfo _isWildcardProp; // CardData.IsWildcard (native property)
+        private static PropertyInfo _rulesTextOverrideProp; // CardData.RulesTextOverride
+        private static FieldInfo _rawTextField;     // RawTextOverride._text (gems amount string)
+        private static FieldInfo _tagsField;        // CardDataAndRevealStatus.Tags (localized)
         private Dictionary<GameObject, int> _cardDataIndices = new Dictionary<GameObject, int>();
         private List<int> _elementDataIndex = new List<int>(); // parallel to _elements: _cardsToOpen index, -1 for non-card
 
@@ -294,12 +296,15 @@ namespace AccessibleArena.Core.Services
                 {
                     string displayName = null;
                     string wildcardLabel = GetWildcardLabelForEntry(entry);
+                    string gemsLabel = GetGemsLabelForEntry(entry);
                     if (!string.IsNullOrEmpty(wildcardLabel))
                         displayName = wildcardLabel;
+                    else if (!string.IsNullOrEmpty(gemsLabel))
+                        displayName = gemsLabel;
                     else if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
                         displayName = cardInfo.Name;
 
-                    // For on-screen cards, fall back to UI text extraction (vault progress, etc.)
+                    // For on-screen cards, fall back to the visual card title.
                     if (string.IsNullOrEmpty(displayName) && cardObj != null)
                         displayName = ExtractCardName(cardObj);
 
@@ -309,6 +314,12 @@ namespace AccessibleArena.Core.Services
                     label = displayName;
                     if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.TypeLine))
                         label += $", {cardInfo.TypeLine}";
+
+                    // Append the game's own reveal tags ("First", "Bonus Sheet").
+                    // Wildcards and gems rewards carry no tags, so this is a no-op there.
+                    string tagsSuffix = GetTagsSuffixForEntry(entry);
+                    if (!string.IsNullOrEmpty(tagsSuffix))
+                        label += $", {tagsSuffix}";
                 }
 
                 // Add to navigation: real GO for on-screen cards, TextBlock for off-screen
@@ -382,97 +393,25 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        /// <summary>
+        /// Fallback card-name lookup from the visual card view's "Title" text element.
+        /// Only used for on-screen cards whose data-driven GrpId name lookup came up empty;
+        /// card names, wildcards, and gems rewards are all resolved data-driven before this.
+        /// </summary>
         private string ExtractCardName(GameObject cardObj)
         {
-            // Try to find the Title text element directly
-            string title = null;
-            string progressQuantity = null;
-            var vaultTags = new System.Collections.Generic.List<string>();
-
             // Include inactive text elements (true) for animation timing
             var texts = cardObj.GetComponentsInChildren<TMPro.TMP_Text>(true);
             foreach (var text in texts)
             {
-                if (text == null) continue;
+                if (text == null || text.gameObject.name != "Title") continue;
 
-                string objName = text.gameObject.name;
-                string parentName = text.transform.parent?.name ?? "";
+                string content = text.text?.Trim();
+                if (string.IsNullOrEmpty(content)) continue;
 
-                // "Title" is the card name element
-                if (objName == "Title")
-                {
-                    string content = text.text?.Trim();
-                    if (!string.IsNullOrEmpty(content))
-                    {
-                        // Clean up any markup
-                        content = UITextExtractor.StripRichText(content).Trim();
-                        if (!string.IsNullOrEmpty(content))
-                            title = content;
-                    }
-                }
-
-                // Check for vault/duplicate progress indicator (e.g., "+99")
-                // This appears when you get a 5th+ copy of a common/uncommon
-                // Only check ACTIVE elements - the prefab has these on all cards but inactive when not relevant
-                if (objName.Contains("Progress") && objName.Contains("Quantity") && text.gameObject.activeInHierarchy)
-                {
-                    string content = text.text?.Trim();
-                    if (!string.IsNullOrEmpty(content))
-                        progressQuantity = content;
-                }
-
-                // Collect tags from TAG parent elements (these describe the vault progress type)
-                // Structure: Text_1 (parent=TAG_1): 'Alchemy', Text_2 (parent=TAG_2): 'Bonus', etc.
-                // Only check ACTIVE elements
-                if (parentName.StartsWith("TAG") && text.gameObject.activeInHierarchy)
-                {
-                    string content = text.text?.Trim();
-                    if (!string.IsNullOrEmpty(content))
-                    {
-                        content = UITextExtractor.StripRichText(content).Trim();
-                        if (!string.IsNullOrEmpty(content))
-                        {
-                            string contentLower = content.ToLowerInvariant();
-                            // Skip generic/unhelpful tags
-                            if (contentLower == "new" || contentLower == "neu" ||
-                                contentLower == "first" || contentLower == "erste" ||
-                                contentLower == "faction" || contentLower == "fraktion")
-                            {
-                                continue;
-                            }
-                            // Keep meaningful tags (Alchemy, Bonus, rarity names, etc.)
-                            if (!vaultTags.Contains(content))
-                            {
-                                vaultTags.Add(content);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // If we have a title, return it
-            if (!string.IsNullOrEmpty(title))
-                return title;
-
-            // If no title but we have progress quantity, this is vault progress (duplicate protection)
-            if (!string.IsNullOrEmpty(progressQuantity))
-            {
-                // Build informative vault progress label
-                // Format: "Alchemy Bonus Vault Progress +99" or just "Vault Progress +99"
-                string label;
-                if (vaultTags.Count > 0)
-                {
-                    // Combine tags: "Alchemy Bonus" + "Vault Progress" + "+99"
-                    string tagPrefix = string.Join(" ", vaultTags);
-                    label = $"{tagPrefix} Vault Progress {progressQuantity}";
-                }
-                else
-                {
-                    label = $"Vault Progress {progressQuantity}";
-                }
-
-                Log.Msg("{NavigatorId}", $"Detected vault progress: {label} (tags: {string.Join(", ", vaultTags)})");
-                return label;
+                content = UITextExtractor.StripRichText(content).Trim();
+                if (!string.IsNullOrEmpty(content))
+                    return content;
             }
 
             return null;
@@ -1251,25 +1190,32 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Get the CardData object from a _cardsToOpen entry.
+        /// CardDataAndRevealStatus.CardData is a public field.
+        /// </summary>
+        private object GetCardData(object entry)
+        {
+            if (entry == null) return null;
+            if (_cardDataField == null)
+                _cardDataField = entry.GetType().GetField("CardData", PublicInstance);
+            return _cardDataField?.GetValue(entry);
+        }
+
+        /// <summary>
         /// Get GrpId from a _cardsToOpen entry via reflection.
         /// CardDataAndRevealStatus.CardData (public field) → CardData.GrpId (public property).
         /// </summary>
         private uint GetGrpIdFromEntry(object entry)
         {
-            if (entry == null) return 0;
+            return GetGrpIdFromCardData(GetCardData(entry));
+        }
 
-            if (_cardDataField == null)
-                _cardDataField = entry.GetType().GetField("CardData", PublicInstance);
-            if (_cardDataField == null) return 0;
-
-            var cardData = _cardDataField.GetValue(entry);
+        private uint GetGrpIdFromCardData(object cardData)
+        {
             if (cardData == null) return 0;
-
             if (_grpIdProp == null)
                 _grpIdProp = cardData.GetType().GetProperty("GrpId", PublicInstance);
-            if (_grpIdProp == null) return 0;
-
-            var val = _grpIdProp.GetValue(cardData);
+            var val = _grpIdProp?.GetValue(cardData);
             return val is uint grpId ? grpId : 0;
         }
 
@@ -1308,16 +1254,78 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Returns a localized "{Rarity} Wildcard" label if the entry is a wildcard,
         /// otherwise null. Wildcards carry no real card name, so this stands in for the
-        /// card-name lookup (which would otherwise read the on-screen vault-progress text).
+        /// card-name lookup. Uses the game's own CardData.IsWildcard property (which also
+        /// excludes Boon objects) rather than a bare grpId check.
         /// </summary>
         private string GetWildcardLabelForEntry(object entry)
         {
-            if (entry == null) return null;
-
-            uint grpId = GetGrpIdFromEntry(entry);
-            if (grpId == 0 || !IsWildcard(grpId)) return null;
+            var cardData = GetCardData(entry);
+            if (cardData == null || !IsCardDataWildcard(cardData)) return null;
 
             return WildcardLabelFormatter.Format(GetRarityStringFromEntry(entry), UITextExtractor.ResolveLocKey);
+        }
+
+        private bool IsCardDataWildcard(object cardData)
+        {
+            if (_isWildcardProp == null)
+                _isWildcardProp = cardData.GetType().GetProperty("IsWildcard", PublicInstance);
+            return _isWildcardProp?.GetValue(cardData) is bool b && b;
+        }
+
+        /// <summary>
+        /// Returns a localized "{amount} Gems" label for a duplicate-protection reward
+        /// entry, otherwise null. Overflow duplicates are converted by the game into a
+        /// gems reward card (GrpId 0) whose awarded amount is stored as the CardData's
+        /// RulesTextOverride (a RawTextOverride wrapping the number). Without this the
+        /// entry has no name and reads as "Unknown card".
+        /// </summary>
+        private string GetGemsLabelForEntry(object entry)
+        {
+            var cardData = GetCardData(entry);
+            if (cardData == null || GetGrpIdFromCardData(cardData) != 0) return null;
+
+            string amount = GetRawRulesText(cardData);
+            if (string.IsNullOrEmpty(amount)) return null;
+
+            return CurrencyLabels.FormatPrice(amount.Trim(), Strings.CurrencyGems);
+        }
+
+        /// <summary>
+        /// Reads the raw string behind CardData.RulesTextOverride when it is a
+        /// RawTextOverride (private readonly _text field). Returns null otherwise.
+        /// </summary>
+        private string GetRawRulesText(object cardData)
+        {
+            if (_rulesTextOverrideProp == null)
+                _rulesTextOverrideProp = cardData.GetType().GetProperty("RulesTextOverride", PublicInstance);
+            var over = _rulesTextOverrideProp?.GetValue(cardData);
+            if (over == null) return null;
+
+            if (_rawTextField == null || _rawTextField.DeclaringType != over.GetType())
+                _rawTextField = over.GetType().GetField("_text", PrivateInstance);
+            return _rawTextField?.GetValue(over) as string;
+        }
+
+        /// <summary>
+        /// Joins the game's own reveal tags for an entry (already localized —
+        /// e.g. "First", "Bonus Sheet") into a comma-separated suffix, or null if none.
+        /// CardDataAndRevealStatus.Tags is a public List&lt;string&gt;.
+        /// </summary>
+        private string GetTagsSuffixForEntry(object entry)
+        {
+            if (entry == null) return null;
+            if (_tagsField == null)
+                _tagsField = entry.GetType().GetField("Tags", PublicInstance);
+            var tags = _tagsField?.GetValue(entry) as IList;
+            if (tags == null || tags.Count == 0) return null;
+
+            var parts = new List<string>();
+            foreach (var t in tags)
+            {
+                if (t is string s && !string.IsNullOrWhiteSpace(s))
+                    parts.Add(s.Trim());
+            }
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
 
         /// <summary>
@@ -1326,39 +1334,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private string GetRarityStringFromEntry(object entry)
         {
-            if (entry == null) return null;
-
-            if (_cardDataField == null)
-                _cardDataField = entry.GetType().GetField("CardData", PublicInstance);
-            var cardData = _cardDataField?.GetValue(entry);
+            var cardData = GetCardData(entry);
             if (cardData == null) return null;
 
             if (_rarityProp == null)
                 _rarityProp = cardData.GetType().GetProperty("Rarity", PublicInstance);
             return _rarityProp?.GetValue(cardData)?.ToString();
-        }
-
-        private static bool IsWildcard(uint grpId)
-        {
-            if (!_isWildcardMethodSearched)
-            {
-                _isWildcardMethodSearched = true;
-                var cardCategoryType = FindType("Wizards.Unification.Models.Cards.CardCategory");
-                _isWildcardMethod = cardCategoryType?.GetMethod("IsWildcard",
-                    BindingFlags.Public | BindingFlags.Static,
-                    null, new[] { typeof(uint) }, null);
-            }
-
-            if (_isWildcardMethod == null) return false;
-
-            try
-            {
-                return _isWildcardMethod.Invoke(null, new object[] { grpId }) is bool result && result;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         /// <summary>
@@ -1384,19 +1365,21 @@ namespace AccessibleArena.Core.Services
             // Mirror BoosterCardHolder.PlayFlipSound: pick the Wwise event by card rarity.
             PlayFlipSoundForEntry(entry);
 
-            // Announce the card name
+            // Announce the reveal: wildcard, gems reward, or card name — plus reveal tags.
             var cardInfo = GetCardInfoFromData(dataIndex);
-            string wildcardLabel = GetWildcardLabelForEntry(entry);
-            if (!string.IsNullOrEmpty(wildcardLabel))
+            string label = GetWildcardLabelForEntry(entry) ?? GetGemsLabelForEntry(entry);
+            if (string.IsNullOrEmpty(label) && cardInfo.HasValue && cardInfo.Value.IsValid
+                && !string.IsNullOrEmpty(cardInfo.Value.Name))
             {
-                _announcer.AnnounceInterrupt(wildcardLabel);
-                _suppressAnnounceDataIndex = dataIndex;
-            }
-            else if (cardInfo.HasValue && cardInfo.Value.IsValid && !string.IsNullOrEmpty(cardInfo.Value.Name))
-            {
-                string label = cardInfo.Value.Name;
+                label = cardInfo.Value.Name;
                 if (!string.IsNullOrEmpty(cardInfo.Value.TypeLine))
                     label += $", {cardInfo.Value.TypeLine}";
+            }
+            if (!string.IsNullOrEmpty(label))
+            {
+                string tagsSuffix = GetTagsSuffixForEntry(entry);
+                if (!string.IsNullOrEmpty(tagsSuffix))
+                    label += $", {tagsSuffix}";
                 _announcer.AnnounceInterrupt(label);
                 _suppressAnnounceDataIndex = dataIndex;
             }

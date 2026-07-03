@@ -26,6 +26,12 @@ What's New popup (set releases / announcements):
 Packs:
 
 - Wildcards opened in booster packs now read as wildcards with their rarity — "Rare Wildcard", "Mythic Rare Wildcard", and so on — instead of falling back to the navbar's vault-progress text (e.g. "+99"). A wildcard tile has no card name of its own, so the name lookup used to come up empty and the on-screen vault-progress text was read in its place. The tile's group id is now checked against the game's own `CardCategory.IsWildcard`, and the rarity is read from the pack entry's `CardData.Rarity`. The label prefers the game's localized wildcard term (`MainNav/General/{Rarity}Wildcard`, translated in some languages and English in others) and falls back to English; the Packs-screen wildcard-progress readout uses the same wording for consistency. Contributed by **@lilmike** (PR #108).
+- Gems from duplicate protection now read as gems. When a pack contains a card you already own the maximum copies of, the game replaces it with a gems award tile — these were reading as "Unknown card". They now announce the amount, e.g. "250 Gems". The game stores such tiles as a reward card with no group id and the awarded number tucked into the card's rules-text override, so the amount is read from there and paired with the localized "Gems" currency word (the same wording used elsewhere for gem prices).
+- Pack tiles now include the game's own reveal tags — the small badges sighted players see on a freshly revealed card. There are exactly two, appended after the name and type line and read from the pack entry's already-localized tag list (so they appear in your game language — e.g. "Erste" and "Zeitversetzte Karten" in German — rather than always in English):
+  - **First** (`MainNav/NewTags/First_label`) — this copy is new to your collection: you owned none of this card before opening the pack. It appears on most cards from a set you're still completing, so expect to hear it often.
+  - **Bonus Sheet** (`MainNav/NewTags/BonusSheet_Label`) — the card belongs to the set's bonus/special-guests sheet (a separate sub-set of reprints), not the main set.
+  Wildcards and gems tiles carry no tags, so they read exactly as before.
+- Wildcard detection now uses the game's own `CardData.IsWildcard` property (which also excludes non-wildcard "boon" objects) rather than a bare group-id check, and the stale on-screen "Vault Progress" text scraping — which misread a percentage bar as a duplicate count and belonged to a display that lives elsewhere — was removed.
 
 Bug fixes:
 
