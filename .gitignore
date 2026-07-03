@@ -54,6 +54,7 @@ tools/
 
 # Logs
 logs/
+userlogs/
 Latest.log
 AccessibleArena_test.dll
 

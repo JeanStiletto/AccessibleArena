@@ -30,6 +30,8 @@ Packs:
 Bug fixes:
 
 - Filled in the missing translations for the v1.4.2 "Announce priority" strings, which had shipped only in English and German. The other ten languages no longer fall back to English for the priority announcement and its setting.
+- Turn timers read again in best-of-three. The **E** / **Shift+E** timer shortcut preferred the match clock, which in Bo3 (and other timed events) runs for the whole match and counts a large 20+ minute figure — so it drowned out the per-turn rope timer and you could never hear how much time was left on the current turn. The readout now prefers whichever player's turn (rope) timer is actually running and falls back to the match clock only when no turn timer is active. The **T** shortcut, which shares this logic, benefits too. Contributed by **@lilmike** (PR #107).
+- The battle pass progress tile now reports the correct current level. It read the first numeric text box on the tile, which could actually be the pending reward value — so when the next reward was a number like Gold or an ICR count, the level was announced as e.g. "2000" instead of your real level. It now reads the tile's dedicated level label (`_eppLevelLabel` on the `ObjectiveBubble`), falling back to the old circle text only when that label is missing. Contributed by **@lilmike** (PR #107).
 
 ## v1.4.2
 

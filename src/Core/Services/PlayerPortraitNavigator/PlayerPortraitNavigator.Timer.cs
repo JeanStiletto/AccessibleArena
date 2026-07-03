@@ -153,8 +153,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Public method for E/Shift+E shortcut. Reads match clock first,
-        /// falls back to rope (turn) timer if no match clock exists.
+        /// Public method for E/Shift+E shortcut. Reads the active turn (rope)
+        /// timer first, falls back to the match clock if no turn timer is running.
         /// </summary>
         public void AnnounceTimer(bool opponent)
         {
