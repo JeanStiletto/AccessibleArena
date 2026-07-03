@@ -44,6 +44,18 @@ namespace AccessibleArena.Core.Services
         // exempt from the announcer's consecutive-duplicate filter).
         private string _lastSeasonAnnouncement;
 
+        // True while we are waiting for the season reward-reveal animation to finish
+        // spawning its RewardPrefab_ objects. The reveal is animated: when the user
+        // advances into the rewards phase we rescan ~1 frame later, long before any
+        // prefab exists, so the first pass finds only the title. PollSeasonReveal
+        // keeps checking each frame and re-scans once the reveal settles.
+        private bool _awaitingSeasonReveal;
+
+        // Time.time when reward prefabs were first seen while awaiting the reveal.
+        // Used for a safety re-scan if the reveal coroutine never reports "done"
+        // (e.g. a rare multi-page season payout waiting on a "More" click). -1 = unset.
+        private float _seasonRevealPrefabSince = -1f;
+
         // Pre-extracted pack set names from ContentControllerRewards._packReward data
         // Uses List+index instead of Queue because rescans re-discover elements but
         // the game's ToAdd queue gets consumed after first display
@@ -79,6 +91,68 @@ namespace AccessibleArena.Core.Services
         /// the overlay-blocker state in the meantime.
         /// </summary>
         public bool IsClaimInProgress => _revealingWasSeen;
+
+        public override void Update()
+        {
+            // While the season reward-reveal animation is running, keep watching for
+            // its prefabs so we can announce what was earned instead of just the title.
+            if (_isActive && _awaitingSeasonReveal)
+                PollSeasonReveal();
+
+            base.Update();
+        }
+
+        /// <summary>
+        /// Poll the season reward-reveal animation and re-scan once it has settled.
+        /// The reveal spawns its RewardPrefab_ objects over time (card flips, page
+        /// sequencing), and _seasonRewardCoroutine stays non-null until the whole
+        /// sequence finishes — so IsSeasonRevealBusy() going false is the "all prefabs
+        /// present" signal. A prefabs-visible timeout covers the rare multi-page payout
+        /// that parks on a "More" click without ever clearing the busy flag.
+        /// </summary>
+        private void PollSeasonReveal()
+        {
+            // Left the rewards phase (advanced to new-rank, or popup gone) — stop polling.
+            if (_seasonPhase != SeasonPhase.RewardsReveal)
+            {
+                _awaitingSeasonReveal = false;
+                _seasonRevealPrefabSince = -1f;
+                return;
+            }
+
+            if (!HasRewardPrefabs())
+            {
+                _seasonRevealPrefabSince = -1f;
+                return;
+            }
+
+            if (_seasonRevealPrefabSince < 0f)
+                _seasonRevealPrefabSince = Time.time;
+
+            bool settled = !IsSeasonRevealBusy();
+            bool prefabsShownLongEnough = Time.time - _seasonRevealPrefabSince >= 6.0f;
+
+            if (settled || prefabsShownLongEnough)
+            {
+                _awaitingSeasonReveal = false;
+                _seasonRevealPrefabSince = -1f;
+                Log.Msg("{NavigatorId}", $"Season reward reveal settled (settled={settled}) — rescanning for rewards");
+                ForceRescan();
+            }
+        }
+
+        /// <summary>True if any RewardPrefab_ object is active inside the popup.</summary>
+        private bool HasRewardPrefabs()
+        {
+            if (_activePopup == null) return false;
+
+            foreach (Transform t in _activePopup.GetComponentsInChildren<Transform>(true))
+            {
+                if (t != null && t.gameObject.activeInHierarchy && t.name.StartsWith("RewardPrefab_"))
+                    return true;
+            }
+            return false;
+        }
 
         #region Detection - Copied from OverlayDetector
 
@@ -255,6 +329,8 @@ namespace AccessibleArena.Core.Services
             _lastRescanElementCount = 0;
             _seasonPhase = SeasonPhase.NotSeason;
             _lastSeasonAnnouncement = null;
+            _awaitingSeasonReveal = false;
+            _seasonRevealPrefabSince = -1f;
         }
 
         /// <summary>
@@ -527,6 +603,29 @@ namespace AccessibleArena.Core.Services
             DiscoverRewardElements(addedObjects);
             if (_rewardCount == 0)
                 DiscoverRewardsFromControllerData(addedObjects);
+
+            // The game only enters this phase when there ARE season rewards (with no
+            // deltas it skips straight from old-rank to new-rank), so finding nothing
+            // means the reveal animation hasn't spawned its prefabs yet. Arm the poll
+            // (PollSeasonReveal) to re-scan once the reveal settles, and speak a
+            // "revealing, please wait" placeholder in the meantime.
+            _awaitingSeasonReveal = _rewardCount == 0;
+
+            if (_awaitingSeasonReveal)
+            {
+                _seasonDisplayText = string.IsNullOrEmpty(title)
+                    ? Strings.SeasonRevealing
+                    : $"{title}. {Strings.SeasonRevealing}";
+
+                // Keep a navigable placeholder so the navigator stays active (and Enter
+                // can still advance) while we wait for the rewards to reveal.
+                if (_elements.Count == 0)
+                {
+                    AddElement(_activePopup, title ?? Strings.ScreenRewards);
+                    addedObjects.Add(_activePopup);
+                }
+                return;
+            }
 
             var parts = new List<string>();
             if (!string.IsNullOrEmpty(title)) parts.Add(title);
@@ -1342,6 +1441,10 @@ namespace AccessibleArena.Core.Services
             if (_seasonPhase != SeasonPhase.NotSeason)
             {
                 string text = _seasonDisplayText ?? Strings.ScreenRewards;
+                // While the reveal is still animating, _seasonDisplayText already ends
+                // with "Revealing, please wait" — don't append "Press Enter to continue".
+                if (_awaitingSeasonReveal)
+                    return text;
                 return Strings.WithHint(text, "SeasonEndHint");
             }
 
@@ -1468,6 +1571,8 @@ namespace AccessibleArena.Core.Services
             Log.Msg("{NavigatorId}", $"Advancing season screen (phase={_seasonPhase})");
             _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
             _lastSeasonAnnouncement = null; // let the next phase announce even if text repeats
+            _awaitingSeasonReveal = false;  // leaving this phase — drop any pending reveal poll
+            _seasonRevealPrefabSince = -1f;
             ClickBackgroundBlocker();
             ForceRescan();
         }
@@ -1649,6 +1754,8 @@ namespace AccessibleArena.Core.Services
             _seasonEndState = 0;
             _seasonPhase = SeasonPhase.NotSeason;
             _lastSeasonAnnouncement = null;
+            _awaitingSeasonReveal = false;
+            _seasonRevealPrefabSince = -1f;
             _popupDetectedTime = -1f;
             _timeoutFallbackFired = false;
             _revealingWasSeen = false;
