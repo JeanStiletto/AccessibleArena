@@ -35,6 +35,8 @@ namespace AccessibleArena.Core.Services
 
         public IReadOnlyList<string> History => _history;
 
+        public string LastAnnouncement => _lastAnnouncement;
+
         public bool IsEnabled => _enabled;
 
         public void Announce(string message, AnnouncementPriority priority = AnnouncementPriority.Normal)

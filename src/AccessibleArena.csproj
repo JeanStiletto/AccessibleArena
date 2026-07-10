@@ -58,6 +58,10 @@
       <HintPath>$(MtgaManagedPath)\UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(MtgaManagedPath)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.UIModule">
       <HintPath>$(MtgaManagedPath)\UnityEngine.UIModule.dll</HintPath>
       <Private>false</Private>

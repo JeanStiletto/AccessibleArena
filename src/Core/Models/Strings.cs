@@ -1020,6 +1020,7 @@ namespace AccessibleArena.Core.Models
         public static string HelpF5Update => L.Get("HelpF5Update");
         public static string HelpCtrlF1Tutorial => L.Get("HelpCtrlF1Tutorial");
         public static string HelpCtrlRRepeat => L.Get("HelpCtrlRRepeat");
+        public static string HelpCtrlRightCopy => L.Get("HelpCtrlRightCopy");
         public static string HelpBackspace => L.Get("HelpBackspace");
 
         // Menu navigation
@@ -1336,6 +1337,9 @@ namespace AccessibleArena.Core.Models
         public static string PortraitNotAvailable => L.Get("PortraitNotAvailable");
         public static string PortraitButtonNotFound => L.Get("PortraitButtonNotFound");
         public static string NoActiveScreen => L.Get("NoActiveScreen");
+        public static string CopiedToClipboard(string text) => L.Format("CopiedToClipboard_Format", text);
+        public static string NothingToCopy => L.Get("NothingToCopy");
+        public static string CopyFailed => L.Get("CopyFailed");
         public static string NoCardToInspect => L.Get("NoCardToInspect");
         public static string NoElementSelected => L.Get("NoElementSelected");
         public static string DebugDumpComplete => L.Get("DebugDumpComplete");

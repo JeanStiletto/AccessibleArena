@@ -268,6 +268,43 @@ namespace AccessibleArena
             }
         }
 
+        /// <summary>
+        /// Ctrl+Right: copy the current item — the most recent announcement — to the
+        /// system clipboard so the user can paste it (e.g. their own name and ID from
+        /// the friends list, a card name, or any focused element's text). Works on every
+        /// screen because it reuses whatever was last spoken. Returns true when the
+        /// shortcut was handled (so the caller skips this frame's other input).
+        /// </summary>
+        private bool HandleCopyCurrentItem()
+        {
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            // Only plain Ctrl+Right — let other modifier combos fall through.
+            if (!ctrl || shift || alt)
+                return false;
+            if (!Input.GetKeyDown(KeyCode.RightArrow))
+                return false;
+
+            // Block the game/navigators from also seeing this RightArrow.
+            InputManager.ConsumeKey(KeyCode.RightArrow);
+
+            string text = _announcer?.LastAnnouncement;
+            if (string.IsNullOrEmpty(text))
+            {
+                _announcer?.AnnounceInterrupt(Strings.NothingToCopy);
+                return true;
+            }
+
+            if (ClipboardUtil.Copy(text))
+                _announcer.AnnounceInterrupt(Strings.CopiedToClipboard(text));
+            else
+                _announcer.AnnounceInterrupt(Strings.CopyFailed);
+
+            return true;
+        }
+
         private void AnnounceTutorialHint()
         {
             var nav = _navigatorManager?.ActiveNavigator as BaseNavigator;
@@ -365,6 +402,12 @@ namespace AccessibleArena
             // in edge cases, which would leave `_waitingForRelease` stuck until the
             // turn timer expires.
             PhaseSkipGuard.Poll();
+
+            // Global: Ctrl+Right copies the current item's text (whatever was last
+            // announced) to the clipboard. Handled here, before any navigator, so the
+            // RightArrow doesn't also trigger card/menu navigation this frame.
+            if (HandleCopyCurrentItem())
+                return;
 
             // Tell KeyboardManagerPatch to block Escape from reaching the game
             // when a mod menu is open (persistent flag avoids timing issues with per-frame consume)

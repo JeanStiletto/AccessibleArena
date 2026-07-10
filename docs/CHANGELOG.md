@@ -2,6 +2,12 @@
 
 All notable changes to Accessible Arena.
 
+## v1.4.4
+
+Global:
+
+- New global shortcut **Ctrl+Right Arrow** copies the current item to the clipboard. It copies whatever was last announced — the thing you're currently on — so it works on every screen: your own name and ID in the friends list (handy since the "#" and the number aren't voiced but are copied intact), a card name in the deck builder or a duel zone, a menu item, anything. It confirms with "Copied: …" (or "Nothing to copy" if nothing has been announced yet). Because it reuses the last announcement, no per-screen wiring is needed and it applies everywhere automatically.
+
 ## v1.4.3
 
 Duel:

@@ -10,6 +10,14 @@ namespace AccessibleArena.Core.Interfaces
         void AnnounceVerbose(string message, AnnouncementPriority priority = AnnouncementPriority.Normal);
         void AnnounceInterruptVerbose(string message);
         void RepeatLastAnnouncement();
+
+        /// <summary>
+        /// The most recent text spoken to the screen reader — i.e. what the user
+        /// is currently "on". Used by the copy-to-clipboard shortcut. Null/empty
+        /// when nothing has been announced yet.
+        /// </summary>
+        string LastAnnouncement { get; }
+
         void Silence();
         void SetEnabled(bool enabled);
         bool IsEnabled { get; }

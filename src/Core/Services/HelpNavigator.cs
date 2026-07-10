@@ -54,6 +54,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpF5Update,
                 Strings.HelpCtrlF1Tutorial,
                 Strings.HelpCtrlRRepeat,
+                Strings.HelpCtrlRightCopy,
                 Strings.HelpBackspace,
 
                 // Menu navigation
