@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "Предупреждать перед пропуском при наличии маны",
   "SettingPriorityAnnouncements": "Объявлять приоритет",
   "SettingPriorityAnnouncementsDesc": "В ход оппонента объявлять, когда вы получаете приоритет для ответа, если ничто другое уже не сообщило об этом.",
+  "SettingPriorityAlarm": "Звук сигнала приоритета",
+  "SettingPriorityAlarmDesc": "Повторяет звук, пока у вас есть приоритет для ответа и вы ещё не действовали. Останавливается при первом нажатии клавиши.",
   "SettingPositionCounts": "Счётчики позиций",
   "SettingPositionCountsDesc": "Показывает позицию в списках и зонах, напр. 3 из 7",
   "SettingManaColorlessLabel": "Метка общей маны",

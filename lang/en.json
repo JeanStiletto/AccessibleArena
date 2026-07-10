@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "Warn before passing with mana available",
   "SettingPriorityAnnouncements": "Announce priority",
   "SettingPriorityAnnouncementsDesc": "On the opponent's turn, announce when you gain priority to respond and nothing else already told you.",
+  "SettingPriorityAlarm": "Priority alarm sound",
+  "SettingPriorityAlarmDesc": "Repeat a sound while you hold priority to respond and haven't acted yet. Stops on your first key press.",
   "SettingPositionCounts": "Position counts",
   "SettingPositionCountsDesc": "Announces item position like 3 of 7 when navigating lists and zones",
   "SettingManaColorlessLabel": "Mana cost generic label",

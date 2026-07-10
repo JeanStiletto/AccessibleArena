@@ -19,6 +19,16 @@ The startup warning that flags the Steam overlay as conflicting with the mod's S
 
 ---
 
+### Priority Alarm Cue Sound Design Not Finalized
+
+The repeating priority alarm (F2 → "Priority alarm sound", off by default) works correctly — it arms on meaningful priority, respects the grace period, and stops on the first key press. But the *sound itself* is a placeholder we're not happy with. It's a synthesized 440 Hz sine chime (`ToneCue`, single tone with raised-cosine attack, exponential decay, and cosine release). It needs a proper redesign to be pleasant and unobtrusive rather than beep-like — candidates worth exploring: a softer waveform or multi-partial timbre, a gentle two-note motif, or a short bundled sample.
+
+Note: we deliberately do NOT reuse the game's own `sfx_ui_gain_priority` (Wwise event `sfx_priority_on`) — it posts without error but is silent in the shipped build, which is why the native priority cue is never heard.
+
+**Files:** `Core/Utils/ToneCue.cs` (shape constants at the top), `Core/Services/PriorityAlarm.cs`
+
+---
+
 ## Game Behavior (Not Fixable by Mod)
 
 ### Steam Overlay Inaccessible to Screen Readers

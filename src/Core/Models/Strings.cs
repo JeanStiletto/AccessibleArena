@@ -953,6 +953,8 @@ namespace AccessibleArena.Core.Models
         public static string SettingPhaseSkipWarning => L.Get("SettingPhaseSkipWarning");
         public static string SettingPriorityAnnouncements => L.Get("SettingPriorityAnnouncements");
         public static string SettingPriorityAnnouncementsDesc => L.Get("SettingPriorityAnnouncementsDesc");
+        public static string SettingPriorityAlarm => L.Get("SettingPriorityAlarm");
+        public static string SettingPriorityAlarmDesc => L.Get("SettingPriorityAlarmDesc");
         public static string SettingPositionCounts => L.Get("SettingPositionCounts");
         public static string SettingPositionCountsDesc => L.Get("SettingPositionCountsDesc");
         public static string SettingManaColorlessLabel => L.Get("SettingManaColorlessLabel");

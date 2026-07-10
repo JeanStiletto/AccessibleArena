@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "Ostrzegaj przed przepuszczeniem przy dostępnej manie",
   "SettingPriorityAnnouncements": "Ogłaszaj priorytet",
   "SettingPriorityAnnouncementsDesc": "W turze przeciwnika ogłaszaj, gdy otrzymujesz priorytet do odpowiedzi, a nic innego już o tym nie poinformowało.",
+  "SettingPriorityAlarm": "Dźwięk alarmu priorytetu",
+  "SettingPriorityAlarmDesc": "Powtarza dźwięk, dopóki masz priorytet do reakcji i jeszcze nie wykonałeś ruchu. Zatrzymuje się po pierwszym naciśnięciu klawisza.",
   "SettingPositionCounts": "Liczniki pozycji",
   "SettingPositionCountsDesc": "Pokazuje pozycję na listach i w strefach, np. 3 z 7",
   "SettingManaColorlessLabel": "Etykieta ogólnej many",

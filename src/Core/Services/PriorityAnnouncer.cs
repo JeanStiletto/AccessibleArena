@@ -121,8 +121,11 @@ namespace AccessibleArena.Core.Services
         /// CurrentInteraction maps to MutableWorkflowProvider.GetCurrentWorkflow(), which returns
         /// non-null ONLY when the workflow is in the Applied state — so reaching here already
         /// means "applied" and no separate AppliedState check is needed.
+        ///
+        /// Public so <see cref="PriorityAlarm"/> can share this single source of truth for
+        /// "local player holds free priority" rather than duplicating the reflection.
         /// </summary>
-        private bool HasLocalPriority()
+        public bool HasLocalPriority()
         {
             if (!EnsureReflection()) return false;
 

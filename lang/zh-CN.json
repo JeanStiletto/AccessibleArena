@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "有法力时跳过前警告",
   "SettingPriorityAnnouncements": "通报优先权",
   "SettingPriorityAnnouncementsDesc": "在对手的回合中，当你获得回应的优先权且没有其他提示时进行通报。",
+  "SettingPriorityAlarm": "优先权提示音",
+  "SettingPriorityAlarmDesc": "当你拥有回应优先权且尚未行动时重复播放提示音。按下第一个按键后停止。",
   "SettingPositionCounts": "位置计数",
   "SettingPositionCountsDesc": "在列表和区域导航时显示位置，如第3项共7项",
   "SettingManaColorlessLabel": "法力费用通用标签",

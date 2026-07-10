@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "マナがある時にパスする前に警告",
   "SettingPriorityAnnouncements": "優先権を通知",
   "SettingPriorityAnnouncementsDesc": "対戦相手のターンに、応答のための優先権を得て、他に何も知らせていないときに通知します。",
+  "SettingPriorityAlarm": "優先権アラーム音",
+  "SettingPriorityAlarmDesc": "応答する優先権を持ち、まだ行動していない間、音を繰り返します。最初のキーを押すと停止します。",
   "SettingPositionCounts": "位置カウント",
   "SettingPositionCountsDesc": "リストやゾーンの移動時に位置を表示、例: 7件中3件目",
   "SettingManaColorlessLabel": "マナコスト不特定ラベル",

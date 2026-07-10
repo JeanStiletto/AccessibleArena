@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "Warnung vor Passen mit verfügbarem Mana",
   "SettingPriorityAnnouncements": "Priorität ansagen",
   "SettingPriorityAnnouncementsDesc": "Im Zug des Gegners ansagen, wenn du Priorität zum Reagieren erhältst und nichts anderes es bereits angekündigt hat.",
+  "SettingPriorityAlarm": "Prioritäts-Signalton",
+  "SettingPriorityAlarmDesc": "Wiederholt einen Ton, solange du Priorität zum Reagieren hast und noch nichts getan hast. Stoppt beim ersten Tastendruck.",
   "SettingPositionCounts": "Positionsangaben",
   "SettingPositionCountsDesc": "Zeigt Position in Listen und Zonen an, z.B. 3 von 7",
   "SettingManaColorlessLabel": "Manakosten Generisch-Bezeichnung",

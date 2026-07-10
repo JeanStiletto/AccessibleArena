@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "Avisar antes de pasar con maná disponible",
   "SettingPriorityAnnouncements": "Anunciar prioridad",
   "SettingPriorityAnnouncementsDesc": "En el turno del oponente, anuncia cuando obtienes prioridad para responder y nada más lo ha indicado ya.",
+  "SettingPriorityAlarm": "Sonido de alarma de prioridad",
+  "SettingPriorityAlarmDesc": "Repite un sonido mientras tienes prioridad para responder y aún no has actuado. Se detiene con la primera tecla que pulses.",
   "SettingPositionCounts": "Contadores de posición",
   "SettingPositionCountsDesc": "Muestra la posición en listas y zonas, por ej. 3 de 7",
   "SettingManaColorlessLabel": "Etiqueta genérico en coste de maná",

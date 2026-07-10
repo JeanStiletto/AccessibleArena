@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "마나가 있을 때 패스하기 전에 경고",
   "SettingPriorityAnnouncements": "우선권 알림",
   "SettingPriorityAnnouncementsDesc": "상대의 턴에 다른 안내가 없을 때 응답할 우선권을 얻으면 알립니다.",
+  "SettingPriorityAlarm": "우선권 알림음",
+  "SettingPriorityAlarmDesc": "대응할 우선권이 있고 아직 행동하지 않은 동안 소리를 반복합니다. 첫 키를 누르면 멈춥니다.",
   "SettingPositionCounts": "위치 카운트",
   "SettingPositionCountsDesc": "목록과 영역 탐색 시 위치를 표시합니다, 예: 7개 중 3번째",
   "SettingManaColorlessLabel": "마나 비용 무색 라벨",

@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "Avisar antes de passar com mana disponível",
   "SettingPriorityAnnouncements": "Anunciar prioridade",
   "SettingPriorityAnnouncementsDesc": "No turno do oponente, anuncia quando você ganha prioridade para responder e nada mais já avisou.",
+  "SettingPriorityAlarm": "Som de alarme de prioridade",
+  "SettingPriorityAlarmDesc": "Repete um som enquanto você tem prioridade para responder e ainda não agiu. Para ao primeiro toque de tecla.",
   "SettingPositionCounts": "Contadores de posição",
   "SettingPositionCountsDesc": "Mostra a posição em listas e zonas, ex. 3 de 7",
   "SettingManaColorlessLabel": "Rótulo mana genérico",

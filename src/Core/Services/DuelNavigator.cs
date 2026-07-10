@@ -40,6 +40,7 @@ namespace AccessibleArena.Core.Services
         private PlayerPortraitNavigator _portraitNavigator;
         private PriorityController _priorityController;
         private PriorityAnnouncer _priorityAnnouncer;
+        private PriorityAlarm _priorityAlarm;
         private DuelAnnouncer _duelAnnouncer;
         private DuelChatNavigator _duelChatNavigator;
         private List<GameObject> _deactivatedSocialObjects = new List<GameObject>();
@@ -88,6 +89,7 @@ namespace AccessibleArena.Core.Services
             _portraitNavigator = new PlayerPortraitNavigator(announcer);
             _priorityController = new PriorityController();
             _priorityAnnouncer = new PriorityAnnouncer(announcer, _zoneNavigator);
+            _priorityAlarm = new PriorityAlarm(_priorityAnnouncer, _zoneNavigator);
             _duelAnnouncer = new DuelAnnouncer(announcer);
             _combatNavigator = new CombatNavigator(announcer, _duelAnnouncer);
             _battlefieldNavigator = new BattlefieldNavigator(announcer, _zoneNavigator);
@@ -176,6 +178,7 @@ namespace AccessibleArena.Core.Services
         {
             RestoreSocialUISelectables();
             _priorityAnnouncer.Reset();
+            _priorityAlarm.Reset();
             base.OnDeactivating();
         }
 
@@ -485,6 +488,10 @@ namespace AccessibleArena.Core.Services
                 _duelAnnouncer.IsUserTurn,
                 _duelAnnouncer.TimeSinceLastPhaseChange,
                 _hotHighlightNavigator.TimeSinceLastPromptAnnounce);
+
+            // Repeating audio nudge while you hold priority and haven't reacted (off by default).
+            // Reuses the announcer's detection + stack gate; stops on your first key press.
+            _priorityAlarm.Update();
 
             // NOTE: Ctrl key for full control investigated but not working in Color Challenge mode
             // See docs/AUTOSKIP_MODE_INVESTIGATION.md for details and attempted solutions

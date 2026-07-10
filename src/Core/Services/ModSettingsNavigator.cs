@@ -114,6 +114,13 @@ namespace AccessibleArena.Core.Services
                 },
                 new SettingItem
                 {
+                    Name = Strings.SettingPriorityAlarm,
+                    GetValue = () => _settings.PriorityAlarm ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.PriorityAlarm = !_settings.PriorityAlarm,
+                    Description = Strings.SettingPriorityAlarmDesc
+                },
+                new SettingItem
+                {
                     Name = Strings.SettingPositionCounts,
                     GetValue = () => _settings.PositionCounts ? Strings.SettingOn : Strings.SettingOff,
                     Toggle = () => _settings.PositionCounts = !_settings.PositionCounts,

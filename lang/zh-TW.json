@@ -289,6 +289,8 @@
   "SettingPhaseSkipWarning": "有魔法力時跳過前警告",
   "SettingPriorityAnnouncements": "通報優先權",
   "SettingPriorityAnnouncementsDesc": "在對手的回合中，當你獲得回應的優先權且沒有其他提示時進行通報。",
+  "SettingPriorityAlarm": "優先權提示音",
+  "SettingPriorityAlarmDesc": "當你擁有回應優先權且尚未行動時重複播放提示音。按下第一個按鍵後停止。",
   "SettingPositionCounts": "位置計數",
   "SettingPositionCountsDesc": "在列表和區域導覽時顯示位置，如第3項共7項",
   "SettingManaColorlessLabel": "魔法力費用通用標籤",
