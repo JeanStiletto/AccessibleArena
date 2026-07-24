@@ -8,6 +8,10 @@ Global:
 
 - New global shortcut **Ctrl+Right Arrow** copies the current item to the clipboard. It copies whatever was last announced — the thing you're currently on — so it works on every screen: your own name and ID in the friends list (handy since the "#" and the number aren't voiced but are copied intact), a card name in the deck builder or a duel zone, a menu item, anything. It confirms with "Copied: …" (or "Nothing to copy" if nothing has been announced yet). Because it reuses the last announcement, no per-screen wiring is needed and it applies everywhere automatically.
 
+Duel:
+
+- New optional **priority alarm sound** (F2 → "Priority alarm sound", off by default). When you hold priority to respond to something on the stack and haven't acted yet, a soft tone repeats every 2 seconds until your first key press, so a window you're meant to respond in can't pass unnoticed while you're reading. It only arms when there is actually something on the stack, waits 4 seconds first so quick responses stay silent, and stops on any key, when you lose priority, or after 20 seconds. The tone plays through the Windows default device rather than the game's audio mixer — the game's own priority sound is silent in the shipped build. The tone itself is a placeholder and will likely change.
+
 Rewards:
 
 - The rewards popup (daily win, quest and mail claims) now lists what you actually won, straight away. Previously it announced a lumped-together placeholder like "275 XP, Cards" and only revealed the real items — each reward separately, with the card readable — after you pressed the claim button once. The mod was activating on an empty popup: it treated the rewards container as "content ready", but the game creates that container the moment the popup becomes visible, before it has placed a single reward in it. It now waits for the actual reward tiles and for the reveal to finish, so the first announcement is the complete one. Rewards arriving late (or a second page behind a "More" button) are picked up automatically instead of needing a keypress.
