@@ -8,6 +8,12 @@ Global:
 
 - New global shortcut **Ctrl+Right Arrow** copies the current item to the clipboard. It copies whatever was last announced — the thing you're currently on — so it works on every screen: your own name and ID in the friends list (handy since the "#" and the number aren't voiced but are copied intact), a card name in the deck builder or a duel zone, a menu item, anything. It confirms with "Copied: …" (or "Nothing to copy" if nothing has been announced yet). Because it reuses the last announcement, no per-screen wiring is needed and it applies everywhere automatically.
 
+Rewards:
+
+- The rewards popup (daily win, quest and mail claims) now lists what you actually won, straight away. Previously it announced a lumped-together placeholder like "275 XP, Cards" and only revealed the real items — each reward separately, with the card readable — after you pressed the claim button once. The mod was activating on an empty popup: it treated the rewards container as "content ready", but the game creates that container the moment the popup becomes visible, before it has placed a single reward in it. It now waits for the actual reward tiles and for the reveal to finish, so the first announcement is the complete one. Rewards arriving late (or a second page behind a "More" button) are picked up automatically instead of needing a keypress.
+- Claiming takes one press again. The game's first claim click only flips the reward cards face-up and leaves the popup open — worth an animation if you can see it, but by then the mod has already read every reward aloud. The cards are now turned over as soon as they're announced, and if the flip doesn't take, the mod issues the closing click itself once the reveal ends. A "More" page still advances one page at a time, as it should.
+- Reward names are localized. "Gold", "Gems", "Cards", "Booster Packs", "Card Sleeve", "Card Styles", "Sleeves", "Avatars", "Emotes", "Titles" and "Mastery Orbs" are read from the game's own localization, so they match what's on screen in every language rather than being spoken in English. The wording the mod adds around them ("Card 1: …", "Emote: …", "Reward 3") is translated too, as is the popup's opening line, which used to be a hardcoded "Rewards. 2 rewards." A few reward types the game has no generic wording for — XP, Deck Box, Voucher, Event Token, Event Ticket, Mythic Qualifier, Prize Wall Token, Complete Set, Pet — stay in English in the one-line summary.
+
 ## v1.4.3
 
 Duel:

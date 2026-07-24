@@ -30,7 +30,7 @@ namespace AccessibleArena.Core.Services
         private int _cardIndex;          // Card-only counter for numbering cards separately from other rewards
         private int _seasonEndState;     // 0=None, 1=OldRank, 2=Rewards, 3=NewRank
         private string _seasonDisplayText; // Extracted rank text for season end announcements
-        private int _lastRescanElementCount; // Suppress duplicate announcements in ForceRescan
+        private string _lastRescanSignature; // Suppress duplicate announcements in ForceRescan
 
         // Season-end phase, derived from which display objects are active rather than
         // the game's _endOfSeasonDisplayState enum (observed stuck at OldRankDisplay
@@ -77,6 +77,27 @@ namespace AccessibleArena.Core.Services
         // a false positive.
         private bool _revealingWasSeen = false;
 
+        // Time.time when reward prefabs were first seen while the game's reveal
+        // coroutine was still running. Bounds the settle wait so a stuck reveal can
+        // never keep us silent forever. -1 = unset.
+        private float _prefabsSeenSince = -1f;
+
+        // Number of RewardPrefab_ objects the last DiscoverElements pass saw.
+        // PollRewardReveal compares against it to notice tiles that finished
+        // revealing after we activated (and pages cleared by a "More" click).
+        private int _lastSeenPrefabCount;
+
+        // Throttle for PollRewardReveal (Time.time of last poll).
+        private float _lastRevealPollTime;
+
+        // Reward components already pre-revealed (RewardDisplayCard / MetaDeckView
+        // instance ids), so rescans don't re-trigger a flip that is already running.
+        private readonly HashSet<int> _preRevealed = new HashSet<int>();
+
+        // Deadline for the automatic second claim click, or -1 when not armed.
+        // See FinishClaim.
+        private float _claimFollowUpUntil = -1f;
+
         // Cache to avoid logging spam
         private bool _lastRewardsPopupState = false;
 
@@ -99,7 +120,87 @@ namespace AccessibleArena.Core.Services
             if (_isActive && _awaitingSeasonReveal)
                 PollSeasonReveal();
 
+            // Normal reward popups reveal their tiles one at a time. Keep watching so a
+            // page that finishes (or starts) revealing after activation gets re-scanned.
+            if (_isActive && _seasonPhase == SeasonPhase.NotSeason)
+            {
+                FinishClaim();
+                PollRewardReveal();
+            }
+
             base.Update();
+        }
+
+        /// <summary>
+        /// Complete a claim the game turned into a reveal. ClaimRewards flips any
+        /// face-down reward card, sets revealing = true and returns *without* closing
+        /// the popup, so the press the user just made only revealed what we had already
+        /// read to them. Once that coroutine finishes, issue the closing click ourselves
+        /// so a single Enter claims — matching what the press announced ("Continuing").
+        ///
+        /// Armed by HandleInput for exactly one follow-up per user press, and never for a
+        /// "More" click (that advances to the next page — auto-clicking would skip it).
+        /// </summary>
+        private void FinishClaim()
+        {
+            if (_claimFollowUpUntil < 0f) return;
+
+            // Already claimed — the first click did close it after all. Test the reward
+            // tiles, not _activePopup: Visible = false only deactivates the controller's
+            // Container child, so the controller GameObject stays active either way.
+            if (_activePopup == null || !HasRewardPrefabs())
+            {
+                _claimFollowUpUntil = -1f;
+                return;
+            }
+
+            if (Time.time > _claimFollowUpUntil)
+            {
+                Log.Msg("{NavigatorId}", $"Claim follow-up timed out — leaving the popup to the user");
+                _claimFollowUpUntil = -1f;
+                return;
+            }
+
+            // Wait for the reveal to finish; clicking during it is absorbed by the
+            // game's stuck-click counter and would burn our one follow-up.
+            var controller = FindRewardsController();
+            if (controller == null) { _claimFollowUpUntil = -1f; return; }
+            if (ReadControllerField(controller, "_claimRewardsCoroutine") != null) return;
+
+            // A reveal that ended on a sub-page is waiting for a "More" click, not a claim.
+            if (ReadControllerField(controller, "SubPageDisplayed") is bool sub && sub)
+            {
+                _claimFollowUpUntil = -1f;
+                return;
+            }
+
+            Log.Msg("{NavigatorId}", $"Reveal finished — issuing the claim click the press was meant to be");
+            _claimFollowUpUntil = -1f;
+            ClickBackgroundBlocker();
+        }
+
+        /// <summary>
+        /// Watch the standard (non-season) reward reveal while active. The game spawns
+        /// RewardPrefab_ objects one per _sequenceDelay and clears them all when a
+        /// "More" click advances to the next page, so the prefab count is the signal
+        /// that what we announced no longer matches what is on screen.
+        /// </summary>
+        private void PollRewardReveal()
+        {
+            if (Time.time - _lastRevealPollTime < 0.25f) return;
+            _lastRevealPollTime = Time.time;
+
+            if (_activePopup == null) return;
+
+            int count = CountRewardPrefabs();
+            if (count == _lastSeenPrefabCount) return;
+
+            // Wait for the current page to finish revealing so one rescan covers all
+            // of its tiles instead of announcing each arrival separately.
+            if (!IsRewardPageSettled()) return;
+
+            Log.Msg("{NavigatorId}", $"Reward reveal changed ({_lastSeenPrefabCount} -> {count} prefabs) — rescanning");
+            ForceRescan();
         }
 
         /// <summary>
@@ -142,16 +243,38 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>True if any RewardPrefab_ object is active inside the popup.</summary>
-        private bool HasRewardPrefabs()
-        {
-            if (_activePopup == null) return false;
+        private bool HasRewardPrefabs() => CountRewardPrefabs() > 0;
 
+        /// <summary>Number of active RewardPrefab_ objects inside the popup.</summary>
+        private int CountRewardPrefabs()
+        {
+            if (_activePopup == null) return 0;
+
+            int count = 0;
             foreach (Transform t in _activePopup.GetComponentsInChildren<Transform>(true))
             {
                 if (t != null && t.gameObject.activeInHierarchy && t.name.StartsWith("RewardPrefab_"))
-                    return true;
+                    count++;
             }
-            return false;
+            return count;
+        }
+
+        /// <summary>
+        /// True when the game has finished spawning the tiles of the current reward
+        /// page. DisplayPlannedRewardPages holds _stillDisplayingSubpagesForRewardItem
+        /// true across the whole multi-page sequence, but parks on SubPageDisplayed
+        /// while it waits for a "More" click — so that flag marks a page as complete
+        /// just as reliably as the reveal coroutine ending.
+        /// </summary>
+        private bool IsRewardPageSettled()
+        {
+            var controller = FindRewardsController();
+            if (controller == null) return true;
+
+            var still = ReadControllerField(controller, "_stillDisplayingSubpagesForRewardItem");
+            if (!(still is bool revealing) || !revealing) return true;
+
+            return ReadControllerField(controller, "SubPageDisplayed") is bool sub && sub;
         }
 
         #region Detection - Copied from OverlayDetector
@@ -237,25 +360,45 @@ namespace AccessibleArena.Core.Services
                     ExtractPackSetNames();
                 }
 
-                // Check for actual reward content
-                bool hasContent = false;
-                foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                // Check for actual reward content. Only RewardPrefab_ objects count:
+                // RewardsCONTAINER is part of the popup prefab and goes active the
+                // moment DisplayRewards flips Visible — i.e. before RevealRewards has
+                // spawned a single tile. Treating it as content made us activate on an
+                // empty popup and announce the coarse controller-data summary
+                // ("275 XP, Cards") instead of the real per-reward tiles.
+                int prefabCount = CountRewardPrefabs();
+
+                if (prefabCount > 0)
                 {
-                    if (t == null || !t.gameObject.activeInHierarchy) continue;
-                    if (t.name.StartsWith("RewardPrefab_") || t.name == "RewardsCONTAINER")
+                    // Tiles spawn one per _sequenceDelay — wait for the page to finish
+                    // so the first announcement lists every reward, not just the first.
+                    if (IsRewardPageSettled())
                     {
-                        hasContent = true;
-                        break;
+                        _popupDetectedTime = -1f;
+                        _prefabsSeenSince = -1f;
+                        _timeoutFallbackFired = false;
+                        return true;
                     }
+
+                    if (_prefabsSeenSince < 0f)
+                        _prefabsSeenSince = Time.time;
+
+                    // Safety valve: never stay silent on a visible popup because the
+                    // reveal coroutine failed to report completion.
+                    if (Time.time - _prefabsSeenSince >= 3.0f)
+                    {
+                        Log.Msg("{NavigatorId}", $"Reveal settle timeout — activating with {prefabCount} prefabs");
+                        _popupDetectedTime = -1f;
+                        _prefabsSeenSince = -1f;
+                        _timeoutFallbackFired = false;
+                        return true;
+                    }
+
+                    _popupDetectedTime = -1f;
+                    continue;
                 }
 
-                if (hasContent)
-                {
-                    // Prefabs visible — activate regardless of coroutine state.
-                    _popupDetectedTime = -1f;
-                    _timeoutFallbackFired = false;
-                    return true;
-                }
+                _prefabsSeenSince = -1f;
 
                 // No content yet. If the coroutine is still setting up, just wait —
                 // don't start the timeout clock until the flag drops or fails to appear.
@@ -326,7 +469,11 @@ namespace AccessibleArena.Core.Services
             _packSetNames.Clear();
             _packSetNameIndex = 0;
             _seasonDisplayText = null;
-            _lastRescanElementCount = 0;
+            _lastRescanSignature = null;
+            _prefabsSeenSince = -1f;
+            _lastSeenPrefabCount = 0;
+            _preRevealed.Clear();
+            _claimFollowUpUntil = -1f;
             _seasonPhase = SeasonPhase.NotSeason;
             _lastSeasonAnnouncement = null;
             _awaitingSeasonReveal = false;
@@ -530,6 +677,7 @@ namespace AccessibleArena.Core.Services
         {
             _rewardCount = 0;
             _cardIndex = 0;
+            _lastSeenPrefabCount = CountRewardPrefabs();
             var addedObjects = new HashSet<GameObject>();
 
             _seasonDisplayText = null;
@@ -559,6 +707,10 @@ namespace AccessibleArena.Core.Services
                 // Fallback: if no prefabs found (timeout case), read reward data from controller
                 if (_rewardCount == 0)
                     DiscoverRewardsFromControllerData(addedObjects);
+
+                // Everything is announced by now — take the game's "reveal" click off
+                // the user's hands so one Enter claims and closes.
+                PreRevealClaimables();
             }
 
             // Only expose buttons on the normal (non-season) rewards popup. On the
@@ -828,6 +980,59 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Flip the reward cards (and pop the deck boxes) as soon as we have read them
+        /// out. The game's ClaimRewards treats the first claim click as "reveal whatever
+        /// is still face down" and returns without closing the popup — a sighted player
+        /// clicks twice too, but they get an animation out of it. We already announced
+        /// every reward by this point, so that first press is pure friction.
+        ///
+        /// Each card is flipped exactly once, tracked by instance id rather than by
+        /// asking RewardDisplayCard.IsFlipped(): that reads the current animator state
+        /// and reports "flipped" for any state that isn't ClickDown/Intro/Unrevealed,
+        /// which includes the transitional state a freshly spawned card sits in — so
+        /// gating on it skipped the flip entirely and left the second press in place.
+        /// If the flip doesn't take (animator still in its intro), FinishClaim covers it.
+        /// </summary>
+        private void PreRevealClaimables()
+        {
+            if (_activePopup == null) return;
+
+            foreach (var mb in _activePopup.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                if (!_preRevealed.Add(mb.GetInstanceID())) continue;
+
+                switch (mb.GetType().Name)
+                {
+                    case "RewardDisplayCard":
+                        InvokeParameterless(mb, "FlipCard");
+                        break;
+                    case "MetaDeckView":
+                        InvokeParameterless(mb, "TriggerOpenEffect");
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Call a parameterless method on a component. A missing member is a no-op, so a
+        /// renamed game method degrades to the old two-press behavior instead of throwing.
+        /// </summary>
+        private static void InvokeParameterless(MonoBehaviour component, string method)
+        {
+            try
+            {
+                component.GetType()
+                    .GetMethod(method, PublicInstance, null, Type.EmptyTypes, null)
+                    ?.Invoke(component, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Msg("{NavigatorId}", $"{method} on {component.GetType().Name} failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Fallback: read reward data directly from the controller's _allRewards array
         /// when no RewardPrefab_ GameObjects were found (timeout case).
         /// Creates a summary info element listing what rewards are pending.
@@ -899,37 +1104,64 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        // Reward class name -> (game localization key, English fallback). Reading the
+        // noun out of the game's own localization keeps our wording identical to what a
+        // sighted player sees, in every language the client ships, instead of speaking
+        // English "Cards"/"Gold" into a localized UI. A null key means the client has no
+        // generic string for that reward type — those stay on the English fallback.
+        private static readonly Dictionary<string, (string LocKey, string English)> RewardTypeLabels =
+            new Dictionary<string, (string, string)>
+            {
+                { "GoldReward",            ("EPP/RewardTrack/RewardGold",             "Gold") },
+                { "GemReward",             ("MainNav/Rewards/GemCard/GemCardTitle",   "Gems") },
+                { "XPReward",              (null,                                     "XP") },
+                { "PackReward",            ("MainNav/NavBar/NavBar_Packs_Text",       "Booster Packs") },
+                { "CardReward",            ("Draft/Cards",                            "Cards") },
+                { "CardRewardWithBonus",   ("Draft/Cards",                            "Cards") },
+                { "StyleReward",           ("EPP/RewardTrack/RewardPremCards",        "Card Styles") },
+                { "SleeveReward",          ("MainNav/Store/Sleeves_Tab",              "Sleeves") },
+                { "AvatarReward",          ("MainNav/Profile/ChangeAvatar",           "Avatars") },
+                { "EmoteReward",           ("MainNav/Profile/Emotes/Emote_Button",    "Emotes") },
+                { "TitleReward",           ("MainNav/Profile/Titles",                 "Titles") },
+                { "OrbReward",             ("EPP/RewardTrack/RewardOrbs",             "Mastery Orbs") },
+                { "BpOrbReward",           ("EPP/RewardTrack/RewardOrbs_BP",          "Set Mastery Orbs") },
+                { "DeckBoxReward",         (null,                                     "Deck Box") },
+                { "VoucherReward",         (null,                                     "Voucher") },
+                { "EventTokenReward",      (null,                                     "Event Token") },
+                { "EventTicketReward",     (null,                                     "Event Ticket") },
+                { "MythicQualifierReward", (null,                                     "Mythic Qualifier") },
+                { "PrizeWallTokenReward",  (null,                                     "Prize Wall Token") },
+                { "CompleteSetReward",     (null,                                     "Complete Set") },
+                { "PetReward",             (null,                                     "Pet") },
+            };
+
         /// <summary>
-        /// Map reward class type name to a human-readable label.
+        /// Map reward class type name to a localized, human-readable label.
         /// </summary>
         private static string MapRewardTypeToLabel(string typeName)
         {
-            switch (typeName)
-            {
-                case "GoldReward": return "Gold";
-                case "GemReward": return "Gems";
-                case "XPReward": return "XP";
-                case "PackReward": return "Booster Packs";
-                case "CardReward": return "Cards";
-                case "CardRewardWithBonus": return "Cards";
-                case "StyleReward": return "Styles";
-                case "SleeveReward": return "Sleeves";
-                case "AvatarReward": return "Avatars";
-                case "EmoteReward": return "Emotes";
-                case "TitleReward": return "Titles";
-                case "DeckBoxReward": return "Deck Box";
-                case "VoucherReward": return "Voucher";
-                case "EventTokenReward": return "Event Token";
-                case "EventTicketReward": return "Event Ticket";
-                case "MythicQualifierReward": return "Mythic Qualifier";
-                case "OrbReward": return "Orb";
-                case "BpOrbReward": return "BP Orb";
-                case "PrizeWallTokenReward": return "Prize Wall Token";
-                case "CompleteSetReward": return "Complete Set";
-                case "PetReward": return "Pet";
-                default: return typeName.Replace("Reward", "");
-            }
+            if (!RewardTypeLabels.TryGetValue(typeName, out var entry))
+                return typeName.Replace("Reward", "");
+
+            return LocalizedNoun(entry.LocKey, entry.English);
         }
+
+        /// <summary>
+        /// Resolve a game localization key, falling back to the English literal when the
+        /// key is absent (older client, renamed key) or when there is no key at all.
+        /// </summary>
+        private static string LocalizedNoun(string locKey, string english)
+        {
+            if (string.IsNullOrEmpty(locKey)) return english;
+            return UITextExtractor.ResolveLocKey(locKey) ?? english;
+        }
+
+        // Singular nouns used by the per-tile labels — the map above holds the plurals
+        // the summary needs, so these keys are listed separately rather than reused.
+        private const string LocKeyPackSingular = "MainNav/EventRewards/Booster_Pack_Generic";
+        private const string LocKeySleeveSingular = "EPP/RewardTrack/RewardCardSleeve";
+        private const string LocKeyGold = "EPP/RewardTrack/RewardGold";
+        private const string LocKeyGems = "MainNav/Rewards/GemCard/GemCardTitle";
 
         /// <summary>
         /// Pre-extract pack set names from ContentControllerRewards._packReward.ToAdd data.
@@ -1124,7 +1356,7 @@ namespace AccessibleArena.Core.Services
                         var cardInfo = CardDetector.ExtractCardInfo(cardObj);
                         if (cardInfo.IsValid && !string.IsNullOrEmpty(cardInfo.Name))
                         {
-                            string cardLabel = $"Card {_cardIndex}: {cardInfo.Name}";
+                            string cardLabel = $"{Strings.RewardCardIndex(_cardIndex)}: {cardInfo.Name}";
                             if (!string.IsNullOrEmpty(cardInfo.TypeLine))
                                 cardLabel += $", {cardInfo.TypeLine}";
                             return cardLabel;
@@ -1137,12 +1369,13 @@ namespace AccessibleArena.Core.Services
                         {
                             string content = text.text?.Trim();
                             if (!string.IsNullOrEmpty(content) && content != "+99" && !content.StartsWith("+"))
-                                return $"Card {_cardIndex}: {content}";
+                                return $"{Strings.RewardCardIndex(_cardIndex)}: {content}";
                         }
                     }
-                    return $"Card {_cardIndex}";
+                    return Strings.RewardCardIndex(_cardIndex);
 
                 case "Pack":
+                    string packNoun = LocalizedNoun(LocKeyPackSingular, "Pack");
                     // Use pre-extracted set name from controller data
                     if (_packSetNameIndex < _packSetNames.Count)
                     {
@@ -1162,7 +1395,7 @@ namespace AccessibleArena.Core.Services
                                 }
                             }
                         }
-                        return countText != null ? $"{setName} Pack {countText}" : $"{setName} Pack";
+                        return countText != null ? $"{setName} {packNoun} {countText}" : $"{setName} {packNoun}";
                     }
                     // Fallback: no pre-extracted set name, check for count text
                     var fallbackTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
@@ -1172,12 +1405,13 @@ namespace AccessibleArena.Core.Services
                         {
                             string content = text.text?.Trim();
                             if (!string.IsNullOrEmpty(content) && content.StartsWith("x"))
-                                return $"Booster Pack {content}";
+                                return $"{packNoun} {content}";
                         }
                     }
-                    return "Booster Pack";
+                    return packNoun;
 
                 case "CardSleeve":
+                    string sleeveNoun = LocalizedNoun(LocKeySleeveSingular, "Card Sleeve");
                     var sleeveTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
                     foreach (var text in sleeveTexts)
                     {
@@ -1185,18 +1419,16 @@ namespace AccessibleArena.Core.Services
                         {
                             string content = text.text?.Trim();
                             if (!string.IsNullOrEmpty(content))
-                                return $"Card Sleeve: {content}";
+                                return $"{sleeveNoun}: {content}";
                         }
                     }
-                    return $"Card Sleeve {index}";
+                    return $"{sleeveNoun} {index}";
 
                 case "Currency":
                     // Determine currency type from prefab name
-                    string currencyType = "Gold";
+                    string currencyType = LocalizedNoun(LocKeyGold, "Gold");
                     if (rewardPrefab.name.Contains("Gems"))
-                        currencyType = "Gems";
-                    else if (rewardPrefab.name.Contains("Coins") || rewardPrefab.name.Contains("Gold"))
-                        currencyType = "Gold";
+                        currencyType = LocalizedNoun(LocKeyGems, "Gems");
 
                     // Find quantity in Text_Quantity (may be inactive — text is set before GO activates)
                     var currencyTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
@@ -1234,10 +1466,10 @@ namespace AccessibleArena.Core.Services
                         {
                             string emoteName = text.text?.Trim();
                             if (!string.IsNullOrEmpty(emoteName))
-                                return $"Emote: {emoteName}";
+                                return Strings.RewardEmote(emoteName);
                         }
                     }
-                    return $"Emote {index}";
+                    return Strings.RewardEmote(index.ToString());
 
                 case "Avatar":
                     var avatarTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
@@ -1247,10 +1479,10 @@ namespace AccessibleArena.Core.Services
                         {
                             string content = text.text?.Trim();
                             if (!string.IsNullOrEmpty(content) && content.Length > 1)
-                                return $"Avatar: {content}";
+                                return Strings.RewardAvatar(content);
                         }
                     }
-                    return $"Avatar {index}";
+                    return Strings.RewardAvatar(index.ToString());
 
                 case "Pet":
                     var petTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
@@ -1260,10 +1492,10 @@ namespace AccessibleArena.Core.Services
                         {
                             string petName = text.text?.Trim();
                             if (!string.IsNullOrEmpty(petName))
-                                return $"Pet: {petName}";
+                                return Strings.RewardPet(petName);
                         }
                     }
-                    return $"Pet {index}";
+                    return Strings.RewardPet(index.ToString());
 
                 case "Token":
                     var tokenTexts = rewardPrefab.GetComponentsInChildren<TMPro.TMP_Text>(true);
@@ -1277,7 +1509,7 @@ namespace AccessibleArena.Core.Services
                                 return tokenTitle;
                         }
                     }
-                    return $"Token {index}";
+                    return Strings.RewardGeneric(index);
 
                 default:
                     // Try to extract name from Text_Note (may be inactive, e.g. Mastery Orb)
@@ -1315,7 +1547,7 @@ namespace AccessibleArena.Core.Services
                     if (!string.IsNullOrEmpty(rewardName))
                         return !string.IsNullOrEmpty(rewardQuantity) ? $"{rewardQuantity} {rewardName}" : rewardName;
 
-                    return $"Reward {index}";
+                    return Strings.RewardGeneric(index);
             }
         }
 
@@ -1449,8 +1681,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Standard rewards
-            string rewardInfo = _rewardCount > 0 ? $" {_rewardCount} rewards." : "";
-            string core = $"Rewards.{rewardInfo}".TrimEnd();
+            string core = _rewardCount > 0
+                ? $"{Strings.ScreenRewards}. {Strings.FoundRewards(_rewardCount)}"
+                : Strings.ScreenRewards;
             return Strings.WithHint(core, "RewardPopupHint");
         }
 
@@ -1501,6 +1734,19 @@ namespace AccessibleArena.Core.Services
                     var elem = _elements[_currentIndex];
                     Log.Msg("{NavigatorId}", $"Activating: {elem.Label}");
                     UIActivator.Activate(elem.GameObject);
+
+                    // The claim press can land on a card the game still wants to flip,
+                    // which reveals instead of claiming. Confirm the press, and arm the
+                    // follow-up click that turns it into a claim (skipped on a "More"
+                    // page, where the click legitimately advances instead).
+                    if (elem.GameObject != null && elem.GameObject.name.Contains("ClaimButton"))
+                    {
+                        _announcer.Announce(Strings.Continuing, AnnouncementPriority.Normal);
+
+                        var controller = FindRewardsController();
+                        bool onSubPage = ReadControllerField(controller, "SubPageDisplayed") is bool sub && sub;
+                        _claimFollowUpUntil = onSubPage ? -1f : Time.time + 5f;
+                    }
 
                     // Always rescan after activation - claiming a reward destroys the
                     // GameObject, which leaves stale references in _elements
@@ -1702,10 +1948,18 @@ namespace AccessibleArena.Core.Services
                         _announcer.AnnounceInterrupt(announcement);
                     }
                 }
-                else if (_elements.Count != _lastRescanElementCount)
+                else
                 {
-                    _lastRescanElementCount = _elements.Count;
-                    _announcer.AnnounceInterrupt(announcement);
+                    // Dedup on the discovered labels, not the element count: claiming
+                    // flips the cards without changing how many tiles exist, while a
+                    // "More" page can happen to carry the same number of tiles with
+                    // entirely different rewards.
+                    string signature = BuildElementSignature();
+                    if (signature != _lastRescanSignature)
+                    {
+                        _lastRescanSignature = signature;
+                        _announcer.AnnounceInterrupt(announcement);
+                    }
                 }
             }
             else
@@ -1714,10 +1968,16 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>Joined element labels — identity of what we last spoke.</summary>
+        private string BuildElementSignature() => string.Join("|", _elements.Select(e => e.Label));
+
         protected override void OnActivated()
         {
             base.OnActivated();
-            _lastRescanElementCount = 0;
+            // TryActivate is about to announce these elements — seed the signature so
+            // the rescan triggered by the first claim click (which only flips the cards
+            // already announced) stays quiet.
+            _lastRescanSignature = BuildElementSignature();
             // Seed the season dedup with the text TryActivate is about to speak, so the
             // first post-activation rescan with identical text doesn't repeat it.
             _lastSeasonAnnouncement = _seasonPhase != SeasonPhase.NotSeason
@@ -1759,6 +2019,11 @@ namespace AccessibleArena.Core.Services
             _popupDetectedTime = -1f;
             _timeoutFallbackFired = false;
             _revealingWasSeen = false;
+            _prefabsSeenSince = -1f;
+            _lastSeenPrefabCount = 0;
+            _lastRescanSignature = null;
+            _preRevealed.Clear();
+            _claimFollowUpUntil = -1f;
         }
 
         #endregion

@@ -1302,6 +1302,14 @@ namespace AccessibleArena.Core.Models
         public static string Continuing => L.Get("Continuing");
         public static string SeasonRevealing => L.Get("SeasonRevealing");
         public static string FoundRewards(int count) => L.Format("FoundRewards_Format", count);
+        // Reward-tile labels. The reward *nouns* the game itself knows (Gold, Gems,
+        // Packs, ...) are read from the client's localization instead; these are the
+        // wrappers the mod adds around them.
+        public static string RewardCardIndex(int index) => L.Format("RewardCardIndex_Format", index);
+        public static string RewardEmote(string name) => L.Format("RewardEmote_Format", name);
+        public static string RewardAvatar(string name) => L.Format("RewardAvatar_Format", name);
+        public static string RewardPet(string name) => L.Format("RewardPet_Format", name);
+        public static string RewardGeneric(int index) => L.Format("RewardGeneric_Format", index);
         public static string Characters(int count) => L.Format("Characters_Format", count);
         public static string HasCharacters(int count) => L.Format("HasCharacters_Format", count);
         public static string PaymentPage(int count) => L.Format("PaymentPage_Format", count);
