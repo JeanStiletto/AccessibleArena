@@ -2,7 +2,11 @@
 
 All notable changes to Accessible Arena.
 
-## v1.4.4
+## v1.4.5
+
+Deck builder / popups:
+
+- Fixed getting permanently stuck after cancelling the "excluded card" warning while crafting. Crafting a card that isn't legal in the deck's format opens a warning dialog on top of the craft popup; cancelling the warning and then the craft popup left the mod re-announcing the already-closed warning forever — Enter on Cancel, Escape and Backspace all appeared dead, and rescans were refused, so the only way out was restarting the game. Two bugs conspired: when the warning closed, the mod pushed the craft popup onto its popup stack instead of popping the warning off (burying the closed dialog as a "live" entry), and the check that discards dead stacked popups trusted the Unity hierarchy, where the game leaves closed warning dialogs active. Popup close is now recognized as a return to the parent popup, and stacked entries are additionally validated against the game's own panel tracking. As a last-resort escape hatch, if a popup's buttons are dead because the game no longer considers it open, the second Escape/Backspace force-exits popup mode instead of looping — with diagnostic logging (popup stack contents, panel state) so any remaining edge case can be pinned down from the log.
 
 Global:
 

@@ -410,6 +410,17 @@ namespace AccessibleArena.Core.Services.PanelDetection
         }
 
         /// <summary>
+        /// Check if a specific panel GameObject is currently tracked as open.
+        /// Unlike GameObject.activeInHierarchy, this reflects the game's own open/close
+        /// reporting: some views (e.g. SystemMessageView) stay active in the hierarchy
+        /// after the game closes them.
+        /// </summary>
+        public bool IsPanelOpen(GameObject gameObject)
+        {
+            return gameObject != null && _panelStack.Exists(p => p.GameObject == gameObject && p.IsValid);
+        }
+
+        /// <summary>
         /// Check if Settings menu is currently open.
         /// Uses Harmony-tracked panel state for precise detection.
         /// </summary>

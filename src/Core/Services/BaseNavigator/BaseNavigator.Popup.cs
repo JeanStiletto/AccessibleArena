@@ -44,6 +44,13 @@ namespace AccessibleArena.Core.Services
         }
         private readonly List<PopupSnapshot> _popupStack = new List<PopupSnapshot>();
 
+        // Escape-hatch tracking (see DismissPopup): counts consecutive dismiss attempts on
+        // the same popup GO. If the game doesn't track that popup as open anymore, its
+        // buttons are dead and no close event can ever fire — after one real dismiss
+        // attempt we force-exit popup mode instead of looping forever.
+        private GameObject _dismissTarget;
+        private int _dismissAttempts;
+
         #endregion
 
         #region Popup Mode
@@ -106,10 +113,24 @@ namespace AccessibleArena.Core.Services
                 }
                 else if (newPanel.GameObject != _popupGameObject)
                 {
-                    // ActivePanel switched to a different popup while we were already in one
-                    // (e.g., higher-priority popup opens on top). Stack the current and switch.
-                    Log.Msg("{NavigatorId}", $"Stacked popup detected (active changed): {newPanel.Name}");
-                    OnPopupDetected(newPanel);
+                    int stackIdx = _popupStack.FindLastIndex(s => s.Popup == newPanel.GameObject);
+                    if (stackIdx >= 0)
+                    {
+                        // ActivePanel reverted to a popup that's already on our stack: the popup
+                        // we were navigating closed and the game fell back to its parent.
+                        // Unwind to that entry instead of pushing — pushing would bury the closed
+                        // child in the stack as a live entry, and a later pop would restore a
+                        // phantom popup that can never close (v1.4.5 craft-warning loop).
+                        Log.Msg("{NavigatorId}", $"Pop-back detected (active changed): {newPanel.Name}, stack {DescribePopupStack()}, unwinding to depth {stackIdx}");
+                        UnwindPopupStackTo(stackIdx);
+                    }
+                    else
+                    {
+                        // ActivePanel switched to a different popup while we were already in one
+                        // (e.g., higher-priority popup opens on top). Stack the current and switch.
+                        Log.Msg("{NavigatorId}", $"Stacked popup detected (active changed): {newPanel.Name}, stack {DescribePopupStack()}");
+                        OnPopupDetected(newPanel);
+                    }
                 }
             }
             else if (_isInPopupMode)
@@ -163,12 +184,12 @@ namespace AccessibleArena.Core.Services
             {
                 // Stacked entry: a new popup opened on top of the current one.
                 // Push the current popup's state so we can restore it when the new popup closes.
-                Log.Msg("{NavigatorId}", $"Stacking popup: {_popupGameObject.name} -> {popup.name}");
                 _popupStack.Add(new PopupSnapshot
                 {
                     Popup = _popupGameObject,
                     Index = _currentIndex
                 });
+                Log.Msg("{NavigatorId}", $"Stacking popup: {_popupGameObject.name} -> {popup.name}, stack now {DescribePopupStack()}");
 
                 // Reset element list and helpers for the new popup, but DO NOT touch _savedElements —
                 // those represent the underlying (non-popup) screen and must persist across nesting.
@@ -201,6 +222,8 @@ namespace AccessibleArena.Core.Services
             }
 
             _popupGameObject = popup;
+            _dismissTarget = null;
+            _dismissAttempts = 0;
 
             // Create helpers for popup input fields and dropdowns
             _popupInputHelper = new InputFieldEditHelper(_announcer);
@@ -223,6 +246,34 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Unwind the popup stack so the snapshot at stackIndex becomes the active popup.
+        /// Entries above it are discarded (their popups are gone from the screen).
+        /// The current popup is NOT pushed — it closed; that close is what triggered the unwind.
+        /// </summary>
+        private void UnwindPopupStackTo(int stackIndex)
+        {
+            while (_popupStack.Count > stackIndex + 1)
+            {
+                var dropped = _popupStack[_popupStack.Count - 1];
+                Log.Msg("{NavigatorId}", $"Unwind: discarding stacked popup above target: {(dropped.Popup != null ? dropped.Popup.name : "<destroyed>")}");
+                _popupStack.RemoveAt(_popupStack.Count - 1);
+            }
+            // ExitPopupMode pops the target snapshot and restores it (or fully exits if the
+            // target turns out to be stale too — then the underlying screen is restored).
+            if (ExitPopupMode())
+                OnPopupClosed();
+        }
+
+        /// <summary>
+        /// Human-readable popup stack for diagnostics: "[bottom > ... > top]".
+        /// </summary>
+        private string DescribePopupStack()
+        {
+            if (_popupStack.Count == 0) return "[]";
+            return "[" + string.Join(" > ", _popupStack.Select(s => s.Popup != null ? s.Popup.name : "<destroyed>")) + "]";
+        }
+
+        /// <summary>
         /// Exit popup mode. If a popup is on the stack, pop and restore it instead of fully exiting.
         /// Returns true if the navigator fully exited popup mode (caller should fire OnPopupClosed),
         /// false if it popped back to a stacked popup (caller should NOT fire OnPopupClosed because
@@ -232,13 +283,18 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isInPopupMode) return false;
 
-            // Drop any stacked snapshots whose popup GO is no longer alive (rare race during teardown).
+            // Drop any stacked snapshots whose popup is no longer really open.
+            // activeInHierarchy alone is not enough: some views (e.g. SystemMessageView)
+            // stay active in the hierarchy after the game closes them, so additionally
+            // require PanelStateManager to still track the panel as open.
             while (_popupStack.Count > 0)
             {
                 var top = _popupStack[_popupStack.Count - 1];
-                if (top.Popup != null && top.Popup.activeInHierarchy)
+                bool alive = top.Popup != null && top.Popup.activeInHierarchy;
+                bool tracked = alive && (PanelStateManager.Instance == null || PanelStateManager.Instance.IsPanelOpen(top.Popup));
+                if (alive && tracked)
                     break;
-                Log.Msg("{NavigatorId}", $"Discarding stale stacked popup: {top.Popup?.name ?? "<destroyed>"}");
+                Log.Msg("{NavigatorId}", $"Discarding stale stacked popup: {(top.Popup != null ? top.Popup.name : "<destroyed>")} (activeInHierarchy={alive}, panelOpen={tracked})");
                 _popupStack.RemoveAt(_popupStack.Count - 1);
             }
 
@@ -247,7 +303,7 @@ namespace AccessibleArena.Core.Services
                 var prev = _popupStack[_popupStack.Count - 1];
                 _popupStack.RemoveAt(_popupStack.Count - 1);
 
-                Log.Msg("{NavigatorId}", $"Popping back to popup: {prev.Popup.name}");
+                Log.Msg("{NavigatorId}", $"Popping back to popup: {prev.Popup.name}, stack now {DescribePopupStack()}");
 
                 // Recreate per-popup helpers for the restored popup
                 _popupInputHelper?.Clear();
@@ -258,6 +314,8 @@ namespace AccessibleArena.Core.Services
                 // Re-discover the parent popup so any subclass discovery overrides re-run with
                 // fresh data (e.g., cosmetic value the user just changed in the child popup).
                 _popupGameObject = prev.Popup;
+                _dismissTarget = null;
+                _dismissAttempts = 0;
                 _elements.Clear();
                 _currentIndex = -1;
                 DiscoverPopupElements(prev.Popup);
@@ -317,6 +375,8 @@ namespace AccessibleArena.Core.Services
             }
 
             _popupGameObject = null;
+            _dismissTarget = null;
+            _dismissAttempts = 0;
         }
 
         /// <summary>
@@ -366,6 +426,32 @@ namespace AccessibleArena.Core.Services
         protected void DismissPopup()
         {
             if (!_isInPopupMode || _popupGameObject == null) return;
+
+            // Escape hatch: if PanelStateManager no longer tracks this popup as open, its
+            // buttons are dead — clicking them cannot produce a close event, so popup mode
+            // would loop forever. Give the normal dismiss chain one attempt (in case our
+            // panel tracking is wrong but the popup is real), then force-exit.
+            if (_dismissTarget == _popupGameObject)
+                _dismissAttempts++;
+            else
+            {
+                _dismissTarget = _popupGameObject;
+                _dismissAttempts = 1;
+            }
+
+            bool panelOpen = PanelStateManager.Instance == null || PanelStateManager.Instance.IsPanelOpen(_popupGameObject);
+            if (!panelOpen)
+            {
+                Log.Warn("{NavigatorId}", $"Popup: dismissing untracked popup: {_popupGameObject.name} (attempt {_dismissAttempts}, activePanel={PanelStateManager.Instance?.ActivePanel?.Name ?? "none"}, stack {DescribePopupStack()})");
+                if (_dismissAttempts >= 2)
+                {
+                    Log.Warn("{NavigatorId}", $"Popup: phantom popup - force-exiting popup mode");
+                    _announcer?.Announce(Strings.Cancelled, AnnouncementPriority.High);
+                    if (ExitPopupMode())
+                        OnPopupClosed();
+                    return;
+                }
+            }
 
             // Level 1: Find cancel button
             var cancelButton = FindPopupCancelButton(_popupGameObject);
