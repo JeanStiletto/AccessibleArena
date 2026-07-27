@@ -413,12 +413,17 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Enter or Space activates (toggle or click)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
+            // Enter or Space activates (toggle or click).
+            // GetEnterAndConsume also recovers Enter via EnterPressedWhileBlocked: after the
+            // format dropdown closes, the rescan re-arms BlockSubmitForToggle for the dropdown
+            // item and grid navigation never clears it, so our Input.GetKeyDown patch swallows
+            // raw Return presses on every item in this popup (including OK).
+            bool enterViaBlockedFlag = InputManager.EnterPressedWhileBlocked;
+            if (InputManager.GetEnterAndConsume() || Input.GetKeyDown(KeyCode.Space))
             {
-                // Consume keys to prevent GeneralMenuNavigator from processing them after popup closes
-                InputManager.ConsumeKey(KeyCode.Return);
-                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                if (enterViaBlockedFlag)
+                    Log.Msg("{NavigatorId}", $"Enter recovered via EnterPressedWhileBlocked (BlockSubmitForToggle armed)");
+                // Consume Space to prevent GeneralMenuNavigator from processing it after popup closes
                 InputManager.ConsumeKey(KeyCode.Space);
                 ActivateCurrentItem();
                 return;
