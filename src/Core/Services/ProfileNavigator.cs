@@ -1477,40 +1477,11 @@ namespace AccessibleArena.Core.Services
                 }
 
                 string name = null;
-                string petId = null;
-
-                // Read PetId property (string like "TMT_Mastery_Companion", "Brushwagg")
-                if (petIdProp != null)
-                {
-                    try { petId = petIdProp.GetValue(mb) as string; }
-                    catch { }
-                }
-
-                // Try resolving localized name via multiple key patterns
-                if (!string.IsNullOrEmpty(petId))
-                {
-                    string[] locPatterns =
-                    {
-                        $"MainNav/Cosmetics/Pet/{petId}_Details",
-                        $"MainNav/Cosmetics/Pet/{petId}_Name",
-                        $"MainNav/Cosmetics/Pet/{petId}",
-                        $"MainNav/Cosmetics/Pets/{petId}_Details",
-                        $"MainNav/Cosmetics/Pets/{petId}",
-                    };
-                    foreach (var pattern in locPatterns)
-                    {
-                        string locName = UITextExtractor.ResolveLocKey(pattern);
-                        if (!string.IsNullOrEmpty(locName))
-                        {
-                            name = locName;
-                            break;
-                        }
-                    }
-                }
-
-                // Try tooltip data (TooltipTrigger.TooltipData.Text)
-                if (string.IsNullOrEmpty(name))
-                    name = ReadTooltipText(mb.gameObject);
+                string acquisitionText = ReadTooltipText(mb.gameObject);
+                name = CosmeticItemResolver.ResolvePetDescription(
+                    mb,
+                    acquisitionText,
+                    UITextExtractor.ResolveLocKey);
 
                 // Try any TMP_Text child
                 if (string.IsNullOrEmpty(name))
@@ -1518,7 +1489,15 @@ namespace AccessibleArena.Core.Services
 
                 // Humanize internal ID if nothing else worked
                 if (string.IsNullOrEmpty(name))
+                {
+                    string petId = null;
+                    try
+                    {
+                        petId = petIdProp?.GetValue(mb) as string;
+                    }
+                    catch { }
                     name = !string.IsNullOrEmpty(petId) ? HumanizeInternalId(petId) : Strings.ProfileCosmeticNone;
+                }
 
                 // Check selected/default status via private fields
                 string status = null;

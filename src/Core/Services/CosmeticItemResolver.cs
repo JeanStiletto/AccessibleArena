@@ -109,53 +109,10 @@ namespace AccessibleArena.Core.Services
         private static string ResolvePetLabel(MonoBehaviour petItem)
         {
             var type = petItem.GetType();
-
-            // Pull PetEntry from the list-item view — that's what the game itself uses
-            // (see PetUtils.KeyForPetDetails: tries Name_Variant, then Name_Level, then Name).
-            // Many pets have variant-specific localized names ("Brushwagg" vs "Solring";
-            // mastery pets across sets); resolving via the same scheme keeps us aligned.
-            object petEntry = null;
-            try
-            {
-                var petEntryProp = type.GetProperty("PetEntry", PublicInstance);
-                petEntry = petEntryProp?.GetValue(petItem);
-            }
-            catch { }
-
-            string name = null;
-            bool variantSpecificResolved = false;
-            string petName = null;
-
-            if (petEntry != null)
-            {
-                var entryType = petEntry.GetType();
-                petName = ReadFieldString(entryType, petEntry, "Name");
-                string variant = ReadFieldString(entryType, petEntry, "Variant");
-                int level = ReadFieldInt(entryType, petEntry, "Level");
-
-                if (!string.IsNullOrEmpty(petName))
-                {
-                    string variantKey = !string.IsNullOrEmpty(variant) ? $"MainNav/PetNames/{petName}_{variant}" : null;
-                    string levelKey = $"MainNav/PetNames/{petName}_{level}";
-                    string baseKey = $"MainNav/PetNames/{petName}";
-
-                    if (variantKey != null)
-                    {
-                        string loc = UITextExtractor.ResolveLocKey(variantKey);
-                        if (!string.IsNullOrEmpty(loc)) { name = loc; variantSpecificResolved = true; }
-                    }
-                    if (name == null)
-                    {
-                        string loc = UITextExtractor.ResolveLocKey(levelKey);
-                        if (!string.IsNullOrEmpty(loc)) { name = loc; variantSpecificResolved = true; }
-                    }
-                    if (name == null)
-                    {
-                        string loc = UITextExtractor.ResolveLocKey(baseKey);
-                        if (!string.IsNullOrEmpty(loc)) name = loc;
-                    }
-                }
-            }
+            string name = ResolveLocalizedPetName(
+                petItem,
+                UITextExtractor.ResolveLocKey,
+                out bool variantSpecificResolved);
 
             // Last-resort fallback: humanise the petKey from PetId ("Name.Variant").
             if (string.IsNullOrEmpty(name))
@@ -163,7 +120,6 @@ namespace AccessibleArena.Core.Services
                 string petId = ReadStringProp(type, petItem, "PetId");
                 string baseId = petId != null && petId.Contains(".") ? petId.Substring(0, petId.IndexOf('.')) : petId;
                 if (string.IsNullOrEmpty(baseId)) return null;
-                petName = baseId;
                 name = HumanizeId(baseId);
             }
 
@@ -179,6 +135,75 @@ namespace AccessibleArena.Core.Services
 
             string status = ReadCosmeticStatus(type, petItem);
             return string.IsNullOrEmpty(status) ? name : $"{name}, {status}";
+        }
+
+        /// <summary>
+        /// Resolves a pet's localized display name and places it before the acquisition
+        /// text shown by the profile screen. If no localized name exists, preserves the
+        /// acquisition text unchanged.
+        /// </summary>
+        internal static string ResolvePetDescription(
+            object petItem,
+            string acquisitionText,
+            Func<string, string> resolveLocKey)
+        {
+            string name = ResolveLocalizedPetName(
+                petItem,
+                resolveLocKey,
+                out _);
+
+            if (string.IsNullOrEmpty(name))
+                return acquisitionText;
+            if (string.IsNullOrEmpty(acquisitionText)
+                || string.Equals(name, acquisitionText, StringComparison.OrdinalIgnoreCase))
+                return name;
+
+            return $"{name}, {acquisitionText}";
+        }
+
+        private static string ResolveLocalizedPetName(
+            object petItem,
+            Func<string, string> resolveLocKey,
+            out bool variantSpecificResolved)
+        {
+            variantSpecificResolved = false;
+            if (petItem == null || resolveLocKey == null) return null;
+
+            // Pull PetEntry from the list-item view — that's what the game itself uses
+            // (see PetUtils.KeyForPetDetails: tries Name_Variant, then Name_Level, then Name).
+            object petEntry = null;
+            try
+            {
+                var petEntryProp = petItem.GetType().GetProperty("PetEntry", PublicInstance);
+                petEntry = petEntryProp?.GetValue(petItem);
+            }
+            catch { }
+            if (petEntry == null) return null;
+
+            var entryType = petEntry.GetType();
+            string petName = ReadFieldString(entryType, petEntry, "Name");
+            string variant = ReadFieldString(entryType, petEntry, "Variant");
+            int level = ReadFieldInt(entryType, petEntry, "Level");
+            if (string.IsNullOrEmpty(petName)) return null;
+
+            if (!string.IsNullOrEmpty(variant))
+            {
+                string loc = resolveLocKey($"MainNav/PetNames/{petName}_{variant}");
+                if (!string.IsNullOrEmpty(loc))
+                {
+                    variantSpecificResolved = true;
+                    return loc;
+                }
+            }
+
+            string levelName = resolveLocKey($"MainNav/PetNames/{petName}_{level}");
+            if (!string.IsNullOrEmpty(levelName))
+            {
+                variantSpecificResolved = true;
+                return levelName;
+            }
+
+            return resolveLocKey($"MainNav/PetNames/{petName}");
         }
 
         private static string ReadFieldString(Type type, object instance, string fieldName)
