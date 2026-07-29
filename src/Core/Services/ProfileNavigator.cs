@@ -942,8 +942,39 @@ namespace AccessibleArena.Core.Services
                     var item = _subPanelItems[_subPanelIndex];
                     if (item.GameObject != null)
                     {
-                        _announcer.Announce(Strings.Activating(item.Label));
-                        UIActivator.Activate(item.GameObject);
+                        bool isToggleableEmote = _subPanelType == "Emote"
+                            && CanToggleEmote(item.GameObject);
+                        bool? emoteState = isToggleableEmote
+                            ? TryGetEmoteEquippedState(item.GameObject)
+                            : null;
+
+                        if (!emoteState.HasValue)
+                            _announcer.Announce(Strings.Activating(item.Label));
+
+                        var activation = emoteState.HasValue && TryClickEmote(item.GameObject)
+                            ? new ActivationResult(true, Strings.ActivatedBare, ActivationType.Button)
+                            : UIActivator.Activate(item.GameObject);
+                        if (emoteState.HasValue)
+                        {
+                            if (!activation.Success)
+                            {
+                                _announcer.Announce(activation.Message);
+                            }
+                            else
+                            {
+                                bool? updatedState = TryGetEmoteEquippedState(item.GameObject);
+                                if (updatedState.HasValue)
+                                {
+                                    item.Status = Strings.RoleCheckboxState(updatedState.Value);
+                                    _subPanelItems[_subPanelIndex] = item;
+                                    AnnounceCurrentSubItem();
+                                }
+                                else
+                                {
+                                    _announcer.Announce(Strings.Activating(item.Label));
+                                }
+                            }
+                        }
                         TryPersistAvatarSelection(item);
                         TryPersistPetSelection(item);
                     }
@@ -1172,12 +1203,21 @@ namespace AccessibleArena.Core.Services
 
         private void CloseSubPanel()
         {
-            // Try to go back via the game's GoBackToPreviousMode
+            if (_subPanelType == "Emote")
+            {
+                if (!TrySaveEmoteSelection())
+                    return;
+
+                _persistedDuringSubPanel = true;
+            }
+
+            // Return through the game's real profile-mode transition so it closes
+            // the active cosmetic selector and refreshes its data.
             if (_controller != null)
             {
                 try
                 {
-                    var goBackMethod = _controller.GetType().GetMethod("GoBackToPreviousMode",
+                    var goBackMethod = _controller.GetType().GetMethod("GoToProfileDetails",
                         BindingFlags.Public | BindingFlags.Instance);
                     if (goBackMethod != null)
                     {
@@ -1186,11 +1226,47 @@ namespace AccessibleArena.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn("{NavigatorId}", $"GoBackToPreviousMode failed: {ex.Message}");
+                    Log.Warn("{NavigatorId}", $"GoToProfileDetails failed: {ex.Message}");
                 }
             }
 
             ExitSubPanel();
+        }
+
+        private bool TrySaveEmoteSelection()
+        {
+            var emoteViewType = FindType("EmoteView");
+            if (emoteViewType == null)
+                return false;
+
+            bool foundToggleableEmote = false;
+            foreach (var item in _subPanelItems)
+            {
+                if (item.GameObject == null) continue;
+
+                try
+                {
+                    var emoteView = item.GameObject.GetComponent(emoteViewType);
+                    if (!ProfileEmoteAccessibility.CanToggle(emoteView))
+                        continue;
+
+                    foundToggleableEmote = true;
+                    bool? result = ProfileEmoteAccessibility.TrySave(emoteView);
+                    if (result.HasValue)
+                        return result.Value;
+                }
+                catch
+                {
+                }
+            }
+
+            // Accounts with only Arena's fixed classic emotes have nothing to save.
+            if (!foundToggleableEmote)
+                return true;
+
+            Log.Warn("{NavigatorId}", "Could not find the active EmoteSelectionController to save");
+            _announcer.Announce(Strings.CouldNotClosePopup);
+            return false;
         }
 
         #endregion
@@ -1423,9 +1499,13 @@ namespace AccessibleArena.Core.Services
                     if (string.IsNullOrEmpty(name))
                         name = mb.gameObject.name;
 
-                    string status = null;
-                    if (CheckAnimatorBool(mb.gameObject, "Selected"))
-                        status = Strings.ProfileItemSelected;
+                    bool? isEquipped = ProfileEmoteAccessibility.TryGetEquippedState(mb);
+                    string status = isEquipped.HasValue
+                        && ProfileEmoteAccessibility.CanToggle(mb)
+                        ? Strings.RoleCheckboxState(isEquipped.Value)
+                        : isEquipped == true
+                            ? Strings.ProfileItemSelected
+                            : null;
 
                     _subPanelItems.Add(new SubPanelItem
                     {
@@ -1438,6 +1518,60 @@ namespace AccessibleArena.Core.Services
 
             if (_subPanelItems.Count == 0)
                 DiscoverGenericItems(panelGo);
+        }
+
+        private bool? TryGetEmoteEquippedState(GameObject emoteObject)
+        {
+            if (emoteObject == null) return null;
+
+            var emoteViewType = FindType("EmoteView");
+            if (emoteViewType == null) return null;
+
+            try
+            {
+                return ProfileEmoteAccessibility.TryGetEquippedState(
+                    emoteObject.GetComponent(emoteViewType));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private bool TryClickEmote(GameObject emoteObject)
+        {
+            if (emoteObject == null) return false;
+
+            var emoteViewType = FindType("EmoteView");
+            if (emoteViewType == null) return false;
+
+            try
+            {
+                return ProfileEmoteAccessibility.TryClick(
+                    emoteObject.GetComponent(emoteViewType));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool CanToggleEmote(GameObject emoteObject)
+        {
+            if (emoteObject == null) return false;
+
+            var emoteViewType = FindType("EmoteView");
+            if (emoteViewType == null) return false;
+
+            try
+            {
+                return ProfileEmoteAccessibility.CanToggle(
+                    emoteObject.GetComponent(emoteViewType));
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void DiscoverPetItems(GameObject panelGo)
