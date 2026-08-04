@@ -152,6 +152,12 @@ Backspace: Back one level
 **Deck Builder - Cosmetics:**
 Shift+Enter on a focused card: Open card viewer (style picker / craft preview), same flow as a sighted right-click.
 Ctrl+Enter on a focused pool card: Toggle the game's preferred-printing expansion — fans the title out into one adjacent tile per available art style/printing (or collapses back). After expansion, arrow Left/Right walks the variants; the per-tile "Style:" info block tells them apart; Shift+Enter on the wanted variant opens the craft popup for that exact printing.
+**Profile - Set Collection:**
+Enter on the profile's collection line: Open the full Set Collection screen.
+Filters level (entry): Up/Down walk the controls (Sort, Format, Standard/Historic/Alchemy quick filters), Left/Right change the focused control (announces how many sets remain), Space activates a toggle, Enter goes to the set list, Backspace leaves the screen.
+Sets level: Left/Right move between sets, Up/Down cycle that set's meters (Total, four rarities, six colours) plus release date and set types, Home/End first/last, A-Z jump by set name, Enter opens the per-set actions, Backspace goes back to the filters.
+Actions level: Up/Down choose, Enter activates ("Open in deck builder" / "Buy packs in store"), Backspace returns.
+
 Deck cosmetics (avatar, sleeve, pet, emotes) are reachable through the deck-title button — pressing Enter on it opens the deck-details popup, which the mod then makes keyboard-navigable.
 Style on focused card is read out as part of the card info blocks (Arrow Down).
 

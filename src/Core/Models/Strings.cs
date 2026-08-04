@@ -1712,8 +1712,17 @@ namespace AccessibleArena.Core.Models
             L.Format("ProfileMastery_Format", info);
         public static string ProfileMasteryDetail(string level, string xp, string reward) =>
             L.Format("ProfileMasteryDetail_Format", level, xp, reward);
-        public static string ProfileCollection(string setName, string percentage) =>
-            L.Format("ProfileCollection_Format", setName, percentage);
+        public static string ProfileCollection(string setName, int owned, int available, int percent)
+        {
+            string core = L.Format("ProfileCollection_Format", setName, owned, available, percent);
+            return WithHint(core, "ProfileCollectionHint");
+        }
+        /// <summary>Profile collection line for a set already complete at one-of, so it tracks playsets.</summary>
+        public static string ProfileCollectionPlayset(string setName, int owned, int available, int percent)
+        {
+            string core = L.Format("ProfileCollectionPlayset_Format", setName, owned, available, percent);
+            return WithHint(core, "ProfileCollectionHint");
+        }
         public static string ProfileSeason(string name) =>
             L.Format("ProfileSeason_Format", name);
         public static string ProfileCosmeticCurrent(string category, string current) =>
@@ -1741,6 +1750,85 @@ namespace AccessibleArena.Core.Models
             L.Format("ProfileEmoteAlwaysEquipped", name);
         public static string ProfileEmoteToggleFailed(string name) =>
             L.Format("ProfileEmoteToggleFailed", name);
+
+        // ===========================================
+        // SET COLLECTION SCREEN
+        // ===========================================
+        public static string ScreenSetCollection => L.Get("ScreenSetCollection");
+        public static string SetCollectionActivation(int setCount)
+        {
+            string core = L.Format("SetCollectionActivation_Format", setCount);
+            return WithHint(core, "SetCollectionActivationHint");
+        }
+
+        // Filters level
+        public static string SetCollectionFilterSort => L.Get("SetCollectionFilterSort");
+        public static string SetCollectionFilterFormat => L.Get("SetCollectionFilterFormat");
+        public static string SetCollectionFilterStandard => L.Get("SetCollectionFilterStandard");
+        public static string SetCollectionFilterHistoric => L.Get("SetCollectionFilterHistoric");
+        public static string SetCollectionFilterAlchemy => L.Get("SetCollectionFilterAlchemy");
+        public static string SetCollectionFilterValue(string label, string value, int index, int total)
+        {
+            if (!ShowPositionCounts) return L.Format("SetCollectionFilterValue_Format", label, value);
+            return L.Format("SetCollectionFilterValuePosition_Format", label, value, index, total);
+        }
+        /// <summary>Filter control announcement plus the resulting number of visible sets.</summary>
+        public static string SetCollectionFilterApplied(string label, string value, int setCount) =>
+            L.Format("SetCollectionFilterApplied_Format", label, value, setCount);
+        public static string SetCollectionToggleOn => L.Get("SetCollectionToggleOn");
+        public static string SetCollectionToggleOff => L.Get("SetCollectionToggleOff");
+        public static string SetCollectionNoSetsMatch => L.Get("SetCollectionNoSetsMatch");
+
+        // Sets level
+        public static string SetCollectionSetHeadline(string name, int owned, int available, int percent, int index, int total)
+        {
+            if (!ShowPositionCounts) return L.Format("SetCollectionSetHeadline_Format", name, owned, available, percent);
+            return L.Format("SetCollectionSetHeadlinePosition_Format", name, owned, available, percent, index, total);
+        }
+        /// <summary>
+        /// Headline for a set the player already owns at least one of every card in. The game
+        /// silently switches such sets to playset (4-of) tracking, so the numbers mean something
+        /// different and have to say so.
+        /// </summary>
+        public static string SetCollectionSetHeadlinePlayset(string name, int owned, int available, int percent, int index, int total)
+        {
+            if (!ShowPositionCounts) return L.Format("SetCollectionSetHeadlinePlayset_Format", name, owned, available, percent);
+            return L.Format("SetCollectionSetHeadlinePlaysetPosition_Format", name, owned, available, percent, index, total);
+        }
+        public static string SetCollectionMetric(string label, int owned, int available, int percent) =>
+            L.Format("SetCollectionMetric_Format", label, owned, available, percent);
+        public static string SetCollectionMetricPlayset(string label, int owned, int available, int percent) =>
+            L.Format("SetCollectionMetricPlayset_Format", label, owned, available, percent);
+        public static string SetCollectionReleaseDate(string date) =>
+            L.Format("SetCollectionReleaseDate_Format", date);
+        public static string SetCollectionSetTypes(string types) =>
+            L.Format("SetCollectionSetTypes_Format", types);
+
+        // Metric labels
+        public static string SetCollectionMetricTotal => L.Get("SetCollectionMetricTotal");
+        public static string SetCollectionMetricCommon => L.Get("SetCollectionMetricCommon");
+        public static string SetCollectionMetricUncommon => L.Get("SetCollectionMetricUncommon");
+        public static string SetCollectionMetricRare => L.Get("SetCollectionMetricRare");
+        public static string SetCollectionMetricMythicRare => L.Get("SetCollectionMetricMythicRare");
+        public static string SetCollectionMetricWhite => L.Get("SetCollectionMetricWhite");
+        public static string SetCollectionMetricBlue => L.Get("SetCollectionMetricBlue");
+        public static string SetCollectionMetricBlack => L.Get("SetCollectionMetricBlack");
+        public static string SetCollectionMetricRed => L.Get("SetCollectionMetricRed");
+        public static string SetCollectionMetricGreen => L.Get("SetCollectionMetricGreen");
+        public static string SetCollectionMetricColorless => L.Get("SetCollectionMetricColorless");
+
+        // Set type flags
+        public static string SetCollectionTypeStandard => L.Get("SetCollectionTypeStandard");
+        public static string SetCollectionTypeHistoric => L.Get("SetCollectionTypeHistoric");
+        public static string SetCollectionTypeAlchemy => L.Get("SetCollectionTypeAlchemy");
+        public static string SetCollectionTypeUniversesBeyond => L.Get("SetCollectionTypeUniversesBeyond");
+
+        // Actions level
+        public static string SetCollectionActionsOpened(string setName, int count) =>
+            L.Format("SetCollectionActionsOpened_Format", setName, count);
+        public static string SetCollectionActionDeckBuilder => L.Get("SetCollectionActionDeckBuilder");
+        public static string SetCollectionActionBuyPacks => L.Get("SetCollectionActionBuyPacks");
+        public static string SetCollectionActionFailed => L.Get("SetCollectionActionFailed");
 
         // ===========================================
         // DECK COSMETICS / CARD STYLES

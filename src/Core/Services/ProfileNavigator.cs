@@ -71,6 +71,7 @@ namespace AccessibleArena.Core.Services
             public GameObject GameObject;     // Button to activate (for cosmetic categories)
             public bool IsActivatable;        // Whether Enter should activate this item
             public string CosmeticType;       // null for info, "Avatar"/"Title"/etc. for cosmetics
+            public bool OpensSetCollection;   // Enter opens the full set collection screen
         }
 
         private struct SubPanelItem
@@ -111,17 +112,15 @@ namespace AccessibleArena.Core.Services
             public FieldInfo LimitedRank;
             public FieldInfo SeasonName;
             public FieldInfo BattlePassBubble;
-            public FieldInfo ProfileSetBadge;
+            public FieldInfo CollectionController;   // SetCollectionController behind the badge
+            public FieldInfo SetMetadataProvider;
+            public MethodInfo SetCollectionClicked;  // opens the full set collection screen
 
             // RankDisplay
             public FieldInfo RankFormatText;
             public FieldInfo RankTierText;
             public FieldInfo MythicPlacementText;
             public FieldInfo IsLimited;
-
-            // SetBadge
-            public FieldInfo PercentageText;
-            public FieldInfo Tooltip;
 
             // AvatarSelection
             public PropertyInfo BioString;
@@ -190,14 +189,9 @@ namespace AccessibleArena.Core.Services
                     h.LimitedRank = detailsType.GetField("_limitedRankDisplay", PrivateInstance);
                     h.SeasonName = detailsType.GetField("_seasonNameRankText", PrivateInstance);
                     h.BattlePassBubble = detailsType.GetField("_battlePassBubble", PrivateInstance);
-                    h.ProfileSetBadge = detailsType.GetField("_profileSetBadge", PrivateInstance);
-                }
-
-                var setBadgeType = FindType("SetBadge");
-                if (setBadgeType != null)
-                {
-                    h.PercentageText = setBadgeType.GetField("_percentageText", PrivateInstance);
-                    h.Tooltip = setBadgeType.GetField("_tooltip", PrivateInstance);
+                    h.CollectionController = detailsType.GetField("_collectionController", PrivateInstance);
+                    h.SetMetadataProvider = detailsType.GetField("_setMetadataProvider", PrivateInstance);
+                    h.SetCollectionClicked = detailsType.GetMethod("SetCollectionClicked", PublicInstance);
                 }
 
                 var rankType = FindType("RankDisplay");
@@ -447,7 +441,8 @@ namespace AccessibleArena.Core.Services
                 {
                     Label = collection,
                     GameObject = _controller.gameObject,
-                    IsActivatable = false
+                    IsActivatable = true,
+                    OpensSetCollection = true
                 });
             }
 
@@ -652,40 +647,75 @@ namespace AccessibleArena.Core.Services
             catch { return null; }
         }
 
+        /// <summary>
+        /// The profile's collection line, summarizing the newest set.
+        ///
+        /// Deliberately does not read the SetBadge widget. ProfileDetailsPanel builds that badge
+        /// through SetBadge.Init() — the parameterless overload, which only grabs the Animator —
+        /// so the badge's tooltip and _expansionCode are never populated and there is no set name
+        /// to scrape. The percentage label is also ambiguous: the game reuses it for playset
+        /// completion once the set is complete at one-of. Both problems go away by reading the
+        /// same SetCollectionController the badge itself is fed from.
+        /// </summary>
         private string ReadSetCollectionInfo()
         {
-            if (_profileCache.Handles.ProfileSetBadge == null || _detailsPanel == null) return null;
+            if (_detailsPanel == null) return null;
+
             try
             {
-                var badge = _profileCache.Handles.ProfileSetBadge.GetValue(_detailsPanel) as MonoBehaviour;
-                if (badge == null || !badge.gameObject.activeInHierarchy) return null;
+                var collectionController = _profileCache.Handles.CollectionController?.GetValue(_detailsPanel);
+                if (collectionController == null) return null;
 
-                // Read percentage text (e.g., "73%")
-                string percentage = null;
-                if (_profileCache.Handles.PercentageText != null)
-                {
-                    var tmpText = _profileCache.Handles.PercentageText.GetValue(badge) as TMP_Text;
-                    if (tmpText != null)
-                        percentage = UITextExtractor.CleanText(tmpText.text);
-                }
+                SetCollectionDataProvider.RefreshTotals(collectionController);
 
-                // Read set name from tooltip (TooltipTrigger.TooltipData.Text)
-                string setName = null;
-                if (_profileCache.Handles.Tooltip != null)
-                {
-                    var tooltip = _profileCache.Handles.Tooltip.GetValue(badge) as Component;
-                    if (tooltip != null)
-                        setName = ReadTooltipText(tooltip.gameObject);
-                }
+                object expansion = SetCollectionDataProvider.GetMostRecentExpansion(collectionController);
+                string code = expansion?.ToString();
+                if (string.IsNullOrEmpty(code)) return null;
 
-                if (string.IsNullOrEmpty(percentage) && string.IsNullOrEmpty(setName))
+                var metadataProvider = _profileCache.Handles.SetMetadataProvider?.GetValue(_detailsPanel);
+                bool isAlchemy = SetCollectionDataProvider.IsAlchemy(metadataProvider, expansion);
+
+                object total = SetCollectionDataProvider.TotalMetric;
+                if (total == null) return null;
+
+                if (!SetCollectionDataProvider.TryGetTotals(collectionController, code, total, isAlchemy,
+                        out int owned, out int available, out bool isPlayset))
                     return null;
 
-                return Strings.ProfileCollection(
-                    setName ?? "",
-                    percentage ?? "");
+                string setName = SetCollectionDataProvider.GetSetName(code, isAlchemy);
+                int percent = SetCollectionDataProvider.Percent(owned, available);
+
+                return isPlayset
+                    ? Strings.ProfileCollectionPlayset(setName, owned, available, percent)
+                    : Strings.ProfileCollection(setName, owned, available, percent);
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Reading set collection info failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Opens the full Set Collection screen, the same way clicking the badge does.</summary>
+        private void OpenSetCollectionScreen()
+        {
+            if (_detailsPanel == null || _profileCache.Handles.SetCollectionClicked == null)
+            {
+                _announcer.Announce(Strings.SetCollectionActionFailed);
+                return;
+            }
+
+            try
+            {
+                _profileCache.Handles.SetCollectionClicked.Invoke(_detailsPanel, null);
+                Log.Msg("{NavigatorId}", "Opened set collection screen");
+                // SetCollectionNavigator (priority 58) preempts us once the mode flips.
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"SetCollectionClicked failed: {ex.Message}");
+                _announcer.Announce(Strings.SetCollectionActionFailed);
+            }
         }
 
         private void AddCosmeticButton(FieldInfo buttonField, string cosmeticType)
@@ -865,6 +895,11 @@ namespace AccessibleArena.Core.Services
                 if (_infoIndex >= 0 && _infoIndex < _infoBlocks.Count)
                 {
                     var block = _infoBlocks[_infoIndex];
+                    if (block.OpensSetCollection)
+                    {
+                        OpenSetCollectionScreen();
+                        return true;
+                    }
                     if (block.IsActivatable && block.GameObject != null)
                     {
                         _savedMainIndex = _infoIndex;

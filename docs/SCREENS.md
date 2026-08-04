@@ -939,6 +939,57 @@ The Store screen provides two-level keyboard navigation for browsing and purchas
 - Tab activation via `Tab.OnClicked()` reflection call
 - Item labels extracted from TMPro text on `_label` OptionalObject, with fallback to child TMP_Text
 
+## Set Collection Screen
+
+**Controller:** `ProfileContentController` in `ProfileScreenModeEnum.SetCollection` (mode 6)
+**View:** `SetCollectionScreenView`
+**Data:** `SetCollectionController` (via `SetCollectionDataProvider`)
+**Navigator:** `SetCollectionNavigator`
+**Priority:** 58 (preempts ProfileNavigator at 56)
+
+Reached with Enter on the profile's collection info line, which invokes
+`ProfileDetailsPanel.SetCollectionClicked()`. Three drill-down levels, matching StoreNavigator's shape.
+
+**Navigation - Filters Level (entry point):**
+- Up/Down: Walk the filter controls (Sort, Format, Standard only, Historic only, Alchemy only)
+- Left/Right: Change the focused control's value; announces the resulting set count
+- Space: Activate a quick-filter toggle
+- Home/End: First/last control
+- Enter: Drill into the set list
+- Backspace: Leave the screen via `BackButtonClicked()`
+
+**Navigation - Sets Level:**
+- Left/Right: Move between sets (announces name, owned/available, percent, position)
+- Up/Down: Cycle the selected set's info — Total, four rarities, six colors, release date, set types
+- Home/End: First/last set
+- A-Z: Jump to the next set whose localized name starts with that letter
+- Enter: Open the per-set action list
+- Backspace: Back up to the filters
+
+**Navigation - Actions Level:**
+- Up/Down: Choose action; Enter/Space activates; Backspace returns to sets
+- "Open in deck builder" → `CollectionButtonClicked()` (deck builder pre-filtered to the set)
+- "Buy packs in store" → `MoveToStore()` (private; store, that set's packs)
+
+**Technical Notes:**
+- Every number is read from `SetCollectionController.GetMetricTotals(setCode, metric)`, never from the
+  UI. The meters are fill bars plus an icon; only `MetricMeter._completionNumbers` carries text, and the
+  metric it belongs to is identified solely by the serialized `_metric` enum. Metric labels are the mod's own.
+- **1-of vs playset:** once a metric is complete at one-of, the game reuses the same fields for 4-of
+  counting (`UpdateMetricTotalsPerSet` switches to `UsePlayerInvFourOf` and multiplies `numAvailable` by 4).
+  `SetCollectionDataProvider` returns that as an `isPlayset` flag so announcements can say which scale applies.
+- The visible set list is rebuilt from the live badges: filters hide badges with `SetActive(false)` and
+  sorting rewrites sibling indices, so reading active badges ordered by sibling index mirrors the visual list.
+- Filter values are applied by `SetValueWithoutNotify` plus a direct `SortBadges`/`FilterBadges` reflection
+  call, never by opening the real dropdown — the sort dropdown has no code-registered listener, and MTGA
+  auto-opens dropdowns on EventSystem selection (see `BaseNavigator.Dropdowns.cs`).
+- The three quick toggles are a radio group: `OnStandardToggle(false)` immediately re-sets the value, so
+  only turning one on is meaningful.
+- `_selectedBadge` is synced (via `SelectBadgeByExpansionCode`) only when an action runs, not on every
+  arrow press — selecting triggers a meter rebuild and a telemetry event each time.
+- `RefreshTotals` (`UpdateOwnedCards` + `UpdateMetricTotalsPerSet`) runs on discovery, since the counts are
+  cached in a dictionary that is only rebuilt on demand.
+
 ## Codex of the Multiverse (Learn to Play)
 
 **Controller:** `LearnToPlayControllerV2`

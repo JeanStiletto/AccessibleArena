@@ -122,6 +122,9 @@ namespace AccessibleArena.Core.Constants
         public const string DisplayItemSleeve = "DisplayItemSleeve";
         public const string ObjectiveBubble = "ObjectiveBubble";
         public const string SetBadge = "SetBadge";
+        public const string SetCollectionScreenView = "SetCollectionScreenView";
+        public const string SetCollectionController = "SetCollectionController";
+        public const string MetricMeter = "MetricMeter";
 
         // --- Fully-Qualified Type Names (for FindType lookups) ---
         public const string NavContentControllerFQ = "Wotc.Mtga.Wrapper.NavContentController";
