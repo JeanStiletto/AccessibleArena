@@ -895,8 +895,8 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Activates (plays/casts) the current card.
-        /// For hand cards: Two-click approach (click card, then click screen center).
-        /// For other zones: simulates click.
+        /// For hand, command and library cards: plays via UIActivator, which picks the click
+        /// the game accepts for that zone. For other zones: simulates click.
         /// </summary>
         public void ActivateCurrentCard()
         {
@@ -911,7 +911,7 @@ namespace AccessibleArena.Core.Services
             string cardName = CardDetector.GetCardName(card);
             Log.Msg("ZoneNavigator", $"Activating card: {cardName} ({card.name}) in zone {_currentZone}");
 
-            // For hand, command, and library zone cards, use the two-click approach (like sighted players)
+            // Hand, command and library zone cards are all played through UIActivator.PlayCard
             // Command zone cards (commander/companion) are castable just like hand cards
             // Library cards (revealed via effects like Future Sight) are playable from library
             if (_currentZone == ZoneType.Hand || _currentZone == ZoneType.Command || _currentZone == ZoneType.Library)
@@ -923,10 +923,10 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
-                Log.Msg("ZoneNavigator", $"Playing {cardName} from {_currentZone} via two-click");
+                Log.Msg("ZoneNavigator", $"Playing {cardName} from {_currentZone}");
 
-                // Two-click is async, result comes via callback
-                UIActivator.PlayCardViaTwoClick(card, (success, message) =>
+                // Play is async - the result comes via callback once it has been verified
+                UIActivator.PlayCard(card, (success, message) =>
                 {
                     if (success)
                     {

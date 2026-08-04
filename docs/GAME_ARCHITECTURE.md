@@ -498,7 +498,46 @@ Unity's `PointerEventData` default `clickCount` is 0. A real mouse click gets `c
 - `clickCount = 1` (real single click): fails double-click check (1 % 2 != 0) — correct
 - `clickCount = 2` (real double click): passes (2 % 2 == 0) — correct
 
-**Important:** When creating synthetic `PointerEventData`, always set `clickCount = 1` to match a real single click and avoid accidentally passing double-click gates.
+**Important:** When creating synthetic `PointerEventData` **for menu/collection cards**, always set `clickCount = 1` to match a real single click and avoid accidentally passing double-click gates. Duel cards are the opposite case — see below.
+
+## Duel Card Click Handling (CardInput)
+
+Duel cards are a completely separate path from `MetaCardView`: `CardInput` (on the same GameObject as `DuelScene_CDC`) implements the pointer interfaces, and hand cards route through `BaseHandCardHolder.HandleClick` → `CardInput.HandleClick`.
+
+### Primary vs DoublePrimary
+
+```csharp
+// CardInput.HandleClick
+interactionType = (eventData.clickCount <= 1)
+    ? SimpleInteractionType.Primary
+    : SimpleInteractionType.DoublePrimary;
+```
+
+The workflow then decides what that click may do, per holder:
+
+```csharp
+// ActionsAvailableWorkflow.CanClickOnCDC
+case CardHolderType.Library:
+case CardHolderType.Hand:
+    if (_cardDragController.IsCardAboveThreshold(cdc))
+        return clickType == SimpleInteractionType.Primary;
+    return clickType == SimpleInteractionType.DoublePrimary;   // <- the normal case
+case CardHolderType.Graveyard:
+    return false;
+default:                                                       // Command, Battlefield, ...
+    return clickType == SimpleInteractionType.Primary;
+```
+
+So:
+- **Hand / Library** cards are played with `clickCount = 2` (`UIActivator.SimulateDoubleClick`).
+- **Command zone** (commander, companion) and battlefield permanents take a single Primary click.
+- **Selection workflows** (discard, "choose a card") accept ONLY Primary — `SelectCardsWorkflow.CanClick` returns false for DoublePrimary — so selection mode must use `SimulatePointerClick`.
+
+### Why a single Primary click on a hand card looks like it works
+
+A Primary click the workflow rejects falls through `GameInteractionSystem.HandleCardViewClick` to `ExecuteBeginDrag`: the card is picked up and slides toward the **physical** mouse cursor. `ActionsAvailableWorkflow.OnDragCompleted` then casts it only if `_cardDragController.IsMousePointAboveThreshold()` — the real `Input.mousePosition.y` being at least 30% of `Screen.height` (`CastFromHandYThresholdScreenPercentage`). Below that line the card silently drops back into hand.
+
+Never build card play on that path — it depends on where the user's mouse happens to rest. This is what broke in issue #110.
 
 ### OnPointerDown / OnPointerUp
 

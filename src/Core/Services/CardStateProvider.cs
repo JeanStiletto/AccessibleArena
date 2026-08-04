@@ -979,15 +979,6 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Checks if a card is a land based on its CardTypes or IsBasicLand/IsLandButNotBasic from the Model.
-        /// For single checks only - use GetCardCategory() when checking multiple properties.
-        /// </summary>
-        public static bool IsLandCard(GameObject card)
-        {
-            return GetCardCategory(card).isLand;
-        }
-
-        /// <summary>
         /// Checks if a card is a creature or has the Vehicle subtype.
         /// Used to determine whether summoning sickness is relevant for a card.
         /// </summary>

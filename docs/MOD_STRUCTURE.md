@@ -243,7 +243,7 @@ The invite opponent popup contains a `cTMP_Dropdown` used as a friend picker. Th
 - [x] Card playing - Enter key plays cards from hand (double-click + center click approach)
 - [x] Library zone navigation - D (your library), Shift+D (opponent library) with anti-cheat filter
 - [x] Library anti-cheat filter - Only shows cards with HotHighlight (playable) or IsDisplayedFaceUp (revealed); hidden face-down cards never exposed
-- [x] Play from library - Enter on playable library cards uses two-click (same as hand cards)
+- [x] Play from library - Enter on playable library cards uses the same double-click as hand cards
 - [x] Hidden zone counts - Shift+C (opponent hand count); D/Shift+D announce total count before revealed cards
 
 ### Card Playing (Working)
@@ -283,7 +283,7 @@ have HotHighlight. We trust the game and scan ALL zones, letting the zone determ
 - [x] Zone change announcements on Tab: "Hand, Shock, 1 of 2" (same format as zone shortcuts)
   - Player: "Opponent, player, 3 of 3"
 - [x] Zone-based activation:
-  - Hand cards: Two-click to play
+  - Hand cards: Double-click to play
   - All other targets: Single-click to select
 - [x] Player target detection - Uses `DuelScene_AvatarView.HighlightSystem._currentHighlightType` via reflection
 - [x] Primary button text - When no highlights, announces game state ("Pass", "Resolve", "Next")
@@ -302,7 +302,7 @@ have HotHighlight. We trust the game and scan ALL zones, letting the zone determ
 ### Selection Mode (Discard, etc.) - Consolidated into HotHighlightNavigator
 **January 2026:** DiscardNavigator was consolidated into HotHighlightNavigator for simpler architecture.
 
-HotHighlightNavigator now detects "selection mode" (discard, choose cards to exile, etc.) by checking for a Submit button with a count AND no valid targets on battlefield. In selection mode, hand cards use single-click to toggle selection instead of two-click to play.
+HotHighlightNavigator now detects "selection mode" (discard, choose cards to exile, etc.) by checking for a Submit button with a count AND no valid targets on battlefield. In selection mode, hand cards use single-click to toggle selection instead of the double-click that plays them.
 
 - [x] Selection mode detection - `IsSelectionModeActive()` checks for Submit button + no battlefield targets
 - [x] Language-agnostic button detection - Matches any number in button text (works with "Submit 2", "2 abwerfen", "0 bestätigen")

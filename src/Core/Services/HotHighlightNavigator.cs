@@ -22,11 +22,11 @@ namespace AccessibleArena.Core.Services
     ///
     /// Key insight: The game correctly manages HotHighlight to show only what's
     /// relevant in the current context. We detect "selection mode" (discard, etc.)
-    /// by checking for Submit buttons with counts, and use single-click instead
-    /// of two-click for hand cards in that mode.
+    /// by checking for Submit buttons with counts, and use a plain single click instead
+    /// of the play click for hand cards in that mode.
     ///
     /// - Hand cards in selection mode = single-click to toggle selection
-    /// - Hand cards normally = two-click to play
+    /// - Hand cards normally = double-click to play (see UIActivator.PlayCard)
     /// - Battlefield/Stack cards with HotHighlight = valid targets (single-click)
     /// - Player portraits with HotHighlight = player targets (single-click)
     /// </summary>
@@ -1088,7 +1088,7 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Activates the current item based on its zone and current game mode.
         /// In selection mode (discard, etc.), hand cards use single-click to toggle.
-        /// Otherwise, hand cards use two-click to play.
+        /// Otherwise, hand cards are played through UIActivator.PlayCard.
         /// </summary>
         private void ActivateCurrentItem()
         {
@@ -1137,8 +1137,8 @@ namespace AccessibleArena.Core.Services
                 }
                 else
                 {
-                    // Normal mode - use two-click to play
-                    UIActivator.PlayCardViaTwoClick(item.GameObject, (success, message) =>
+                    // Normal mode - play the card
+                    UIActivator.PlayCard(item.GameObject, (success, message) =>
                     {
                         if (success)
                         {

@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using SceneNames = AccessibleArena.Core.Constants.SceneNames;
+using CardHolderTypes = AccessibleArena.Core.Constants.CardHolderTypes;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
@@ -28,11 +29,6 @@ namespace AccessibleArena.Core.Services
     public static class UIActivator
     {
         #region Constants
-
-        // Timing delays for card play sequence
-        private const float CardSelectDelay = 0.1f;
-        private const float CardPickupDelay = 0.5f;
-        private const float CardDropDelay = 0.6f;
 
         // How long to wait for the game to act on a card play before declaring it a no-op.
         // The card leaves the hand only after a server round trip (~0.4s observed), so this
@@ -428,6 +424,39 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Simulates a double click — a click carrying <c>clickCount = 2</c>.
+        ///
+        /// The game reads the count directly: <c>CardInput.HandleClick</c> maps
+        /// <c>clickCount &lt;= 1</c> to <c>SimpleInteractionType.Primary</c> and anything
+        /// higher to <c>DoublePrimary</c>. Hand and library cards are only playable as
+        /// DoublePrimary, so this is what casts a card.
+        /// </summary>
+        public static ActivationResult SimulateDoubleClick(GameObject element)
+        {
+            if (element == null)
+                return new ActivationResult(false, "Element is null");
+
+            var pointer = CreatePointerEventData(element);
+            pointer.clickCount = 2;
+
+            Log.Activation("UIActivator", $"Simulating double click on: {element.name}");
+
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(element);
+                Log.Activation("UIActivator", $"Set EventSystem selected object to: {element.name}");
+            }
+
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerEnterHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerUpHandler);
+            ExecuteEvents.Execute(element, pointer, ExecuteEvents.pointerClickHandler);
+
+            return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.PointerClick);
+        }
+
+        /// <summary>
         /// Simulates a pointer click on an element using a specific screen position.
         /// Used for battlefield cards where the default screen-center position can hit
         /// the wrong overlapping token's collider.
@@ -606,15 +635,21 @@ namespace AccessibleArena.Core.Services
         #region Card Playing
 
         /// <summary>
-        /// Plays a card from hand using the double-click approach:
-        /// 1. Click card (selects it)
-        /// 2. Wait briefly
-        /// 3. Click card again (picks it up)
-        /// 4. Wait briefly
-        /// 5. Click screen center (confirms play for non-targeted cards)
-        /// 6. Enter targeting mode (for targeted cards, Tab cycles through targets)
+        /// Plays or casts a card the way the game gates it, which depends on the zone
+        /// (<c>ActionsAvailableWorkflow.CanClickOnCDC</c>):
+        ///
+        /// - Hand and Library need a DOUBLE click. A card lying in the hand is only clickable
+        ///   as <c>SimpleInteractionType.DoublePrimary</c>; a single Primary click is rejected
+        ///   by the workflow and instead picks the card up as a drag, which only completes as
+        ///   a cast if the physical mouse pointer happens to sit above 30% of screen height.
+        ///   That mouse dependency is what made card play stop working in issue #110.
+        /// - Every other zone (Command, Battlefield, ...) takes the `default:` branch and is
+        ///   clickable as Primary, so a commander casts on a single click.
+        ///
+        /// The result arrives via callback once the outcome has been verified against game
+        /// state — see <see cref="VerifyPlayOutcome"/>.
         /// </summary>
-        public static void PlayCardViaTwoClick(GameObject card, System.Action<bool, string> callback = null)
+        public static void PlayCard(GameObject card, System.Action<bool, string> callback = null)
         {
             if (card == null)
             {
@@ -628,72 +663,38 @@ namespace AccessibleArena.Core.Services
 
         private static IEnumerator PlayCardCoroutine(GameObject card, System.Action<bool, string> callback)
         {
-            // Step 0: Check if card is a land (lands use simplified double-click, no screen center needed)
-            bool isLand = CardStateProvider.IsLandCard(card);
-
-            // Where the game has the card right now — the reference point for verifying the play.
+            // Where the game has the card right now. Decides which click the game will accept,
+            // and doubles as the reference point for verifying that the play went through.
             int? holderBefore = CardPlayVerifier.GetHolderType(card);
-            LogPlayContext(holderBefore);
 
-            // Step 1: First click (select)
-            Log.Activation("UIActivator", "Step 1: First click (select)");
-            var click1 = SimulatePointerClick(card);
-            if (!click1.Success)
-            {
-                Log.Activation("UIActivator", "Failed at step 1");
-                callback?.Invoke(false, "First click failed");
-                yield break;
-            }
-
-            // Brief wait for selection to register
-            yield return new WaitForSeconds(CardSelectDelay);
-
-            // Step 1.5: Check if we're in discard/selection mode BEFORE second click
-            // If "Submit X" button is showing, first click selected the card for discard
-            // Second click would break the discard state, so abort here
+            // Selection workflows (discard, "choose a card") accept only a single Primary click —
+            // SelectCardsWorkflow.CanClick rejects DoublePrimary outright. Both callers route
+            // selection mode to a plain toggle click before reaching this method, so a play click
+            // here would do nothing at all; say so rather than clicking blindly.
             if (IsTargetingModeActive())
             {
-                Log.Activation("UIActivator", "Submit button detected - in discard/selection mode, not playing card");
-                Log.Activation("UIActivator", "First click selected card for discard. Use Submit button to confirm.");
-                callback?.Invoke(false, "Discard mode - card selected for discard");
+                Log.Activation("UIActivator", "Submit button showing - selection mode, not playing card");
+                callback?.Invoke(false, "Selection mode active");
                 yield break;
             }
 
-            // Step 2: Second click (pick up for spells, or play for lands)
-            Log.Activation("UIActivator", "Step 2: Second click (pick up/play)");
-            var click2 = SimulatePointerClick(card);
-            if (!click2.Success)
+            // Hand and Library are the two holders the game gates behind DoublePrimary.
+            // An unknown holder (reflection failure) is treated as hand — that is what both
+            // callers play from most of the time, and a wrong guess is now reported, not swallowed.
+            bool needsDoubleClick = holderBefore == null
+                                 || holderBefore == CardHolderTypes.Hand
+                                 || holderBefore == CardHolderTypes.Library;
+
+            Log.Activation("UIActivator",
+                $"Clicking {CardPlayVerifier.DescribeHolder(holderBefore)} card as {(needsDoubleClick ? "DoublePrimary" : "Primary")}");
+
+            var click = needsDoubleClick ? SimulateDoubleClick(card) : SimulatePointerClick(card);
+            if (!click.Success)
             {
-                Log.Activation("UIActivator", "Failed at step 2");
-                callback?.Invoke(false, "Second click failed");
+                Log.Activation("UIActivator", "Click failed");
+                callback?.Invoke(false, "Click failed");
                 yield break;
             }
-
-            // For lands: Double-click is enough to play them, no need to drag to center
-            // Exit immediately to avoid unnecessary clicks
-            if (isLand)
-            {
-                Log.Activation("UIActivator", "Land click sequence sent");
-                yield return VerifyPlayOutcome(card, holderBefore, callback);
-                yield break;
-            }
-
-            // For spells: Wait for card to be held, then drop at screen center
-            yield return new WaitForSeconds(CardPickupDelay);
-
-            // Step 3: Click screen center via Unity events (confirm play)
-            Log.Activation("UIActivator", "Step 3: Click screen center via Unity events (confirm play)");
-
-            Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
-            SimulateClickAtPosition(center);
-
-            // Step 4: Wait for game to process the play and UI to update
-            // Need enough time for targeting UI (Cancel/Submit buttons) to appear
-            yield return new WaitForSeconds(CardDropDelay);
-
-            // Note: Targeting mode is now handled by DuelNavigator's auto-detection
-            // which checks for spell on stack + HotHighlight targets.
-            // This avoids false positives from activated abilities that don't target.
 
             yield return VerifyPlayOutcome(card, holderBefore, callback);
         }
@@ -743,23 +744,6 @@ namespace AccessibleArena.Core.Services
             Log.Activation("UIActivator",
                 $"=== CARD PLAY HAD NO EFFECT (still in {CardPlayVerifier.DescribeHolder(holderBefore)} after {CardPlayVerifyTimeout:0.0}s) ===");
             callback?.Invoke(false, "No effect");
-        }
-
-        /// <summary>
-        /// Logs the state the card play depends on. The mouse position matters because the
-        /// click sequence plays a hand card by picking it up and dropping it: the game only
-        /// completes that as a cast when the pointer is above 30% of screen height
-        /// (CardDragController.IsMousePointAboveThreshold). Cards below that line silently
-        /// fall back into the hand — see issue #110.
-        /// </summary>
-        private static void LogPlayContext(int? holderBefore)
-        {
-            float threshold = Screen.height * 0.3f;
-            float mouseY = Input.mousePosition.y;
-            Log.Activation("UIActivator",
-                $"Play context: holder={CardPlayVerifier.DescribeHolder(holderBefore)}, " +
-                $"mouseY={mouseY:0} vs threshold={threshold:0} " +
-                $"({(mouseY >= threshold ? "above" : "BELOW — drop-to-cast will fail")})");
         }
 
         #endregion

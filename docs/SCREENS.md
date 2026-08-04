@@ -580,13 +580,13 @@ DuelNavigator delegates to specialized sub-navigators for different game phases:
 - Trusts game's HotHighlight system - no separate mode tracking needed
 - Tab syncs with zone/battlefield navigators so Left/Right works correctly after Tab
 - Zone change on Tab announces: "Hand, Lightning Bolt, 1 of 3" (same format as zone shortcuts)
-- Zone-based activation: hand cards use two-click, others use single-click
+- Zone-based activation: hand cards use double-click to play, others use single-click
 - Tab/Shift+Tab cycles all targets, Ctrl+Tab/Ctrl+Shift+Tab cycles opponent targets only
 - Enter activates, Backspace cancels
 
 **Selection Mode (in HotHighlightNavigator)**
 - Detects Submit button with count
-- Hand cards use single-click to toggle selection instead of two-click to play
+- Hand cards use single-click to toggle selection instead of the double-click that plays them
 - Works with both Tab navigation and zone shortcuts (C + Left/Right + Enter)
 - Announces game's prompt instruction on entry (e.g. "Discard a card") via PromptText element
 - Shows selected state when navigating hand via zone shortcuts

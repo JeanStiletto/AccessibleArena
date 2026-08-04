@@ -635,12 +635,6 @@ namespace AccessibleArena.Core.Services
             => CardStateProvider.IsCreatureCard(card);
 
         /// <summary>
-        /// Checks if a card is a land. Delegates to CardStateProvider.
-        /// </summary>
-        public static bool IsLandCard(GameObject card)
-            => CardStateProvider.IsLandCard(card);
-
-        /// <summary>
         /// Checks if a card belongs to the opponent. Delegates to CardStateProvider.
         /// </summary>
         public static bool IsOpponentCard(GameObject card)

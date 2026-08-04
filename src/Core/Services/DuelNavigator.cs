@@ -6,7 +6,6 @@ using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.PanelDetection;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using T = AccessibleArena.Core.Constants.GameTypeNames;
 using static AccessibleArena.Core.Constants.SceneNames;
 using AccessibleArena.Core.Utils;
@@ -21,12 +20,8 @@ namespace AccessibleArena.Core.Services
     /// </summary>
     public class DuelNavigator : BaseNavigator
     {
-        // WinAPI for centering mouse cursor once when duel starts
-        [DllImport("user32.dll")]
-        private static extern bool SetCursorPos(int X, int Y);
-
         private bool _isWatching;
-        private bool _hasCenteredMouse;
+        private bool _hasAnnouncedMatchup;
         private bool _wasPreemptedForChat;
         private float _playerNameAnnounceDelay = -1f; // One-shot: announces matchup after HUD settles
         private ZoneNavigator _zoneNavigator;
@@ -130,7 +125,7 @@ namespace AccessibleArena.Core.Services
         {
             Log.Msg("{NavigatorId}", $"DuelScene loaded - starting to watch for duel elements");
             _isWatching = true;
-            _hasCenteredMouse = false; // Reset so mouse gets centered when duel activates
+            _hasAnnouncedMatchup = false; // New duel gets a fresh matchup announcement
 
             // Clear announcement history for the new duel
             _announcer.ClearHistory();
@@ -147,7 +142,7 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Called when DuelNavigator becomes active. Centers mouse once for card playing.
+        /// Called when DuelNavigator becomes active.
         /// </summary>
         protected override void OnActivated()
         {
@@ -159,17 +154,11 @@ namespace AccessibleArena.Core.Services
             // InputField and Button that constantly steal EventSystem focus, eating Space/key input.
             DisableSocialUISelectables();
 
-            // Center mouse cursor once when duel starts
-            // This ensures card play clicks hit screen center correctly
-            if (!_hasCenteredMouse)
+            // Schedule a matchup announcement once the HUD has fully settled. Once per duel:
+            // OnActivated also runs when the navigator regains control (e.g. after duel chat).
+            if (!_hasAnnouncedMatchup)
             {
-                int centerX = Screen.width / 2;
-                int centerY = Screen.height / 2;
-                SetCursorPos(centerX, centerY);
-                Log.Msg("{NavigatorId}", $"Centered mouse cursor at ({centerX}, {centerY})");
-                _hasCenteredMouse = true;
-
-                // Schedule a matchup announcement once the HUD has fully settled
+                _hasAnnouncedMatchup = true;
                 _playerNameAnnounceDelay = 1.5f;
             }
         }
@@ -213,7 +202,7 @@ namespace AccessibleArena.Core.Services
             if (sceneName != DuelScene)
             {
                 _isWatching = false;
-                _hasCenteredMouse = false; // Reset for next duel
+                _hasAnnouncedMatchup = false; // Reset for next duel
                 _playerNameAnnounceDelay = -1f;
                 _zoneNavigator.Deactivate();
                 _hotHighlightNavigator.Deactivate();

@@ -491,7 +491,7 @@ Handles: Button, Toggle, TMP_InputField, InputField, CustomButton (via pointer s
 
 **Card Playing from Hand:**
 ```csharp
-UIActivator.PlayCardViaTwoClick(card, (success, message) =>
+UIActivator.PlayCard(card, (success, message) =>
 {
     if (success)
         announcer.Announce($"Played {cardName}", AnnouncementPriority.Normal);
@@ -500,7 +500,20 @@ UIActivator.PlayCardViaTwoClick(card, (success, message) =>
 });
 ```
 
-Uses double-click + center click approach (see `docs/CARD_PLAY_IMPLEMENTATION.md`).
+Sends the click the game accepts for that zone, then verifies the outcome:
+
+- **Hand and Library** need a double click (`clickCount = 2` →
+  `SimpleInteractionType.DoublePrimary`). `ActionsAvailableWorkflow.CanClickOnCDC`
+  rejects a single Primary click on a card lying in hand — that click only picks the
+  card up as a drag, which the game completes as a cast solely when the physical mouse
+  pointer is above 30% of screen height. Never rely on that (issue #110).
+- **Command zone and elsewhere** take the `default:` branch and are clickable as
+  Primary, so a commander casts on `SimulatePointerClick`.
+- `success` is not "the click was delivered" but "the game acted on it": the card left
+  its holder, or a prompt opened (targeting, mana color picker, confirmation, modal
+  chooser). See `CardPlayVerifier`.
+- Selection mode (discard, "choose a card") is different again — `SelectCardsWorkflow`
+  accepts only Primary — so route those to `SimulatePointerClick`, not `PlayCard`.
 
 ### UITextExtractor
 Extracts text:
@@ -928,7 +941,7 @@ This means we can trust the game and scan ALL zones, letting the zone determine 
    - Player: "Opponent, player, 3 of 3"
 4. Tab/Shift+Tab cycles through all highlighted items
 5. Enter activates (based on zone):
-   - Hand cards: Two-click to play
+   - Hand cards: Double-click to play
    - Everything else: Single-click to select
 6. Backspace cancels (if targets highlighted)
 7. When no highlights: Announces primary button text ("Pass", "Resolve", "Next")
@@ -947,7 +960,7 @@ else if (_highlightNavigator.IsActive) { ... }
 
 // New approach: Zone determines behavior
 if (item.Zone == "Hand")
-    UIActivator.PlayCardViaTwoClick(...);  // Two-click to play
+    UIActivator.PlayCard(...);            // Double-click to play
 else
     UIActivator.SimulatePointerClick(...); // Single-click to select
 ```
@@ -1036,7 +1049,7 @@ public bool IsSelectionModeActive()
 ```
 - Detects discard, exile, and other card selection prompts
 - Language-agnostic: matches any number in button text ("Submit 2", "2 abwerfen", "0 bestätigen")
-- Hand cards use single-click to toggle instead of two-click to play
+- Hand cards use single-click to toggle instead of the double-click that plays them
 - Announces "X cards selected" and "CardName, 1 of 2 selected" after toggle
 
 **Combat Phase Detection:**
@@ -1155,7 +1168,7 @@ Handles zone navigation in DuelScene. Separate service following same pattern as
 **Card Navigation within Zones:**
 - Left Arrow - Previous card in current zone
 - Right Arrow - Next card in current zone
-- Enter - Play/activate current card (uses PlayCardViaTwoClick for hand cards)
+- Enter - Play/activate current card (uses PlayCard for hand cards)
 
 **Usage (via DuelNavigator):**
 ```csharp
