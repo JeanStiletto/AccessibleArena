@@ -34,6 +34,11 @@ namespace AccessibleArena.Core.Services
         private const float CardPickupDelay = 0.5f;
         private const float CardDropDelay = 0.6f;
 
+        // How long to wait for the game to act on a card play before declaring it a no-op.
+        // The card leaves the hand only after a server round trip (~0.4s observed), so this
+        // has to be comfortably longer than that.
+        private const float CardPlayVerifyTimeout = 1.5f;
+
         // Type names for reflection
         private const string CustomButtonTypeName = "CustomButton";
         private const string TooltipTriggerTypeName = "TooltipTrigger";
@@ -626,6 +631,10 @@ namespace AccessibleArena.Core.Services
             // Step 0: Check if card is a land (lands use simplified double-click, no screen center needed)
             bool isLand = CardStateProvider.IsLandCard(card);
 
+            // Where the game has the card right now — the reference point for verifying the play.
+            int? holderBefore = CardPlayVerifier.GetHolderType(card);
+            LogPlayContext(holderBefore);
+
             // Step 1: First click (select)
             Log.Activation("UIActivator", "Step 1: First click (select)");
             var click1 = SimulatePointerClick(card);
@@ -664,9 +673,8 @@ namespace AccessibleArena.Core.Services
             // Exit immediately to avoid unnecessary clicks
             if (isLand)
             {
-                Log.Activation("UIActivator", "Land played via double-click");
-                Log.Activation("UIActivator", "=== CARD PLAY COMPLETE ===");
-                callback?.Invoke(true, "Land played");
+                Log.Activation("UIActivator", "Land click sequence sent");
+                yield return VerifyPlayOutcome(card, holderBefore, callback);
                 yield break;
             }
 
@@ -687,8 +695,71 @@ namespace AccessibleArena.Core.Services
             // which checks for spell on stack + HotHighlight targets.
             // This avoids false positives from activated abilities that don't target.
 
-            Log.Activation("UIActivator", "=== CARD PLAY COMPLETE ===");
-            callback?.Invoke(true, "Card played");
+            yield return VerifyPlayOutcome(card, holderBefore, callback);
+        }
+
+        /// <summary>
+        /// Waits for the game to act on the click sequence and reports what actually happened.
+        ///
+        /// Success means one of two observable things: the card left the holder it was in
+        /// (it is on the stack or the battlefield now), or the game opened something that is
+        /// waiting for the player (targeting, mana color picker, confirmation or modal chooser).
+        /// Anything else is a no-op — the clicks were delivered but the game did nothing with
+        /// them — and the caller announces that instead of silently claiming success.
+        /// </summary>
+        private static IEnumerator VerifyPlayOutcome(GameObject card, int? holderBefore, System.Action<bool, string> callback)
+        {
+            float deadline = Time.time + CardPlayVerifyTimeout;
+
+            while (Time.time < deadline)
+            {
+                // A recycled or deactivated CDC means the card view is gone from where it was.
+                if (card == null || !card.activeInHierarchy)
+                {
+                    Log.Activation("UIActivator", "=== CARD PLAY COMPLETE (card view released) ===");
+                    callback?.Invoke(true, "Card played");
+                    yield break;
+                }
+
+                int? holderNow = CardPlayVerifier.GetHolderType(card);
+                if (holderNow != holderBefore)
+                {
+                    Log.Activation("UIActivator",
+                        $"=== CARD PLAY COMPLETE ({CardPlayVerifier.DescribeHolder(holderBefore)} -> {CardPlayVerifier.DescribeHolder(holderNow)}) ===");
+                    callback?.Invoke(true, "Card played");
+                    yield break;
+                }
+
+                if (CardPlayVerifier.IsAwaitingPlayerInput())
+                {
+                    Log.Activation("UIActivator", "=== CARD PLAY COMPLETE (game is awaiting input) ===");
+                    callback?.Invoke(true, "Awaiting input");
+                    yield break;
+                }
+
+                yield return null;
+            }
+
+            Log.Activation("UIActivator",
+                $"=== CARD PLAY HAD NO EFFECT (still in {CardPlayVerifier.DescribeHolder(holderBefore)} after {CardPlayVerifyTimeout:0.0}s) ===");
+            callback?.Invoke(false, "No effect");
+        }
+
+        /// <summary>
+        /// Logs the state the card play depends on. The mouse position matters because the
+        /// click sequence plays a hand card by picking it up and dropping it: the game only
+        /// completes that as a cast when the pointer is above 30% of screen height
+        /// (CardDragController.IsMousePointAboveThreshold). Cards below that line silently
+        /// fall back into the hand — see issue #110.
+        /// </summary>
+        private static void LogPlayContext(int? holderBefore)
+        {
+            float threshold = Screen.height * 0.3f;
+            float mouseY = Input.mousePosition.y;
+            Log.Activation("UIActivator",
+                $"Play context: holder={CardPlayVerifier.DescribeHolder(holderBefore)}, " +
+                $"mouseY={mouseY:0} vs threshold={threshold:0} " +
+                $"({(mouseY >= threshold ? "above" : "BELOW — drop-to-cast will fail")})");
         }
 
         #endregion

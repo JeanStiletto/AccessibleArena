@@ -349,6 +349,7 @@ namespace AccessibleArena
 
             // Clear caches on scene change
             CardDetector.ClearCache();
+            CardPlayVerifier.ClearCache();
             DeckInfoProvider.ClearCache();
             RecentPlayAccessor.ClearCache();
             EventAccessor.ClearCache();
