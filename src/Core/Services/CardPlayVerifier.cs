@@ -152,6 +152,8 @@ namespace AccessibleArena.Core.Services
                 case CardHolderTypes.Exile: return "Exile";
                 case CardHolderTypes.Stack: return "Stack";
                 case CardHolderTypes.Command: return "Command";
+                case CardHolderTypes.CardBrowserDefault: return "Browser";
+                case CardHolderTypes.CardBrowserViewDismiss: return "BrowserViewDismiss";
                 default: return holderType.Value.ToString();
             }
         }

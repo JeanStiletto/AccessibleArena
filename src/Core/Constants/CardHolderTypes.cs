@@ -18,6 +18,14 @@ namespace AccessibleArena.Core.Constants
         public const int Exile = 6;
         public const int Stack = 9;
         public const int Command = 10;
+
+        /// <summary>
+        /// Where a card sits while a browser is showing it — including the modal "which
+        /// action?" chooser, which moves the clicked card out of hand and into the browser.
+        /// </summary>
+        public const int CardBrowserDefault = 12;
+        public const int CardBrowserViewDismiss = 13;
+
         public const int None = -1;
     }
 }
