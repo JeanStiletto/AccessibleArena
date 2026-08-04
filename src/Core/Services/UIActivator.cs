@@ -31,9 +31,11 @@ namespace AccessibleArena.Core.Services
         #region Constants
 
         // How long to wait for the game to act on a card play before declaring it a no-op.
-        // The card leaves the hand only after a server round trip (~0.4s observed), so this
-        // has to be comfortably longer than that.
-        private const float CardPlayVerifyTimeout = 1.5f;
+        // The game handles the click synchronously in the next GameManager.Update: the card
+        // moves holder, or the variant / colour picker / browser opens, all within a frame or
+        // two. Measured across a full match: every successful play confirmed in 25-60 ms, so
+        // this is roughly an 8x margin and still keeps the failure announcement prompt.
+        private const float CardPlayVerifyTimeout = 0.5f;
 
         // Type names for reflection
         private const string CustomButtonTypeName = "CustomButton";
@@ -41,6 +43,10 @@ namespace AccessibleArena.Core.Services
 
         // Compiled regex for Submit button detection
         private static readonly Regex SubmitButtonPattern = new Regex(@"^Submit\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        // Card play in flight - collapses repeated Enter presses on the same card
+        private static GameObject _pendingPlayCard;
+        private static float _pendingPlayUntil;
 
         // Targeting mode detection cache (avoids expensive FindObjectsOfType every call)
         private const float TargetingCacheTimeout = 0.1f;
@@ -656,6 +662,21 @@ namespace AccessibleArena.Core.Services
                 callback?.Invoke(false, "Card is null");
                 return;
             }
+
+            // Holding Enter, or pressing it again while the first attempt is still being
+            // verified, used to start a play per press: seven presses on an uncastable card
+            // meant seven identical "could not play" announcements. Ignore repeats for the
+            // same card until the attempt in flight has reported. No callback here, so the
+            // caller stays silent. The guard expires on its own and is per card, so moving
+            // on to a different card is never blocked.
+            if (_pendingPlayCard == card && Time.time < _pendingPlayUntil)
+            {
+                Log.Activation("UIActivator", $"Play already in flight for {card.name} - ignoring repeat");
+                return;
+            }
+
+            _pendingPlayCard = card;
+            _pendingPlayUntil = Time.time + CardPlayVerifyTimeout;
 
             Log.Activation("UIActivator", $"=== PLAYING CARD: {card.name} ===");
             MelonCoroutines.Start(PlayCardCoroutine(card, callback));
