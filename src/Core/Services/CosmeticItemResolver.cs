@@ -123,15 +123,7 @@ namespace AccessibleArena.Core.Services
                 name = HumanizeId(baseId);
             }
 
-            // Only disambiguate by variant index when the loc lookup gave us the generic
-            // base name and there's no variant-specific localization — otherwise we'd append
-            // numbers to already-distinct names like "Brushwagg" or "Solring".
-            if (!variantSpecificResolved)
-            {
-                int variantIndex = ReadIntProp(type, petItem, "VariantIndex");
-                if (variantIndex > 0)
-                    name = $"{name} {variantIndex + 1}";
-            }
+            name = DisambiguateByVariant(petItem, name, variantSpecificResolved);
 
             string status = ReadCosmeticStatus(type, petItem);
             return string.IsNullOrEmpty(status) ? name : $"{name}, {status}";
@@ -150,15 +142,33 @@ namespace AccessibleArena.Core.Services
             string name = ResolveLocalizedPetName(
                 petItem,
                 resolveLocKey,
-                out _);
+                out bool variantSpecificResolved);
 
             if (string.IsNullOrEmpty(name))
                 return acquisitionText;
+
+            name = DisambiguateByVariant(petItem, name, variantSpecificResolved);
+
             if (string.IsNullOrEmpty(acquisitionText)
                 || string.Equals(name, acquisitionText, StringComparison.OrdinalIgnoreCase))
                 return name;
 
             return $"{name}, {acquisitionText}";
+        }
+
+        /// <summary>
+        /// Appends the 1-based variant number when the loc lookup only gave us the generic
+        /// base name. Without this, two variants of the same pet read identically. Skipped
+        /// when a variant-specific key resolved — otherwise we'd append numbers to
+        /// already-distinct names like "Brushwagg" or "Solring".
+        /// </summary>
+        private static string DisambiguateByVariant(object petItem, string name, bool variantSpecificResolved)
+        {
+            if (variantSpecificResolved || petItem == null || string.IsNullOrEmpty(name))
+                return name;
+
+            int variantIndex = ReadIntProp(petItem.GetType(), petItem, "VariantIndex");
+            return variantIndex > 0 ? $"{name} {variantIndex + 1}" : name;
         }
 
         private static string ResolveLocalizedPetName(
