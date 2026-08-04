@@ -1731,7 +1731,16 @@ namespace AccessibleArena.Core.Models
         public static string ProfileItemSelected => L.Get("ProfileItemSelected");
         public static string ProfileItemDefault => L.Get("ProfileItemDefault");
         public static string ProfileItemEquipped => L.Get("ProfileItemEquipped");
+        public static string ProfileItemNotEquipped => L.Get("ProfileItemNotEquipped");
         public static string ProfileItemStore => L.Get("ProfileItemStore");
+
+        // Emote selection panel (deferred commit: toggles are batched, saved on exit)
+        public static string ProfileEmoteSaveBlocked => L.Get("ProfileEmoteSaveBlocked");
+        public static string ProfileEmoteChangesDiscarded => L.Get("ProfileEmoteChangesDiscarded");
+        public static string ProfileEmoteAlwaysEquipped(string name) =>
+            L.Format("ProfileEmoteAlwaysEquipped", name);
+        public static string ProfileEmoteToggleFailed(string name) =>
+            L.Format("ProfileEmoteToggleFailed", name);
 
         // ===========================================
         // DECK COSMETICS / CARD STYLES

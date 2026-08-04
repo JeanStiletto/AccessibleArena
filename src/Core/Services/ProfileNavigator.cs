@@ -42,6 +42,9 @@ namespace AccessibleArena.Core.Services
         private MonoBehaviour _controller;       // ProfileContentController
         private MonoBehaviour _detailsPanel;     // ProfileDetailsPanel
         private bool _inSubPanel;
+        // Set when the game refused an emote save (equip cap). The next Backspace discards instead
+        // of retrying, so a rejected save can never leave the user stuck in the panel.
+        private bool _emoteDiscardArmed;
         private string _subPanelType;            // "Avatar", "Emote", "Title", "Pet", "Sleeve"
         private readonly List<SubPanelItem> _subPanelItems = new List<SubPanelItem>();
         private int _subPanelIndex;
@@ -75,6 +78,7 @@ namespace AccessibleArena.Core.Services
             public string Label;
             public GameObject GameObject;
             public string Status;             // "owned", "locked", "selected", etc.
+            public bool Toggleable;           // emotes: false for the always-equipped Classic set
         }
 
         #endregion
@@ -133,6 +137,25 @@ namespace AccessibleArena.Core.Services
             public MethodInfo PetOnConfirm;
             public Type SelectPetsListItemViewType;
             public PropertyInfo SelectPetsItemIsOwned;
+
+            // Emote state + persistence.
+            // Unlike avatars and pets, the emote panel is a deferred-commit selector: clicking an
+            // emote only toggles it in EmoteSelectionController._equippedEmotesOnHide, and nothing
+            // is written until the panel's confirm button runs SaveAndHide(). Closing the selector
+            // (Close()) just deactivates the GameObject and silently drops every change, so the
+            // navigator has to drive the save itself on the way out.
+            public Type EmoteViewType;
+            public FieldInfo EmoteIsEquipped;
+            public PropertyInfo EmoteViewId;
+            public FieldInfo EmoteSelector;             // DisplayItemEmote._selector
+            public FieldInfo EmoteDataProvider;         // DisplayItemEmote._emoteDataProvider
+            public MethodInfo EmoteGetDefaultData;      // IEmoteDataProvider.GetDefaultEmoteData()
+            public MethodInfo EmoteSaveAndHide;         // EmoteSelectionController.SaveAndHide()
+            public MethodInfo EmoteSelectorClose;       // EmoteSelectionController.Close()
+            public PropertyInfo EmoteHasUnsavedChanges; // EmoteSelectionController.HasUnsavedChanges
+            public FieldInfo EmotePopupView;            // EmoteSelectionController._emoteSelectionPopupView
+            public FieldInfo EmotePhrasesText;          // EmoteSelectionScreenView._phrasesText
+            public FieldInfo EmoteStickersText;         // EmoteSelectionScreenView._stickersText
         }
 
         private static readonly ReflectionCache<ProfileHandles> _profileCache = new ReflectionCache<ProfileHandles>(
@@ -205,6 +228,40 @@ namespace AccessibleArena.Core.Services
                 h.SelectPetsListItemViewType = FindType("SelectPetsListItemView");
                 if (h.SelectPetsListItemViewType != null)
                     h.SelectPetsItemIsOwned = h.SelectPetsListItemViewType.GetProperty("IsOwned", PublicInstance);
+
+                h.EmoteViewType = FindType("EmoteView");
+                if (h.EmoteViewType != null)
+                {
+                    h.EmoteIsEquipped = h.EmoteViewType.GetField("_isEquipped", PrivateInstance);
+                    h.EmoteViewId = h.EmoteViewType.GetProperty("Id", PublicInstance);
+                }
+
+                var displayItemEmoteType = FindType("DisplayItemEmote");
+                if (displayItemEmoteType != null)
+                {
+                    h.EmoteSelector = displayItemEmoteType.GetField("_selector", PrivateInstance);
+                    h.EmoteDataProvider = displayItemEmoteType.GetField("_emoteDataProvider", PrivateInstance);
+                }
+
+                var emoteProviderType = FindType("IEmoteDataProvider");
+                if (emoteProviderType != null)
+                    h.EmoteGetDefaultData = emoteProviderType.GetMethod("GetDefaultEmoteData", PublicInstance);
+
+                var emoteSelectorType = FindType("EmoteSelectionController");
+                if (emoteSelectorType != null)
+                {
+                    h.EmoteSaveAndHide = emoteSelectorType.GetMethod("SaveAndHide", PublicInstance, null, Type.EmptyTypes, null);
+                    h.EmoteSelectorClose = emoteSelectorType.GetMethod("Close", PublicInstance, null, Type.EmptyTypes, null);
+                    h.EmoteHasUnsavedChanges = emoteSelectorType.GetProperty("HasUnsavedChanges", PublicInstance);
+                    h.EmotePopupView = emoteSelectorType.GetField("_emoteSelectionPopupView", PrivateInstance);
+                }
+
+                var emoteScreenViewType = FindType("EmoteSelectionScreenView");
+                if (emoteScreenViewType != null)
+                {
+                    h.EmotePhrasesText = emoteScreenViewType.GetField("_phrasesText", PrivateInstance);
+                    h.EmoteStickersText = emoteScreenViewType.GetField("_stickersText", PrivateInstance);
+                }
 
                 return h;
             },
@@ -942,10 +999,17 @@ namespace AccessibleArena.Core.Services
                     var item = _subPanelItems[_subPanelIndex];
                     if (item.GameObject != null)
                     {
-                        _announcer.Announce(Strings.Activating(item.Label));
-                        UIActivator.Activate(item.GameObject);
-                        TryPersistAvatarSelection(item);
-                        TryPersistPetSelection(item);
+                        if (_subPanelType == "Emote")
+                        {
+                            ToggleEmote(item);
+                        }
+                        else
+                        {
+                            _announcer.Announce(Strings.Activating(item.Label));
+                            UIActivator.Activate(item.GameObject);
+                            TryPersistAvatarSelection(item);
+                            TryPersistPetSelection(item);
+                        }
                     }
                 }
                 return true;
@@ -1067,6 +1131,266 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Emote Selection
+
+        /// <summary>
+        /// Resolves the live EmoteSelectionController via the controller's own display item
+        /// (ProfileContentController._emoteDisplayItem → DisplayItemEmote._selector).
+        /// </summary>
+        private object GetEmoteSelector()
+        {
+            if (_controller == null) return null;
+            var h = _profileCache.Handles;
+            if (h?.EmoteDisplayItem == null || h.EmoteSelector == null) return null;
+
+            try
+            {
+                var displayItem = h.EmoteDisplayItem.GetValue(_controller);
+                return displayItem == null ? null : h.EmoteSelector.GetValue(displayItem);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"GetEmoteSelector failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Ids of the fixed "Classic" emotes. The game grants these permanently and treats them as
+        /// always equipped (EmoteUtils sets isClickable = !isDefault), so they are status-only —
+        /// pressing Enter on one can never change anything.
+        /// </summary>
+        private HashSet<string> GetDefaultEmoteIds()
+        {
+            var result = new HashSet<string>();
+            if (_controller == null) return result;
+            var h = _profileCache.Handles;
+            if (h?.EmoteDisplayItem == null || h.EmoteDataProvider == null || h.EmoteGetDefaultData == null)
+                return result;
+
+            try
+            {
+                var displayItem = h.EmoteDisplayItem.GetValue(_controller);
+                var provider = displayItem == null ? null : h.EmoteDataProvider.GetValue(displayItem);
+                if (provider == null) return result;
+
+                if (!(h.EmoteGetDefaultData.Invoke(provider, null) is System.Collections.IEnumerable defaults)) return result;
+
+                var idField = FindType("EmoteData")?.GetField("Id", PublicInstance);
+                if (idField == null) return result;
+
+                foreach (var data in defaults)
+                {
+                    if (data == null) continue;
+                    if (idField.GetValue(data) is string id && !string.IsNullOrEmpty(id))
+                        result.Add(id);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"GetDefaultEmoteIds failed: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Reads EmoteView._isEquipped. This is the field EmoteUtils.UpdateEquippedEmote writes
+        /// through SetEquipped() during the click, so it is already current on read-back.
+        /// </summary>
+        private bool? ReadEmoteEquipped(GameObject emoteObject)
+        {
+            var h = _profileCache.Handles;
+            if (emoteObject == null || h?.EmoteViewType == null || h.EmoteIsEquipped == null) return null;
+
+            try
+            {
+                var view = emoteObject.GetComponent(h.EmoteViewType);
+                if (view == null) return null;
+                return h.EmoteIsEquipped.GetValue(view) as bool?;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private string ReadEmoteId(GameObject emoteObject)
+        {
+            var h = _profileCache.Handles;
+            if (emoteObject == null || h?.EmoteViewType == null || h.EmoteViewId == null) return null;
+
+            try
+            {
+                var view = emoteObject.GetComponent(h.EmoteViewType);
+                return view == null ? null : h.EmoteViewId.GetValue(view) as string;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The game's own "Phrases 3/15" / "Stickers 2/10" header text, already localized.
+        /// Sighted players read these off the panel; announcing them after each toggle is what
+        /// keeps the equip caps discoverable instead of only surfacing as a failure on save.
+        /// </summary>
+        private string ReadEmoteCounts()
+        {
+            var h = _profileCache.Handles;
+            if (h?.EmotePopupView == null) return null;
+
+            try
+            {
+                var selector = GetEmoteSelector();
+                if (selector == null) return null;
+
+                var view = h.EmotePopupView.GetValue(selector);
+                if (view == null) return null;
+
+                string phrases = (h.EmotePhrasesText?.GetValue(view) as TMP_Text)?.text;
+                string stickers = (h.EmoteStickersText?.GetValue(view) as TMP_Text)?.text;
+
+                var parts = new List<string>(2);
+                if (!string.IsNullOrWhiteSpace(phrases)) parts.Add(phrases.Trim());
+                if (!string.IsNullOrWhiteSpace(stickers)) parts.Add(stickers.Trim());
+                return parts.Count > 0 ? string.Join(", ", parts.ToArray()) : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private bool EmoteHasUnsavedChanges()
+        {
+            var h = _profileCache.Handles;
+            if (h?.EmoteHasUnsavedChanges == null) return false;
+
+            try
+            {
+                var selector = GetEmoteSelector();
+                if (selector == null) return false;
+                return h.EmoteHasUnsavedChanges.GetValue(selector) as bool? ?? false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Commits the pending emote selection through the game's own confirm path
+        /// (EmoteSelectionController.SaveAndHide, the confirm button's callback).
+        /// Returns false only when the game refused the save because an equip cap was exceeded —
+        /// in that case it has put its own modal on screen and nothing was written.
+        /// </summary>
+        private bool TrySaveEmoteSelection()
+        {
+            var h = _profileCache.Handles;
+            if (h?.EmoteSaveAndHide == null) return true;   // nothing we can drive; let the close proceed
+
+            var selector = GetEmoteSelector();
+            if (selector == null) return true;
+
+            if (!EmoteHasUnsavedChanges())
+                return true;
+
+            try
+            {
+                h.EmoteSaveAndHide.Invoke(selector, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"SaveAndHide failed: {ex.Message}");
+                return true;    // never trap the user behind a reflection failure
+            }
+
+            // Save() clears HasUnsavedChanges on success. Still set means the equip cap was
+            // exceeded and the game raised ShowExceededEquippedEmotesSystemMessage instead.
+            if (EmoteHasUnsavedChanges())
+            {
+                Log.Msg("{NavigatorId}", "Emote save refused (equip cap exceeded)");
+                return false;
+            }
+
+            Log.Msg("{NavigatorId}", "Emote selection saved via SaveAndHide");
+            _persistedDuringSubPanel = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Enter on an emote. Activation still goes through UIActivator like every other cosmetic —
+        /// only the read-back is emote-specific, because equipped state lives on EmoteView._isEquipped
+        /// rather than the "Selected" animator flag the other selectors use.
+        /// </summary>
+        private void ToggleEmote(SubPanelItem item)
+        {
+            if (!item.Toggleable)
+            {
+                // Classic emotes are permanently granted; the game never wires them for clicking.
+                _announcer.Announce(Strings.ProfileEmoteAlwaysEquipped(item.Label));
+                return;
+            }
+
+            bool? before = ReadEmoteEquipped(item.GameObject);
+            var activation = UIActivator.Activate(item.GameObject);
+
+            if (!activation.Success)
+            {
+                _announcer.Announce(activation.Message);
+                return;
+            }
+
+            bool? after = ReadEmoteEquipped(item.GameObject);
+
+            // No state handle, or the click did not take — do not claim a toggle that did not happen.
+            if (!after.HasValue)
+            {
+                _announcer.Announce(Strings.Activating(item.Label));
+                return;
+            }
+            if (before.HasValue && before.Value == after.Value)
+            {
+                _announcer.Announce(Strings.ProfileEmoteToggleFailed(item.Label));
+                return;
+            }
+
+            item.Status = after.Value ? Strings.ProfileItemEquipped : Strings.ProfileItemNotEquipped;
+            _subPanelItems[_subPanelIndex] = item;
+
+            string counts = ReadEmoteCounts();
+            string announcement = $"{item.Label}, {item.Status}";
+            if (!string.IsNullOrEmpty(counts))
+                announcement = $"{announcement}. {counts}";
+
+            _announcer.AnnounceInterrupt(announcement);
+        }
+
+        /// <summary>
+        /// Drops the pending emote changes and closes the selector, mirroring what the game does
+        /// today when the panel is dismissed without confirming.
+        /// </summary>
+        private void DiscardEmoteSelection()
+        {
+            var h = _profileCache.Handles;
+            if (h?.EmoteSelectorClose == null) return;
+
+            try
+            {
+                var selector = GetEmoteSelector();
+                if (selector != null)
+                    h.EmoteSelectorClose.Invoke(selector, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Emote selector Close failed: {ex.Message}");
+            }
+        }
+
+        #endregion
+
         #region Sub-Panel Management
 
         private void ActivateCosmeticButton(InfoBlock block)
@@ -1150,6 +1474,7 @@ namespace AccessibleArena.Core.Services
             _popupSubPanelGo = null;
             _subPanelItems.Clear();
             _subPanelType = null;
+            _emoteDiscardArmed = false;
 
             // Restore main screen info
             _infoIndex = _savedMainIndex;
@@ -1172,6 +1497,26 @@ namespace AccessibleArena.Core.Services
 
         private void CloseSubPanel()
         {
+            // Emotes are the one deferred-commit selector: the panel batches toggles and only
+            // writes them when its confirm button runs SaveAndHide(). Backspace has to stand in
+            // for that button, otherwise every change is silently dropped on the way out.
+            if (_subPanelType == "Emote" && !_emoteDiscardArmed)
+            {
+                if (!TrySaveEmoteSelection())
+                {
+                    // Equip cap exceeded: the game is showing its own modal and nothing was saved.
+                    // Arm the discard so a second Backspace always gets the user out.
+                    _emoteDiscardArmed = true;
+                    _announcer.Announce(Strings.ProfileEmoteSaveBlocked, AnnouncementPriority.High);
+                    return;
+                }
+            }
+            else if (_subPanelType == "Emote")
+            {
+                DiscardEmoteSelection();
+                _announcer.Announce(Strings.ProfileEmoteChangesDiscarded, AnnouncementPriority.High);
+            }
+
             // Try to go back via the game's GoBackToPreviousMode
             if (_controller != null)
             {
@@ -1410,10 +1755,15 @@ namespace AccessibleArena.Core.Services
 
         private void DiscoverEmoteItems(GameObject panelGo)
         {
-            // EmoteView children with emote names
-            var emoteViewType = FindType("EmoteView");
+            // EmoteView children with emote names.
+            // Equipped state is EmoteView._isEquipped (animator parameter "Equipped"). The old
+            // CheckAnimatorBool(go, "Selected") probe never matched — EmoteView has no such
+            // parameter — so no emote ever announced a state.
+            var emoteViewType = _profileCache.Handles?.EmoteViewType ?? FindType("EmoteView");
             if (emoteViewType != null)
             {
+                var defaultEmoteIds = GetDefaultEmoteIds();
+
                 foreach (var mb in panelGo.GetComponentsInChildren<MonoBehaviour>(true))
                 {
                     if (mb == null || mb.GetType() != emoteViewType) continue;
@@ -1423,15 +1773,24 @@ namespace AccessibleArena.Core.Services
                     if (string.IsNullOrEmpty(name))
                         name = mb.gameObject.name;
 
-                    string status = null;
-                    if (CheckAnimatorBool(mb.gameObject, "Selected"))
-                        status = Strings.ProfileItemSelected;
+                    string emoteId = ReadEmoteId(mb.gameObject);
+                    bool isDefault = !string.IsNullOrEmpty(emoteId) && defaultEmoteIds.Contains(emoteId);
+                    bool? equipped = ReadEmoteEquipped(mb.gameObject);
+
+                    string status;
+                    if (!equipped.HasValue)
+                        status = CheckAnimatorBool(mb.gameObject, "Equipped") ? Strings.ProfileItemEquipped : null;
+                    else if (isDefault)
+                        status = Strings.ProfileItemEquipped;   // Classic emotes are always on
+                    else
+                        status = equipped.Value ? Strings.ProfileItemEquipped : Strings.ProfileItemNotEquipped;
 
                     _subPanelItems.Add(new SubPanelItem
                     {
                         Label = name,
                         GameObject = mb.gameObject,
-                        Status = status
+                        Status = status,
+                        Toggleable = !isDefault && equipped.HasValue
                     });
                 }
             }
