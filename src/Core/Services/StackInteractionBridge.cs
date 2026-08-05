@@ -22,6 +22,11 @@ namespace AccessibleArena.Core.Services
     /// SelectionWorkflow, GroupWorkflow_BattlefieldPermanents, SelectFromGroupsWorkflow,
     /// DistributionWorkflow, all SelectN variants, etc. — hardcodes CanClickStack=false.
     ///
+    /// Because of that, a native badge click is only available in combat. For every other
+    /// workflow BattlefieldNavigator falls back to clicking each card of the stack in turn
+    /// (see SequentialStackClick there) — the same clicks a sighted player makes on a fanned
+    /// stack, each one validated by the game's own workflow.
+    ///
     /// Note: tapping multiple lands at once during spell payment is handled separately
     /// by the game itself via ActionsAvailableWorkflow.BatchManaSubmission.OnClick,
     /// which iterates stack.AllCards on a single per-card click. That batches mana
@@ -43,8 +48,11 @@ namespace AccessibleArena.Core.Services
         private static GameObject _proxyGo;
         private static MonoBehaviour _proxyView;
 
+        private static MonoBehaviour _cachedGameManager;
+
         public static void ClearCache()
         {
+            _cachedGameManager = null;
             _cdcViewType = null;
             _parentIdField = null;
             _onStackClickedMethod = null;
@@ -108,12 +116,39 @@ namespace AccessibleArena.Core.Services
             }
         }
 
+        /// <summary>
+        /// Identity token for the interaction the game is currently running
+        /// (GameManager.CurrentInteraction, or null when idle). Callers that dispatch a
+        /// sequence of clicks compare this between clicks and stop as soon as it changes —
+        /// once the workflow that was accepting the clicks is gone, the next click would
+        /// land in whatever replaced it.
+        /// </summary>
+        public static object GetCurrentWorkflow()
+        {
+            try
+            {
+                var gm = FindGameManager();
+                return gm == null ? null : GetCurrentWorkflow(gm);
+            }
+            catch { return null; }
+        }
+
         private static MonoBehaviour FindGameManager()
         {
+            if (_cachedGameManager != null)
+            {
+                try { if (_cachedGameManager.gameObject != null) return _cachedGameManager; }
+                catch { }
+                _cachedGameManager = null;
+            }
+
             foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
             {
                 if (mb != null && mb.GetType().Name == "GameManager")
+                {
+                    _cachedGameManager = mb;
                     return mb;
+                }
             }
             return null;
         }

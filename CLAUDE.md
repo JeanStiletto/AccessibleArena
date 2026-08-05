@@ -180,6 +180,13 @@ Your side: B (Creatures), A (Lands), R (Non-creatures)
 Enemy side: Shift+B (Creatures), Shift+A (Lands), Shift+R (Non-creatures)
 Row Switching: Shift+Up (Previous row), Shift+Down (Next row)
 Within Row: Left/Right (Navigate cards), Home/End (Jump to first/last)
+Ctrl+Enter on a stacked entry: Act on every copy in the stack at once. In declare
+attackers/blockers this fires the game's own stack-count badge; everywhere else
+(targeting, tapping, sacrifice picks) it clicks the copies one at a time and stops
+early if the workflow closes mid-way, announcing "N of M clicked". Requires the
+"Battlefield stacking" setting (F2); on a non-stacked card it acts as a plain Enter.
+Focus is anchored by card identity, so a stack splitting or the board re-laying out
+after a click no longer shifts your position in the row.
 
 **Duel - Info:**
 T (Turn, phase, and the active player's running timer), L (Life), V (Player Info Zone), I (Extended Card Info: keyword descriptions + other faces)

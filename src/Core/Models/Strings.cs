@@ -138,6 +138,8 @@ namespace AccessibleArena.Core.Models
 
         // Stack selection (Ctrl+Enter)
         public static string StackSelectUnavailable => L.Get("StackSelect_Unavailable");
+        public static string StackSelectClicked(int done, int total) =>
+            L.Format("StackSelect_Clicked_Format", done, total);
 
         // Land summary (M key)
         public static string LandSummaryEmpty(string rowName) => L.Format("LandSummary_Empty_Format", rowName);

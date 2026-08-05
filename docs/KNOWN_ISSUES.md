@@ -77,12 +77,19 @@ When HotHighlightNavigator delegates to BattlefieldNavigator for battlefield car
 
 **Observed in:** Hastige Suche (Frantic Search) untap phase — selecting 3 lands from a mixed battlefield. Own cards correctly grouped before opponent cards, selection worked, but row position announcements were inconsistent.
 
+**Partly addressed:** `BattlefieldNavigator` now anchors focus by card InstanceId (`_anchorId` / `RestoreAnchor`) instead of trusting the raw index across rebuilds, so a row rebuild no longer silently moves the user onto a different card. Rows are still rebuilt and re-sorted by `transform.position.x` on every refresh, so the *position number* a card is announced with can still change between presses — the anchor keeps you on the right card, it does not freeze the numbering.
+
 **Monitor for:**
+- Whether the remaining position-number churn is confusing on its own now that focus itself is stable
 - Whether the index mismatch causes actual navigation confusion (wrong card activated) vs. just confusing announcements
 - Effects with large numbers of selectable targets (5+) where the discrepancy becomes more noticeable
 - Whether a unified position announcement (from HotHighlightNavigator's own index) would be clearer
 
-**Files:** `HotHighlightNavigator.cs` (AnnounceCurrentItem — delegates to BattlefieldNavigator), `BattlefieldNavigator.cs` (NavigateToSpecificCard)
+**Also addressed:** `TryAdvanceToSameNameSibling` used to pick the first same-name entry that wasn't the just-clicked card, with no state check — so it could land the user back on a creature they had already declared as an attacker, where the next Enter un-declared it. (The v1.1 changelog described it as advancing to the next *unselected* copy; the code never had that filter.) It now compares state snapshots: pass 1 takes a copy still in the clicked card's pre-click state, pass 2 takes any copy not already in the post-click state, and if every copy is done focus stays put. Still gated behind the "Battlefield stacking" setting.
+
+**Untested in a real duel** — all of the above needs a longer play session before it can be called good.
+
+**Files:** `HotHighlightNavigator.cs` (AnnounceCurrentItem — delegates to BattlefieldNavigator), `BattlefieldNavigator.cs` (RestoreAnchor, NavigateToSpecificCard, TryAdvanceToSameNameSibling, FindSibling)
 
 ---
 

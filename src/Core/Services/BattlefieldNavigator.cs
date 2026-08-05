@@ -27,6 +27,15 @@ namespace AccessibleArena.Core.Services
         private bool _isActive;
         private bool _dirty;
 
+        // InstanceId of the card the user is actually focused on. _currentIndex alone is not a
+        // stable position: every refresh rebuilds the rows from scratch and re-sorts them by
+        // transform.position.x, so a stack splitting or merging — or the game simply sliding
+        // permanents around when one taps or moves forward to attack — silently changes which
+        // card a given index means. Re-finding this id after a rebuild keeps focus on the card
+        // the user last heard. Mirrors the stable-snapshot approach HotHighlightNavigator uses
+        // for the Tab order (RefreshHighlightsStable).
+        private uint _anchorId;
+
         // Reference to CombatNavigator for attacker/blocker state announcements
         private CombatNavigator _combatNavigator;
 
@@ -40,6 +49,19 @@ namespace AccessibleArena.Core.Services
         private const float WatchTimeoutSeconds = 3f;
         private const float WatchCheckIntervalSeconds = 0.1f;
         private float _lastWatchCheckTime;
+
+        // Ctrl+Enter outside combat: the game's stack-count badge is refused by every workflow
+        // except declare attackers/blockers, so we click the stack's cards one at a time
+        // instead. Spread over frames — a burst of clicks in one frame arrives before the
+        // workflow has processed any of them.
+        private List<GameObject> _stackClickQueue;
+        private object _stackClickWorkflow;
+        private int _stackClickIndex;
+        private int _stackClickDone;
+        private float _stackClickNextTime;
+        private float _stackClickDeadline;
+        private const float StackClickIntervalSeconds = 0.06f;
+        private const float StackClickTimeoutSeconds = 8f;
 
         // Row order from top (enemy side) to bottom (player side) for Shift+Up/Down navigation
         private static readonly BattlefieldRow[] RowOrder = {
@@ -84,7 +106,8 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// If dirty, refreshes battlefield cards and clamps the index.
+        /// If dirty, refreshes battlefield cards, restores focus onto the anchored card
+        /// and clamps the index.
         /// </summary>
         private void RefreshIfDirty()
         {
@@ -100,6 +123,8 @@ namespace AccessibleArena.Core.Services
                 Log.Msg("BattlefieldNavigator", $"Refreshed {_currentRow}: {oldCount} -> {newCount} cards");
             }
 
+            RestoreAnchor();
+
             // Clamp index to valid range
             if (newCount == 0)
                 _currentIndex = 0;
@@ -108,11 +133,59 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Re-points _currentIndex at the anchored card after a row rebuild.
+        ///
+        /// Three cases, in order:
+        ///   1. The card is still its own entry in the row — go there.
+        ///   2. The card got absorbed into a stack as a non-parent member (its copies caught up
+        ///      in tap/attack state and the game re-merged them) — go to the entry that now
+        ///      represents it, i.e. its StackParent.
+        ///   3. It is gone from this row entirely (died, exiled, bounced, or changed row —
+        ///      a crewed vehicle moves to the creature row). Leave the index alone and let the
+        ///      caller clamp; there is no better guess than "roughly where you were".
+        /// </summary>
+        private void RestoreAnchor()
+        {
+            if (_anchorId == 0) return;
+
+            var cards = _rows[_currentRow];
+            for (int i = 0; i < cards.Count; i++)
+            {
+                if (cards[i] != null && CardStateProvider.GetCardInstanceId(cards[i]) == _anchorId)
+                {
+                    if (_currentIndex != i)
+                        Log.Msg("BattlefieldNavigator", $"Anchor held: index {_currentIndex} -> {i}");
+                    _currentIndex = i;
+                    return;
+                }
+            }
+
+            if (BattlefieldStackProvider.TryGetStackParent(_anchorId, out uint parentId))
+            {
+                for (int i = 0; i < cards.Count; i++)
+                {
+                    if (cards[i] != null && CardStateProvider.GetCardInstanceId(cards[i]) == parentId)
+                    {
+                        Log.Msg("BattlefieldNavigator",
+                            $"Anchor {_anchorId} merged into stack {parentId}; index {_currentIndex} -> {i}");
+                        _currentIndex = i;
+                        _anchorId = parentId;
+                        return;
+                    }
+                }
+            }
+
+            Log.Msg("BattlefieldNavigator", $"Anchor {_anchorId} no longer in {_currentRow}; keeping index {_currentIndex}");
+            _anchorId = 0;
+        }
+
+        /// <summary>
         /// Activates battlefield navigation.
         /// </summary>
         public void Activate()
         {
             _isActive = true;
+            _anchorId = 0;
             DiscoverAndCategorizeCards();
         }
 
@@ -128,6 +201,8 @@ namespace AccessibleArena.Core.Services
             }
             _currentRow = BattlefieldRow.PlayerCreatures;
             _currentIndex = 0;
+            _anchorId = 0;
+            CancelStackClickSequence();
         }
 
         /// <summary>
@@ -140,6 +215,23 @@ namespace AccessibleArena.Core.Services
 
             // Per-frame: check if a watched card's state changed after Enter click
             CheckWatchedCardState();
+
+            // Per-frame: deliver the next click of a running Ctrl+Enter stack sequence.
+            // While one is running we swallow Enter so a second press can't interleave a
+            // click into the middle of the sequence; other keys still navigate, and any
+            // navigation cancels the sequence rather than clicking cards the user has
+            // already moved away from.
+            if (_stackClickQueue != null)
+            {
+                PumpStackClickSequence();
+                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                    return true;
+                if (Input.anyKeyDown)
+                {
+                    Log.Msg("BattlefieldNavigator", "Stack click sequence cancelled by key press");
+                    FinishStackClickSequence();
+                }
+            }
 
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
@@ -309,6 +401,10 @@ namespace AccessibleArena.Core.Services
             var result = StackInteractionBridge.TrySelectStack(id);
             if (result == StackInteractionBridge.Result.Unavailable)
             {
+                // Only DeclareAttackers/DeclareBlockers accept the game's stack-count badge;
+                // every other workflow hardcodes CanClickStack=false. Click the members one by
+                // one instead — the same clicks a sighted player makes on a fanned-out stack.
+                if (BeginStackClickSequence(id)) return;
                 _announcer.Announce(Strings.StackSelectUnavailable, AnnouncementPriority.High);
                 return;
             }
@@ -333,6 +429,112 @@ namespace AccessibleArena.Core.Services
             _watchedStateBefore = stateBefore;
             _watchStartTime = Time.time;
             _watchedFromStackClick = true;
+        }
+
+        /// <summary>
+        /// Queues a click on every card of the stack, to be delivered one per pump tick.
+        /// Returns false when the stack's members aren't known (nothing queued, caller
+        /// should report the stack click as unavailable).
+        ///
+        /// This is a convenience macro, not an extra capability: it sends the same per-card
+        /// clicks a sighted player sends to a fanned-out stack, one at a time, and each one is
+        /// accepted or refused by the game's own workflow exactly as it would be from a mouse.
+        /// It reveals nothing hidden and skips no rules check. What it does do is spare the
+        /// user the "arrow, Enter, re-find where I am, arrow, Enter" cycle across N copies.
+        /// </summary>
+        private bool BeginStackClickSequence(uint parentInstanceId)
+        {
+            if (!BattlefieldStackProvider.TryGetStackCards(parentInstanceId, out var members)
+                || members == null || members.Count == 0)
+            {
+                Log.Msg("BattlefieldNavigator", $"No member list for stack {parentInstanceId}");
+                return false;
+            }
+
+            _stackClickQueue = new List<GameObject>(members);
+            _stackClickIndex = 0;
+            _stackClickDone = 0;
+            _stackClickNextTime = 0f;   // first click goes out on the next pump
+            _stackClickDeadline = Time.time + StackClickTimeoutSeconds;
+
+            // The workflow that will receive these clicks. If it is replaced part-way through
+            // (it got what it asked for and closed, or the opponent responded), the remaining
+            // clicks would land in whatever took its place — so we stop instead.
+            _stackClickWorkflow = StackInteractionBridge.GetCurrentWorkflow();
+
+            Log.Msg("BattlefieldNavigator",
+                $"Stack click sequence: {_stackClickQueue.Count} card(s), " +
+                $"workflow '{_stackClickWorkflow?.GetType().Name ?? "none"}'");
+            return true;
+        }
+
+        /// <summary>
+        /// Per-frame: delivers the next queued stack click, spacing them out so the game
+        /// processes each one before the next arrives. Stops early if the workflow changed
+        /// out from under us or the sequence ran long.
+        /// </summary>
+        private void PumpStackClickSequence()
+        {
+            if (_stackClickQueue == null) return;
+
+            if (Time.time > _stackClickDeadline)
+            {
+                Log.Warn("BattlefieldNavigator", "Stack click sequence timed out");
+                FinishStackClickSequence();
+                return;
+            }
+
+            if (Time.time < _stackClickNextTime) return;
+
+            if (_stackClickIndex >= _stackClickQueue.Count)
+            {
+                FinishStackClickSequence();
+                return;
+            }
+
+            var current = StackInteractionBridge.GetCurrentWorkflow();
+            if (!ReferenceEquals(current, _stackClickWorkflow))
+            {
+                Log.Msg("BattlefieldNavigator",
+                    $"Workflow changed mid-sequence ('{_stackClickWorkflow?.GetType().Name ?? "none"}' -> " +
+                    $"'{current?.GetType().Name ?? "none"}'); stopping after {_stackClickDone} click(s)");
+                FinishStackClickSequence();
+                return;
+            }
+
+            var card = _stackClickQueue[_stackClickIndex++];
+            if (card != null)
+            {
+                if (Camera.main != null)
+                    UIActivator.SimulatePointerClick(card, Camera.main.WorldToScreenPoint(card.transform.position));
+                else
+                    UIActivator.SimulatePointerClick(card);
+                _stackClickDone++;
+            }
+
+            _stackClickNextTime = Time.time + StackClickIntervalSeconds;
+        }
+
+        private void FinishStackClickSequence()
+        {
+            int done = _stackClickDone;
+            int total = _stackClickQueue?.Count ?? 0;
+            CancelStackClickSequence();
+
+            if (total == 0) return;
+
+            // Stack membership almost certainly changed — the clicked copies no longer match
+            // their untouched siblings, so the game re-splits the stack.
+            _dirty = true;
+            _announcer.Announce(Strings.StackSelectClicked(done, total), AnnouncementPriority.High);
+        }
+
+        private void CancelStackClickSequence()
+        {
+            _stackClickQueue = null;
+            _stackClickWorkflow = null;
+            _stackClickIndex = 0;
+            _stackClickDone = 0;
         }
 
         /// <summary>
@@ -759,21 +961,34 @@ namespace AccessibleArena.Core.Services
                     _announcer.Announce(announcement, AnnouncementPriority.High);
                 }
                 var clicked = _watchedCard;
+                string before2 = _watchedStateBefore;
                 bool fromStackClick = _watchedFromStackClick;
                 _watchedCard = null;
                 _watchedFromStackClick = false;
                 if (!fromStackClick)
-                    TryAdvanceToSameNameSibling(clicked);
+                    TryAdvanceToSameNameSibling(clicked, before2, stateAfter);
             }
         }
 
         /// <summary>
-        /// After an Enter click that produced a state change on a stacked card, move
-        /// focus to the next same-name sibling in the current row so repeated Enter
-        /// targets the next copy instead of toggling the just-clicked card's state
-        /// back off. No-op when stacking is disabled or no sibling exists.
+        /// After an Enter click that produced a state change on a stacked card, move focus to
+        /// the next same-name copy that has NOT been acted on yet, so repeated Enter works
+        /// through the copies instead of toggling one card on and off.
+        ///
+        /// "Not acted on yet" is decided by state, not by name alone. The clicked card went
+        /// <paramref name="stateBefore"/> -> <paramref name="stateAfter"/>; a copy still sitting
+        /// in stateBefore is untouched, while one already in stateAfter is a copy the user
+        /// declared on an earlier press — landing on that one is what made the next Enter
+        /// silently un-declare an attacker. Two passes:
+        ///   1. exact match on stateBefore — the precise "looks like the one I just clicked,
+        ///      before I clicked it" case, and the common one;
+        ///   2. anything not already in stateAfter — catches copies whose text differs for an
+        ///      unrelated reason (an aura, a counter, a blocker assignment) but which are still
+        ///      untouched with respect to this action.
+        /// If every copy is already done, focus stays put rather than moving somewhere wrong.
+        /// No-op when stacking is disabled or no sibling exists.
         /// </summary>
-        private void TryAdvanceToSameNameSibling(GameObject clickedCard)
+        private void TryAdvanceToSameNameSibling(GameObject clickedCard, string stateBefore, string stateAfter)
         {
             if (clickedCard == null) return;
             if (AccessibleArenaMod.Instance?.Settings?.BattlefieldStacking != true) return;
@@ -784,17 +999,41 @@ namespace AccessibleArena.Core.Services
 
             DiscoverAndCategorizeCards();
             var rowCards = _rows[_currentRow];
+
+            int target = FindSibling(rowCards, clickedId, clickedName,
+                            state => state == stateBefore);
+            if (target < 0)
+                target = FindSibling(rowCards, clickedId, clickedName,
+                            state => state != stateAfter);
+
+            if (target < 0)
+            {
+                Log.Msg("BattlefieldNavigator",
+                    $"No untouched '{clickedName}' left (all in state '{stateAfter}'); staying put");
+                return;
+            }
+
+            _currentIndex = target;
+            AnnounceCurrentCard(priority: AnnouncementPriority.High);
+        }
+
+        /// <summary>
+        /// Index of the first card in the row that shares clickedName, is not the clicked card
+        /// itself, and whose state snapshot satisfies <paramref name="stateMatches"/>. -1 if none.
+        /// </summary>
+        private int FindSibling(List<GameObject> rowCards, uint clickedId, string clickedName,
+                                Func<string, bool> stateMatches)
+        {
             for (int i = 0; i < rowCards.Count; i++)
             {
                 var go = rowCards[i];
                 if (go == null) continue;
-                uint id = CardStateProvider.GetCardInstanceId(go);
-                if (id == clickedId) continue;
+                if (CardStateProvider.GetCardInstanceId(go) == clickedId) continue;
                 if (CardDetector.GetCardName(go) != clickedName) continue;
-                _currentIndex = i;
-                AnnounceCurrentCard(priority: AnnouncementPriority.High);
-                return;
+                if (!stateMatches(GetCardStateSnapshot(go))) continue;
+                return i;
             }
+            return -1;
         }
 
         /// <summary>
@@ -879,6 +1118,9 @@ namespace AccessibleArena.Core.Services
             // Add selection state so the user can tell selected vs unselected copies apart
             // when a stack has been split by targeting (e.g. 1 of 2 Kraken selected for untap).
             // Skip if combat already implies selection (declare attackers/blockers frames).
+            // Spoken directly after the name (see below) — when you are picking N targets out
+            // of a wide row, "already picked or not" is the thing you are listening for, and
+            // waiting for it behind combat state and attachments costs a press per card.
             string selectionState = GetSelectionState(card);
             if (ShouldDropSelectionSuffix(combatState, selectionState))
                 selectionState = "";
@@ -905,7 +1147,9 @@ namespace AccessibleArena.Core.Services
                 prefix = (!isRowSwitch || verbose) ? $"{rowName}, " : "";
             }
             string pos = Strings.PositionOf(position, total, force: true);
-            _announcer.Announce($"{prefix}{cardName}{typeLabel}{combatState}{selectionState}{attachmentText}{targetingText}" + (pos != "" ? $", {pos}" : ""), priority);
+            _announcer.Announce($"{prefix}{cardName}{selectionState}{typeLabel}{combatState}{attachmentText}{targetingText}" + (pos != "" ? $", {pos}" : ""), priority);
+
+            _anchorId = CardStateProvider.GetCardInstanceId(card);
 
             // Set EventSystem focus to the card - this ensures other navigators
             // (like PlayerPortrait) detect the focus change and exit their modes

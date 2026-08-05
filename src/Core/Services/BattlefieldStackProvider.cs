@@ -52,10 +52,32 @@ namespace AccessibleArena.Core.Services
         private static readonly Dictionary<uint, int> _stackSizeByParent = new Dictionary<uint, int>();
         private static readonly HashSet<uint> _childIds = new HashSet<uint>();
 
+        // Members of each multi-card stack, in the stack's own AllCards order (parent included).
+        // Consumed by BattlefieldNavigator's per-card stack click fallback.
+        private static readonly Dictionary<uint, List<GameObject>> _stackCardsByParent
+            = new Dictionary<uint, List<GameObject>>();
+
+        // Reverse lookup: stacked-child InstanceId -> its StackParent InstanceId. Lets focus
+        // anchoring follow a card that got absorbed into another entry after a restructure.
+        private static readonly Dictionary<uint, uint> _parentByChild = new Dictionary<uint, uint>();
+
         public static HashSet<uint> StackChildIds => _childIds;
 
         public static bool TryGetStackSize(uint parentInstanceId, out int size)
             => _stackSizeByParent.TryGetValue(parentInstanceId, out size);
+
+        /// <summary>
+        /// Returns the GameObjects of every card in the given multi-card stack.
+        /// False for single-card entries and unknown ids.
+        /// </summary>
+        public static bool TryGetStackCards(uint parentInstanceId, out List<GameObject> cards)
+            => _stackCardsByParent.TryGetValue(parentInstanceId, out cards);
+
+        /// <summary>
+        /// Maps a stacked-child InstanceId back to the InstanceId of its stack's parent.
+        /// </summary>
+        public static bool TryGetStackParent(uint childInstanceId, out uint parentInstanceId)
+            => _parentByChild.TryGetValue(childInstanceId, out parentInstanceId);
 
         public static void ClearCache()
         {
@@ -67,6 +89,8 @@ namespace AccessibleArena.Core.Services
             _fieldCache.Clear();
             _stackSizeByParent.Clear();
             _childIds.Clear();
+            _stackCardsByParent.Clear();
+            _parentByChild.Clear();
         }
 
         private static PropertyInfo GetProp(object o, string name)
@@ -180,6 +204,8 @@ namespace AccessibleArena.Core.Services
         {
             _stackSizeByParent.Clear();
             _childIds.Clear();
+            _stackCardsByParent.Clear();
+            _parentByChild.Clear();
 
             var holder = FindHolder();
             if (holder == null) return;
@@ -220,13 +246,20 @@ namespace AccessibleArena.Core.Services
 
                 if (cards == null || count <= 1) return;
 
+                var members = new List<GameObject>(count);
                 foreach (var card in cards)
                 {
                     var comp = card as Component;
                     if (comp == null) continue;
+                    members.Add(comp.gameObject);
                     var cid = GetProp(comp, "InstanceId")?.GetValue(comp);
-                    if (cid is uint uc && uc != parentId) _childIds.Add(uc);
+                    if (cid is uint uc && uc != parentId)
+                    {
+                        _childIds.Add(uc);
+                        _parentByChild[uc] = parentId;
+                    }
                 }
+                if (members.Count > 0) _stackCardsByParent[parentId] = members;
             }
             catch (Exception ex)
             {
