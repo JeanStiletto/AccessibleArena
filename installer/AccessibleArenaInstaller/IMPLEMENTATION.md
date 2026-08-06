@@ -1,5 +1,9 @@
 # Accessible Arena Installer - Implementation Documentation
 
+> As of v1.4.6 the embedded speech runtime is a single `prism.dll`, not the
+> `Tolk.dll` + `nvdaControllerClient64.dll` pair described below; installing and uninstalling both
+> clean up the old pair. The rest of the document still holds. See `third_party/prism/README.md`.
+
 ## Overview
 
 Single-file C# WinForms installer that:

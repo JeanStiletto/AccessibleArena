@@ -284,9 +284,10 @@ namespace AccessibleArenaInstaller
                     File.Delete(modDllBackup);
                 }
 
-                // Remove Tolk DLLs
-                string[] tolkDlls = { "Tolk.dll", "nvdaControllerClient64.dll" };
-                foreach (var dll in tolkDlls)
+                // Remove the speech runtime: prism.dll from v1.4.6 on, plus the Tolk pair older
+                // versions installed, so uninstalling an upgraded install leaves nothing behind.
+                string[] speechDlls = { "prism.dll", "Tolk.dll", "nvdaControllerClient64.dll" };
+                foreach (var dll in speechDlls)
                 {
                     string dllPath = Path.Combine(mtgaPath, dll);
                     if (File.Exists(dllPath))

@@ -129,7 +129,7 @@ Still to confirm at the next reset (monitor the log):
 
 ### Other Windows Versions and Screen Readers
 
-Tested on Windows 10 and Windows 11 with NVDA and JAWS. Other Windows versions and other screen readers (Narrator, etc.) may work via Tolk but are untested.
+Tested on Windows 10 and Windows 11 with NVDA and JAWS. Speech goes through Prism, which also reaches Narrator/OneCore, UIA, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText and SAPI — those backends come from Prism and are untested here, so reports are welcome. Prism itself requires Windows 10 or later; older Windows versions are out of scope.
 
 ---
 
@@ -160,7 +160,7 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 1. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
 2. Cube and other draft event accessibility — make Cube drafts and similar special draft events fully accessible (pick screens, pack navigation, deck building within event).
 3. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-4. Replace Tolk with Prism library — Tolk covers the major Western screen readers (NVDA, JAWS, Narrator) but lacks support for several Asian ones. A switch to Prism may be considered if Asian screen reader users request it. Two blockers remain: the official Prism .NET binding currently targets .NET 10, while this mod runs on .NET Framework 4.7.2; and the mod would need to be confirmed portable to macOS, which requires a contributor with access to a Mac (the maintainer does not have one).
+4. Confirm the Prism backends nobody here can test — the Tolk-to-Prism switch is done (v1.4.6), so ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText, Narrator/OneCore and UIA are now reachable, but only NVDA and JAWS are tested by the maintainer. Reports from users of the other readers are what would turn "reachable" into "known working". The old .NET blocker is gone: the mod P/Invokes Prism's C ABI directly instead of using the official binding, which targets .NET 10. macOS remains out of reach, but the speech library is no longer the obstacle — the mod loader and the game client are, and confirming it would still need a contributor with a Mac.
 5. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
 6. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
 

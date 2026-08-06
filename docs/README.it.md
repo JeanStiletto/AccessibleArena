@@ -34,12 +34,12 @@ Se vuoi saperne di più su Magic in generale, il sito ufficiale del gioco e molt
 3. Copia la DLL nella tua cartella Mods di MTGA:
    - Installazione WotC: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
    - Installazione Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. Assicurati che `Tolk.dll` e `nvdaControllerClient64.dll` siano nella cartella radice di MTGA
+4. Assicurati che `prism.dll` sia nella cartella radice di MTGA
 5. Avvia MTG Arena
 
 <h2>Disinstallazione</h2>
 
-Esegui di nuovo l'installer. Se il mod è già installato, offrirà un'opzione di disinstallazione. Puoi anche rimuovere MelonLoader se vuoi. Per disinstallare manualmente, elimina `AccessibleArena.dll` dalla cartella `Mods\` e rimuovi `Tolk.dll` e `nvdaControllerClient64.dll` dalla cartella radice di MTGA.
+Esegui di nuovo l'installer. Se il mod è già installato, offrirà un'opzione di disinstallazione. Puoi anche rimuovere MelonLoader se vuoi. Per disinstallare manualmente, elimina `AccessibleArena.dll` dalla cartella `Mods\` e rimuovi `prism.dll` dalla cartella radice di MTGA.
 
 <h2>Se vieni da Hearthstone</h2>
 
@@ -132,8 +132,9 @@ Shift+Su/Giù: Cambia riga nel campo di battaglia
 
 <h3>Nessuna voce dopo l'avvio del gioco</h3>
 
-- Assicurati che il tuo lettore di schermo sia in esecuzione prima di avviare MTG Arena
-- Controlla che `Tolk.dll` e `nvdaControllerClient64.dll` siano nella cartella radice di MTGA (l'installer li posiziona automaticamente)
+- Assicurati che il tuo lettore di schermo sia in esecuzione prima di avviare MTG Arena (senza, il mod ripiega sulla voce di sistema di Windows)
+- Controlla che `prism.dll` sia nella cartella radice di MTGA (l'installer lo posiziona automaticamente)
+- Il log di MelonLoader indica l'uscita scelta: cerca una riga `[Speech] ready`
 - Controlla il log di MelonLoader nella tua cartella MTGA (`MelonLoader\Latest.log`) per errori
 
 <h3>Il gioco va in crash all'avvio o il mod non si carica</h3>
@@ -185,7 +186,7 @@ Includi le seguenti informazioni:
 Il gioco dovrebbe coprire quasi ogni schermata del gioco, ma ci potrebbero essere alcuni casi limite non completamente funzionanti. PayPal blocca gli utenti ciechi con un captcha illegale non audio, quindi devi usare l'aiuto di una persona vedente o altri metodi di pagamento se vuoi spendere denaro reale nel gioco.
 Alcuni eventi specifici potrebbero non essere completamente funzionanti. Il draft ora funziona, sia il quickdraft (dove scegli le carte contro i bot) sia i draft contro giocatori reali, inclusa la schermata di lobby di preparazione e il timer di selezione. La modalità Cube non è stata toccata. Non so nemmeno di cosa si tratti davvero e costa molte risorse di gioco. Quindi ci lavorerò se avrò tempo o su richiesta.
 Il sistema cosmetico del gioco con Emote, Animali, stili carta e titoli è per ora supportato solo parzialmente.
-Il mod è testato solo su Windows con NVDA e JAWS e si affida tuttora alla libreria Tolk non modificata. Non posso testare qui la compatibilità con Mac o Linux, e librerie multipiattaforma come Prism non supportano pienamente le vecchie versioni di .NET da cui il gioco dipende a questo punto. Perciò passerò a una libreria più ampia solo se qualcuno può aiutare a testare sia altre piattaforme sia lettori di schermo asiatici non pienamente supportati da Tolk non modificato. Non esitare quindi a contattarmi se vuoi che ci lavori.
+La voce passa dalla libreria Prism, che raggiunge NVDA, JAWS, Assistente vocale, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText e la voce di sistema di Windows da un'unica interfaccia — così il mod parla anche quando non c'è nessun lettore di schermo in esecuzione. Puoi scegliere l'uscita sotto «Uscita vocale» nelle impostazioni del mod (F2). Qui si prova su Windows con NVDA e JAWS; le altre uscite vengono da Prism e non le ho testate, quindi fammi sapere se una si comporta male. Mac e Linux restano fuori portata, ma la libreria vocale non è più l'ostacolo: lo sono il mod loader e il client di gioco. Se puoi aiutare a testare su un'altra piattaforma o con un lettore di schermo che non ho, non esitare a contattarmi.
 
 Per l'elenco corrente dei problemi noti, vedi [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
@@ -261,7 +262,7 @@ Per i test con persone vedenti per capire i flussi visivi e confermare alcune co
 - Claude con tutti i modelli inclusi
 - MelonLoader
 - Harmony per il patching IL
-- Tolk per la comunicazione con i lettori di schermo
+- Prism per la comunicazione con lettori di schermo e sintesi vocale
 - ILSpy per decompilare il codice del gioco
 
 <h2>Supporta il tuo modder</h2>

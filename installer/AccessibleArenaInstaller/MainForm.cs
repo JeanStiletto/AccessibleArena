@@ -229,7 +229,7 @@ namespace AccessibleArenaInstaller
 
                     if (_updateOnly)
                     {
-                        // Update mode - skip Tolk DLLs and MelonLoader
+                        // Update mode - skip the speech runtime and MelonLoader
                         UpdateStatus(InstallerLocale.Get("Main_StatusPreparing"));
                         UpdateProgress(70);
                     }
@@ -238,10 +238,10 @@ namespace AccessibleArenaInstaller
                         // Full install mode
                         var melonLoaderInstaller = new MelonLoaderInstaller(_mtgaPath, githubClient);
 
-                        // Step 1: Copy Tolk DLLs
+                        // Step 1: Copy the Prism speech runtime
                         UpdateStatus(InstallerLocale.Get("Main_StatusCopyingLibraries"));
                         UpdateProgress(5);
-                        await Task.Run(() => installationManager.CopyTolkDlls());
+                        await Task.Run(() => installationManager.CopySpeechRuntime());
                         UpdateProgress(15);
 
                         // Step 2: Check and install MelonLoader

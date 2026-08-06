@@ -39,12 +39,12 @@ If you want to learn more about Magic in general, the game's website as well as 
 3. Copy the DLL to your MTGA Mods folder:
    - WotC install: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
    - Steam install: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. Ensure `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder
+4. Ensure `prism.dll` is in the MTGA root folder
 5. Launch MTG Arena
 
 <h2>Uninstallation</h2>
 
-Run the installer again. If the mod is already installed, it will offer an uninstall option. You can optionally remove MelonLoader as well. To uninstall manually, delete `AccessibleArena.dll` from the `Mods\` folder and remove `Tolk.dll` and `nvdaControllerClient64.dll` from the MTGA root folder.
+Run the installer again. If the mod is already installed, it will offer an uninstall option. You can optionally remove MelonLoader as well. To uninstall manually, delete `AccessibleArena.dll` from the `Mods\` folder and remove `prism.dll` from the MTGA root folder.
 
 <h2>If you come from Hearthstone</h2>
 
@@ -137,8 +137,9 @@ Shift+Up/Down: Switch battlefield rows
 
 <h3>No speech output after launching the game</h3>
 
-- Make sure your screen reader is running before launching MTG Arena
-- Check that `Tolk.dll` and `nvdaControllerClient64.dll` are in the MTGA root folder (the installer places them automatically)
+- Make sure your screen reader is running before launching MTG Arena (without one, the mod falls back to the Windows system voice)
+- Check that `prism.dll` is in the MTGA root folder (the installer places it automatically)
+- The MelonLoader log names the backend it picked: look for a `[Speech] ready` line
 - Check the MelonLoader log in your MTGA folder (`MelonLoader\Latest.log`) for errors
 
 <h3>Game crashes on startup or mod not loading</h3>
@@ -190,7 +191,7 @@ Include the following information:
 The game should cover nearly every screen in the game but there might be some edge cases not fully functioning. PayPal blocks blind users with an illegal non-audio captcha so you have to use sighted help or other payment methods if you wanna spend real money on the game.
 Some specific events might not be fully working. Drafting now works, both quickdraft (where you pick cards against bots) and drafts against real players, including the ready-up lobby and the pick timer. Cube mode is untouched. I don't even really know what this is about and it costs a lot of in-game resources. So I will do this if I have time or on request.
 The cosmetics system of the game with Emotes, Pets, card styles and titles is only partly supported yet.
-The mod is only tested on Windows with NVDA and JAWS and still relies on the unmodified Tolk library. I cannot test Mac or Linux compatibility here, and cross-platform libraries like Prism didn't fully support the old .NET versions the game depends on at this point. So I will only switch to a broader library if people can help out with testing for either other platforms or Asian screen readers that aren't fully supported by unmodified Tolk. So don't hesitate to contact me if you want me working on this.
+Speech goes through the Prism library, which reaches NVDA, JAWS, Narrator, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText and the Windows system voice through one interface — so the mod now also speaks when no screen reader is running at all. You can pick the output yourself under "Speech output" in the mod settings (F2). Testing here is on Windows with NVDA and JAWS; the other backends come from Prism and are untested by me, so please tell me if one of them misbehaves. Mac and Linux are still out of reach, but the speech library is no longer what stands in the way — the mod loader and the game client are. If you can help test on another platform or with a screen reader I don't have, don't hesitate to contact me.
 
 For the current list of known issues, see [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
@@ -266,7 +267,7 @@ For sighted testing to understand visual workflows and confirming some things I 
 - Claude with all included models
 - MelonLoader
 - Harmony for IL patching
-- Tolk for screen reader communication
+- Prism for screen reader and speech communication
 - ILSpy for decompiling game code
 
 <h2>Support your modder</h2>

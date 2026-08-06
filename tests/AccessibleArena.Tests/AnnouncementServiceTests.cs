@@ -186,5 +186,43 @@ namespace AccessibleArena.Tests
             _service.ClearHistory();
             Assert.AreEqual(0, _service.History.Count);
         }
+
+        // --- Critical routing (Prism system-voice channel) ---
+
+        [Test]
+        public void Critical_ByDefault_GoesToTheScreenReaderWithInterrupt()
+        {
+            var output = Substitute.For<IScreenReaderOutput>();
+            var service = new AnnouncementService(output, () => true);
+
+            service.Announce("You lost", AnnouncementPriority.Critical);
+
+            output.Received(1).Speak("You lost", true);
+            output.DidNotReceive().SpeakUrgent(Arg.Any<string>());
+        }
+
+        [Test]
+        public void Critical_WithSystemVoiceEnabled_GoesToTheUrgentChannel()
+        {
+            var output = Substitute.For<IScreenReaderOutput>();
+            var service = new AnnouncementService(output, () => true, () => true);
+
+            service.Announce("You lost", AnnouncementPriority.Critical);
+
+            output.Received(1).SpeakUrgent("You lost");
+            output.DidNotReceive().Speak(Arg.Any<string>(), Arg.Any<bool>());
+        }
+
+        [Test]
+        public void NonCritical_WithSystemVoiceEnabled_StillGoesToTheScreenReader()
+        {
+            var output = Substitute.For<IScreenReaderOutput>();
+            var service = new AnnouncementService(output, () => true, () => true);
+
+            service.Announce("Card drawn", AnnouncementPriority.Immediate);
+
+            output.Received(1).Speak("Card drawn", true);
+            output.DidNotReceive().SpeakUrgent(Arg.Any<string>());
+        }
     }
 }

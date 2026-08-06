@@ -818,7 +818,7 @@ GetBlockedByText()            // Resolves BlockedByIds → "blocked by Cat"
 Combat damage is announced via `CombatFrame` events which contain `DamageBranch` objects.
 
 *Announcement Queue Fix:*
-Changed `AnnouncementService` to only interrupt for `Immediate` priority. Previously, `High` priority announcements would interrupt each other, causing rapid damage events to overwrite. Now Tolk's internal queue handles sequencing for all non-Immediate announcements.
+Changed `AnnouncementService` to only interrupt for `Immediate` priority. Previously, `High` priority announcements would interrupt each other, causing rapid damage events to overwrite. Now the screen reader's own queue handles sequencing for all non-Immediate announcements (via Prism; Tolk before v1.4.6).
 
 *Event Structure:*
 ```

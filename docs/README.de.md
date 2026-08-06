@@ -34,12 +34,12 @@ Wenn du mehr über Magic im Allgemeinen lernen möchtest, helfen dir die offizie
 3. Kopiere die DLL in deinen MTGA-Mods-Ordner:
    - WotC-Installation: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
    - Steam-Installation: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. Stelle sicher, dass `Tolk.dll` und `nvdaControllerClient64.dll` im MTGA-Hauptverzeichnis liegen
+4. Stelle sicher, dass `prism.dll` im MTGA-Hauptverzeichnis liegt
 5. Starte MTG Arena
 
 <h2>Deinstallation</h2>
 
-Starte den Installer erneut. Wenn der Mod bereits installiert ist, bietet er eine Deinstallationsoption an. Optional kannst du auch MelonLoader entfernen. Zum manuellen Deinstallieren lösche `AccessibleArena.dll` aus dem `Mods\`-Ordner und entferne `Tolk.dll` sowie `nvdaControllerClient64.dll` aus dem MTGA-Hauptverzeichnis.
+Starte den Installer erneut. Wenn der Mod bereits installiert ist, bietet er eine Deinstallationsoption an. Optional kannst du auch MelonLoader entfernen. Zum manuellen Deinstallieren lösche `AccessibleArena.dll` aus dem `Mods\`-Ordner und entferne `prism.dll` aus dem MTGA-Hauptverzeichnis.
 
 <h2>Wenn du von Hearthstone kommst</h2>
 
@@ -132,8 +132,9 @@ Shift+Hoch/Runter: Zwischen Schlachtfeld-Reihen wechseln
 
 <h3>Keine Sprachausgabe nach dem Start des Spiels</h3>
 
-- Stelle sicher, dass dein Screenreader läuft, bevor du MTG Arena startest
-- Prüfe, ob `Tolk.dll` und `nvdaControllerClient64.dll` im MTGA-Hauptverzeichnis liegen (der Installer legt sie automatisch ab)
+- Stelle sicher, dass dein Screenreader läuft, bevor du MTG Arena startest (ohne Screenreader weicht der Mod auf die Windows-Systemstimme aus)
+- Prüfe, ob `prism.dll` im MTGA-Hauptverzeichnis liegt (der Installer legt sie automatisch ab)
+- Das MelonLoader-Log nennt die gewählte Ausgabe: Suche nach einer Zeile `[Speech] ready`
 - Prüfe das MelonLoader-Log in deinem MTGA-Ordner (`MelonLoader\Latest.log`) auf Fehler
 
 <h3>Spiel stürzt beim Start ab oder Mod lädt nicht</h3>
@@ -185,7 +186,7 @@ Bitte gib folgende Informationen an:
 Das Spiel sollte nahezu jeden Bildschirm im Spiel abdecken, aber einige Randfälle funktionieren möglicherweise nicht vollständig. PayPal blockiert blinde Nutzer mit einem illegalen Captcha ohne Audio-Alternative, daher brauchst du sehende Hilfe oder andere Zahlungsmethoden, wenn du echtes Geld im Spiel ausgeben willst.
 Einige bestimmte Events funktionieren möglicherweise nicht vollständig. Drafting funktioniert jetzt, sowohl Quickdraft (wo du Karten gegen Bots wählst) als auch Drafts gegen echte Spieler, einschließlich der Ready-up-Lobby und des Pick-Timers. Cube-Modus ist unangetastet. Ich weiß nicht mal wirklich, worum es dabei geht, und er kostet viele Ingame-Ressourcen. Ich werde das angehen, wenn ich Zeit habe oder auf Anfrage.
 Das Kosmetik-System des Spiels mit Emotes, Haustieren, Kartenstilen und Titeln wird bislang nur teilweise unterstützt.
-Der Mod wurde nur unter Windows mit NVDA und JAWS getestet und stützt sich noch auf die unveränderte Tolk-Bibliothek. Ich kann Mac- oder Linux-Kompatibilität hier nicht testen, und plattformübergreifende Bibliotheken wie Prism haben die alten .NET-Versionen, auf die das Spiel bisher angewiesen ist, nicht vollständig unterstützt. Ich werde daher nur auf eine umfassendere Bibliothek wechseln, wenn Leute beim Testen entweder auf anderen Plattformen oder mit asiatischen Screenreadern helfen können, die von unverändertem Tolk nicht vollständig unterstützt werden. Zögere also nicht, mich zu kontaktieren, wenn du möchtest, dass ich daran arbeite.
+Die Sprachausgabe läuft über die Prism-Bibliothek, die NVDA, JAWS, Narrator, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText und die Windows-Systemstimme über eine einzige Schnittstelle erreicht — der Mod spricht damit auch dann, wenn gar kein Screenreader läuft. Unter „Sprachausgabe" in den Mod-Einstellungen (F2) kannst du die Ausgabe selbst wählen. Getestet wird hier unter Windows mit NVDA und JAWS; die übrigen Ausgaben kommen von Prism und sind von mir ungetestet — sag mir also bitte Bescheid, wenn eine davon Probleme macht. Mac und Linux bleiben außer Reichweite, aber die Sprachbibliothek steht dem nicht mehr im Weg, sondern der Mod-Loader und der Spiel-Client. Wenn du beim Testen auf einer anderen Plattform oder mit einem Screenreader helfen kannst, den ich nicht habe, melde dich gerne.
 
 Die aktuelle Liste bekannter Probleme findest du unter [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
@@ -261,7 +262,7 @@ Für sehendes Testen, um visuelle Abläufe zu verstehen und Dinge zu bestätigen
 - Claude mit allen enthaltenen Modellen
 - MelonLoader
 - Harmony für IL-Patching
-- Tolk für Screenreader-Kommunikation
+- Prism für Screenreader- und Sprachausgabe-Kommunikation
 - ILSpy für das Dekompilieren des Spielcodes
 
 <h2>Unterstütze deinen Modder</h2>

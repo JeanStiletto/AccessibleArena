@@ -35,6 +35,24 @@ namespace AccessibleArena.Core.Services
         public bool BattlefieldStacking { get; set; } = false;
         public bool CheckForUpdates { get; set; } = true;
 
+        // --- Speech (Prism) ---
+
+        /// <summary>
+        /// Prism backend carrying announcements: <c>"auto"</c> lets Prism pick the running
+        /// screen reader by priority, otherwise a backend name such as "NVDA" or "SAPI".
+        /// </summary>
+        public string SpeechBackend { get; set; } = ScreenReaderOutput.AutoBackend;
+
+        /// <summary>
+        /// Route Critical announcements through the system voice (SAPI) instead of the screen
+        /// reader, so they cannot be cut short by the reader's own cancel-on-keypress handling.
+        /// Off by default — on, alerts arrive in a second, different voice.
+        /// </summary>
+        public bool CriticalViaSystemVoice { get; set; } = false;
+
+        /// <summary>Volume of the system-voice channel, 0-100. Only audible with <see cref="CriticalViaSystemVoice"/> on.</summary>
+        public int UrgentSpeechVolume { get; set; } = 100;
+
         /// <summary>
         /// Load settings from disk. Returns defaults if file doesn't exist or is corrupt.
         /// </summary>
@@ -52,7 +70,7 @@ namespace AccessibleArena.Core.Services
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PriorityAnnouncements={settings.PriorityAnnouncements}, PriorityAlarm={settings.PriorityAlarm}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, BattlefieldStacking={settings.BattlefieldStacking}, CheckForUpdates={settings.CheckForUpdates}");
+                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PriorityAnnouncements={settings.PriorityAnnouncements}, PriorityAlarm={settings.PriorityAlarm}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, BattlefieldStacking={settings.BattlefieldStacking}, CheckForUpdates={settings.CheckForUpdates}, SpeechBackend={settings.SpeechBackend}, CriticalViaSystemVoice={settings.CriticalViaSystemVoice}, UrgentSpeechVolume={settings.UrgentSpeechVolume}");
             }
             catch (Exception ex)
             {
@@ -154,7 +172,10 @@ namespace AccessibleArena.Core.Services
                    $"  \"ManaColorlessLabel\": {(ManaColorlessLabel ? "true" : "false")},\n" +
                    $"  \"ManaGroupColors\": {(ManaGroupColors ? "true" : "false")},\n" +
                    $"  \"BattlefieldStacking\": {(BattlefieldStacking ? "true" : "false")},\n" +
-                   $"  \"CheckForUpdates\": {(CheckForUpdates ? "true" : "false")}\n" +
+                   $"  \"CheckForUpdates\": {(CheckForUpdates ? "true" : "false")},\n" +
+                   $"  \"SpeechBackend\": \"{EscapeJson(SpeechBackend)}\",\n" +
+                   $"  \"CriticalViaSystemVoice\": {(CriticalViaSystemVoice ? "true" : "false")},\n" +
+                   $"  \"UrgentSpeechVolume\": {UrgentSpeechVolume}\n" +
                    "}";
         }
 
@@ -174,6 +195,9 @@ namespace AccessibleArena.Core.Services
             ManaGroupColors = ReadJsonBool(json, "ManaGroupColors") ?? ManaGroupColors;
             BattlefieldStacking = ReadJsonBool(json, "BattlefieldStacking") ?? BattlefieldStacking;
             CheckForUpdates = ReadJsonBool(json, "CheckForUpdates") ?? CheckForUpdates;
+            SpeechBackend = ReadJsonString(json, "SpeechBackend") ?? SpeechBackend;
+            CriticalViaSystemVoice = ReadJsonBool(json, "CriticalViaSystemVoice") ?? CriticalViaSystemVoice;
+            UrgentSpeechVolume = ReadJsonInt(json, "UrgentSpeechVolume") ?? UrgentSpeechVolume;
         }
 
         private static string ReadJsonString(string json, string key)
@@ -192,6 +216,26 @@ namespace AccessibleArena.Core.Services
             if (endQuote < 0) return null;
 
             return json.Substring(startQuote + 1, endQuote - startQuote - 1);
+        }
+
+        private static int? ReadJsonInt(string json, string key)
+        {
+            string pattern = $"\"{key}\"";
+            int keyIndex = json.IndexOf(pattern, StringComparison.Ordinal);
+            if (keyIndex < 0) return null;
+
+            int colonIndex = json.IndexOf(':', keyIndex + pattern.Length);
+            if (colonIndex < 0) return null;
+
+            string remaining = json.Substring(colonIndex + 1).TrimStart();
+            int end = 0;
+            while (end < remaining.Length && (char.IsDigit(remaining[end]) || (end == 0 && remaining[end] == '-')))
+                end++;
+
+            if (end == 0) return null;
+
+            int value;
+            return int.TryParse(remaining.Substring(0, end), out value) ? value : (int?)null;
         }
 
         private static bool? ReadJsonBool(string json, string key)

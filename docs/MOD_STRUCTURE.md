@@ -7,7 +7,7 @@
   src\
     AccessibleArena.csproj
     AccessibleArenaMod.cs      - MelonLoader entry point, holds central services
-    ScreenReaderOutput.cs        - Tolk wrapper
+    ScreenReaderOutput.cs        - Prism wrapper (speech policy; ABI in Core/Speech/PrismInterop.cs)
 
     Core\
       Interfaces\
@@ -139,7 +139,7 @@
 ### Completed
 - [x] Project structure created
 - [x] MelonLoader installed on game
-- [x] Tolk library configured (NVDA communication working)
+- [x] Prism library configured (screen reader communication working)
 - [x] Assembly analysis completed
 - [x] Core framework (interfaces, services, base classes)
   - Note: Legacy context system (ContextManager, GameContext, INavigableContext, Contexts/) was removed February 2026 — fully superseded by the navigator system
@@ -823,18 +823,17 @@ See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for active bugs, limitations, and planned
 
 ### File Locations
 - Mod: `C:\Program Files\Wizards of the Coast\MTGA\Mods\AccessibleArena.dll`
-- Tolk: `C:\Program Files\Wizards of the Coast\MTGA\Tolk.dll`
-- NVDA client: `C:\Program Files\Wizards of the Coast\MTGA\nvdaControllerClient64.dll`
+- Prism: `C:\Program Files\Wizards of the Coast\MTGA\prism.dll`
 - Log: `C:\Program Files\Wizards of the Coast\MTGA\MelonLoader\Latest.log`
 
 ### Build & Deploy
-Build outputs to game's Mods folder. Tolk DLLs must be in game root.
+Build outputs to game's Mods folder. `prism.dll` must be in game root — the build copies it there.
 
 ## Modding Stack
 
 - MelonLoader - Mod loader
 - HarmonyX (0Harmony.dll) - Method patching for game event interception
-- Tolk - Screen reader communication
+- Prism - Screen reader and speech communication
 - Target: .NET Framework 4.7.2
 
 ## Technical Notes

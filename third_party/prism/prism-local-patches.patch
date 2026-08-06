@@ -1,0 +1,1172 @@
+# Local modifications to vendored prism (third_party/prism), atop upstream v0.16.5
+# Regenerate after a prism update by re-applying these three changes by hand.
+# 1) backend_registry.cpp: SEH-guard each initialize() in acquire_best/create_best (crash fix; upstream PR candidate).
+# 2) CMakeLists.txt: pin CMAKE_C_STANDARD to 17 (our CMake/MSVC can't map C23; build-env only).
+# 3) ZDSR / BoyPC Reader / PC-Talker: resolve the vendor client DLL at runtime instead of
+#    through a .def import library + /delayload. The 32-bit defs asked for decorated stdcall
+#    names the real DLLs never export, so those backends could never bind on x86 (upstream PR
+#    candidate; see docs/upstream-prs.md PR-10). Diff appended below.
+
+diff --git a/build/prism-0.16.5/CMakeLists.txt b/third_party/prism/CMakeLists.txt
+index 0d7ecac..4ccc030 100644
+--- a/build/prism-0.16.5/CMakeLists.txt
++++ b/third_party/prism/CMakeLists.txt
+@@ -13,7 +13,12 @@ include(ExternalProject)
+ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+ set(CMAKE_CXX_STANDARD 23)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+-set(CMAKE_C_STANDARD 23)
++# Local build-compat patch (voice-of-the-old-republic): upstream sets
++# CMAKE_C_STANDARD 23, but our toolchain's CMake can't map C23 onto MSVC
++# (try_compile ABI detection fails). prism's C code only needs C17 anyway —
++# target_compile_features below declares c_std_17, not c_std_23 — so pin the
++# global default to 17. Pure build-environment fix; no source/ABI change.
++set(CMAKE_C_STANDARD 17)
+ set(CMAKE_C_STANDARD_REQUIRED ON)
+ 
+ project(
+diff --git a/build/prism-0.16.5/source/backends/backend_registry.cpp b/third_party/prism/source/backends/backend_registry.cpp
+index dcc7186..db2bc87 100644
+--- a/build/prism-0.16.5/source/backends/backend_registry.cpp
++++ b/third_party/prism/source/backends/backend_registry.cpp
+@@ -105,6 +105,43 @@ BackendRegistry::create(std::string_view name) {
+   return create([name](const Entry &e) { return e.name == name; });
+ }
+ 
++#ifdef _WIN32
++// SEH-guarded backend initialize(). A backend's initialize() may trigger a
++// delay-loaded vendor DLL (ZDSR -> ZDSRAPI.dll, PC-Talker -> PCTKUSR.dll,
++// BoyPC -> BoyCtrl.dll). When the user's installed DLL exports a mismatched
++// symbol set, the MSVC delay-load helper raises a structured exception
++// (0xC06D007F PROC_NOT_FOUND / 0xC06D007E MOD_NOT_FOUND) from inside
++// initialize(); unguarded it propagates out of *_best() and crashes the host.
++// One broken (typically low-priority) backend must not take down backend
++// selection, so we treat a faulting initialize() as "failed to initialize" and
++// skip it, letting the walk fall through to the next backend (down to SAPI).
++//
++// The helper holds only a raw pointer + int: MSVC forbids __try in a function
++// that needs C++ object unwinding (C2712). BackendResult<> is
++// std::expected<void, BackendError> whose payload is trivially destructible, so
++// the temporary returned by initialize() is unwinding-free here.
++//
++// Returns 1 on success, 0 on a clean failure, -1 if a structured exception was
++// caught.
++static int seh_safe_initialize(TextToSpeechBackend *backend) {
++  __try {
++    return backend->initialize().has_value() ? 1 : 0;
++  } __except (EXCEPTION_EXECUTE_HANDLER) {
++    return -1;
++  }
++}
++#endif
++
++// Run a backend's initialize() crash-safely on Windows; plain call elsewhere.
++// Returns true iff the backend initialised successfully.
++static bool try_initialize(TextToSpeechBackend *backend) {
++#ifdef _WIN32
++  return seh_safe_initialize(backend) == 1;
++#else
++  return backend->initialize().has_value();
++#endif
++}
++
+ std::shared_ptr<TextToSpeechBackend> BackendRegistry::create_best() {
+   std::vector<Factory> factories;
+   {
+@@ -114,7 +151,7 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::create_best() {
+       factories.push_back(e.factory);
+   }
+   for (auto &f : factories) {
+-    if (auto b = f(); b && b->initialize())
++    if (auto b = f(); b && try_initialize(b.get()))
+       return b;
+   }
+   return nullptr;
+@@ -149,7 +186,7 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire_best() {
+     if (factory == nullptr)
+       continue;
+     auto backend = factory();
+-    if (backend == nullptr || !backend->initialize())
++    if (backend == nullptr || !try_initialize(backend.get()))
+       continue;
+     std::unique_lock lock(mutex);
+     auto it = std::ranges::find_if(
+
+# ---- (3) runtime resolution of vendor client DLLs ----
+
+diff --git a/third_party/prism/CMakeLists.txt b/third_party/prism/CMakeLists.txt
+index 4ccc030..7078e02 100644
+--- a/third_party/prism/CMakeLists.txt
++++ b/third_party/prism/CMakeLists.txt
+@@ -413,13 +413,10 @@ if(WIN32)
+     add_dependencies(prism_backend_nvda prism_nvda_codegen)
+   endif()
+   target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
++  # The ZDSR, BoyPC Reader and PC-Talker client libraries are resolved at
++  # runtime (see source/backends/raw/dynamic_library.h), not through an import
++  # library, so only prism's own bridges are linked here.
+   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
+-    add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
+-                       ZDSRAPI.dll)
+-    add_import_library(
+-      byctrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader32.def byctrl.dll)
+-    add_import_library(
+-      PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker32.def PCTKUSR.dll)
+     add_import_library(
+       PrismOrcaBridge ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_orca_bridge32.def
+       prism_orca_bridge.dll)
+@@ -427,37 +424,7 @@ if(WIN32)
+       PrismSpeechDispatcherBridge
+       ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge32.def
+       prism_speech_dispatcher_bridge.dll)
+-    target_link_libraries(
+-      ${PROJECT_NAME}
+-      PRIVATE "$<BUILD_INTERFACE:ZDSR>"
+-              "$<BUILD_INTERFACE:byctrl>"
+-              "$<BUILD_INTERFACE:PCTalker>"
+-              "$<BUILD_INTERFACE:PrismOrcaBridge>"
+-              "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
+-  elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+-    add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
+-                       ZDSRAPI_x64.dll)
+-    add_import_library(
+-      byctrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader.def byctrl-x64.dll)
+-    add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
+-                       PCTKUSR.dll)
+-    add_import_library(
+-      PrismOrcaBridge ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_orca_bridge.def
+-      prism_orca_bridge.dll)
+-    add_import_library(
+-      PrismSpeechDispatcherBridge
+-      ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge.def
+-      prism_speech_dispatcher_bridge.dll)
+-    target_link_libraries(
+-      ${PROJECT_NAME}
+-      PRIVATE "$<BUILD_INTERFACE:ZDSR>"
+-              "$<BUILD_INTERFACE:byctrl>"
+-              "$<BUILD_INTERFACE:PCTalker>"
+-              "$<BUILD_INTERFACE:PrismOrcaBridge>"
+-              "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
+   else()
+-    add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
+-                       PCTKUSR.dll)
+     add_import_library(
+       PrismOrcaBridge ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_orca_bridge.def
+       prism_orca_bridge.dll)
+@@ -465,12 +432,11 @@ if(WIN32)
+       PrismSpeechDispatcherBridge
+       ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge.def
+       prism_speech_dispatcher_bridge.dll)
+-    target_link_libraries(
+-      ${PROJECT_NAME}
+-      PRIVATE "$<BUILD_INTERFACE:PCTalker>"
+-              "$<BUILD_INTERFACE:PrismOrcaBridge>"
+-              "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
+   endif()
++  target_link_libraries(
++    ${PROJECT_NAME}
++    PRIVATE "$<BUILD_INTERFACE:PrismOrcaBridge>"
++            "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
+ endif()
+ if(APPLE)
+   find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+@@ -594,30 +560,9 @@ if(WIN32 OR WINDOWS_STORE)
+ endif()
+ if(MSVC)
+   target_link_options(${PROJECT_NAME} PRIVATE "/STACK:8388608")
+-  if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
+-    target_link_options(
+-      ${PROJECT_NAME}
+-      ${_PRISM_LINK_VIS}
+-      /delayload:ZDSRAPI.dll
+-      /delayload:byctrl.dll
+-      /delayload:PCTKUSR.dll
+-      /delayload:prism_orca_bridge.dll
+-      /delayload:prism_speech_dispatcher_bridge.dll)
+-  elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+-    target_link_options(
+-      ${PROJECT_NAME}
+-      ${_PRISM_LINK_VIS}
+-      /delayload:ZDSRAPI_x64.dll
+-      /delayload:byctrl-x64.dll
+-      /delayload:PCTKUSR.dll
+-      /delayload:prism_orca_bridge.dll
+-      /delayload:prism_speech_dispatcher_bridge.dll)
+-  else()
+-    target_link_options(
+-      ${PROJECT_NAME} ${_PRISM_LINK_VIS} /delayload:PCTKUSR.dll
+-      /delayload:prism_orca_bridge.dll
+-      /delayload:prism_speech_dispatcher_bridge.dll)
+-  endif()
++  target_link_options(
++    ${PROJECT_NAME} ${_PRISM_LINK_VIS} /delayload:prism_orca_bridge.dll
++    /delayload:prism_speech_dispatcher_bridge.dll)
+   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
+   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
+   check_cxx_compiler_flag(/Zc:enumTypes MSVC_HAS_ZC_ENUM_TYPES)
+@@ -637,33 +582,11 @@ elseif(
+   CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+   AND WIN32
+   AND NOT MINGW)
+-  if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
+-    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
+-    target_link_options(
+-      ${PROJECT_NAME}
+-      ${_PRISM_LINK_VIS}
+-      "LINKER:/delayload:ZDSRAPI.dll"
+-      "LINKER:/delayload:byctrl.dll"
+-      "LINKER:/delayload:PCTKUSR.dll"
+-      "LINKER:/delayload:prism_orca_bridge.dll"
+-      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
+-  elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+-    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
+-    target_link_options(
+-      ${PROJECT_NAME}
+-      ${_PRISM_LINK_VIS}
+-      "LINKER:/delayload:ZDSRAPI_x64.dll"
+-      "LINKER:/delayload:byctrl-x64.dll"
+-      "LINKER:/delayload:PCTKUSR.dll"
+-      "LINKER:/delayload:prism_orca_bridge.dll"
+-      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
+-  else()
+-    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
+-    target_link_options(
+-      ${PROJECT_NAME} ${_PRISM_LINK_VIS} "LINKER:/delayload:PCTKUSR.dll"
+-      "LINKER:/delayload:prism_orca_bridge.dll"
+-      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
+-  endif()
++  target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
++  target_link_options(
++    ${PROJECT_NAME} ${_PRISM_LINK_VIS}
++    "LINKER:/delayload:prism_orca_bridge.dll"
++    "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
+ elseif(WIN32 AND MINGW)
+   message(
+     WARNING "Delay loading will malfunction and is NOT supported by MinGW!")
+diff --git a/third_party/prism/defs/boy_pc_reader.def b/third_party/prism/defs/boy_pc_reader.def
+deleted file mode 100644
+index b82664a..0000000
+--- a/third_party/prism/defs/boy_pc_reader.def
++++ /dev/null
+@@ -1,21 +0,0 @@
+-LIBRARY "byctrl-x64.dll"
+-EXPORTS
+-BoyCtrlActivateYTApp
+-BoyCtrlCancelTextToAudio
+-BoyCtrlGetReaderState
+-BoyCtrlInitialize
+-BoyCtrlInitializeAnsi
+-BoyCtrlInitializeU8
+-BoyCtrlIsReaderRunning
+-BoyCtrlPauseScreenReader
+-BoyCtrlReportInfo
+-BoyCtrlSetAnyKeyStopSpeaking
+-BoyCtrlSpeak
+-BoyCtrlSpeakAnsi
+-BoyCtrlSpeakEx
+-BoyCtrlSpeakU8
+-BoyCtrlStopSpeaking
+-BoyCtrlStopSpeakingEx
+-BoyCtrlStartTextToAudio
+-BoyCtrlUninitialize
+-BoyCtrlVerify
+diff --git a/third_party/prism/defs/boy_pc_reader32.def b/third_party/prism/defs/boy_pc_reader32.def
+deleted file mode 100644
+index c60e206..0000000
+--- a/third_party/prism/defs/boy_pc_reader32.def
++++ /dev/null
+@@ -1,21 +0,0 @@
+-LIBRARY "byctrl.dll"
+-EXPORTS
+-BoyCtrlActivateYTApp@16
+-BoyCtrlCancelTextToAudio@4
+-BoyCtrlGetReaderState@0
+-BoyCtrlInitialize@4
+-BoyCtrlInitializeAnsi@4
+-BoyCtrlInitializeU8@4
+-BoyCtrlIsReaderRunning@0
+-BoyCtrlPauseScreenReader@4
+-BoyCtrlReportInfo@4
+-BoyCtrlSetAnyKeyStopSpeaking@4
+-BoyCtrlSpeak@12
+-BoyCtrlSpeakAnsi@12
+-BoyCtrlSpeakEx@12
+-BoyCtrlSpeakU8@12
+-BoyCtrlStopSpeaking@0
+-BoyCtrlStopSpeakingEx@4
+-BoyCtrlStartTextToAudio@32
+-BoyCtrlUninitialize@0
+-BoyCtrlVerify@4
+diff --git a/third_party/prism/defs/pc_talker.def b/third_party/prism/defs/pc_talker.def
+deleted file mode 100644
+index 8850089..0000000
+--- a/third_party/prism/defs/pc_talker.def
++++ /dev/null
+@@ -1,68 +0,0 @@
+-LIBRARY "PCTKUSR.dll"
+-EXPORTS
+-    PCTKStatus
+-    PCTKGetVersion
+-    PCTKPRead
+-    PCTKPReadEx
+-    PCTKPReadW
+-    PCTKPReadExW
+-    PCTKVReset
+-    PCTKGetVStatus
+-    PCTKVoiceGuide
+-    PCTKBeep
+-    PCTKCGuide
+-    PCTKCGuideEx
+-    PCTKCGuideW
+-    PCTKCGuideExW
+-    PCTKGetStatus
+-    PCTKSetStatus
+-    PCTKCommand
+-    PCTKLoadUserDict
+-    PCTKPinStatus
+-    PCTKPinFocus
+-    PCTKPinFocusW
+-    PCTKPinIsFocus
+-    PCTKPinWrite
+-    PCTKPinWriteW
+-    PCTKPinEDWrite
+-    PCTKPinEDWriteW
+-    PCTKPinStatusCell
+-    PCTKPinStatusCellW
+-    PCTKPinReset
+-    SoundMessage
+-    SoundStatus
+-    SoundModifyMode
+-    SoundPause
+-    AGSEvent
+-    GetUIActionMode
+-    IsImmInput
+-    PCTKEventHook
+-    PCTKGetVoiceLog
+-    SetKeyBreak
+-    EncodeFlags
+-    dic_regist
+-    dic_regist_detail
+-    dic_reg_from_file
+-    dic_text_out
+-    dic_reg_detail_from_file
+-    dic_detail_text_out
+-    PCTKSTATUS
+-    PCTKGETVERSION
+-    PCTKGETVSTATUS
+-    PCTKGETSTATUS
+-    PCTKSETSTATUS
+-    PCTKPREAD
+-    PCTKPREADEX
+-    PCTKPREADW
+-    PCTKPREADEXW
+-    PCTKCGUIDE
+-    PCTKCGUIDEEX
+-    PCTKCGUIDEW
+-    PCTKCGUIDEEXW
+-    PCTKCOMMAND
+-    PCTKVOICEGUIDE
+-    PCTKVRESET
+-    PCTKBEEP
+-    PCTKLOADUSERDICT
+-    PCTKEVENTHOOK
+-    PCTKGETVOICELOG
+diff --git a/third_party/prism/defs/pc_talker32.def b/third_party/prism/defs/pc_talker32.def
+deleted file mode 100644
+index 016f0d9..0000000
+--- a/third_party/prism/defs/pc_talker32.def
++++ /dev/null
+@@ -1,68 +0,0 @@
+-LIBRARY "PCTKUSR.dll"
+-EXPORTS
+-    PCTKStatus@0
+-    PCTKGetVersion@0
+-    PCTKPRead@12
+-    PCTKPReadEx@16
+-    PCTKPReadW@12
+-    PCTKPReadExW@16
+-    PCTKVReset@0
+-    PCTKGetVStatus@0
+-    PCTKVoiceGuide@4
+-    PCTKBeep@8
+-    PCTKCGuide@8
+-    PCTKCGuideEx@12
+-    PCTKCGuideW@8
+-    PCTKCGuideExW@12
+-    PCTKGetStatus@12
+-    PCTKSetStatus@12
+-    PCTKCommand@12
+-    PCTKLoadUserDict@0
+-    PCTKPinStatus@0
+-    PCTKPinFocus@20
+-    PCTKPinFocusW@20
+-    PCTKPinIsFocus@4
+-    PCTKPinWrite@12
+-    PCTKPinWriteW@12
+-    PCTKPinEDWrite@28
+-    PCTKPinEDWriteW@28
+-    PCTKPinStatusCell@8
+-    PCTKPinStatusCellW@8
+-    PCTKPinReset@0
+-    SoundMessage@8
+-    SoundStatus@0
+-    SoundModifyMode@8
+-    SoundPause@4
+-    AGSEvent@12
+-    GetUIActionMode@0
+-    IsImmInput@4
+-    PCTKEventHook@0
+-    PCTKGetVoiceLog@0
+-    SetKeyBreak@0
+-    EncodeFlags@0
+-    dic_regist@0
+-    dic_regist_detail@0
+-    dic_reg_from_file@0
+-    dic_text_out@0
+-    dic_reg_detail_from_file@0
+-    dic_detail_text_out@0
+-    PCTKSTATUS@0
+-    PCTKGETVERSION@0
+-    PCTKGETVSTATUS@0
+-    PCTKGETSTATUS@12
+-    PCTKSETSTATUS@12
+-    PCTKPREAD@12
+-    PCTKPREADEX@16
+-    PCTKPREADW@12
+-    PCTKPREADEXW@16
+-    PCTKCGUIDE@8
+-    PCTKCGUIDEEX@12
+-    PCTKCGUIDEW@8
+-    PCTKCGUIDEEXW@12
+-    PCTKCOMMAND@12
+-    PCTKVOICEGUIDE@4
+-    PCTKVRESET@0
+-    PCTKBEEP@8
+-    PCTKLOADUSERDICT@0
+-    PCTKEVENTHOOK@0
+-    PCTKGETVOICELOG@0
+diff --git a/third_party/prism/defs/zdsr.def b/third_party/prism/defs/zdsr.def
+deleted file mode 100644
+index 7f1678a..0000000
+--- a/third_party/prism/defs/zdsr.def
++++ /dev/null
+@@ -1,6 +0,0 @@
+-LIBRARY "ZDSRAPI_x64.dll"
+-EXPORTS
+-    InitTTS
+-    Speak
+-    GetSpeakState
+-    StopSpeak
+diff --git a/third_party/prism/defs/zdsr32.def b/third_party/prism/defs/zdsr32.def
+deleted file mode 100644
+index 3ef7a50..0000000
+--- a/third_party/prism/defs/zdsr32.def
++++ /dev/null
+@@ -1,6 +0,0 @@
+-LIBRARY "ZDSRAPI.dll"
+-EXPORTS
+-    InitTTS@12
+-    Speak@8
+-    StopSpeak@0
+-    GetSpeakState@0
+\ No newline at end of file
+diff --git a/third_party/prism/source/backends/boy_pc_reader.cpp b/third_party/prism/source/backends/boy_pc_reader.cpp
+index d5f2581..291ab77 100644
+--- a/third_party/prism/source/backends/boy_pc_reader.cpp
++++ b/third_party/prism/source/backends/boy_pc_reader.cpp
+@@ -25,6 +25,8 @@
+ #include <utility>
+ #include <windows.h>
+ 
++using namespace prism::raw::boy_pc_reader;
++
+ // Whoever designed this screen reader API needs to learn how to properly design
+ // C callbacks...
+ class BoyPCReaderBackend;
+@@ -234,6 +236,8 @@ public:
+   BackendResult<> initialize() override {
+     if (initialized.test())
+       return std::unexpected(BackendError::AlreadyInitialized);
++    if (!load())
++      return std::unexpected(BackendError::BackendNotAvailable);
+     if (complete_callback == nullptr) {
+       complete_callback = Slots::acquire(this);
+       if (complete_callback == nullptr)
+diff --git a/third_party/prism/source/backends/pc_talker.cpp b/third_party/prism/source/backends/pc_talker.cpp
+index 33675e9..71868bb 100644
+--- a/third_party/prism/source/backends/pc_talker.cpp
++++ b/third_party/prism/source/backends/pc_talker.cpp
+@@ -12,6 +12,8 @@
+ #include <simdutf/simdutf.h>
+ #include <windows.h>
+ 
++using namespace prism::raw::pc_talker;
++
+ class BrailleMarshaller {
+ private:
+   HANDLE request{};
+@@ -110,7 +112,7 @@ public:
+   [[nodiscard]] std::bitset<64> get_features() const override {
+     using namespace BackendFeature;
+     std::bitset<64> features;
+-    if (PCTKStatus() != 0) {
++    if (load() && PCTKStatus() != 0) {
+       features |= IS_SUPPORTED_AT_RUNTIME;
+     }
+     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_BRAILLE |
+@@ -122,6 +124,9 @@ public:
+     if (initialized.test()) {
+       return std::unexpected(BackendError::AlreadyInitialized);
+     }
++    if (!load()) {
++      return std::unexpected(BackendError::BackendNotAvailable);
++    }
+     if (PCTKStatus() == 0) {
+       return std::unexpected(BackendError::BackendNotAvailable);
+     }
+diff --git a/third_party/prism/source/backends/raw/boy_pc_reader.h b/third_party/prism/source/backends/raw/boy_pc_reader.h
+index ad77235..1a33cb3 100644
+--- a/third_party/prism/source/backends/raw/boy_pc_reader.h
++++ b/third_party/prism/source/backends/raw/boy_pc_reader.h
+@@ -1,11 +1,15 @@
+ // SPDX-License-Identifier: MPL-2.0
+ 
++// BoyPC Reader's client library, resolved at runtime. See
++// raw/dynamic_library.h for why these entry points are not imported through a
++// .def-generated import library.
++
+ #pragma once
++#ifdef _WIN32
++#include <raw/dynamic_library.h>
+ #include <windows.h>
+ 
+-#ifdef __cplusplus
+-extern "C" {
+-#endif
++namespace prism::raw::boy_pc_reader {
+ 
+ typedef void(__stdcall *BoyCtrlSpeakCompleteFunc)(int reason);
+ 
+@@ -29,40 +33,103 @@ typedef enum {
+   e_bcirm_date,
+ } BoyCtrlInfoReportMode;
+ 
+-__declspec(dllimport) BoyCtrlError __stdcall
+-BoyCtrlInitialize(const wchar_t *logPath);
+-__declspec(dllimport) BoyCtrlError __stdcall
+-BoyCtrlInitializeAnsi(const char *logPath);
+-__declspec(dllimport) BoyCtrlError __stdcall
+-BoyCtrlInitializeU8(const char *logPath);
+-__declspec(dllimport) BoyCtrlError __stdcall
+-BoyCtrlSpeak(const wchar_t *text, bool append, BoyCtrlSpeakCompleteFunc onCompletion);
+-__declspec(dllimport) BoyCtrlError __stdcall
+-BoyCtrlSpeakEx(const wchar_t *text, int flags,
+-               BoyCtrlSpeakCompleteFunc onCompletion);
+-__declspec(dllimport) BoyCtrlError __stdcall
+-BoyCtrlSpeakAnsi(const char *text, bool append, BoyCtrlSpeakCompleteFunc onCompletion);
+-__declspec(dllimport) BoyCtrlError __stdcall
+-BoyCtrlSpeakU8(const char *text, bool append, BoyCtrlSpeakCompleteFunc onCompletion);
+-__declspec(dllimport) BoyCtrlError __stdcall BoyCtrlStopSpeaking();
+-__declspec(dllimport) BoyCtrlError __stdcall BoyCtrlStopSpeakingEx(int flags);
+-__declspec(dllimport) BoyCtrlError __stdcall BoyCtrlPauseScreenReader(int ms);
+-__declspec(dllimport) void __stdcall BoyCtrlUninitialize();
+-__declspec(dllimport) bool __stdcall BoyCtrlIsReaderRunning();
+-__declspec(dllimport) int __stdcall BoyCtrlGetReaderState();
+-__declspec(dllimport) bool __stdcall BoyCtrlVerify(const char *key);
+-__declspec(dllimport) bool __stdcall
+-BoyCtrlSetAnyKeyStopSpeaking(bool withSlave);
+-__declspec(dllimport) bool __stdcall BoyCtrlReportInfo(int mode);
+-__declspec(dllimport) bool __stdcall BoyCtrlStartTextToAudio(
++// Required by the backend; non-null once load() has returned true.
++inline BoyCtrlError(__stdcall *BoyCtrlInitializeU8)(const char *logPath) =
++    nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlSpeak)(
++    const wchar_t *text, bool append,
++    BoyCtrlSpeakCompleteFunc onCompletion) = nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlStopSpeaking)() = nullptr;
++inline void(__stdcall *BoyCtrlUninitialize)() = nullptr;
++inline bool(__stdcall *BoyCtrlIsReaderRunning)() = nullptr;
++inline bool(__stdcall *BoyCtrlSetAnyKeyStopSpeaking)(bool withSlave) = nullptr;
++
++// Optional; may be null even when load() succeeded, so check before calling.
++inline BoyCtrlError(__stdcall *BoyCtrlInitialize)(const wchar_t *logPath) =
++    nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlInitializeAnsi)(const char *logPath) =
++    nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlSpeakEx)(
++    const wchar_t *text, int flags,
++    BoyCtrlSpeakCompleteFunc onCompletion) = nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlSpeakAnsi)(
++    const char *text, bool append,
++    BoyCtrlSpeakCompleteFunc onCompletion) = nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlSpeakU8)(
++    const char *text, bool append,
++    BoyCtrlSpeakCompleteFunc onCompletion) = nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlStopSpeakingEx)(int flags) = nullptr;
++inline BoyCtrlError(__stdcall *BoyCtrlPauseScreenReader)(int ms) = nullptr;
++inline int(__stdcall *BoyCtrlGetReaderState)() = nullptr;
++inline bool(__stdcall *BoyCtrlVerify)(const char *key) = nullptr;
++inline bool(__stdcall *BoyCtrlReportInfo)(int mode) = nullptr;
++inline bool(__stdcall *BoyCtrlStartTextToAudio)(
+     int taskId, const wchar_t *inputFilePath, const wchar_t *outputFilePath,
+     const wchar_t *speechCase, int interval, const wchar_t *format,
+-    unsigned hwnd, unsigned notifyBaseMsg);
+-__declspec(dllimport) bool __stdcall BoyCtrlCancelTextToAudio(int taskId);
+-__declspec(dllimport) bool __stdcall
+-BoyCtrlActivateYTApp(const wchar_t *appName, unsigned msg, unsigned wParam,
+-                     unsigned lParam);
++    unsigned hwnd, unsigned notifyBaseMsg) = nullptr;
++inline bool(__stdcall *BoyCtrlCancelTextToAudio)(int taskId) = nullptr;
++inline bool(__stdcall *BoyCtrlActivateYTApp)(const wchar_t *appName,
++                                             unsigned msg, unsigned wParam,
++                                             unsigned lParam) = nullptr;
+ 
+-#ifdef __cplusplus
++// Resolves the entry points above on first call; thread-safe and idempotent.
++// Returns false when BoyPC Reader is not installed or its client library is
++// missing one of the required entry points.
++//
++// Two file names are tried: the vendor SDK and Tolk both ship the library as
++// BoyCtrl.dll / BoyCtrl-x64.dll, while this backend was originally written
++// against byctrl.dll / byctrl-x64.dll.
++inline bool load() {
++  static const bool loaded = [] {
++#ifdef _WIN64
++    constexpr const wchar_t *file_name = L"BoyCtrl-x64.dll";
++    constexpr const wchar_t *legacy_file_name = L"byctrl-x64.dll";
++    constexpr const wchar_t *install_key =
++        L"SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
++        L"\\{1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1";
++#else
++    constexpr const wchar_t *file_name = L"BoyCtrl.dll";
++    constexpr const wchar_t *legacy_file_name = L"byctrl.dll";
++    constexpr const wchar_t *install_key =
++        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
++        L"\\{1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1";
++#endif
++    HMODULE module = load_vendor_library(file_name);
++    if (module == nullptr)
++      module = load_vendor_library(legacy_file_name);
++    if (module == nullptr)
++      module = load_vendor_library_from_registry(
++          HKEY_LOCAL_MACHINE, install_key, L"InstallLocation", file_name);
++    if (module == nullptr)
++      module = load_vendor_library_from_registry(
++          HKEY_LOCAL_MACHINE, install_key, L"InstallLocation",
++          legacy_file_name);
++    if (module == nullptr)
++      return false;
++    resolve(module, BoyCtrlInitialize, "BoyCtrlInitialize");
++    resolve(module, BoyCtrlInitializeAnsi, "BoyCtrlInitializeAnsi");
++    resolve(module, BoyCtrlSpeakEx, "BoyCtrlSpeakEx");
++    resolve(module, BoyCtrlSpeakAnsi, "BoyCtrlSpeakAnsi");
++    resolve(module, BoyCtrlSpeakU8, "BoyCtrlSpeakU8");
++    resolve(module, BoyCtrlStopSpeakingEx, "BoyCtrlStopSpeakingEx");
++    resolve(module, BoyCtrlPauseScreenReader, "BoyCtrlPauseScreenReader");
++    resolve(module, BoyCtrlGetReaderState, "BoyCtrlGetReaderState");
++    resolve(module, BoyCtrlVerify, "BoyCtrlVerify");
++    resolve(module, BoyCtrlReportInfo, "BoyCtrlReportInfo");
++    resolve(module, BoyCtrlStartTextToAudio, "BoyCtrlStartTextToAudio");
++    resolve(module, BoyCtrlCancelTextToAudio, "BoyCtrlCancelTextToAudio");
++    resolve(module, BoyCtrlActivateYTApp, "BoyCtrlActivateYTApp");
++    return resolve(module, BoyCtrlInitializeU8, "BoyCtrlInitializeU8") &&
++           resolve(module, BoyCtrlSpeak, "BoyCtrlSpeak") &&
++           resolve(module, BoyCtrlStopSpeaking, "BoyCtrlStopSpeaking") &&
++           resolve(module, BoyCtrlUninitialize, "BoyCtrlUninitialize") &&
++           resolve(module, BoyCtrlIsReaderRunning, "BoyCtrlIsReaderRunning") &&
++           resolve(module, BoyCtrlSetAnyKeyStopSpeaking,
++                   "BoyCtrlSetAnyKeyStopSpeaking");
++  }();
++  return loaded;
+ }
++
++} // namespace prism::raw::boy_pc_reader
++
+ #endif
+diff --git a/third_party/prism/source/backends/raw/dynamic_library.h b/third_party/prism/source/backends/raw/dynamic_library.h
+new file mode 100644
+index 0000000..f0901f8
+--- /dev/null
++++ b/third_party/prism/source/backends/raw/dynamic_library.h
+@@ -0,0 +1,107 @@
++// SPDX-License-Identifier: MPL-2.0
++
++// Helper for backends that talk to a screen reader's vendor client library
++// (ZDSR, BoyPC Reader, PC-Talker). Those libraries are resolved at runtime
++// rather than through a generated import library plus /delayload, because:
++//
++//   * The 32-bit builds of these libraries export undecorated names, while an
++//     import library generated from a .def for __stdcall functions asks for
++//     the decorated forms (InitTTS@12, BoyCtrlSpeak@12, ...). No shipped
++//     vendor DLL exports those, so on 32-bit builds the delay-load helper
++//     could never bind. It could not fall back on the stub table in
++//     source/delayimp.cpp either, since that table is keyed on the
++//     undecorated names, so every call raised ERROR_PROC_NOT_FOUND
++//     (0xC06D007F) instead of degrading to a stub.
++//   * A missing or partial vendor DLL raises a structured exception out of the
++//     delay-load helper, which propagates through initialize() and takes the
++//     host process down with it. Resolving explicitly turns "this reader is
++//     not installed" into an ordinary backend-unavailable result.
++//   * Delay loading is not supported under MinGW; runtime resolution is.
++//
++// The search order below reproduces what the delay-load failure hook did for
++// these libraries: the standard search order, then prism's own directory, then
++// the reader's installation path from the registry.
++
++#pragma once
++#ifdef _WIN32
++#include <string>
++#include <windows.h>
++
++namespace prism::raw {
++
++// GetProcAddress with the function-pointer cast folded in. Leaves `fn` null
++// and returns false when the export is absent, so a caller can require some
++// entry points and treat others as optional.
++template <typename Fn>
++inline bool resolve(HMODULE module, Fn &fn, const char *symbol) {
++  fn = reinterpret_cast<Fn>(
++      reinterpret_cast<void (*)()>(GetProcAddress(module, symbol)));
++  return fn != nullptr;
++}
++
++// Path to `file_name` in the directory prism itself was loaded from, so a host
++// application can ship a vendor client library next to prism. Empty on
++// failure.
++inline std::wstring module_relative_path(const wchar_t *file_name) {
++  static const int anchor = 0;
++  HMODULE self = nullptr;
++  if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
++                             GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                         reinterpret_cast<LPCWSTR>(&anchor), &self) == 0)
++    return {};
++  std::wstring buffer(MAX_PATH, L'\0');
++  const DWORD len =
++      GetModuleFileNameW(self, buffer.data(), static_cast<DWORD>(buffer.size()));
++  if (len == 0 || len >= buffer.size())
++    return {};
++  buffer.resize(len);
++  const auto separator = buffer.find_last_of(L"\\/");
++  if (separator == std::wstring::npos)
++    return {};
++  buffer.resize(separator + 1);
++  buffer += file_name;
++  return buffer;
++}
++
++// Loads `file_name` through the standard search order, then from prism's own
++// directory. Null when neither location has it.
++inline HMODULE load_vendor_library(const wchar_t *file_name) {
++  if (HMODULE module = LoadLibraryW(file_name); module != nullptr)
++    return module;
++  const auto path = module_relative_path(file_name);
++  if (path.empty())
++    return nullptr;
++  return LoadLibraryW(path.c_str());
++}
++
++// Loads `file_name` from an installation directory named by a registry value,
++// e.g. the path ZDSR records under HKLM\SOFTWARE\zhiduo\zdsr. Null when the
++// key, the value or the file is missing.
++inline HMODULE load_vendor_library_from_registry(HKEY root,
++                                                 const wchar_t *sub_key,
++                                                 const wchar_t *value,
++                                                 const wchar_t *file_name) {
++  HKEY key = nullptr;
++  if (RegOpenKeyExW(root, sub_key, 0, KEY_QUERY_VALUE | KEY_READ, &key) !=
++      ERROR_SUCCESS)
++    return nullptr;
++  std::wstring path(MAX_PATH, L'\0');
++  auto size = static_cast<DWORD>(path.size() * sizeof(wchar_t));
++  const auto res =
++      RegQueryValueExW(key, value, nullptr, nullptr,
++                       reinterpret_cast<LPBYTE>(path.data()), &size);
++  RegCloseKey(key);
++  if (res != ERROR_SUCCESS)
++    return nullptr;
++  path.resize(wcsnlen(path.c_str(), path.size()));
++  if (path.empty())
++    return nullptr;
++  if (path.back() != L'\\' && path.back() != L'/')
++    path += L'\\';
++  path += file_name;
++  return LoadLibraryW(path.c_str());
++}
++
++} // namespace prism::raw
++
++#endif
+diff --git a/third_party/prism/source/backends/raw/pc_talker.h b/third_party/prism/source/backends/raw/pc_talker.h
+index 2b3bce1..727ef56 100644
+--- a/third_party/prism/source/backends/raw/pc_talker.h
++++ b/third_party/prism/source/backends/raw/pc_talker.h
+@@ -1,13 +1,14 @@
+ // SPDX-License-Identifier: MPL-2.0
+ 
++// PC-Talker's client library, resolved at runtime. See raw/dynamic_library.h
++// for why these entry points are not imported through a .def-generated import
++// library.
++
+ #pragma once
++#ifdef _WIN32
++#include <raw/dynamic_library.h>
+ #include <windows.h>
+ 
+-#ifdef __cplusplus
+-extern "C" {
+-#endif
+-
+-
+ #define PS_STATUS       0x10001
+ #define PS_PREV         0x10002
+ #define PS_NEXT         0x10003
+@@ -32,99 +33,144 @@ extern "C" {
+ #define PCTK_PIN_MODE_3         0xC0000000u
+ #define PCTK_PIN_MODE_MASK      0xC0000000u
+ 
++namespace prism::raw::pc_talker {
+ 
+-__declspec(dllimport) BOOL  __stdcall PCTKStatus(void);
+-__declspec(dllimport) DWORD __stdcall PCTKGetVersion(void);
+-__declspec(dllimport) BOOL __stdcall PCTKPRead(
+-    const char *text, int priority, BOOL analyze);
+-__declspec(dllimport) BOOL __stdcall PCTKPReadEx(
+-    const char *text, int priority, BOOL analyze, int flags);
+-__declspec(dllimport) BOOL __stdcall PCTKPReadW(
+-    const wchar_t *text, int priority, BOOL analyze);
+-__declspec(dllimport) BOOL __stdcall PCTKPReadExW(
+-    const wchar_t *text, int priority, BOOL analyze, int flags);
+-__declspec(dllimport) void __stdcall PCTKVReset(void);
+-__declspec(dllimport) BOOL __stdcall PCTKGetVStatus(void);
+-__declspec(dllimport) void __stdcall PCTKVoiceGuide(const char *text);
+-__declspec(dllimport) void __stdcall PCTKBeep(int type, int param);
+-__declspec(dllimport) BOOL __stdcall PCTKCGuide(
+-    const char *text, DWORD mode);
+-__declspec(dllimport) BOOL __stdcall PCTKCGuideEx(
+-    const char *text, DWORD mode, int flags);
+-__declspec(dllimport) BOOL __stdcall PCTKCGuideW(
+-    const wchar_t *text, DWORD mode);
+-__declspec(dllimport) BOOL __stdcall PCTKCGuideExW(
+-    const wchar_t *text, DWORD mode, int flags);
+-__declspec(dllimport) DWORD __stdcall PCTKGetStatus(
+-    UINT item, LPVOID param1, LPVOID param2);
+-__declspec(dllimport) DWORD __stdcall PCTKSetStatus(
+-    UINT item, LPVOID param1, LPVOID param2);
+-__declspec(dllimport) int __stdcall PCTKCommand(
+-    const char *cmdstr, LPARAM param1, LPARAM param2);
+-__declspec(dllimport) BOOL __stdcall PCTKLoadUserDict(void);
+-__declspec(dllimport) BOOL __stdcall PCTKPinStatus(void);
+-__declspec(dllimport) BOOL __stdcall PCTKPinFocus(
+-    LONG_PTR context, const char *text, DWORD disp_flags,
+-    const char *aux_text, LONG_PTR aux_param);
+-__declspec(dllimport) BOOL __stdcall PCTKPinFocusW(
+-    LONG_PTR context, const wchar_t *text, DWORD disp_flags,
+-    const wchar_t *aux_text, LONG_PTR aux_param);
+-__declspec(dllimport) BOOL __stdcall PCTKPinIsFocus(LONG_PTR context);
+-__declspec(dllimport) BOOL __stdcall PCTKPinWrite(
+-    const char *text, int mode, int flags);
+-__declspec(dllimport) BOOL __stdcall PCTKPinWriteW(
+-    const wchar_t *text, int mode, int flags);
+-__declspec(dllimport) BOOL __stdcall PCTKPinEDWrite(
+-    const char *text, int edit_mode, int cursor_pos,
+-    int sel_start, int sel_len, int line_offset, int char_attr);
+-__declspec(dllimport) BOOL __stdcall PCTKPinEDWriteW(
+-    const wchar_t *text, int edit_mode, int cursor_pos,
+-    int sel_start, int sel_len, int line_offset, int char_attr);
+-__declspec(dllimport) BOOL __stdcall PCTKPinStatusCell(
+-    const void *cell_data, void *out_buf);
+-__declspec(dllimport) BOOL __stdcall PCTKPinStatusCellW(
+-    const void *cell_data, void *out_buf);
+-__declspec(dllimport) void __stdcall PCTKPinReset(void);
+-__declspec(dllimport) BOOL __stdcall SoundMessage(
+-    const char *text, int flags);
+-__declspec(dllimport) BOOL __stdcall SoundStatus(void);
+-__declspec(dllimport) BOOL __stdcall SoundModifyMode(int on, int off);
+-__declspec(dllimport) BOOL __stdcall SoundPause(BOOL sw);
+-__declspec(dllimport) int      __stdcall AGSEvent(
+-    int event_type, LPARAM param1, LPARAM param2);
+-__declspec(dllimport) LONGLONG __stdcall GetUIActionMode(void);
+-__declspec(dllimport) BOOL     __stdcall IsImmInput(HWND hwnd);
+-__declspec(dllimport) int  __stdcall PCTKEventHook(void);
+-__declspec(dllimport) int  __stdcall PCTKGetVoiceLog(void);
+-__declspec(dllimport) int  __stdcall SetKeyBreak(void);
+-__declspec(dllimport) void __stdcall EncodeFlags(void);
+-__declspec(dllimport) int  __stdcall dic_regist(void);
+-__declspec(dllimport) int  __stdcall dic_regist_detail(void);
+-__declspec(dllimport) int  __stdcall dic_reg_from_file(void);
+-__declspec(dllimport) int  __stdcall dic_text_out(void);
+-__declspec(dllimport) int  __stdcall dic_reg_detail_from_file(void);
+-__declspec(dllimport) int  __stdcall dic_detail_text_out(void);
+-__declspec(dllimport) BOOL    __stdcall PCTKSTATUS(void);
+-__declspec(dllimport) DWORD   __stdcall PCTKGETVERSION(void);
+-__declspec(dllimport) BOOL    __stdcall PCTKGETVSTATUS(void);
+-__declspec(dllimport) DWORD   __stdcall PCTKGETSTATUS(UINT, LPVOID, LPVOID);
+-__declspec(dllimport) DWORD   __stdcall PCTKSETSTATUS(UINT, LPVOID, LPVOID);
+-__declspec(dllimport) BOOL    __stdcall PCTKPREAD(const char *, int, BOOL);
+-__declspec(dllimport) BOOL    __stdcall PCTKPREADEX(const char *, int, BOOL, int);
+-__declspec(dllimport) BOOL    __stdcall PCTKPREADW(const wchar_t *, int, BOOL);
+-__declspec(dllimport) BOOL    __stdcall PCTKPREADEXW(const wchar_t *, int, BOOL, int);
+-__declspec(dllimport) BOOL    __stdcall PCTKCGUIDE(const char *, DWORD);
+-__declspec(dllimport) BOOL    __stdcall PCTKCGUIDEEX(const char *, DWORD, int);
+-__declspec(dllimport) BOOL    __stdcall PCTKCGUIDEW(const wchar_t *, DWORD);
+-__declspec(dllimport) BOOL    __stdcall PCTKCGUIDEEXW(const wchar_t *, DWORD, int);
+-__declspec(dllimport) int     __stdcall PCTKCOMMAND(const char *, LPARAM, LPARAM);
+-__declspec(dllimport) void    __stdcall PCTKVOICEGUIDE(const char *);
+-__declspec(dllimport) void    __stdcall PCTKVRESET(void);
+-__declspec(dllimport) void    __stdcall PCTKBEEP(int, int);
+-__declspec(dllimport) BOOL    __stdcall PCTKLOADUSERDICT(void);
+-__declspec(dllimport) int     __stdcall PCTKEVENTHOOK(void);
+-__declspec(dllimport) int     __stdcall PCTKGETVOICELOG(void);
++// Required by the backend; non-null once load() has returned true.
++inline BOOL(__stdcall *PCTKStatus)(void) = nullptr;
++inline BOOL(__stdcall *PCTKPReadW)(const wchar_t *text, int priority,
++                                   BOOL analyze) = nullptr;
++inline void(__stdcall *PCTKVReset)(void) = nullptr;
++inline BOOL(__stdcall *PCTKGetVStatus)(void) = nullptr;
++inline BOOL(__stdcall *PCTKPinStatus)(void) = nullptr;
++inline BOOL(__stdcall *PCTKPinFocusW)(LONG_PTR context, const wchar_t *text,
++                                      DWORD disp_flags, const wchar_t *aux_text,
++                                      LONG_PTR aux_param) = nullptr;
++inline BOOL(__stdcall *PCTKPinIsFocus)(LONG_PTR context) = nullptr;
++inline BOOL(__stdcall *PCTKPinWriteW)(const wchar_t *text, int mode,
++                                      int flags) = nullptr;
+ 
+-#ifdef __cplusplus
++// Optional; may be null even when load() succeeded, so check before calling.
++inline DWORD(__stdcall *PCTKGetVersion)(void) = nullptr;
++inline BOOL(__stdcall *PCTKPRead)(const char *text, int priority,
++                                  BOOL analyze) = nullptr;
++inline BOOL(__stdcall *PCTKPReadEx)(const char *text, int priority,
++                                    BOOL analyze, int flags) = nullptr;
++inline BOOL(__stdcall *PCTKPReadExW)(const wchar_t *text, int priority,
++                                     BOOL analyze, int flags) = nullptr;
++inline void(__stdcall *PCTKVoiceGuide)(const char *text) = nullptr;
++inline void(__stdcall *PCTKBeep)(int type, int param) = nullptr;
++inline BOOL(__stdcall *PCTKCGuide)(const char *text, DWORD mode) = nullptr;
++inline BOOL(__stdcall *PCTKCGuideEx)(const char *text, DWORD mode,
++                                     int flags) = nullptr;
++inline BOOL(__stdcall *PCTKCGuideW)(const wchar_t *text, DWORD mode) = nullptr;
++inline BOOL(__stdcall *PCTKCGuideExW)(const wchar_t *text, DWORD mode,
++                                      int flags) = nullptr;
++inline DWORD(__stdcall *PCTKGetStatus)(UINT item, LPVOID param1,
++                                       LPVOID param2) = nullptr;
++inline DWORD(__stdcall *PCTKSetStatus)(UINT item, LPVOID param1,
++                                       LPVOID param2) = nullptr;
++inline int(__stdcall *PCTKCommand)(const char *cmdstr, LPARAM param1,
++                                   LPARAM param2) = nullptr;
++inline BOOL(__stdcall *PCTKLoadUserDict)(void) = nullptr;
++inline BOOL(__stdcall *PCTKPinFocus)(LONG_PTR context, const char *text,
++                                     DWORD disp_flags, const char *aux_text,
++                                     LONG_PTR aux_param) = nullptr;
++inline BOOL(__stdcall *PCTKPinWrite)(const char *text, int mode,
++                                     int flags) = nullptr;
++inline BOOL(__stdcall *PCTKPinEDWrite)(const char *text, int edit_mode,
++                                       int cursor_pos, int sel_start,
++                                       int sel_len, int line_offset,
++                                       int char_attr) = nullptr;
++inline BOOL(__stdcall *PCTKPinEDWriteW)(const wchar_t *text, int edit_mode,
++                                        int cursor_pos, int sel_start,
++                                        int sel_len, int line_offset,
++                                        int char_attr) = nullptr;
++inline BOOL(__stdcall *PCTKPinStatusCell)(const void *cell_data,
++                                          void *out_buf) = nullptr;
++inline BOOL(__stdcall *PCTKPinStatusCellW)(const void *cell_data,
++                                           void *out_buf) = nullptr;
++inline void(__stdcall *PCTKPinReset)(void) = nullptr;
++inline BOOL(__stdcall *SoundMessage)(const char *text, int flags) = nullptr;
++inline BOOL(__stdcall *SoundStatus)(void) = nullptr;
++inline BOOL(__stdcall *SoundModifyMode)(int on, int off) = nullptr;
++inline BOOL(__stdcall *SoundPause)(BOOL sw) = nullptr;
++inline int(__stdcall *AGSEvent)(int event_type, LPARAM param1,
++                                LPARAM param2) = nullptr;
++inline LONGLONG(__stdcall *GetUIActionMode)(void) = nullptr;
++inline BOOL(__stdcall *IsImmInput)(HWND hwnd) = nullptr;
++inline int(__stdcall *PCTKEventHook)(void) = nullptr;
++inline int(__stdcall *PCTKGetVoiceLog)(void) = nullptr;
++inline int(__stdcall *SetKeyBreak)(void) = nullptr;
++inline void(__stdcall *EncodeFlags)(void) = nullptr;
++inline int(__stdcall *dic_regist)(void) = nullptr;
++inline int(__stdcall *dic_regist_detail)(void) = nullptr;
++inline int(__stdcall *dic_reg_from_file)(void) = nullptr;
++inline int(__stdcall *dic_text_out)(void) = nullptr;
++inline int(__stdcall *dic_reg_detail_from_file)(void) = nullptr;
++inline int(__stdcall *dic_detail_text_out)(void) = nullptr;
++
++// PCTKUSR.dll also exports all-uppercase aliases of most of the above
++// (PCTKSTATUS, PCTKPREADW, ...). They are not declared here because nothing
++// calls them; add them as further optional pointers if that changes.
++
++// Resolves the entry points above on first call; thread-safe and idempotent.
++// Returns false when PC-Talker is not installed or its client library is
++// missing one of the required entry points.
++inline bool load() {
++  static const bool loaded = [] {
++    const HMODULE module = load_vendor_library(L"PCTKUSR.dll");
++    if (module == nullptr)
++      return false;
++    resolve(module, PCTKGetVersion, "PCTKGetVersion");
++    resolve(module, PCTKPRead, "PCTKPRead");
++    resolve(module, PCTKPReadEx, "PCTKPReadEx");
++    resolve(module, PCTKPReadExW, "PCTKPReadExW");
++    resolve(module, PCTKVoiceGuide, "PCTKVoiceGuide");
++    resolve(module, PCTKBeep, "PCTKBeep");
++    resolve(module, PCTKCGuide, "PCTKCGuide");
++    resolve(module, PCTKCGuideEx, "PCTKCGuideEx");
++    resolve(module, PCTKCGuideW, "PCTKCGuideW");
++    resolve(module, PCTKCGuideExW, "PCTKCGuideExW");
++    resolve(module, PCTKGetStatus, "PCTKGetStatus");
++    resolve(module, PCTKSetStatus, "PCTKSetStatus");
++    resolve(module, PCTKCommand, "PCTKCommand");
++    resolve(module, PCTKLoadUserDict, "PCTKLoadUserDict");
++    resolve(module, PCTKPinFocus, "PCTKPinFocus");
++    resolve(module, PCTKPinWrite, "PCTKPinWrite");
++    resolve(module, PCTKPinEDWrite, "PCTKPinEDWrite");
++    resolve(module, PCTKPinEDWriteW, "PCTKPinEDWriteW");
++    resolve(module, PCTKPinStatusCell, "PCTKPinStatusCell");
++    resolve(module, PCTKPinStatusCellW, "PCTKPinStatusCellW");
++    resolve(module, PCTKPinReset, "PCTKPinReset");
++    resolve(module, SoundMessage, "SoundMessage");
++    resolve(module, SoundStatus, "SoundStatus");
++    resolve(module, SoundModifyMode, "SoundModifyMode");
++    resolve(module, SoundPause, "SoundPause");
++    resolve(module, AGSEvent, "AGSEvent");
++    resolve(module, GetUIActionMode, "GetUIActionMode");
++    resolve(module, IsImmInput, "IsImmInput");
++    resolve(module, PCTKEventHook, "PCTKEventHook");
++    resolve(module, PCTKGetVoiceLog, "PCTKGetVoiceLog");
++    resolve(module, SetKeyBreak, "SetKeyBreak");
++    resolve(module, EncodeFlags, "EncodeFlags");
++    resolve(module, dic_regist, "dic_regist");
++    resolve(module, dic_regist_detail, "dic_regist_detail");
++    resolve(module, dic_reg_from_file, "dic_reg_from_file");
++    resolve(module, dic_text_out, "dic_text_out");
++    resolve(module, dic_reg_detail_from_file, "dic_reg_detail_from_file");
++    resolve(module, dic_detail_text_out, "dic_detail_text_out");
++    return resolve(module, PCTKStatus, "PCTKStatus") &&
++           resolve(module, PCTKPReadW, "PCTKPReadW") &&
++           resolve(module, PCTKVReset, "PCTKVReset") &&
++           resolve(module, PCTKGetVStatus, "PCTKGetVStatus") &&
++           resolve(module, PCTKPinStatus, "PCTKPinStatus") &&
++           resolve(module, PCTKPinFocusW, "PCTKPinFocusW") &&
++           resolve(module, PCTKPinIsFocus, "PCTKPinIsFocus") &&
++           resolve(module, PCTKPinWriteW, "PCTKPinWriteW");
++  }();
++  return loaded;
+ }
++
++} // namespace prism::raw::pc_talker
++
+ #endif
+diff --git a/third_party/prism/source/backends/raw/zdsr.h b/third_party/prism/source/backends/raw/zdsr.h
+index 95b4066..23260e9 100644
+--- a/third_party/prism/source/backends/raw/zdsr.h
++++ b/third_party/prism/source/backends/raw/zdsr.h
+@@ -1,17 +1,51 @@
+ // SPDX-License-Identifier: MPL-2.0
+ 
++// ZDSR's client library, resolved at runtime. See raw/dynamic_library.h for
++// why these entry points are not imported through a .def-generated import
++// library.
++
+ #pragma once
++#ifdef _WIN32
++#include <raw/dynamic_library.h>
+ #include <windows.h>
+ 
+-#ifdef __cplusplus
+-extern "C" {
+-#endif
++namespace prism::raw::zdsr {
+ 
+-__declspec(dllimport) int WINAPI InitTTS(int type, const WCHAR* channelName, BOOL bKeyDownInterrupt);
+-__declspec(dllimport) int WINAPI Speak(const WCHAR* text, BOOL bInterrupt);
+-__declspec(dllimport) int WINAPI GetSpeakState();
+-__declspec(dllimport) void WINAPI StopSpeak();
++inline int(WINAPI *InitTTS)(int type, const WCHAR *channelName,
++                            BOOL bKeyDownInterrupt) = nullptr;
++inline int(WINAPI *Speak)(const WCHAR *text, BOOL bInterrupt) = nullptr;
++inline int(WINAPI *GetSpeakState)() = nullptr;
++inline void(WINAPI *StopSpeak)() = nullptr;
+ 
+-#ifdef __cplusplus
++// Resolves the entry points above on first call; thread-safe and idempotent.
++// The module is deliberately left loaded for the lifetime of the process,
++// which is what the delay-load helper did as well. Returns false when ZDSR is
++// not installed or its client library does not export the full set, in which
++// case every pointer above is null and the backend must report itself
++// unavailable.
++inline bool load() {
++  static const bool loaded = [] {
++#ifdef _WIN64
++    constexpr const wchar_t *file_name = L"ZDSRAPI_x64.dll";
++    constexpr const wchar_t *install_key = L"SOFTWARE\\WOW6432Node\\zhiduo\\zdsr";
++#else
++    constexpr const wchar_t *file_name = L"ZDSRAPI.dll";
++    constexpr const wchar_t *install_key = L"SOFTWARE\\zhiduo\\zdsr";
++#endif
++    HMODULE module = load_vendor_library(file_name);
++    if (module == nullptr)
++      module = load_vendor_library_from_registry(HKEY_LOCAL_MACHINE, install_key,
++                                                 L"path", file_name);
++    if (module == nullptr)
++      return false;
++    return resolve(module, InitTTS, "InitTTS") &&
++           resolve(module, Speak, "Speak") &&
++           resolve(module, GetSpeakState, "GetSpeakState") &&
++           resolve(module, StopSpeak, "StopSpeak");
++  }();
++  return loaded;
+ }
++
++} // namespace prism::raw::zdsr
++
+ #endif
+diff --git a/third_party/prism/source/backends/zdsr.cpp b/third_party/prism/source/backends/zdsr.cpp
+index 990e2e8..f87384d 100644
+--- a/third_party/prism/source/backends/zdsr.cpp
++++ b/third_party/prism/source/backends/zdsr.cpp
+@@ -14,6 +14,8 @@
+ #include <tlhelp32.h>
+ #include <windows.h>
+ 
++using namespace prism::raw::zdsr;
++
+ class ZdsrBackend final : public TextToSpeechBackend {
+ public:
+   ~ZdsrBackend() override = default;
+@@ -49,6 +51,8 @@ public:
+   }
+ 
+   BackendResult<> initialize() override {
++    if (!load())
++      return std::unexpected(BackendError::BackendNotAvailable);
+     if (const auto res = InitTTS(0, nullptr, TRUE); res > 0)
+       return std::unexpected(BackendError::BackendNotAvailable);
+     if (const auto state = GetSpeakState(); state == 1 || state == 2)
+@@ -57,6 +61,8 @@ public:
+   }
+ 
+   BackendResult<> speak(std::string_view text, bool interrupt) override {
++    if (!load())
++      return std::unexpected(BackendError::BackendNotAvailable);
+     if (const auto res = GetSpeakState(); res == 1 || res == 2)
+       return std::unexpected(BackendError::BackendNotAvailable);
+     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
+@@ -78,6 +84,8 @@ public:
+   }
+ 
+   BackendResult<> stop() override {
++    if (!load())
++      return std::unexpected(BackendError::BackendNotAvailable);
+     if (const auto res = GetSpeakState(); res == 1 || res == 2)
+       return std::unexpected(BackendError::BackendNotAvailable);
+     StopSpeak();
+@@ -85,6 +93,8 @@ public:
+   }
+ 
+   BackendResult<bool> is_speaking() override {
++    if (!load())
++      return std::unexpected(BackendError::BackendNotAvailable);
+     switch (GetSpeakState()) {
+     case 1:
+     case 2:

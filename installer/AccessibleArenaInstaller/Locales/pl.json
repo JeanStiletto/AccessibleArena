@@ -101,7 +101,7 @@
     "Uninstall_UninstallButton": "Odinstaluj",
     "Uninstall_CancelButton": "Anuluj",
     "Uninstall_Confirm_Title": "Potwierd\u017a deinstalacj\u0119",
-    "Uninstall_Confirm_Text": "Czy na pewno chcesz odinstalowa\u0107 Accessible Arena?\n\nZostanie usuni\u0119te:\n- AccessibleArena.dll z folderu Mods\n- Biblioteki czytnika ekranu Tolk\n- Wpisy rejestru",
+    "Uninstall_Confirm_Text": "Czy na pewno chcesz odinstalowa\u0107 Accessible Arena?\n\nZostanie usuni\u0119te:\n- AccessibleArena.dll z folderu Mods\n- Biblioteki czytnika ekranu Prism\n- Wpisy rejestru",
     "Uninstall_Confirm_MelonLoader": "- Framework mod\u00f3w MelonLoader\n",
     "Uninstall_StatusRemoving": "Usuwanie plik\u00f3w moda...",
     "Uninstall_StatusRemovingMelonLoader": "Usuwanie MelonLoadera...",

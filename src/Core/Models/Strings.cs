@@ -965,6 +965,16 @@ namespace AccessibleArena.Core.Models
         public static string SettingManaGroupColorsDesc => L.Get("SettingManaGroupColorsDesc");
         public static string SettingBattlefieldStacking => L.Get("SettingBattlefieldStacking");
         public static string SettingBattlefieldStackingDesc => L.Get("SettingBattlefieldStackingDesc");
+        public static string SettingSpeechBackend => L.Get("SettingSpeechBackend");
+        public static string SettingSpeechBackendDesc => L.Get("SettingSpeechBackendDesc");
+        public static string SettingSpeechBackendAuto(string active) => L.Format("SettingSpeechBackendAuto_Format", active);
+        public static string SettingSpeechBackendUnavailable(string preferred, string active) =>
+            L.Format("SettingSpeechBackendUnavailable_Format", preferred, active);
+        public static string SettingCriticalViaSystemVoice => L.Get("SettingCriticalViaSystemVoice");
+        public static string SettingCriticalViaSystemVoiceDesc => L.Get("SettingCriticalViaSystemVoiceDesc");
+        public static string SettingUrgentSpeechVolume => L.Get("SettingUrgentSpeechVolume");
+        public static string SettingUrgentSpeechVolumeDesc => L.Get("SettingUrgentSpeechVolumeDesc");
+        public static string SettingVolumePercent(int percent) => L.Format("SettingVolumePercent_Format", percent);
         public static string SettingOn => L.Get("SettingOn");
         public static string SettingOff => L.Get("SettingOff");
         public static string SettingChanged(string name, string value) => L.Format("SettingChanged_Format", name, value);

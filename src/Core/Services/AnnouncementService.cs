@@ -11,6 +11,7 @@ namespace AccessibleArena.Core.Services
     {
         private readonly IScreenReaderOutput _output;
         private readonly Func<bool> _verboseEnabled;
+        private readonly Func<bool> _criticalViaSystemVoice;
         private bool _enabled = true;
         private string _lastAnnouncement;
         private readonly List<string> _history = new List<string>();
@@ -23,14 +24,17 @@ namespace AccessibleArena.Core.Services
         /// <summary>Production constructor — uses real screen reader and live settings.</summary>
         public AnnouncementService()
             : this(new ScreenReaderAdapter(),
-                   () => AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false)
+                   () => AccessibleArenaMod.Instance?.Settings?.VerboseAnnouncements != false,
+                   () => AccessibleArenaMod.Instance?.Settings?.CriticalViaSystemVoice == true)
         { }
 
-        /// <summary>Testable constructor — inject output and verbose flag.</summary>
-        internal AnnouncementService(IScreenReaderOutput output, Func<bool> verboseEnabled)
+        /// <summary>Testable constructor — inject output and settings flags.</summary>
+        internal AnnouncementService(IScreenReaderOutput output, Func<bool> verboseEnabled,
+                                     Func<bool> criticalViaSystemVoice = null)
         {
             _output = output;
             _verboseEnabled = verboseEnabled;
+            _criticalViaSystemVoice = criticalViaSystemVoice ?? (() => false);
         }
 
         public IReadOnlyList<string> History => _history;
@@ -58,7 +62,14 @@ namespace AccessibleArena.Core.Services
             {
                 // Critical: interrupt and protect from future interrupts
                 _criticalActiveUntil = DateTime.UtcNow.AddSeconds(CriticalCooldownSeconds);
-                _output.Speak(message, true);
+
+                // Optionally route through the system voice (SAPI) so the screen reader's own
+                // cancel-on-keypress handling cannot swallow the alert. Off by default — with
+                // it off this is the same single interrupting Speak call it has always been.
+                if (_criticalViaSystemVoice())
+                    _output.SpeakUrgent(message);
+                else
+                    _output.Speak(message, true);
             }
             else if (priority >= AnnouncementPriority.Immediate && !isCriticalActive)
             {

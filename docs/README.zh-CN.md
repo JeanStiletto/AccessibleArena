@@ -34,12 +34,12 @@
 3. 将 DLL 复制到 MTGA 的 Mods 文件夹：
    - WotC 安装：`C:\Program Files\Wizards of the Coast\MTGA\Mods\`
    - Steam 安装：`C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. 确保 `Tolk.dll` 和 `nvdaControllerClient64.dll` 位于 MTGA 根文件夹
+4. 确保 `prism.dll` 位于 MTGA 根文件夹
 5. 启动 MTG Arena
 
 <h2>卸载</h2>
 
-再次运行安装程序。如果 MOD 已安装，它会提供卸载选项。你也可以选择一并移除 MelonLoader。如需手动卸载，请从 `Mods\` 文件夹删除 `AccessibleArena.dll`，并从 MTGA 根文件夹移除 `Tolk.dll` 和 `nvdaControllerClient64.dll`。
+再次运行安装程序。如果 MOD 已安装，它会提供卸载选项。你也可以选择一并移除 MelonLoader。如需手动卸载，请从 `Mods\` 文件夹删除 `AccessibleArena.dll`，并从 MTGA 根文件夹移除 `prism.dll`。
 
 <h2>如果你是从炉石传说过来的</h2>
 
@@ -132,8 +132,9 @@ Shift+上/下：切换战场行
 
 <h3>启动游戏后没有语音</h3>
 
-- 确保在启动 MTG Arena 之前屏幕阅读器已在运行
-- 检查 `Tolk.dll` 和 `nvdaControllerClient64.dll` 是否位于 MTGA 根文件夹（安装程序会自动放置）
+- 确保在启动 MTG Arena 之前屏幕阅读器已在运行（若没有运行，MOD 会改用 Windows 系统语音）
+- 检查 `prism.dll` 是否位于 MTGA 根文件夹（安装程序会自动放置）
+- MelonLoader 日志会记录所选的输出：查找 `[Speech] ready` 一行
 - 检查 MTGA 文件夹中 MelonLoader 日志（`MelonLoader\Latest.log`）是否有错误
 
 <h3>游戏启动时崩溃或 MOD 未加载</h3>
@@ -185,7 +186,7 @@ Shift+上/下：切换战场行
 游戏应当涵盖几乎每个屏幕，但可能存在一些尚未完全可用的边缘情况。PayPal 使用非音频的非法验证码阻挡盲人用户，因此如果你想在游戏中花费真钱，你必须借助有视力者的帮助或使用其他支付方式。
 一些特定活动可能未完全可用。抽牌赛（draft）现在可用了，包括 quickdraft（你在其中与机器人一起挑选卡牌）以及与真实玩家的抽牌赛，含准备就绪的大厅屏幕和选牌计时器。立方体（Cube）模式尚未触及。我甚至不太清楚这是关于什么的，而且它需要大量游戏内资源。因此我会在有时间或收到请求时处理。
 游戏的装饰性系统，包括表情、宠物、卡牌样式与称号，目前仅部分受支持。
-MOD 仅在 Windows 上使用 NVDA 和 JAWS 进行了测试，仍依赖未修改的 Tolk 库。我无法在此测试 Mac 或 Linux 的兼容性，而像 Prism 这样的跨平台库当前并未完全支持游戏依赖的旧版 .NET。因此只有当有人能帮助测试其他平台或未修改 Tolk 未完全支持的亚洲屏幕阅读器时，我才会切换到更广泛的库。所以如果你想让我在此方面工作，请别犹豫联系我。
+语音通过 Prism 库输出。Prism 用同一个接口连接 NVDA、JAWS、讲述人、争渡读屏、PC-Talker、BoyPC Reader、Sense Reader、ZoomText 以及 Windows 系统语音，因此即使没有运行任何屏幕阅读器，MOD 也能说话。你可以在 MOD 设置（F2）的“语音输出”中自行选择输出。我这边在 Windows 上用 NVDA 和 JAWS 测试；其余输出来自 Prism，我未做测试，若有异常请告诉我。Mac 和 Linux 仍然无法支持，但阻碍已不再是语音库，而是 MOD 加载器和游戏客户端。如果你能帮忙在其他平台或用我没有的屏幕阅读器测试，请随时联系我。
 
 当前的已知问题列表见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
 
@@ -261,7 +262,7 @@ Arena 有一些真钱相关机制，你可以购买游戏内货币。这些支�
 - 所有包含模型的 Claude
 - MelonLoader
 - 用于 IL 补丁的 Harmony
-- 用于与屏幕阅读器沟通的 Tolk
+- 用于与屏幕阅读器和语音输出沟通的 Prism
 - 用于反编译游戏代码的 ILSpy
 
 <h2>支持你的 MOD 开发者</h2>

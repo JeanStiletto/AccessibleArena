@@ -901,7 +901,7 @@ else
 
 1. **MelonLoader** - Mod loader framework
 2. **HarmonyX** (0Harmony.dll) - Method patching (included with MelonLoader)
-3. **Tolk** - Screen reader communication library
+3. **Prism** - Screen reader and speech communication library (`prism.dll` in the game root)
 
 ### Assembly Analysis
 

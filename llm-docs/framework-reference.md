@@ -42,7 +42,7 @@ Located at `<game>/MTGA_Data/Managed/`:
 - **ZFBrowser.dll** — Embedded web browser
 
 ### Screen Reader
-- **Tolk** — P/Invoke to native Tolk.dll for NVDA/JAWS/Narrator communication
+- **Prism** — P/Invoke to native `prism.dll` (C ABI, `__cdecl`, UTF-8) for NVDA, JAWS, Narrator/OneCore, UIA, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText and SAPI. Vendored at `third_party/prism/`; the shipped build carries local crash-safety patches (see that README)
 
 ## Harmony Patch Details
 

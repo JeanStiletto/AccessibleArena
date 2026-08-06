@@ -116,6 +116,14 @@
           DestinationFolder="$(MtgaPath)\Mods\"
           SkipUnchangedFiles="true" />
     <Message Importance="high" Text="Deployed $(AssemblyName).dll to $(MtgaPath)\Mods\" />
+
+    <!-- Speech runtime. The installer ships this too; copying it here means a dev build alone
+         produces a working install. A running game holds the file open, so a failure here is a
+         warning rather than a build break. -->
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\third_party\prism\x64\prism.dll"
+          DestinationFolder="$(MtgaPath)\"
+          SkipUnchangedFiles="true"
+          ContinueOnError="WarnAndContinue" />
   </Target>
 
 </Project>

@@ -34,12 +34,12 @@ Jeśli chcesz dowiedzieć się więcej o Magicu ogólnie, oficjalna strona gry o
 3. Skopiuj DLL do folderu Mods w MTGA:
    - Instalacja WotC: `C:\Program Files\Wizards of the Coast\MTGA\Mods\`
    - Instalacja Steam: `C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. Upewnij się, że `Tolk.dll` i `nvdaControllerClient64.dll` znajdują się w głównym folderze MTGA
+4. Upewnij się, że `prism.dll` znajduje się w głównym folderze MTGA
 5. Uruchom MTG Arena
 
 <h2>Deinstalacja</h2>
 
-Uruchom ponownie instalator. Jeśli mod jest już zainstalowany, zaproponuje opcję deinstalacji. Opcjonalnie możesz również usunąć MelonLoader. Aby odinstalować ręcznie, usuń `AccessibleArena.dll` z folderu `Mods\` i usuń `Tolk.dll` oraz `nvdaControllerClient64.dll` z głównego folderu MTGA.
+Uruchom ponownie instalator. Jeśli mod jest już zainstalowany, zaproponuje opcję deinstalacji. Opcjonalnie możesz również usunąć MelonLoader. Aby odinstalować ręcznie, usuń `AccessibleArena.dll` z folderu `Mods\` i usuń `prism.dll` z głównego folderu MTGA.
 
 <h2>Jeśli przychodzisz z Hearthstone'a</h2>
 
@@ -132,8 +132,9 @@ Shift+Góra/Dół: Przełączanie rzędów pola bitwy
 
 <h3>Brak mowy po uruchomieniu gry</h3>
 
-- Upewnij się, że czytnik ekranu działa przed uruchomieniem MTG Areny
-- Sprawdź, czy `Tolk.dll` i `nvdaControllerClient64.dll` znajdują się w głównym folderze MTGA (instalator umieszcza je automatycznie)
+- Upewnij się, że czytnik ekranu działa przed uruchomieniem MTG Areny (bez niego mod przechodzi na systemowy głos Windows)
+- Sprawdź, czy `prism.dll` znajduje się w głównym folderze MTGA (instalator umieszcza go automatycznie)
+- Dziennik MelonLoadera podaje wybrane wyjście: poszukaj wiersza `[Speech] ready`
 - Sprawdź dziennik MelonLoader w folderze MTGA (`MelonLoader\Latest.log`) pod kątem błędów
 
 <h3>Gra się zawiesza przy uruchamianiu lub mod się nie ładuje</h3>
@@ -185,7 +186,7 @@ Dołącz następujące informacje:
 Gra powinna pokrywać niemal każdy ekran gry, ale mogą zdarzyć się przypadki brzegowe, które nie działają w pełni. PayPal blokuje niewidomych użytkowników nielegalnym niedźwiękowym captcha, więc musisz skorzystać z pomocy osoby widzącej lub innych metod płatności, jeśli chcesz wydać prawdziwe pieniądze w grze.
 Niektóre konkretne wydarzenia mogą nie działać w pełni. Draft teraz działa, zarówno quickdraft (gdzie wybierasz karty przeciwko botom), jak i drafty z prawdziwymi graczami, w tym ekran poczekalni z gotowością i licznik czasu wyboru. Tryb Cube nie jest objęty. Nawet nie wiem, o co w nim dokładnie chodzi, a kosztuje dużo zasobów w grze. Zajmę się tym, jeśli będę miał czas lub na prośbę.
 System kosmetyczny gry z emotkami, zwierzakami, stylami kart i tytułami jest obecnie wspierany tylko częściowo.
-Mod jest testowany tylko na Windowsie z NVDA i JAWS i wciąż polega na niezmodyfikowanej bibliotece Tolk. Nie mogę tutaj testować zgodności z Makiem lub Linuksem, a biblioteki wieloplatformowe takie jak Prism nie wspierały w pełni starych wersji .NET, od których gra zależy w tym momencie. Przejdę więc na szerszą bibliotekę tylko wtedy, gdy ktoś pomoże w testowaniu dla innych platform lub azjatyckich czytników ekranu, które nie są w pełni wspierane przez niezmodyfikowany Tolk. Więc nie wahaj się ze mną skontaktować, jeśli chcesz, żebym nad tym pracował.
+Mowa idzie przez bibliotekę Prism, która z jednego interfejsu sięga do NVDA, JAWS, Narratora, ZDSR, PC-Talkera, BoyPC Readera, Sense Readera, ZoomText i systemowego głosu Windows — dzięki temu mod mówi także wtedy, gdy żaden czytnik ekranu nie działa. Wyjście wybierzesz sam w ustawieniach moda (F2) pod „Wyjście mowy”. Testuję tutaj na Windowsie z NVDA i JAWS; pozostałe wyjścia pochodzą z Prism i nie są przeze mnie przetestowane, więc daj znać, jeśli któreś sprawia kłopoty. Mac i Linux wciąż pozostają poza zasięgiem, ale biblioteka mowy już nie stoi na przeszkodzie — stoją loader modów i klient gry. Jeśli możesz pomóc w testach na innej platformie albo z czytnikiem ekranu, którego nie mam, śmiało się odezwij.
 
 Aktualna lista znanych problemów znajduje się w [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
@@ -261,7 +262,7 @@ Za testowanie przez osoby widzące w celu zrozumienia wizualnych przepływów pr
 - Claude ze wszystkimi zawartymi modelami
 - MelonLoader
 - Harmony do patchowania IL
-- Tolk do komunikacji z czytnikami ekranu
+- Prism do komunikacji z czytnikami ekranu i syntezą mowy
 - ILSpy do dekompilacji kodu gry
 
 <h2>Wesprzyj swojego moddera</h2>

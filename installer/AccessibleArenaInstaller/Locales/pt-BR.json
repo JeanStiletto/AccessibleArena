@@ -101,7 +101,7 @@
     "Uninstall_UninstallButton": "Desinstalar",
     "Uninstall_CancelButton": "Cancelar",
     "Uninstall_Confirm_Title": "Confirmar desinstala\u00e7\u00e3o",
-    "Uninstall_Confirm_Text": "Tem certeza de que deseja desinstalar o Accessible Arena?\n\nIsso remover\u00e1:\n- AccessibleArena.dll da pasta Mods\n- Bibliotecas do leitor de tela Tolk\n- Entradas do registro",
+    "Uninstall_Confirm_Text": "Tem certeza de que deseja desinstalar o Accessible Arena?\n\nIsso remover\u00e1:\n- AccessibleArena.dll da pasta Mods\n- Bibliotecas do leitor de tela Prism\n- Entradas do registro",
     "Uninstall_Confirm_MelonLoader": "- Framework de mods MelonLoader\n",
     "Uninstall_StatusRemoving": "Removendo arquivos do mod...",
     "Uninstall_StatusRemovingMelonLoader": "Removendo MelonLoader...",

@@ -6,7 +6,7 @@ High-level view of how Accessible Arena is structured and how systems interact.
 
 `AccessibleArenaMod` (inherits `MelonMod`) is the entry point. Initialization order:
 
-1. **Screen reader** — Tolk library loads, detects NVDA/JAWS/Narrator
+1. **Screen reader** — Prism loads, acquires the best backend (NVDA/JAWS/ZDSR/PC-Talker/OneCore/UIA/SAPI)
 2. **Core services** — AnnouncementService, ShortcutRegistry, InputManager, UIFocusTracker, CardInfoNavigator, ModSettings, LocaleManager
 3. **Panel detection** — PanelStateManager (owns Harmony, Reflection, and Alpha detectors)
 4. **Navigator manager** — Manages screen navigator lifecycle
@@ -113,8 +113,11 @@ Key patterns:
 
 ## Screen Reader Output
 
-`ScreenReaderOutput` wraps Tolk library via P/Invoke:
-- `Tolk_Output(text)` — Speak and braille
-- `Tolk_Speak(text)` — Speak only (interrupts previous)
-- `Tolk_Silence()` — Stop speaking
-- Gracefully degrades if no screen reader detected
+`ScreenReaderOutput` wraps the Prism C ABI via P/Invoke (`Core/Speech/PrismInterop.cs` holds the
+signatures, `ScreenReaderOutput` the policy):
+- `prism_registry_acquire_best` — normal channel; NVDA, JAWS, ZDSR, PC-Talker, OneCore, UIA, SAPI in priority order
+- `prism_backend_speak(backend, utf8, interrupt)` — announcement priority maps straight onto `interrupt`
+- `prism_backend_stop` — Silence
+- Second channel pinned to SAPI for `SpeakUrgent`, off by default (settings: CriticalViaSystemVoice)
+- Text is NUL-terminated UTF-8; Prism rejects anything else and silently drops the utterance
+- Runs silent if prism.dll is missing or no backend initialises; never throws at a call site

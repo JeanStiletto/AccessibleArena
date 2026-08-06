@@ -1,5 +1,10 @@
 # Accessible Arena Installer - Implementation Plan
 
+> Historical planning document, kept as written. One thing has since changed: as of v1.4.6 the
+> installer ships a single `prism.dll` instead of the `Tolk.dll` + `nvdaControllerClient64.dll`
+> pair named throughout below, and removes the old pair on install and uninstall. See
+> `third_party/prism/README.md`.
+
 ## Overview
 
 Single-file C# WinForms installer that:

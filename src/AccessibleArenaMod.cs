@@ -47,13 +47,17 @@ namespace AccessibleArena
             Instance = this;
             LoggerInstance.Msg("Accessible Arena initializing...");
 
-            if (!ScreenReaderOutput.Initialize())
+            // Settings pick the speech backend and the urgent-channel volume, so they have to
+            // be on disk-loaded before Prism comes up.
+            _settings = ModSettings.Load();
+
+            if (!ScreenReaderOutput.Initialize(_settings.SpeechBackend, _settings.UrgentSpeechVolume))
             {
-                LoggerInstance.Warning("Screen reader not available - mod will run in silent mode");
+                LoggerInstance.Warning("No speech backend available - mod will run in silent mode");
             }
             else
             {
-                LoggerInstance.Msg($"Screen reader detected: {ScreenReaderOutput.GetActiveScreenReader()}");
+                LoggerInstance.Msg($"Speech backend: {ScreenReaderOutput.GetActiveScreenReader()}");
             }
 
             InitializeServices();
@@ -103,8 +107,10 @@ namespace AccessibleArena
             _focusTracker = new UIFocusTracker(_announcer);
             _cardInfoNavigator = new CardInfoNavigator(_announcer);
 
-            // Load settings first so we know the language
-            _settings = ModSettings.Load();
+            // Settings are already loaded in OnInitializeMelon (the speech backend choice needs
+            // them before this point); guard anyway so the service order stays safe to change.
+            if (_settings == null)
+                _settings = ModSettings.Load();
 
             // Initialize locale system before any Strings.* usage
             LocaleManager.EnsureDefaultLocaleFiles();

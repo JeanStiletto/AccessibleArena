@@ -101,7 +101,7 @@
     "Uninstall_UninstallButton": "\u89e3\u9664\u5b89\u88dd",
     "Uninstall_CancelButton": "\u53d6\u6d88",
     "Uninstall_Confirm_Title": "\u78ba\u8a8d\u89e3\u9664\u5b89\u88dd",
-    "Uninstall_Confirm_Text": "\u60a8\u78ba\u5b9a\u8981\u89e3\u9664\u5b89\u88dd Accessible Arena \u55ce\uff1f\n\n\u9019\u5c07\u6703\u79fb\u9664\uff1a\n- Mods \u8cc7\u6599\u593e\u4e2d\u7684 AccessibleArena.dll\n- Tolk \u87a2\u5e55\u95b1\u8b80\u5668\u51fd\u5f0f\u5eab\n- \u767b\u9304\u6a94\u9805\u76ee",
+    "Uninstall_Confirm_Text": "\u60a8\u78ba\u5b9a\u8981\u89e3\u9664\u5b89\u88dd Accessible Arena \u55ce\uff1f\n\n\u9019\u5c07\u6703\u79fb\u9664\uff1a\n- Mods \u8cc7\u6599\u593e\u4e2d\u7684 AccessibleArena.dll\n- Prism \u87a2\u5e55\u95b1\u8b80\u5668\u51fd\u5f0f\u5eab\n- \u767b\u9304\u6a94\u9805\u76ee",
     "Uninstall_Confirm_MelonLoader": "- MelonLoader \u6a21\u7d44\u67b6\u69cb\n",
     "Uninstall_StatusRemoving": "\u6b63\u5728\u79fb\u9664\u6a21\u7d44\u6a94\u6848...",
     "Uninstall_StatusRemovingMelonLoader": "\u6b63\u5728\u79fb\u9664 MelonLoader...",

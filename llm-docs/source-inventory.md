@@ -14,7 +14,7 @@ Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→34
 
 - **AccessibleArenaMod.cs** (442 lines) — MelonLoader entry point; wires all services, navigators, and patches.
 - **AssemblyInfo.cs** (3 lines) — Grants InternalsVisibleTo the test project.
-- **ScreenReaderOutput.cs** (106 lines) — P/Invoke wrapper for Tolk.dll (NVDA/JAWS/Narrator speech output).
+- **ScreenReaderOutput.cs** (565 lines) — Speech policy layer over Prism: acquires the normal channel (acquire_best) plus a SAPI urgent channel, backend selection, volume, Speak/SpeakUrgent/Silence. Never throws; runs silent when no backend comes up.
 
 ---
 
@@ -30,7 +30,7 @@ Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→34
 - **IAnnouncementService.cs** (20 lines) — Contract for announcing text to the screen reader with priority control.
 - **IInputHandler.cs** (7 lines) — Minimal contract for per-frame input processing.
 - **IScreenNavigator.cs** (54 lines) — Contract for screen-specific navigators (Tab/Enter, element lists, activation).
-- **IScreenReaderOutput.cs** (12 lines) — Abstraction over Tolk; injected into AnnouncementService for testability.
+- **IScreenReaderOutput.cs** (20 lines) — Abstraction over Prism (Speak / SpeakUrgent / Silence); injected into AnnouncementService for testability.
 - **IShortcutRegistry.cs** (18 lines) — Contract for registering and processing global keyboard shortcuts.
 
 ---
@@ -41,6 +41,12 @@ Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→34
 - **ShortcutDefinition.cs** (36 lines) — Data class for a registered shortcut (key, modifier, action, description).
 - **Strings.cs** (1638 lines) — Centralized, localized user-facing announcement strings for all navigators.
 - **TargetInfo.cs** (72 lines) — Data class holding target info (GameObject, name, InstanceId) for targeting UI.
+
+---
+
+## src/Core/Speech/
+
+- **PrismInterop.cs** (199 lines) — Raw P/Invoke surface for Prism's C ABI plus UTF-8 marshalling helpers. Signatures and constants only; policy lives in ScreenReaderOutput.
 
 ---
 
@@ -152,7 +158,7 @@ Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→34
 - **ProfileNavigator.cs** (1889 lines) — Navigator for the Profile screen (username, rank, cosmetic sub-panels).
 - **RecentPlayAccessor.cs** (497 lines) — Reflection access to LastPlayedBladeView for enriching Recent tab deck labels.
 - **RewardPopupNavigator.cs** (1402 lines) — Navigator for rewards popup from mail claims and store purchases.
-- **ScreenReaderAdapter.cs** (13 lines) — Production IScreenReaderOutput implementation; delegates to ScreenReaderOutput (Tolk).
+- **ScreenReaderAdapter.cs** (14 lines) — Production IScreenReaderOutput implementation; delegates to ScreenReaderOutput (Prism).
 - **SettingsMenuNavigator.cs** (1117 lines) — Dedicated navigator for the Settings menu; works in all scenes including duels.
 - **ShortcutRegistry.cs** (63 lines) — IShortcutRegistry implementation storing and dispatching global shortcuts.
 - **SideboardNavigator.cs** (1039 lines) — Navigator for the Bo3 sideboard screen (C=pool, D=deck, zone-based swap).

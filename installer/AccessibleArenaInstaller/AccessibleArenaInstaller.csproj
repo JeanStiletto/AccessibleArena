@@ -22,10 +22,11 @@
     <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
 
-  <!-- Tolk DLLs embedded as resources - extracted at install time -->
+  <!-- Prism speech runtime embedded as a resource - extracted at install time.
+       One file replaces the old Tolk pair: Prism links its NVDA bridge statically and
+       resolves the other vendor client DLLs at runtime, so nothing ships beside it. -->
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Tolk.dll" />
-    <EmbeddedResource Include="Resources\nvdaControllerClient64.dll" />
+    <EmbeddedResource Include="Resources\prism.dll" />
   </ItemGroup>
 
   <!-- Locale files embedded as resources for installer localization -->

@@ -12,8 +12,14 @@ namespace AccessibleArenaInstaller
         private readonly string _mtgaPath;
         private readonly string _modsPath;
 
-        // Embedded resource names for Tolk DLLs
-        private static readonly string[] TolkDlls = new[]
+        // Embedded resource name for the Prism speech runtime. Prism links its NVDA bridge
+        // statically and resolves ZDSR / PC-Talker / BoyPC client DLLs at runtime, so this
+        // single file replaces the Tolk + nvdaControllerClient64 pair shipped before v1.4.6.
+        private const string PrismDll = "prism.dll";
+
+        // Speech files earlier versions dropped in the game root. Removed on install so an
+        // upgrade does not leave an unused Tolk pair behind.
+        private static readonly string[] LegacySpeechDlls = new[]
         {
             "Tolk.dll",
             "nvdaControllerClient64.dll"
@@ -26,18 +32,43 @@ namespace AccessibleArenaInstaller
         }
 
         /// <summary>
-        /// Copies embedded Tolk DLLs to the MTGA root folder.
+        /// Copies the embedded Prism speech runtime to the MTGA root folder and clears out the
+        /// Tolk libraries older versions installed there.
         /// </summary>
-        public void CopyTolkDlls()
+        public void CopySpeechRuntime()
         {
-            Logger.Info("Copying Tolk DLLs to MTGA folder...");
+            Logger.Info("Copying Prism speech runtime to MTGA folder...");
+            CopyEmbeddedResource(PrismDll, _mtgaPath);
+            Logger.Info("Prism speech runtime copied successfully");
 
-            foreach (var dllName in TolkDlls)
+            RemoveLegacySpeechDlls();
+        }
+
+        /// <summary>
+        /// Deletes the pre-v1.4.6 Tolk libraries from the game root. Failures are logged and
+        /// ignored — a locked leftover file must never block an install.
+        /// </summary>
+        private void RemoveLegacySpeechDlls()
+        {
+            foreach (var dllName in LegacySpeechDlls)
             {
-                CopyEmbeddedResource(dllName, _mtgaPath);
-            }
+                foreach (var path in new[] { Path.Combine(_mtgaPath, dllName),
+                                             Path.Combine(_mtgaPath, dllName + ".backup") })
+                {
+                    if (!File.Exists(path))
+                        continue;
 
-            Logger.Info("Tolk DLLs copied successfully");
+                    try
+                    {
+                        File.Delete(path);
+                        Logger.Info($"Removed legacy speech library: {path}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warning($"Could not remove legacy speech library {path}: {ex.Message}");
+                    }
+                }
+            }
         }
 
         /// <summary>

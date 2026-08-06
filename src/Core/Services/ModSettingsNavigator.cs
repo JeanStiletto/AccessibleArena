@@ -156,6 +156,27 @@ namespace AccessibleArena.Core.Services
                 },
                 new SettingItem
                 {
+                    Name = Strings.SettingSpeechBackend,
+                    GetValue = DescribeSpeechBackend,
+                    Toggle = CycleSpeechBackend,
+                    Description = Strings.SettingSpeechBackendDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingCriticalViaSystemVoice,
+                    GetValue = () => _settings.CriticalViaSystemVoice ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.CriticalViaSystemVoice = !_settings.CriticalViaSystemVoice,
+                    Description = Strings.SettingCriticalViaSystemVoiceDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingUrgentSpeechVolume,
+                    GetValue = () => Strings.SettingVolumePercent(_settings.UrgentSpeechVolume),
+                    Toggle = CycleUrgentVolume,
+                    Description = Strings.SettingUrgentSpeechVolumeDesc
+                },
+                new SettingItem
+                {
                     Name = Strings.SettingUpdateNotes,
                     GetValue = () => Strings.SettingActionOpen,
                     Toggle = () => OpenUrl("https://github.com/JeanStiletto/AccessibleArena/releases/latest", Strings.SettingUpdateNotes),
@@ -172,6 +193,61 @@ namespace AccessibleArena.Core.Services
                 }
             };
         }
+
+        #region Speech backend (Prism)
+
+        /// <summary>
+        /// Reads back the speech setting as the preference plus what is actually speaking, so
+        /// "I chose JAWS but NVDA is talking" is audible instead of silent.
+        /// </summary>
+        private string DescribeSpeechBackend()
+        {
+            string preference = _settings.SpeechBackend;
+            string active = ScreenReaderOutput.GetActiveScreenReader();
+
+            if (string.IsNullOrEmpty(preference) ||
+                string.Equals(preference, ScreenReaderOutput.AutoBackend, StringComparison.OrdinalIgnoreCase))
+                return Strings.SettingSpeechBackendAuto(active);
+
+            if (string.Equals(preference, active, StringComparison.OrdinalIgnoreCase))
+                return preference;
+
+            return Strings.SettingSpeechBackendUnavailable(preference, active);
+        }
+
+        /// <summary>
+        /// Steps to the next backend Prism has compiled in, automatic selection first. The
+        /// preference always advances, even when the switch fails, so a reader that is not
+        /// running cannot trap the cycle — the previous backend keeps speaking meanwhile, and
+        /// the read-back says which one that is.
+        /// </summary>
+        private void CycleSpeechBackend()
+        {
+            var choices = new List<string> { ScreenReaderOutput.AutoBackend };
+            choices.AddRange(ScreenReaderOutput.GetAvailableBackends());
+
+            int current = choices.FindIndex(
+                c => string.Equals(c, _settings.SpeechBackend, StringComparison.OrdinalIgnoreCase));
+            string next = choices[(current + 1) % choices.Count];
+
+            _settings.SpeechBackend = next;
+            bool applied = ScreenReaderOutput.SelectBackend(next);
+            Log.Msg("ModSettingsNavigator",
+                    $"Speech backend preference set to '{next}' (applied: {applied}, active: {ScreenReaderOutput.GetActiveScreenReader()})");
+        }
+
+        /// <summary>Steps the system-voice volume down in tenths, wrapping from 10% back to 100%.</summary>
+        private void CycleUrgentVolume()
+        {
+            int next = _settings.UrgentSpeechVolume - 10;
+            if (next < 10)
+                next = 100;
+
+            _settings.UrgentSpeechVolume = next;
+            ScreenReaderOutput.SetUrgentVolumePercent(next);
+        }
+
+        #endregion
 
         private void OpenUrl(string url, string name)
         {

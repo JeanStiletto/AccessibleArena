@@ -34,12 +34,12 @@
 3. 將 DLL 複製到 MTGA 的 Mods 資料夾：
    - WotC 安裝：`C:\Program Files\Wizards of the Coast\MTGA\Mods\`
    - Steam 安裝：`C:\Program Files (x86)\Steam\steamapps\common\MTGA\Mods\`
-4. 確保 `Tolk.dll` 和 `nvdaControllerClient64.dll` 位於 MTGA 根資料夾
+4. 確保 `prism.dll` 位於 MTGA 根資料夾
 5. 啟動 MTG Arena
 
 <h2>解除安裝</h2>
 
-再次執行安裝程式。如果 MOD 已安裝，它會提供解除安裝選項。你也可以選擇一併移除 MelonLoader。如需手動解除安裝，請從 `Mods\` 資料夾刪除 `AccessibleArena.dll`，並從 MTGA 根資料夾移除 `Tolk.dll` 和 `nvdaControllerClient64.dll`。
+再次執行安裝程式。如果 MOD 已安裝，它會提供解除安裝選項。你也可以選擇一併移除 MelonLoader。如需手動解除安裝，請從 `Mods\` 資料夾刪除 `AccessibleArena.dll`，並從 MTGA 根資料夾移除 `prism.dll`。
 
 <h2>如果你是從爐石戰記過來的</h2>
 
@@ -132,8 +132,9 @@ Shift+上/下：切換戰場列
 
 <h3>啟動遊戲後沒有語音</h3>
 
-- 請確保在啟動 MTG Arena 之前螢幕閱讀器已在執行
-- 檢查 `Tolk.dll` 和 `nvdaControllerClient64.dll` 是否位於 MTGA 根資料夾（安裝程式會自動放置）
+- 請確保在啟動 MTG Arena 之前螢幕閱讀器已在執行（若沒有執行，MOD 會改用 Windows 系統語音）
+- 檢查 `prism.dll` 是否位於 MTGA 根資料夾（安裝程式會自動放置）
+- MelonLoader 日誌會記錄所選的輸出：尋找 `[Speech] ready` 這一行
 - 檢查 MTGA 資料夾中 MelonLoader 紀錄（`MelonLoader\Latest.log`）是否有錯誤
 
 <h3>遊戲啟動時當機或 MOD 未載入</h3>
@@ -185,7 +186,7 @@ Shift+上/下：切換戰場列
 遊戲應當涵蓋幾乎每個畫面，但可能存在一些尚未完全可用的邊緣情況。PayPal 使用非音訊的非法 captcha 阻擋盲人使用者，因此如果你想在遊戲中花費真錢，你必須借助視覺上能看見的人的協助或使用其他付款方式。
 一些特定活動可能未完全可用。抽牌賽（draft）現在可用了，包括 quickdraft（你在其中與機器人一起挑選卡牌）以及與真實玩家的抽牌賽，含準備就緒的大廳畫面和選牌計時器。方塊（Cube）模式尚未觸及。我甚至不太清楚這是關於什麼的，而且它需要大量遊戲內資源。因此我會在有時間或收到請求時處理。
 遊戲的裝飾性系統，包括表情、寵物、卡牌樣式與稱號，目前僅部分受支援。
-MOD 僅在 Windows 上使用 NVDA 和 JAWS 進行了測試，仍依賴未修改的 Tolk 函式庫。我無法在此測試 Mac 或 Linux 的相容性，而像 Prism 這樣的跨平台函式庫目前並未完全支援遊戲依賴的舊版 .NET。因此只有當有人能幫助測試其他平台或未修改 Tolk 未完全支援的亞洲螢幕閱讀器時，我才會切換到更廣泛的函式庫。所以如果你想讓我在此方面工作，請別猶豫聯絡我。
+語音透過 Prism 函式庫輸出。Prism 以同一個介面連接 NVDA、JAWS、朗讀程式、爭渡讀屏、PC-Talker、BoyPC Reader、Sense Reader、ZoomText 以及 Windows 系統語音，因此即使沒有執行任何螢幕閱讀器，MOD 也能說話。你可以在 MOD 設定（F2）的「語音輸出」中自行選擇輸出。我這邊在 Windows 上以 NVDA 和 JAWS 測試；其餘輸出來自 Prism，我未做測試，若有異常請告訴我。Mac 和 Linux 仍然無法支援，但阻礙已不再是語音函式庫，而是 MOD 載入器與遊戲用戶端。如果你能幫忙在其他平台或用我沒有的螢幕閱讀器測試，請隨時聯絡我。
 
 目前的已知問題列表見 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
 
@@ -261,7 +262,7 @@ Arena 有一些真錢相關機制，你可以購買遊戲內貨幣。這些付�
 - 包含所有模型的 Claude
 - MelonLoader
 - 用於 IL 修補的 Harmony
-- 用於與螢幕閱讀器溝通的 Tolk
+- 用於與螢幕閱讀器和語音輸出溝通的 Prism
 - 用於反組譯遊戲程式碼的 ILSpy
 
 <h2>支持你的 MOD 開發者</h2>

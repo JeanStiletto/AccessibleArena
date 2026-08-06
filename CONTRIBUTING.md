@@ -49,7 +49,7 @@ Thanks for your interest in making MTG Arena more accessible.
 ```
 src/
   AccessibleArenaMod.cs          Entry point (MelonLoader mod class)
-  ScreenReaderOutput.cs          Tolk wrapper for NVDA speech
+  ScreenReaderOutput.cs          Prism wrapper for screen reader speech
 
   Core/
     Interfaces/                  IScreenNavigator and other interfaces

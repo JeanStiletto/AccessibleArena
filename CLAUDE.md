@@ -6,7 +6,7 @@ Accessibility mod for Magic: The Gathering Arena enabling blind players to play 
 ## Accessibility Goals
 - Well-structured text output (no tables, no graphics)
 - Linear, readable format for screen readers
-- Tolk library for NVDA communication
+- Prism library for screen reader communication (NVDA, JAWS, Narrator, ZDSR, PC-Talker, ... and SAPI)
 - Full keyboard navigation support
 
 ## Communication
@@ -41,7 +41,7 @@ Example - instead of tables, format like this:
 - **Game:** Magic: The Gathering Arena (Unity, .NET 4.7.2)
 - **Mod loader:** MelonLoader (entry point: `AccessibleArenaMod : MelonMod`)
 - **Patching:** Harmony 2.x for IL interception (5 patch classes in `src/Patches/`: EventSystemPatch, KeyboardManagerPatch, PanelStatePatch, TimerPatch, UXEventQueuePatch)
-- **Screen reader:** Tolk library (P/Invoke to native DLL, supports NVDA/JAWS/Narrator)
+- **Screen reader:** Prism library (P/Invoke to native `prism.dll`; NVDA, JAWS, Narrator/OneCore, UIA, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText, SAPI). Vendored under `third_party/prism/` — see its README before rebuilding: the shipped DLL carries local crash-safety patches that must not be dropped.
 - **Game assemblies:** Located at `<game>/MTGA_Data/Managed/`
   - Core.dll — most game types
   - Assembly-CSharp.dll — some UI types
@@ -110,7 +110,7 @@ Before running: update `ModVersion` in `src/Directory.Build.props` and add a `##
 
 ### Deployment Paths
 - Mod DLL: `<MtgaPath>\Mods\AccessibleArena.dll`
-- Tolk DLLs in game root
+- `prism.dll` in game root (the only native speech file; a dev build copies it there automatically)
 
 ### Key Utilities (always use these)
 - `UIActivator.Activate(element)` - Element activation
