@@ -604,6 +604,14 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// True for the plain two-button Yes/No scaffold. The Mutate variant reports the
+        /// same browser type but routes confirm/cancel through its own logical
+        /// DoneButton/CancelButton pair, so it is excluded here.
+        /// </summary>
+        private bool IsPlainYesNo()
+            => _browserInfo?.BrowserType == BrowserDetector.BrowserTypeYesNo && !_isMutate;
+
+        /// <summary>
         /// Clicks the confirm/primary button.
         /// </summary>
         private void ClickConfirmButton()
@@ -642,7 +650,14 @@ namespace AccessibleArena.Core.Services
 
             // Direct-choice browsers: Space = Enter (activate focused item)
             // These browsers have no separate confirm action — clicking a button IS the choice.
-            if (_isSelectGroup || _isChoiceList || _browserInfo?.IsOptionalAction == true)
+            //
+            // Plain Yes/No belongs here too (ward "pay the cost?", replacement choices).
+            // Falling through to the PromptButton_Primary fallback at the bottom clicks
+            // whatever the duel-level prompt bar happens to show, which during a ward
+            // confirm is the still-live targeting button ("0 confirm") — the browser stays
+            // open and the user's focused answer is never submitted. Same failure mode as
+            // the Mutate variant handled further down (#88).
+            if (_isSelectGroup || _isChoiceList || _browserInfo?.IsOptionalAction == true || IsPlainYesNo())
             {
                 if (_browserButtons.Count > 0 && _currentButtonIndex >= 0)
                     ActivateCurrentButton();

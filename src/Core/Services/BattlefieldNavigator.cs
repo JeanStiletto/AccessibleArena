@@ -52,16 +52,22 @@ namespace AccessibleArena.Core.Services
 
         // Ctrl+Enter outside combat: the game's stack-count badge is refused by every workflow
         // except declare attackers/blockers, so we click the stack's cards one at a time
-        // instead. Spread over frames — a burst of clicks in one frame arrives before the
-        // workflow has processed any of them.
+        // instead. Each click is gated on the game being ready for it — most selection
+        // workflows round-trip to the GRE per click and refuse everything in between.
         private List<GameObject> _stackClickQueue;
         private object _stackClickWorkflow;
         private int _stackClickIndex;
         private int _stackClickDone;
         private float _stackClickNextTime;
+        private float _stackClickReadyBy;
         private float _stackClickDeadline;
-        private const float StackClickIntervalSeconds = 0.06f;
-        private const float StackClickTimeoutSeconds = 8f;
+        // Minimum spacing: GameInteractionSystem queues at most one card click per frame
+        // (OnCardClicked only stores when _currentInteraction is null) and drains it in
+        // ProcessInteraction, so two clicks in the same frame lose one.
+        private const float StackClickIntervalSeconds = 0.1f;
+        // How long a single card may stay unclickable before we give up on the rest.
+        private const float StackClickReadySeconds = 3f;
+        private const float StackClickTimeoutSeconds = 15f;
 
         // Row order from top (enemy side) to bottom (player side) for Shift+Up/Down navigation
         private static readonly BattlefieldRow[] RowOrder = {
@@ -451,10 +457,37 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            _stackClickQueue = new List<GameObject>(members);
+            // Copies the user already picked are left alone — clicking one again un-picks it.
+            // Normally a picked copy has already split off into its own entry (workflows stop
+            // stacking cards whose legal action differs), so this only catches the window
+            // before the board re-lays out.
+            var queue = new List<GameObject>();
+            foreach (var go in members)
+            {
+                if (go == null || IsPickedForStackClick(go)) continue;
+                queue.Add(go);
+            }
+
+            // The game reroutes a click on any stacked card to the stack's oldest member
+            // (WorkflowBase.TryRerouteClick -> IBattlefieldStack.OldestCard, lowest InstanceId),
+            // so we click in that order and each reroute lands on the card we aimed at.
+            queue.Sort((a, b) => CardStateProvider.GetCardInstanceId(a)
+                .CompareTo(CardStateProvider.GetCardInstanceId(b)));
+
+            if (queue.Count == 0)
+            {
+                Log.Msg("BattlefieldNavigator",
+                    $"Stack {parentInstanceId}: all {members.Count} copies already picked");
+                _announcer.Announce(Strings.StackSelectClicked(0, members.Count),
+                    AnnouncementPriority.High);
+                return true;
+            }
+
+            _stackClickQueue = queue;
             _stackClickIndex = 0;
             _stackClickDone = 0;
             _stackClickNextTime = 0f;   // first click goes out on the next pump
+            _stackClickReadyBy = Time.time + StackClickReadySeconds;
             _stackClickDeadline = Time.time + StackClickTimeoutSeconds;
 
             // The workflow that will receive these clicks. If it is replaced part-way through
@@ -469,9 +502,16 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Per-frame: delivers the next queued stack click, spacing them out so the game
-        /// processes each one before the next arrives. Stops early if the workflow changed
-        /// out from under us or the sequence ran long.
+        /// Per-frame: delivers the next queued stack click once the game is ready to take it.
+        ///
+        /// Readiness is not a matter of spacing. Selection workflows round-trip to the GRE
+        /// per click: SelectTargetsWorkflow flags itself submitted on the first click and its
+        /// CanClick answers false until the server replies, so clicks fired on a fixed timer
+        /// were refused and thrown away — four Ctrl+Enter clicks selected exactly one card.
+        /// We therefore wait for IsWaitingForRoundTrip to clear and ask the workflow's own
+        /// CanClick before each dispatch. Stops early if the workflow changed out from under
+        /// us, if a card stays unclickable (target capacity reached, workflow moved on), or
+        /// if the whole sequence ran long.
         /// </summary>
         private void PumpStackClickSequence()
         {
@@ -479,7 +519,8 @@ namespace AccessibleArena.Core.Services
 
             if (Time.time > _stackClickDeadline)
             {
-                Log.Warn("BattlefieldNavigator", "Stack click sequence timed out");
+                Log.Warn("BattlefieldNavigator",
+                    $"Stack click sequence timed out after {_stackClickDone} click(s)");
                 FinishStackClickSequence();
                 return;
             }
@@ -502,18 +543,54 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            var card = _stackClickQueue[_stackClickIndex++];
-            if (card != null)
+            var card = _stackClickQueue[_stackClickIndex];
+            if (card == null)
             {
-                if (Camera.main != null)
-                    UIActivator.SimulatePointerClick(card, Camera.main.WorldToScreenPoint(card.transform.position));
-                else
-                    UIActivator.SimulatePointerClick(card);
-                _stackClickDone++;
+                AdvanceStackClick();
+                return;
             }
 
-            _stackClickNextTime = Time.time + StackClickIntervalSeconds;
+            if (StackInteractionBridge.IsWaitingForRoundTrip()
+                || !StackInteractionBridge.WorkflowAcceptsClick(card))
+            {
+                // Still busy with the previous click, or this copy is no longer a legal
+                // click. Retry until the per-card window closes, then stop — the remaining
+                // clicks would only fire the invalid sound.
+                if (Time.time < _stackClickReadyBy) return;
+
+                Log.Msg("BattlefieldNavigator",
+                    $"Workflow '{_stackClickWorkflow?.GetType().Name ?? "none"}' would not take " +
+                    $"click {_stackClickIndex + 1}/{_stackClickQueue.Count}; " +
+                    $"stopping after {_stackClickDone} click(s)");
+                FinishStackClickSequence();
+                return;
+            }
+
+            if (Camera.main != null)
+                UIActivator.SimulatePointerClick(card, Camera.main.WorldToScreenPoint(card.transform.position));
+            else
+                UIActivator.SimulatePointerClick(card);
+            _stackClickDone++;
+            AdvanceStackClick();
         }
+
+        /// <summary>
+        /// Moves to the next queued card and restarts both the minimum spacing and the
+        /// window we allow it to become clickable in.
+        /// </summary>
+        private void AdvanceStackClick()
+        {
+            _stackClickIndex++;
+            _stackClickNextTime = Time.time + StackClickIntervalSeconds;
+            _stackClickReadyBy = Time.time + StackClickReadySeconds;
+        }
+
+        /// <summary>
+        /// True when a card already carries the game's "picked" indicator — the same
+        /// signal the battlefield announcement reads out as the selection state.
+        /// </summary>
+        private bool IsPickedForStackClick(GameObject card)
+            => !string.IsNullOrEmpty(GetSelectionState(card));
 
         private void FinishStackClickSequence()
         {
@@ -535,6 +612,7 @@ namespace AccessibleArena.Core.Services
             _stackClickWorkflow = null;
             _stackClickIndex = 0;
             _stackClickDone = 0;
+            _stackClickNextTime = 0f;
         }
 
         /// <summary>

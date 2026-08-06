@@ -87,9 +87,11 @@ When HotHighlightNavigator delegates to BattlefieldNavigator for battlefield car
 
 **Also addressed:** `TryAdvanceToSameNameSibling` used to pick the first same-name entry that wasn't the just-clicked card, with no state check — so it could land the user back on a creature they had already declared as an attacker, where the next Enter un-declared it. (The v1.1 changelog described it as advancing to the next *unselected* copy; the code never had that filter.) It now compares state snapshots: pass 1 takes a copy still in the clicked card's pre-click state, pass 2 takes any copy not already in the post-click state, and if every copy is done focus stays put. Still gated behind the "Battlefield stacking" setting.
 
+**Also addressed:** the per-card fallback behind Ctrl+Enter fired its clicks on a fixed 60 ms timer. Target selection is a GRE round trip — `SelectTargetsWorkflow.UpdateTarget` sets `_submitted`, `IsWaitingForRoundTrip` reports it, and `CanClick` returns false for as long as it is set — so clicks 2..N were refused and dropped. Observed with Caetus, Sea Tyrant of Segovia ("untap up to four creatures") on a stack of four Tentacles: all four clicks went out, the prompt then read "Confirm 1", and one Tentacle untapped. The sequence now waits for `IsWaitingForRoundTrip` to clear and asks the workflow's own `CanClick` before every dispatch, walks the stack oldest-first to match the game's `TryRerouteClick` → `OldestCard` reroute, and skips copies that already carry the picked indicator so it cannot un-pick a manual choice. Per-card wait 3 s, whole sequence 15 s.
+
 **Untested in a real duel** — all of the above needs a longer play session before it can be called good.
 
-**Files:** `HotHighlightNavigator.cs` (AnnounceCurrentItem — delegates to BattlefieldNavigator), `BattlefieldNavigator.cs` (RestoreAnchor, NavigateToSpecificCard, TryAdvanceToSameNameSibling, FindSibling)
+**Files:** `HotHighlightNavigator.cs` (AnnounceCurrentItem — delegates to BattlefieldNavigator), `BattlefieldNavigator.cs` (RestoreAnchor, NavigateToSpecificCard, TryAdvanceToSameNameSibling, FindSibling, PumpStackClickSequence), `StackInteractionBridge.cs` (IsWaitingForRoundTrip, WorkflowAcceptsClick)
 
 ---
 

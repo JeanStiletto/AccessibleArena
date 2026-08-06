@@ -25,6 +25,10 @@ namespace AccessibleArena.Core.Services
     /// by checking for Submit buttons with counts, and use a plain single click instead
     /// of the play click for hand cards in that mode.
     ///
+    /// Cost payments made while casting (ward, additional costs) show neither a counted
+    /// button nor a HotHighlight, so for those we ask the game's active workflow directly
+    /// which cards it would accept a click on — see GetPaymentClickTargets.
+    ///
     /// - Hand cards in selection mode = single-click to toggle selection
     /// - Hand cards normally = double-click to play (see UIActivator.PlayCard)
     /// - Battlefield/Stack cards with HotHighlight = valid targets (single-click)
@@ -65,6 +69,11 @@ namespace AccessibleArena.Core.Services
         // Selection mode detection (discard, choose cards to exile, etc.)
         // Matches any number in button text: "Submit 2", "2 abwerfen", "0 bestätigen"
         private static readonly Regex ButtonNumberPattern = new Regex(@"(\d+)", RegexOptions.IgnoreCase);
+
+        // Cost-payment click targets (see GetPaymentClickTargets). Frame-cached because
+        // each entry costs a reflected CanClick call into the game's active workflow.
+        private readonly List<GameObject> _paymentTargets = new List<GameObject>();
+        private int _paymentTargetsFrame = -1;
 
         // Previous DIAG counts - only log when changed
         private int _lastDiagHandHighlighted = -1;
@@ -392,7 +401,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void RefreshOrRebuildHighlights()
         {
-            bool selectionMode = IsSelectionModeActive();
+            bool selectionMode = IsAnySelectionActive();
             bool modeChanged = (selectionMode != _wasInSelectionMode);
 
             if (_items.Count == 0 || !_snapshotValid || modeChanged)
@@ -480,6 +489,20 @@ namespace AccessibleArena.Core.Services
                     if (!IsCardSelected(go)) continue;
 
                     var item = CreateHighlightedItem(go, "Selected");
+                    if (item != null)
+                        result[id] = item;
+                }
+
+                // Cost-payment supplement: a ward or additional cost paid while casting
+                // gives its hand cards no HotHighlight at all, so everything above finds
+                // nothing and Tab lands on the lone Cancel button. Add whatever the active
+                // workflow says it would take a click on. See GetPaymentClickTargets.
+                foreach (var go in GetPaymentClickTargets())
+                {
+                    int id = go.GetInstanceID();
+                    if (result.ContainsKey(id)) continue;
+
+                    var item = CreateHighlightedItem(go, "CostPayment");
                     if (item != null)
                         result[id] = item;
                 }
@@ -586,7 +609,7 @@ namespace AccessibleArena.Core.Services
             if (logThisPass)
                 Log.Nav("HotHighlightNavigator", "Discovering highlights (full rebuild)...");
 
-            bool selectionMode = IsSelectionModeActive();
+            bool selectionMode = IsAnySelectionActive();
             CheckSelectionModeTransition(selectionMode);
 
             var scanned = ScanCurrentHighlights(selectionMode);
@@ -638,7 +661,7 @@ namespace AccessibleArena.Core.Services
         {
             Log.Nav("HotHighlightNavigator", "Refreshing highlights (stable snapshot)...");
 
-            bool selectionMode = IsSelectionModeActive();
+            bool selectionMode = IsAnySelectionActive();
             CheckSelectionModeTransition(selectionMode);
 
             var scanned = ScanCurrentHighlights(selectionMode);
@@ -1111,7 +1134,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            bool selectionMode = IsSelectionModeActive();
+            bool selectionMode = IsAnySelectionActive();
             int preClickCount = selectionMode ? (GetSubmitButtonInfo()?.count ?? -1) : -1;
             Log.Msg("HotHighlightNavigator", $"Activating: {item.Name} in {item.Zone} (selection mode: {selectionMode})");
 
@@ -1590,6 +1613,77 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Hand cards the game's currently active workflow says it would accept a plain
+        /// primary click on, when that workflow is not the ordinary priority workflow.
+        ///
+        /// Cost payments that happen while casting — ward ("discard a card"), additional
+        /// costs — run under PayCostWorkflow, whose SetButtons promotes Cancel to the
+        /// *primary* prompt button whenever its child workflows contribute no buttons of
+        /// their own. There is then no counted submit button for IsSelectionModeActive to
+        /// find, and the affected hand cards carry no visual HotHighlight either, so both
+        /// of our detection channels come up empty: Tab reported "0 highlighted items" and
+        /// Enter fell through to UIActivator.PlayCard, whose double-click the game ignores
+        /// while it is waiting to be paid. The user could only cancel.
+        ///
+        /// So we ask the workflow itself, through the same IClickableWorkflow.CanClick gate
+        /// GameInteractionSystem applies before forwarding a real mouse click, and treat
+        /// whatever it accepts as selectable.
+        ///
+        /// ActionsAvailable* is excluded: there a primary click on a hand card starts
+        /// casting it, which is exactly what the existing PlayCard path handles.
+        /// </summary>
+        private List<GameObject> GetPaymentClickTargets()
+        {
+            if (_paymentTargetsFrame == UnityEngine.Time.frameCount) return _paymentTargets;
+            _paymentTargetsFrame = UnityEngine.Time.frameCount;
+            _paymentTargets.Clear();
+
+            string workflow = StackInteractionBridge.GetCurrentWorkflowName();
+            if (string.IsNullOrEmpty(workflow) || workflow.Contains("ActionsAvailable"))
+                return _paymentTargets;
+
+            var handHolder = DuelHolderCache.GetHolder("LocalHand");
+            if (handHolder == null) return _paymentTargets;
+
+            foreach (Transform t in handHolder.GetComponentsInChildren<Transform>(true))
+            {
+                if (t == null || !t.gameObject.activeInHierarchy) continue;
+                var go = t.gameObject;
+                if (!CardDetector.IsCard(go)) continue;
+                if (!StackInteractionBridge.WorkflowAcceptsClick(go, permissiveOnFailure: false)) continue;
+                _paymentTargets.Add(go);
+            }
+
+            return _paymentTargets;
+        }
+
+        /// <summary>
+        /// True while a non-priority workflow is waiting for a hand card to be clicked but
+        /// shows no counted submit button — the cost-payment case IsSelectionModeActive
+        /// cannot see. See GetPaymentClickTargets.
+        /// </summary>
+        private bool IsCardPaymentModeActive() => GetPaymentClickTargets().Count > 0;
+
+        /// <summary>True if this exact card is one the active workflow would take a click on.</summary>
+        private bool IsPaymentClickTarget(GameObject card)
+        {
+            if (card == null) return false;
+            var targets = GetPaymentClickTargets();
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (ReferenceEquals(targets[i], card)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Selection mode in the broad sense: either the counted-submit-button kind
+        /// (discard on resolution, choose N to exile) or a cost payment. Both mean the same
+        /// thing for input handling — Enter on a hand card is a single click, not a play.
+        /// </summary>
+        private bool IsAnySelectionActive() => IsSelectionModeActive() || IsCardPaymentModeActive();
+
+        /// <summary>
         /// Gets the Submit button info: selected count and button GameObject.
         /// Returns null if no Submit button with a number found.
         /// </summary>
@@ -1802,7 +1896,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public string GetSelectionStateText(GameObject card)
         {
-            bool active = IsSelectionModeActive();
+            bool active = IsAnySelectionActive();
             CheckSelectionModeTransition(active);
             if (!active) return "";
             return IsCardSelected(card) ? $", {Strings.Selected}" : "";
@@ -1827,7 +1921,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public bool TryToggleSelection(GameObject card)
         {
-            if (!IsSelectionModeActive()) return false;
+            // Per-card rather than mode-wide for the payment case: only take over Enter for
+            // a card the workflow actually accepts, so anything else still falls through to
+            // ZoneNavigator's normal play path.
+            if (!IsSelectionModeActive() && !IsPaymentClickTarget(card)) return false;
 
             int preClickCount = GetSubmitButtonInfo()?.count ?? -1;
             string cardName = CardDetector.GetCardName(card) ?? card.name;

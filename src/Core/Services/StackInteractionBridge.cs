@@ -24,8 +24,13 @@ namespace AccessibleArena.Core.Services
     ///
     /// Because of that, a native badge click is only available in combat. For every other
     /// workflow BattlefieldNavigator falls back to clicking each card of the stack in turn
-    /// (see SequentialStackClick there) — the same clicks a sighted player makes on a fanned
+    /// (see PumpStackClickSequence there) — the same clicks a sighted player makes on a fanned
     /// stack, each one validated by the game's own workflow.
+    ///
+    /// That fallback has to pace itself: workflows implementing IRoundTripWorkflow (which
+    /// includes SelectTargetsWorkflow) send each click to the GRE and refuse every further
+    /// one until the answer comes back. IsWaitingForRoundTrip and WorkflowAcceptsClick below
+    /// expose the game's own two gates so the sequence waits instead of firing into the void.
     ///
     /// Note: tapping multiple lands at once during spell payment is handled separately
     /// by the game itself via ActionsAvailableWorkflow.BatchManaSubmission.OnClick,
@@ -117,6 +122,126 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// True while the current workflow is mid round trip to the GRE: it has sent the
+        /// player's last click and refuses every further one until the answer arrives
+        /// (IRoundTripWorkflow.IsWaitingForRoundTrip).
+        ///
+        /// SelectTargetsWorkflow sets that flag on the *first* selection click
+        /// (UpdateTarget -> _submitted = true) and its CanClick returns false for as long
+        /// as it is set. A burst of stack clicks on a fixed timer therefore only ever
+        /// landed the first one; the rest were refused and fell through to the invalid sfx.
+        /// </summary>
+        public static bool IsWaitingForRoundTrip()
+        {
+            try
+            {
+                var workflow = GetCurrentWorkflow();
+                return workflow != null && WorkflowIsWaiting(workflow);
+            }
+            catch { return false; }
+        }
+
+        private static bool WorkflowIsWaiting(object workflow)
+        {
+            if (workflow == null) return false;
+
+            var method = workflow.GetType().GetMethod("IsWaitingForRoundTrip",
+                AllInstanceFlags, null, Type.EmptyTypes, null);
+            if (method != null && method.ReturnType == typeof(bool))
+            {
+                try { if ((bool)method.Invoke(workflow, null)) return true; }
+                catch { }
+            }
+
+            return AnyChildWorkflow(workflow, WorkflowIsWaiting);
+        }
+
+        /// <summary>
+        /// Asks the current workflow's own IClickableWorkflow.CanClick whether a plain
+        /// primary click on this card would be honored right now — the exact gate
+        /// GameInteractionSystem.HandleCardViewClick applies before forwarding a click.
+        ///
+        /// Permissive on failure: when the workflow, the card component or the method
+        /// can't be resolved we return true and let the click go out, rather than
+        /// silently dropping clicks the game would have accepted. Callers that use the
+        /// answer to *discover* clickable cards rather than to validate a click the user
+        /// already asked for pass permissiveOnFailure: false — for them an unresolvable
+        /// workflow must mean "no", or every card would look clickable.
+        /// </summary>
+        public static bool WorkflowAcceptsClick(GameObject card)
+            => WorkflowAcceptsClick(card, permissiveOnFailure: true);
+
+        /// <inheritdoc cref="WorkflowAcceptsClick(GameObject)"/>
+        public static bool WorkflowAcceptsClick(GameObject card, bool permissiveOnFailure)
+        {
+            try
+            {
+                if (card == null) return false;
+                if (!EnsureReflection()) return permissiveOnFailure;
+
+                var cdc = CardModelProvider.GetDuelSceneCDC(card);
+                if (cdc == null) return permissiveOnFailure;
+
+                var workflow = GetCurrentWorkflow();
+                if (workflow == null) return false;
+
+                return WorkflowAcceptsClick(workflow, cdc);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("StackInteractionBridge", $"WorkflowAcceptsClick failed: {ex.Message}");
+                return permissiveOnFailure;
+            }
+        }
+
+        private static bool WorkflowAcceptsClick(object workflow, Component cdc)
+        {
+            if (workflow == null) return false;
+
+            // CanClick's first parameter is IEntityView, which DuelScene_CDC implements —
+            // match on the enum parameter and let the runtime type check the rest.
+            foreach (var method in workflow.GetType().GetMethods(AllInstanceFlags))
+            {
+                if (method.Name != "CanClick" || method.ReturnType != typeof(bool)) continue;
+                var ps = method.GetParameters();
+                if (ps.Length != 2
+                    || ps[1].ParameterType != _simpleInteractionEnum
+                    || !ps[0].ParameterType.IsInstanceOfType(cdc)) continue;
+
+                try
+                {
+                    if ((bool)method.Invoke(workflow, new object[] { cdc, _primaryValue }))
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("StackInteractionBridge",
+                        $"CanClick threw on '{workflow.GetType().Name}': {ex.Message}");
+                }
+                break;
+            }
+
+            return AnyChildWorkflow(workflow, child => WorkflowAcceptsClick(child, cdc));
+        }
+
+        /// <summary>
+        /// Runs the predicate over a parent workflow's ChildWorkflows, mirroring how the
+        /// game's own workflow extensions fall through to a group workflow's children.
+        /// </summary>
+        private static bool AnyChildWorkflow(object workflow, Func<object, bool> predicate)
+        {
+            var childrenProp = workflow.GetType().GetProperty("ChildWorkflows", AllInstanceFlags);
+            if (childrenProp?.GetValue(workflow) is IEnumerable children)
+            {
+                foreach (var child in children)
+                {
+                    if (predicate(child)) return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Identity token for the interaction the game is currently running
         /// (GameManager.CurrentInteraction, or null when idle). Callers that dispatch a
         /// sequence of clicks compare this between clicks and stop as soon as it changes —
@@ -132,6 +257,14 @@ namespace AccessibleArena.Core.Services
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Type name of the interaction the game is currently running (e.g.
+        /// "ActionsAvailableWorkflow", "SelectTargetsWorkflow", "PayCostWorkflow"), or null
+        /// when idle. Lets callers tell "the player has priority" apart from "the game is
+        /// waiting for something specific" without reflecting into the workflow itself.
+        /// </summary>
+        public static string GetCurrentWorkflowName() => GetCurrentWorkflow()?.GetType().Name;
 
         private static MonoBehaviour FindGameManager()
         {
@@ -194,18 +327,7 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            var childrenProp = type.GetProperty("ChildWorkflows", AllInstanceFlags);
-            if (childrenProp != null)
-            {
-                if (childrenProp.GetValue(workflow) is IEnumerable children)
-                {
-                    foreach (var child in children)
-                    {
-                        if (WorkflowAcceptsStackClick(child)) return true;
-                    }
-                }
-            }
-            return false;
+            return AnyChildWorkflow(workflow, WorkflowAcceptsStackClick);
         }
 
         private static bool EnsureReflection()

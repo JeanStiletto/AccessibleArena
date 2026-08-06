@@ -63,6 +63,8 @@ namespace AccessibleArena.Core.Services
         public const string BrowserTypeLondon = "London";
         public const string BrowserTypeWorkflow = "Workflow";
         public const string BrowserTypeViewDismiss = "ViewDismiss";
+        // Also reported for the Mutate variant, whose scaffold suffix is stripped here.
+        public const string BrowserTypeYesNo = "YesNo";
 
         // Button name patterns for detection
         public static readonly string[] ButtonPatterns = { "Button", "Accept", "Confirm", "Cancel", "Done", "Keep", "Submit", "Yes", "No", "Mulligan" };
