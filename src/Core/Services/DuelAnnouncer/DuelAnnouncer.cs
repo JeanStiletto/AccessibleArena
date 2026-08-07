@@ -374,15 +374,15 @@ namespace AccessibleArena.Core.Services
 
         private string BuildRevealAnnouncement(object uxEvent)
         {
-            try
-            {
-                var cardName = GetFieldValue<string>(uxEvent, "CardName");
-                return !string.IsNullOrEmpty(cardName) ? Strings.Duel_Revealed(cardName) : null;
-            }
-            catch
-            {
-                return null;
-            }
+            bool includeRulesText =
+                AccessibleArenaMod.Instance?.Settings?.BriefOpponentAnnouncements != true;
+
+            return OpponentRevealAnnouncementBuilder.Build(
+                uxEvent,
+                _localPlayerId,
+                includeRulesText,
+                CardModelProvider.GetCardInfoFromGrpId,
+                detail => $"{Strings.Duel_Opponent} {Strings.Duel_Revealed(detail)}");
         }
 
         private string BuildCountersAnnouncement(object uxEvent)
