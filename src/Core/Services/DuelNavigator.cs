@@ -112,6 +112,10 @@ namespace AccessibleArena.Core.Services
             // player in the player info zone commits that player as a target during targeting
             _portraitNavigator.SetHotHighlightNavigator(_hotHighlightNavigator);
 
+            // ...and back, so HotHighlightNavigator (which runs first) leaves Enter alone while
+            // the player info zone is open instead of clicking the last battlefield card
+            _hotHighlightNavigator.SetPlayerInfoZoneCheck(() => _portraitNavigator.OwnsEnter);
+
             // Connect PriorityController to PhaseSkipGuard for phase skip warning
             PhaseSkipGuard.SetPriorityController(_priorityController);
             PhaseSkipGuard.SetModalNavigatorCheck(() => BrowserNavigator.IsActive || _chooseXNavigator.IsActive || _spinnerNavigator.IsActive);

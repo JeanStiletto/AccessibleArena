@@ -40,6 +40,11 @@ namespace AccessibleArena.Core.Services
         private readonly ZoneNavigator _zoneNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
 
+        // Reports whether PlayerPortraitNavigator currently holds the player info zone (V).
+        // That zone only moves EventSystem focus onto a portrait button, it does not change
+        // ZoneNavigator ownership, so Enter must be handed back to it explicitly.
+        private Func<bool> _playerInfoZoneCheck;
+
         private List<HighlightedItem> _items = new List<HighlightedItem>();
         private int _currentIndex = -1;
         private int _opponentIndex = -1;
@@ -138,6 +143,13 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public bool HasPlayableHighlighted => _items.Any(i => i.Zone == "Hand");
 
+        /// <summary>
+        /// True while the game is asking for targets or a selection. Enter on a player then means
+        /// "target this player" and nothing else, so callers must not fall back to emotes or mute.
+        /// Reflects the last discovery, so refresh highlights before relying on it.
+        /// </summary>
+        public bool IsChoosingTargets => _isActive && (IsAnySelectionActive() || HasTargetsHighlighted);
+
         public HotHighlightNavigator(IAnnouncementService announcer, ZoneNavigator zoneNavigator)
         {
             _announcer = announcer;
@@ -147,6 +159,15 @@ namespace AccessibleArena.Core.Services
         public void SetBattlefieldNavigator(BattlefieldNavigator battlefieldNavigator)
         {
             _battlefieldNavigator = battlefieldNavigator;
+        }
+
+        /// <summary>
+        /// Registers the check that tells this navigator when the player info zone (V) is open,
+        /// so Enter is left to PlayerPortraitNavigator instead of being consumed here.
+        /// </summary>
+        public void SetPlayerInfoZoneCheck(Func<bool> check)
+        {
+            _playerInfoZoneCheck = check;
         }
 
         public void Activate()
@@ -273,6 +294,14 @@ namespace AccessibleArena.Core.Services
             // Enter - activate current item (only if we still have zone ownership)
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                // The player info zone (V) owns Enter while it is open - PlayerPortraitNavigator
+                // decides between targeting that player, the emote wheel and the mute toggle.
+                // Entering that zone does not change ZoneNavigator ownership, so without this the
+                // selection-mode shortcut below would keep clicking whichever battlefield card the
+                // user was parked on before pressing V, silently targeting the wrong thing.
+                if (_playerInfoZoneCheck != null && _playerInfoZoneCheck())
+                    return false;
+
                 // Ctrl+Enter is the stack-selection shortcut owned by BattlefieldNavigator.
                 // Don't intercept it here, even if the primary button has a count (e.g. "3 Angreifer"
                 // during Declare Attackers makes IsSelectionModeActive return true).

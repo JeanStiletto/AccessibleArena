@@ -75,6 +75,27 @@ namespace AccessibleArena.Core.Services
         public bool IsInPlayerInfoZone => _navigationState != NavigationState.Inactive;
 
         /// <summary>
+        /// True when Enter belongs to this navigator: the zone is open and UI focus is still on one
+        /// of its elements (or nowhere yet). HotHighlightNavigator runs first and consults this so it
+        /// stops consuming Enter the player info zone is about to handle - while keeping Enter for
+        /// itself in the race where focus has already moved off the zone but OnFocusChanged has not
+        /// fired yet, which HandlePlayerNavigation resolves by exiting and declining the key.
+        /// </summary>
+        public bool OwnsEnter
+        {
+            get
+            {
+                if (_navigationState == NavigationState.Inactive) return false;
+
+                // Unity's fake-null: a destroyed GameObject is != null in C# but unusable.
+                var focus = EventSystem.current?.currentSelectedGameObject;
+                if (focus == null || !focus) return true;
+
+                return IsPlayerZoneElement(focus);
+            }
+        }
+
+        /// <summary>
         /// Called when UI focus changes. If focus moves to something outside the player zone,
         /// automatically exit the player info zone to prevent consuming keys meant for other UI.
         /// This makes player zone behave like card zones - leaving when focus moves elsewhere.
@@ -352,6 +373,17 @@ namespace AccessibleArena.Core.Services
                 if (!shift && _hotHighlightNavigator != null &&
                     _hotHighlightNavigator.TryTargetPlayer(_currentPlayerIndex == 0))
                 {
+                    return true;
+                }
+
+                // A prompt is up but this player is not a legal target for it. Say so instead of
+                // falling through: opening the emote wheel or silently flipping the opponent's mute
+                // in the middle of choosing targets reads as a lost keypress.
+                if (!shift && _hotHighlightNavigator != null && _hotHighlightNavigator.IsChoosingTargets)
+                {
+                    string who = _currentPlayerIndex == 0 ? Strings.You : Strings.Opponent;
+                    _announcer.Announce(Strings.CouldNotTarget(who), AnnouncementPriority.High);
+                    Log.Nav("PlayerPortrait", $"Enter while choosing targets, but {who} is not a valid target");
                     return true;
                 }
 
