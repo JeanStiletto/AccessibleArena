@@ -152,6 +152,38 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Reads the local player's seat ID (MtgPlayer.InstanceId) straight from the live game
+        /// state. Most events identify their side through a zone string - "Hand (PlayerPlayer: 1
+        /// (LocalPlayer), 6 cards)" - which TryUpdateLocalPlayerIdFromZoneString keeps
+        /// _localPlayerId honest from. Reveal events carry no zone string at all, only a numeric
+        /// OwnerId, so when the zone-derived ID is still 0 this is the only way to tell whose card
+        /// is being shown. Returns 0 when the game state is not up yet.
+        /// </summary>
+        private uint TryResolveLocalPlayerIdFromGameState()
+        {
+            try
+            {
+                var gm = GetGameManager();
+                if (gm == null || !_gmCache.EnsureInitialized(gm.GetType())) return 0;
+
+                var gameState = _gmCache.Handles.CurrentGameState.GetValue(gm);
+                if (gameState == null || !_gsCache.EnsureInitialized(gameState.GetType())) return 0;
+                if (_gsCache.Handles.LocalPlayer == null) return 0;
+
+                var localPlayer = _gsCache.Handles.LocalPlayer.GetValue(gameState);
+                if (localPlayer == null || !_playerCache.EnsureInitialized(localPlayer.GetType())) return 0;
+                if (_playerCache.Handles.InstanceId == null) return 0;
+
+                return System.Convert.ToUInt32(_playerCache.Handles.InstanceId.GetValue(localPlayer));
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warn("DuelAnnouncer", $"Local player ID lookup failed: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
         /// Resolves the opponent's commander(s) live from the game state. Supports partner
         /// commanders (multiple entries). Each entry carries the live card GameObject when one
         /// exists, plus the GrpId for a card-database fallback.

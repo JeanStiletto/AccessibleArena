@@ -44,6 +44,10 @@ namespace AccessibleArena.Core.Services
         private DateTime _lastAnnouncementTime;
         private const float DUPLICATE_THRESHOLD_SECONDS = 0.5f;
 
+        // Above this many cards in one reveal, announce names only - full rules text for a whole
+        // revealed hand is unlistenable.
+        private const int REVEAL_RULES_TEXT_MAX_CARDS = 3;
+
         private uint _localPlayerId;
         private ZoneNavigator _zoneNavigator;
         private BattlefieldNavigator _battlefieldNavigator;
@@ -372,17 +376,98 @@ namespace AccessibleArena.Core.Services
 
         // FindCardNameByInstanceId removed - use GetCardNameByInstanceId (cached)
 
+        /// <summary>
+        /// Announces cards an opponent reveals (explore, "reveal the top card", hand peeks).
+        ///
+        /// Reveals never arrive as zone transfers - the card does not move, the game only adds a
+        /// view to the owner's Revealed zone holder - so this reads RevealCardsUXEvent directly.
+        /// UpdateRevealedCardUXEvent shares DuelEventType.CardRevealed but carries a single
+        /// _revealInstance instead of a list; GetFieldValue negative-caches the missing member,
+        /// so that event resolves to null here without throwing or spamming the log.
+        ///
+        /// Own reveals are skipped: the browser navigators already announce those, and the
+        /// privacy rules above are satisfied because a revealed card is public information.
+        /// </summary>
         private string BuildRevealAnnouncement(object uxEvent)
         {
             try
             {
-                var cardName = GetFieldValue<string>(uxEvent, "CardName");
-                return !string.IsNullOrEmpty(cardName) ? Strings.Duel_Revealed(cardName) : null;
+                if (!(GetFieldValue<IEnumerable>(uxEvent, "_revealEvents") is IEnumerable records))
+                    return null;
+
+                // Reveal records identify their side by numeric OwnerId and carry no zone string,
+                // so the usual zone-string correction has nothing to work with here. If the seat
+                // is still unknown, ask the live game state directly; only if that fails too does
+                // staying silent beat announcing your own card as the opponent's.
+                if (_localPlayerId == 0)
+                {
+                    uint resolved = TryResolveLocalPlayerIdFromGameState();
+                    if (resolved == 0)
+                    {
+                        Log.Announce("DuelAnnouncer", "Reveal: skipped, local player ID not yet known");
+                        return null;
+                    }
+                    Log.Announce("DuelAnnouncer", $"Local player ID resolved from game state: {resolved}");
+                    _localPlayerId = resolved;
+                }
+
+                var cards = new List<CardInfo>();
+                foreach (var record in records)
+                {
+                    var info = GetOpponentRevealedCard(record);
+                    if (info.HasValue)
+                        cards.Add(info.Value);
+                }
+
+                if (cards.Count == 0) return null;
+
+                // Rules text is verbose: skip it in brief mode and on mass reveals, where a wall of
+                // ability text would bury the card names.
+                bool brief = AccessibleArenaMod.Instance?.Settings?.BriefOpponentAnnouncements == true;
+                bool withRulesText = !brief && cards.Count <= REVEAL_RULES_TEXT_MAX_CARDS;
+
+                var parts = new List<string>();
+                foreach (var card in cards)
+                {
+                    string detail = withRulesText && !string.IsNullOrEmpty(card.RulesText)
+                        ? $"{card.Name}, {card.RulesText}"
+                        : card.Name;
+                    parts.Add($"{Strings.Duel_Opponent} {Strings.Duel_Revealed(detail)}");
+                }
+
+                Log.Announce("DuelAnnouncer", $"Reveal: {cards.Count} opponent card(s), rules text={withRulesText}");
+                return string.Join(". ", parts);
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Warn("DuelAnnouncer", $"Error processing reveal: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Resolves one CardRevealedEvent to card info, or null when it is not an opponent's
+        /// "Reveal" record. Create/Delete records maintain the face-up cards in the opponent's
+        /// hand and would otherwise be announced a second time.
+        /// </summary>
+        private CardInfo? GetOpponentRevealedCard(object record)
+        {
+            if (record == null) return null;
+
+            if (GetFieldValue<object>(record, "EventType")?.ToString() != "Reveal")
+                return null;
+
+            uint ownerId = GetFieldValue<uint>(record, "OwnerId");
+            if (ownerId == 0 || ownerId == _localPlayerId) return null;
+
+            uint grpId = GetFieldValue<uint>(GetFieldValue<object>(record, "RevealedInstance"), "GrpId");
+            if (grpId == 0) return null;
+
+            var info = CardModelProvider.GetCardInfoFromGrpId(grpId);
+            if (!info.HasValue || !info.Value.IsValid || string.IsNullOrEmpty(info.Value.Name))
+                return null;
+
+            return info;
         }
 
         private string BuildCountersAnnouncement(object uxEvent)

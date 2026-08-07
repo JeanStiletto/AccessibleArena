@@ -209,6 +209,11 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | NumericInputReq | Wotc.Mtgo.Gre.External.Messaging.NumericInputReq | Gre |
 | PresetManaWheel | Wotc.Mtga.DuelScene.UI.PresetManaWheel | Core |
 | Spinner_OptionSelector | Spinner_OptionSelector | Core |
+| RevealCardsUXEvent | Wotc.Mtga.DuelScene.UXEvents.RevealCardsUXEvent | Core |
+| UpdateRevealedCardUXEvent | Wotc.Mtga.DuelScene.UXEvents.UpdateRevealedCardUXEvent | Core |
+| CardRevealedEvent | GreClient.Rules.CardRevealedEvent | Shared |
+| RevealEventType | GreClient.Rules.RevealEventType (enum) | Shared |
+| MtgCardInstance | GreClient.Rules.MtgCardInstance | Shared |
 
 ## NPE Tutorial (Duel)
 

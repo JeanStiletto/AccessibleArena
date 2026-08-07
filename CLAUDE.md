@@ -121,7 +121,7 @@ Before running: update `ModVersion` in `src/Directory.Build.props` and add a `##
 - `ManaTextFormatter` - MTGA mana notation parsing (extracted from CardModelProvider)
 - `CardTextProvider` - Ability text, flavor text, localized text lookups
 - `CardStateProvider` - Attachments, combat state, targeting, counters, categorization
-- `ReflectionCache<THandles>` (`Core/Utils/ReflectionCache.cs`) + `ReflectionWalk` - strongly-typed reflection-handle caches with uniform init logging and base-type walking. Use for new reflection-heavy services instead of scattered `FieldInfo`/`PropertyInfo`/`MethodInfo` fields.
+- `ReflectionCache<THandles>` (`Core/Utils/ReflectionCache.cs`) + `ReflectionWalk` - strongly-typed reflection-handle caches with uniform init logging and base-type walking. Use for new reflection-heavy services instead of scattered `FieldInfo`/`PropertyInfo`/`MethodInfo` fields. **One stable type per cache** - it binds to the first type it resolves and ignores the type argument afterwards. For call sites that see several types (UX event handlers, anything polymorphic) use `DuelAnnouncer.GetFieldValue`-style per-`(Type, name)` lookup instead; see "Choosing a Reflection Cache" in `docs/BEST_PRACTICES.md`.
 
 ### Browser Debug Tools
 Enable detailed debug logging for investigating browser activation issues:

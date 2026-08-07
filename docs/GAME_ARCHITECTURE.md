@@ -228,6 +228,26 @@ The game uses a UX event queue (`Wotc.Mtga.DuelScene.UXEvents.UXEventQueue`) to 
 - Purpose: Attack animation
 - Key Fields: `_attackerId`
 
+**RevealCardsUXEvent**
+- Purpose: Cards shown to a player (explore, "reveal the top card", opponent hand reveals)
+- Key Fields: `_revealEvents` (`List<GreClient.Rules.CardRevealedEvent>`, SharedClientCore)
+- `CardRevealedEvent` members are all **public fields**, not properties:
+  - `EventType` (`RevealEventType`: `Create`, `Delete`, `Reveal`)
+  - `OwnerId` (uint) — seat ID of the player whose card is revealed
+  - `RevealedInstance` (`MtgCardInstance`) — populated for `Reveal` only
+  - `CreateInstance` / `DeleteId` — populated for `Create` / `Delete`
+  - `AffectorId` (uint)
+- `MtgCardInstance.GrpId` is a **property** (uint), unlike the fields above
+- All records in one event share the same `EventType` (the game's own `RevealType` getter reads `_revealEvents[0].EventType`)
+- `Create`/`Delete` maintain the face-up cards shown in the opponent's hand; `Reveal` is the transient "here is a card" display
+
+**UpdateRevealedCardUXEvent**
+- Purpose: Refreshes a single already-revealed card
+- Key Fields: `_revealInstance` (`MtgCardInstance`) — note: **no** `_revealEvents` list
+- Shares `DuelEventType.CardRevealed` with `RevealCardsUXEvent` in the announcer's event map, so any handler for that event type must tolerate both shapes
+
+**Reveals are not zone transfers.** `RevealCardsUXEvent.Execute` builds a card view and adds it to the holder for `GetZoneForPlayer(OwnerId, ZoneType.Revealed)` — the card itself never moves, so no `ZoneTransfer` is emitted and `ProcessZoneTransfer` never sees it. Confirmed against session logs: the observed transfer pairs are None/Stack/Hand/Battlefield/Graveyard/Library/Exile/Command/Pending combinations, never `Revealed`. Reveal announcements therefore need their own builder. (Impulse-draw style effects are different — those really do move the card and appear as `Library -> Exile`.)
+
 ### Parsing UXEvent Data
 
 Player identification from `_activePlayer`:

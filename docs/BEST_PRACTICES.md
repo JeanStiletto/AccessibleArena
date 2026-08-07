@@ -432,6 +432,32 @@ Type cardDataType = FindType("GreClient.CardData.CardData");
 Type holderType = FindType("Wotc.Mtga.CardParts.CardHolderType");
 ```
 
+### Choosing a Reflection Cache
+
+Two caching styles exist. Picking the wrong one causes silent failures, so match the cache to the shape of the input.
+
+**`ReflectionCache<THandles>` (`Core/Utils/ReflectionCache.cs`) — one stable type per cache.**
+`EnsureInitialized(type)` resolves handles on the first successful call and then **ignores the type argument forever**. That is exactly right for a service that inspects a single game type (`CardDatabase`, a specific controller, one holder class).
+
+It is the wrong tool when the same code path receives objects of several types:
+- Once initialized on type A, a later object of type B still returns `true`, and `FieldInfo.GetValue(bObject)` throws `ArgumentException` — usually swallowed by a `catch`, so the feature just goes quiet.
+- Failures are never cached, so an unresolvable type re-runs the builder and re-logs `Could not resolve required handles for ...` on *every* event.
+
+**`DuelAnnouncer.GetFieldValue<T>` / `LookupMember` — many types, keyed per (Type, name).**
+`DuelAnnouncer` (`DuelAnnouncer.cs`, Helper Methods region) keys a `ConcurrentDictionary<(Type, string), MemberInfo>`, resolves fields *and* properties transparently, and negative-caches "member does not exist" so a missing member costs one lookup and returns `default`.
+
+Use this inside the announcer and anywhere else that handles a polymorphic stream of game objects — most notably UX events, where several distinct event classes map to the same `DuelEventType`:
+```csharp
+// Safe across event shapes: the wrong event type simply yields null.
+if (!(GetFieldValue<IEnumerable>(uxEvent, "_revealEvents") is IEnumerable records))
+    return null;
+
+uint ownerId = GetFieldValue<uint>(record, "OwnerId");   // public field
+uint grpId   = GetFieldValue<uint>(instance, "GrpId");   // property — same call
+```
+
+Rule of thumb: one type per cache → `ReflectionCache<THandles>`; one call site, many types → keyed member lookup.
+
 ### GameTypeNames & SceneNames (Always Use for Game Strings)
 
 Centralized string constants for game type names and scene names. Prevents typos and enables rename-refactoring.
@@ -729,6 +755,32 @@ Announces game events via Harmony patch on `UXEventQueue.EnqueuePending()`.
 - Attacker count: "X attackers" when leaving declare attackers phase (summary)
 - Opponent plays: "Opponent played a card" (hand count decrease detection)
 - Combat damage: "[Card] deals [N] to [target]" (see Combat Damage Announcements below)
+- Opponent reveals: "Opponent Revealed [card name], [rules text]" (see Reveal Announcements below)
+
+**Reveal Announcements:**
+
+Reveals never arrive as zone transfers — the card does not move, the game only adds a view to the
+`Revealed` zone holder (see GAME_ARCHITECTURE.md, UXEvent System). `BuildRevealAnnouncement` therefore
+reads the event directly.
+
+*Implementation notes:*
+- `RevealCardsUXEvent._revealEvents` is a `List<CardRevealedEvent>`; `UpdateRevealedCardUXEvent` maps to
+  the same `DuelEventType.CardRevealed` but has no such list, so the builder must degrade to `null`
+  instead of throwing. Use `GetFieldValue` (keyed per type, negative-cached), not `ReflectionCache`.
+- `CardRevealedEvent.EventType` / `OwnerId` / `RevealedInstance` are public **fields**;
+  `MtgCardInstance.GrpId` is a **property**. `GetFieldValue` handles both.
+- Only `EventType == "Reveal"` is announced. `Create`/`Delete` maintain the face-up cards in the
+  opponent's hand and would produce duplicate speech.
+- Records with `OwnerId == _localPlayerId` are skipped: your own reveals (explore, scry-likes) are
+  already covered by the browser navigators and the card would be announced twice.
+- Ownership is a numeric `OwnerId` only — reveal events carry no zone string, so
+  `TryUpdateLocalPlayerIdFromZoneString` (the usual self-correction for `_localPlayerId`) has
+  nothing to parse. When the seat is still unknown, `TryResolveLocalPlayerIdFromGameState`
+  (`DuelAnnouncer.Commander.cs`) reads `MtgGameState.LocalPlayer.InstanceId` from the live game
+  state; the announcement is suppressed only if that fails too.
+- Rules text is appended unless the `BriefOpponentAnnouncements` setting is on, matching
+  `BuildStackAnnouncement`. Rules text is dropped entirely for batches larger than
+  `REVEAL_RULES_TEXT_MAX_CARDS` cards so a mass reveal stays listenable.
 
 **Individual Attacker Announcements (January 2026):**
 
