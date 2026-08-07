@@ -104,7 +104,7 @@ Three outcomes:
 
 ### Step 5: Main Installation (MainForm.cs)
 **Full Install Mode:**
-1. **Copy Tolk DLLs** - Extract embedded resources to MTGA root
+1. **Copy speech runtime** - Extract embedded `prism.dll` to MTGA root, delete the legacy Tolk pair
 2. **MelonLoader Check/Install:**
    - If not installed: Ask user, then download ZIP and extract
    - If already installed: Ask if user wants to reinstall or keep existing
@@ -116,7 +116,7 @@ Three outcomes:
 8. **Register in Add/Remove Programs** - stores GitHub release tag as version; `UninstallString` points at the persistent copy from step 7
 
 **Update Only Mode:**
-1. Skip Tolk DLLs and MelonLoader
+1. **Copy speech runtime** - same as full install; skip MelonLoader. The copy is not skipped here because v1.4.6 swapped the runtime (Tolk → Prism), and an update that left it alone would install a mod DLL with no library to speak through
 2. **Fetch latest version** from GitHub (for registry)
 3. **Download Mod DLL** from GitHub releases
 4. **Update registry** with GitHub release tag
@@ -166,7 +166,7 @@ Running `AccessibleArena_Uninstaller.exe` directly **without `/uninstall`** ente
 `Program.PerformUninstall`:
 
 - `Mods/AccessibleArena.dll` + `.backup`
-- `Tolk.dll`, `nvdaControllerClient64.dll` + `.backup` files from MTGA root
+- `prism.dll`, plus the pre-v1.4.6 `Tolk.dll` and `nvdaControllerClient64.dll` + `.backup` files from MTGA root
 - Empty `Mods/` folder (kept if it still contains other files)
 - `UserData/AccessibleArena.json` (mod settings)
 - `UserData/AccessibleArena/` folder (per-mod `MelonPreferences` data)
@@ -544,7 +544,8 @@ The mod DLL is in `C:\Program Files\...\MTGA\Mods\`, which requires admin rights
 A minimal batch script is written to `%TEMP%\aa_update.bat` via `File.WriteAllLines()` (not string interpolation — avoids `%` and `""` escaping issues). The batch:
 1. Waits for `MTGA.exe` to exit (polls `tasklist` every 2 seconds)
 2. Copies the downloaded DLL to the Mods folder
-3. Self-deletes
+3. Copies `prism.dll` to the game root, when the release's copy differs from the installed one or none is installed. It has to happen here rather than in-process: `prism.dll` is loaded into the running game and only becomes replaceable once step 1's wait returns
+4. Self-deletes
 
 The batch is launched with `Verb = "runas"` (triggers UAC prompt) and `WindowStyle = ProcessWindowStyle.Hidden`.
 

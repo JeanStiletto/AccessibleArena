@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -21,6 +22,12 @@ namespace AccessibleArena.Core.Services
     {
         private const string GitHubApiUrl = "https://api.github.com/repos/JeanStiletto/AccessibleArena/releases/latest";
         private const string ModDllAssetName = "AccessibleArena.dll";
+
+        // Speech runtime, published as a release asset since v1.4.6. An update that replaced only
+        // the mod DLL would leave a pre-v1.4.6 install with Tolk and no prism.dll, and the mod
+        // would come up unable to speak — with no way to say so.
+        private const string PrismDllAssetName = "prism.dll";
+
         private const int CheckTimeoutMs = 5000;
         private const int DownloadTimeoutMs = 30000;
 
@@ -36,6 +43,9 @@ namespace AccessibleArena.Core.Services
         private static volatile bool _downloadComplete;
         private static volatile bool _downloadFailed;
         private static volatile string _downloadedPath;
+
+        /// <summary>Downloaded speech runtime, or null when the installed one is already current.</summary>
+        private static volatile string _downloadedPrismPath;
 
         // Cached release JSON for extracting asset URL during download
         private static volatile string _releaseJson;
@@ -134,7 +144,7 @@ namespace AccessibleArena.Core.Services
                 else if (_downloadComplete && _downloadedPath != null)
                 {
                     announcer.AnnounceInterrupt(Strings.UpdateDownloaded);
-                    PerformUpdate(_downloadedPath);
+                    PerformUpdate(_downloadedPath, _downloadedPrismPath);
                     _downloadTask = null;
                 }
             }
@@ -169,12 +179,13 @@ namespace AccessibleArena.Core.Services
             _downloadComplete = false;
             _downloadFailed = false;
             _downloadedPath = null;
+            _downloadedPrismPath = null;
 
             _downloadTask = Task.Run(() =>
             {
                 try
                 {
-                    return DownloadDll();
+                    return DownloadAssets();
                 }
                 catch (Exception ex)
                 {
@@ -185,54 +196,162 @@ namespace AccessibleArena.Core.Services
             });
         }
 
-        private static string DownloadDll()
+        /// <summary>
+        /// Fetches the release's mod DLL, plus its speech runtime when the installed one is not
+        /// already the same build. Throws to fail the whole update rather than leaving a mod DLL
+        /// on disk that has nothing to speak through.
+        /// </summary>
+        private static string DownloadAssets()
         {
-            // If we don't have cached release JSON, fetch it again
-            string json = _releaseJson;
-            if (string.IsNullOrEmpty(json))
-            {
-                using (var client = new HttpClient())
-                {
-                    client.Timeout = TimeSpan.FromMilliseconds(DownloadTimeoutMs);
-                    client.DefaultRequestHeaders.Add("User-Agent", "AccessibleArena-Mod");
-                    client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+            string json = FetchReleaseJson();
 
-                    var task = client.GetStringAsync(GitHubApiUrl);
-                    task.Wait();
-                    json = task.Result;
-                }
-            }
-
-            // Find the DLL asset download URL
-            string pattern = $"\"browser_download_url\"\\s*:\\s*\"([^\"]*{Regex.Escape(ModDllAssetName)}[^\"]*)\"";
-            var match = Regex.Match(json, pattern);
-            if (!match.Success)
+            string modUrl = FindAssetUrl(json, ModDllAssetName);
+            if (modUrl == null)
             {
                 throw new Exception($"Asset '{ModDllAssetName}' not found in latest release");
             }
 
-            string downloadUrl = match.Groups[1].Value;
-            string tempPath = Path.Combine(Path.GetTempPath(), ModDllAssetName);
+            string tempPath = DownloadAsset(modUrl, ModDllAssetName);
+            _downloadedPrismPath = DownloadPrismIfNeeded(json);
 
-            Log.Msg("UpdateChecker", $"Downloading from: {downloadUrl}");
+            _downloadedPath = tempPath;
+            _downloadComplete = true;
+            return tempPath;
+        }
+
+        /// <summary>
+        /// Returns the downloaded speech runtime, or null when the game already carries that exact
+        /// build and the copy would be a no-op. Throws when the game has no <c>prism.dll</c> at all
+        /// and the release cannot supply one — finishing the update in that state would install a
+        /// mod that cannot say a word, including that anything went wrong.
+        /// </summary>
+        private static string DownloadPrismIfNeeded(string json)
+        {
+            string installedPrism = Path.Combine(GetGameRoot(), PrismDllAssetName);
+            bool haveInstalled = File.Exists(installedPrism);
+
+            string url = FindAssetUrl(json, PrismDllAssetName);
+            if (url == null)
+            {
+                if (!haveInstalled)
+                    throw new Exception($"Asset '{PrismDllAssetName}' not in the release and none installed");
+
+                Log.Msg("UpdateChecker", $"Release carries no {PrismDllAssetName}; keeping the installed one");
+                return null;
+            }
+
+            string downloaded = DownloadAsset(url, PrismDllAssetName);
+
+            if (haveInstalled && FilesAreIdentical(downloaded, installedPrism))
+            {
+                Log.Msg("UpdateChecker", $"Installed {PrismDllAssetName} already matches the release; no copy needed");
+                return null;
+            }
+
+            Log.Msg("UpdateChecker", haveInstalled
+                ? $"{PrismDllAssetName} differs from the installed one; it will be replaced"
+                : $"No {PrismDllAssetName} installed; it will be added");
+            return downloaded;
+        }
+
+        private static string FetchReleaseJson()
+        {
+            string json = _releaseJson;
+            if (!string.IsNullOrEmpty(json))
+                return json;
+
+            using (var client = new HttpClient())
+            {
+                client.Timeout = TimeSpan.FromMilliseconds(DownloadTimeoutMs);
+                client.DefaultRequestHeaders.Add("User-Agent", "AccessibleArena-Mod");
+                client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+
+                var task = client.GetStringAsync(GitHubApiUrl);
+                task.Wait();
+                return task.Result;
+            }
+        }
+
+        /// <summary>Picks an asset's download URL out of the release JSON, or null if absent.</summary>
+        private static string FindAssetUrl(string json, string assetName)
+        {
+            string pattern = $"\"browser_download_url\"\\s*:\\s*\"([^\"]*{Regex.Escape(assetName)}[^\"]*)\"";
+            var match = Regex.Match(json, pattern);
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        private static string DownloadAsset(string url, string assetName)
+        {
+            string tempPath = Path.Combine(Path.GetTempPath(), assetName);
+
+            Log.Msg("UpdateChecker", $"Downloading {assetName} from: {url}");
 
             using (var client = new HttpClient())
             {
                 client.Timeout = TimeSpan.FromMilliseconds(DownloadTimeoutMs);
                 client.DefaultRequestHeaders.Add("User-Agent", "AccessibleArena-Mod");
 
-                var responseTask = client.GetByteArrayAsync(downloadUrl);
+                var responseTask = client.GetByteArrayAsync(url);
                 responseTask.Wait();
                 File.WriteAllBytes(tempPath, responseTask.Result);
             }
 
             Log.Msg("UpdateChecker", $"Downloaded to: {tempPath}");
-            _downloadedPath = tempPath;
-            _downloadComplete = true;
             return tempPath;
         }
 
-        private static void PerformUpdate(string downloadedDllPath)
+        /// <summary>Byte comparison; a read failure counts as "different" so the copy still happens.</summary>
+        private static bool FilesAreIdentical(string pathA, string pathB)
+        {
+            try
+            {
+                var a = new FileInfo(pathA);
+                var b = new FileInfo(pathB);
+                if (a.Length != b.Length)
+                    return false;
+
+                using (var streamA = File.OpenRead(pathA))
+                using (var streamB = File.OpenRead(pathB))
+                {
+                    var bufferA = new byte[64 * 1024];
+                    var bufferB = new byte[64 * 1024];
+                    int read;
+
+                    while ((read = streamA.Read(bufferA, 0, bufferA.Length)) > 0)
+                    {
+                        int filled = 0;
+                        while (filled < read)
+                        {
+                            int chunk = streamB.Read(bufferB, filled, read - filled);
+                            if (chunk <= 0) return false;
+                            filled += chunk;
+                        }
+
+                        for (int i = 0; i < read; i++)
+                        {
+                            if (bufferA[i] != bufferB[i])
+                                return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("UpdateChecker", $"Could not compare {pathA} with {pathB}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>The MTGA root — the parent of the Mods folder this assembly was loaded from.</summary>
+        private static string GetGameRoot()
+        {
+            string modsDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            return Path.GetDirectoryName(modsDir);
+        }
+
+        private static void PerformUpdate(string downloadedDllPath, string downloadedPrismPath)
         {
             try
             {
@@ -245,9 +364,9 @@ namespace AccessibleArena.Core.Services
                 // Find the launcher executable
                 string launcherPath = FindLauncher(gameRoot);
 
-                // Elevated copy batch — minimal, only does the file copy
+                // Elevated copy batch — minimal, only does the file copies
                 string batchPath = Path.Combine(Path.GetTempPath(), "aa_update.bat");
-                var batchLines = new[]
+                var batchLines = new List<string>
                 {
                     "@echo off",
                     ":wait",
@@ -261,9 +380,25 @@ namespace AccessibleArena.Core.Services
                     "    echo Update failed. Press any key to close.",
                     "    pause >nul",
                     "    exit /b 1",
-                    ")",
-                    $"del \"{batchPath}\""
+                    ")"
                 };
+
+                // The speech runtime goes to the game root, where the mod's preload looks for it.
+                // It lands in the same batch on purpose: the wait above is the only moment
+                // prism.dll is not loaded into the game process and can be replaced at all.
+                if (downloadedPrismPath != null)
+                {
+                    string prismTarget = Path.Combine(gameRoot, PrismDllAssetName);
+                    batchLines.Add($"copy /y \"{downloadedPrismPath}\" \"{prismTarget}\"");
+                    batchLines.Add("if errorlevel 1 (");
+                    batchLines.Add("    echo Speech library update failed. Press any key to close.");
+                    batchLines.Add("    pause >nul");
+                    batchLines.Add("    exit /b 1");
+                    batchLines.Add(")");
+                    Log.Msg("UpdateChecker", $"Batch will also install {PrismDllAssetName} to {prismTarget}");
+                }
+
+                batchLines.Add($"del \"{batchPath}\"");
                 File.WriteAllLines(batchPath, batchLines);
 
                 Log.Msg("UpdateChecker", $"Batch script written to: {batchPath}");

@@ -229,7 +229,16 @@ namespace AccessibleArenaInstaller
 
                     if (_updateOnly)
                     {
-                        // Update mode - skip the speech runtime and MelonLoader
+                        // Update mode - MelonLoader is left alone, but the speech runtime is
+                        // refreshed rather than skipped. v1.4.6 swapped Tolk for prism.dll, so an
+                        // update that skipped it would install a mod DLL with no library to speak
+                        // through and the mod would come up silent. The copy is idempotent and
+                        // also repairs a missing or damaged prism.dll. Safe to overwrite here:
+                        // Program.Main refuses to run at all while MTGA is running.
+                        UpdateStatus(InstallerLocale.Get("Main_StatusCopyingLibraries"));
+                        UpdateProgress(5);
+                        await Task.Run(() => installationManager.CopySpeechRuntime());
+
                         UpdateStatus(InstallerLocale.Get("Main_StatusPreparing"));
                         UpdateProgress(70);
                     }

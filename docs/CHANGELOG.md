@@ -4,6 +4,8 @@ All notable changes to Accessible Arena.
 
 ## v1.4.6
 
+**Update with the installer, not with F5.** This release replaces the speech library — Tolk is gone, Prism takes its place — and the in-game F5 update in v1.4.5 only ever fetches the mod file. It would install this version without the new library, and the mod would then start up with nothing to speak through: silent, unable to say what went wrong, and unable to update itself out of it again, since F5 also lives in the part that has gone quiet. Download AccessibleArenaInstaller.exe from this release and run it instead. It puts both files in place, and it takes the old Tolk files out. From this version on, F5 carries the speech library along with it and this stops being something you have to think about.
+
 Speech:
 
 - Speech now goes through the Prism library instead of Tolk. Tolk reached NVDA, JAWS and Narrator; Prism reaches those plus ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText, UIA and SAPI through one interface — the Asian screen readers that were the whole reason this switch sat on the wish list are now supported. Nothing about how the mod speaks changed: announcement priorities still decide what interrupts and what queues, and your screen reader's own queue still does the sequencing. The old blocker turned out not to apply — the official Prism .NET binding needs .NET 10, but the mod does not use it; it talks to Prism's C interface directly, which .NET Framework 4.7.2 handles fine.
@@ -12,9 +14,11 @@ Speech:
 
 - New setting "Speech output" (F2). Leave it on Automatic to use whichever screen reader is running, or pick a specific output. The read-back names what is actually speaking, so choosing a reader that is not running says so instead of leaving you guessing — for example "JAWS, not available, using NVDA".
 
-- New setting "Critical alerts via system voice", off by default. Turned on, critical alerts are spoken by the Windows voice rather than your screen reader, so your own keypresses cannot cut them short. They then arrive in a second, different voice, which is why it is opt-in. "System voice volume" sets how loud that second voice is.
+- New setting "Critical alerts via system voice", on by default. Critical alerts are spoken by the Windows voice rather than your screen reader, so your own keypresses cannot cut them short. They arrive in a second, different voice; turn the setting off (F2) if you would rather have everything in one voice. "System voice volume" sets how loud that second voice is.
 
 - One file instead of two: `prism.dll` replaces `Tolk.dll` and `nvdaControllerClient64.dll`. Prism links its NVDA bridge in and finds the other readers' client libraries itself. Installing removes the old Tolk pair, and uninstalling removes whichever of them is present, so upgrading leaves nothing behind. The shipped build carries crash-safety fixes for users who have ZDSR, PC-Talker or BoyPC Reader installed at a version that would otherwise take the game down during startup.
+
+- Updating to this version brings the speech library with it. Both update paths used to move the mod file alone, which was correct for every release until this one — and wrong for exactly this one, because it is the release that swaps Tolk for Prism. The installer's "update only" option deliberately skipped the speech files on the grounds that they never change, and F5 inside the game downloads the mod file and nothing else. Either would have left you with a mod that has no library to speak through: it would have started up, found nothing, and gone silent, with no way to tell you why or to be updated again from inside the game. The installer now refreshes the speech library on an update as well as a fresh install, and F5 fetches it alongside the mod, replacing it only when it actually differs from the one you have. If the library cannot be fetched, the update stops instead of finishing into silence.
 
 - Card names with accents, umlauts or non-Latin scripts are handled explicitly on the way to the speech library. Prism rejects text that is not valid UTF-8 and drops the whole announcement when it sees any, which is a silent failure — so the encoding is now pinned down by tests rather than by luck.
 

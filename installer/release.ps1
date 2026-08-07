@@ -97,11 +97,31 @@ if ($LASTEXITCODE -ne 0) {
 $modDll = Join-Path $root 'src\bin\Release\net472\AccessibleArena.dll'
 $installerExe = Join-Path $root 'installer\AccessibleArenaInstaller\bin\Release\net472\AccessibleArenaInstaller.exe'
 
+# Published as a release asset so the in-game updater (F5) can fetch it. The installer embeds
+# its own copy, but a mod-DLL-only update has no other way to place the speech runtime.
+$prismDll = Join-Path $root 'third_party\prism\x64\prism.dll'
+
 if (-not (Test-Path $modDll)) {
     Write-Host "ERROR: Mod DLL not found at $modDll" -ForegroundColor Red; exit 1
 }
 if (-not (Test-Path $installerExe)) {
     Write-Host "ERROR: Installer EXE not found at $installerExe" -ForegroundColor Red; exit 1
+}
+if (-not (Test-Path $prismDll)) {
+    Write-Host "ERROR: prism.dll not found at $prismDll" -ForegroundColor Red; exit 1
+}
+
+# The installer's embedded copy and the published asset must be the same build, or an installed
+# game and an F5-updated game would run different speech runtimes.
+$prismResource = Join-Path $root 'installer\AccessibleArenaInstaller\Resources\prism.dll'
+if (-not (Test-Path $prismResource)) {
+    Write-Host "ERROR: Embedded prism.dll not found at $prismResource" -ForegroundColor Red; exit 1
+}
+if ((Get-FileHash -Path $prismDll -Algorithm SHA256).Hash -ne
+    (Get-FileHash -Path $prismResource -Algorithm SHA256).Hash) {
+    Write-Host "ERROR: third_party prism.dll and the installer's embedded copy differ." -ForegroundColor Red
+    Write-Host "       Copy third_party\prism\x64\prism.dll over installer\...\Resources\prism.dll." -ForegroundColor Red
+    exit 1
 }
 
 Write-Host "Artifacts verified" -ForegroundColor Green
@@ -139,6 +159,7 @@ if ($notes.Count -eq 0) {
 # Append SHA256 verification block
 $installerHash = (Get-FileHash -Path $installerExe -Algorithm SHA256).Hash.ToLower()
 $modHash       = (Get-FileHash -Path $modDll       -Algorithm SHA256).Hash.ToLower()
+$prismHash     = (Get-FileHash -Path $prismDll     -Algorithm SHA256).Hash.ToLower()
 
 $notesText += @"
 
@@ -149,6 +170,7 @@ $notesText += @"
 
 - ``AccessibleArenaInstaller.exe``: ``$installerHash``
 - ``AccessibleArena.dll``: ``$modHash``
+- ``prism.dll``: ``$prismHash``
 
 Verify in PowerShell with ``Get-FileHash <filename> -Algorithm SHA256`` or in Command Prompt with ``certutil -hashfile <filename> SHA256``.
 "@
@@ -183,7 +205,8 @@ gh release create $tag `
     --title $tag `
     --notes-file $notesFile `
     $modDll `
-    $installerExe
+    $installerExe `
+    $prismDll
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to create GitHub release" -ForegroundColor Red; exit 1
