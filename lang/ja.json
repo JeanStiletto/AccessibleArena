@@ -587,7 +587,7 @@
   "BrowserHint_London": "Cでキープ、Dで下へ。左右で移動。Enterでカード移動。スペースで送信",
   "BrowserHint_Mulligan": "Tabで移動。スペースで手札キープ。バックスペースでマリガン",
   "BrowserHint_SelectCards": "Tabで移動。Enterで選択・解除。スペースで確認。バックスペースでキャンセル",
-  "BrowserHint_SelectCardsMultiZone": "上下でゾーン切替。Tabで移動。Enterで選択。スペースで確認",
+  "BrowserHint_SelectCardsMultiZone": "上下でゾーン切替。Tabで移動。Enterで選択。スペースで確認。バックスペースでキャンセル",
   "BrowserHint_SelectGroup": "左右で移動。Tabで山の選択肢。EnterまたはSpaceで選択",
   "BrowserHint_OptionalAction": "Tabでナビゲート。EnterまたはSpaceで選択",
   "BrowserHint_Mutate": "Tabでカードとボタンを切り替え。スペースで変異。Backspaceで拒否",

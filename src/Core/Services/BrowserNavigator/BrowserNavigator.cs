@@ -52,6 +52,11 @@ namespace AccessibleArena.Core.Services
         // Highlight-filtered Tab: skip non-selectable cards in selection browsers
         private bool _isHighlightFilteredBrowser;
 
+        // Frame cache for HasAnySelectableCard() — see IsCardSelectable
+        private int _anySelectableFrame = -1;
+        private bool _anySelectableResult;
+        private bool _loggedNoSelectableCards;
+
         // Mutate Yes/No variant: cards (mutation pile preview) + 2-button row (Yes/No)
         // routed through provider's logical DoneButton/CancelButton keys
         private bool _isMutate;
@@ -70,6 +75,25 @@ namespace AccessibleArena.Core.Services
 
         public static bool IsActive => _isActive;
         public static string ActiveBrowserTypeStatic => _activeBrowserType;
+
+        /// <summary>
+        /// True while a SelectCardsMultiZone browser owns Space, so KeyboardManagerPatch
+        /// keeps the game's own subscriber from seeing the key.
+        ///
+        /// Space in this browser is guarded by a double-press (see HandleInput): the first
+        /// press only warns. Blocking the EventSystem submit path (EventSystemPatch) is not
+        /// enough — MTGA's KeyboardManager publishes Space straight to the browser, which
+        /// submitted on the *first* press and cast the card the warning was asking about
+        /// (observed on Chandra, Torch of Defiance's "you may cast the exiled card").
+        ///
+        /// Reads static entry state rather than the guard's armed bit on purpose: the mod's
+        /// Update may run after PublishKeyDown within the same frame, so an arm-on-press
+        /// flag would still be false when the patch asks. The mod's own confirm path
+        /// (ClickConfirmButton → OnButtonCallback("DoneButton")) drives this browser type
+        /// on the confirming press.
+        /// </summary>
+        public static bool ShouldBlockSpaceFromGame =>
+            _isActive && _activeBrowserType == BrowserDetector.BrowserTypeSelectCardsMultiZone;
         public string ActiveBrowserType => _browserInfo?.BrowserType;
         public BrowserZoneNavigator ZoneNavigator => _zoneNavigator;
 
@@ -228,11 +252,13 @@ namespace AccessibleArena.Core.Services
             }
 
             // Detect multi-zone browser
-            _isMultiZone = browserInfo.BrowserType == "SelectCardsMultiZone";
+            _isMultiZone = browserInfo.BrowserType == BrowserDetector.BrowserTypeSelectCardsMultiZone;
 
             // Selection browsers: Tab skips non-selectable cards (highlight filtering)
-            _isHighlightFilteredBrowser = browserInfo.BrowserType == "SelectCards"
-                || browserInfo.BrowserType == "SelectCardsMultiZone";
+            _isHighlightFilteredBrowser = browserInfo.BrowserType == BrowserDetector.BrowserTypeSelectCards
+                || browserInfo.BrowserType == BrowserDetector.BrowserTypeSelectCardsMultiZone;
+            _anySelectableFrame = -1;
+            _loggedNoSelectableCards = false;
 
             // Detect AssignDamage browser
             if (browserInfo.BrowserType == "AssignDamage")
@@ -325,6 +351,9 @@ namespace AccessibleArena.Core.Services
 
             // Clear highlight filter state
             _isHighlightFilteredBrowser = false;
+            _anySelectableFrame = -1;
+            _anySelectableResult = false;
+            _loggedNoSelectableCards = false;
             _browserConfirmWarning = false;
             _browserConfirmWaitRelease = false;
             _browserDeclineWarning = false;
@@ -799,7 +828,10 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // MultiZone only: require double-press to prevent accidental decline
-                // (regular SelectCards browsers like "choose a creature" are fine with single press)
+                // (regular SelectCards browsers like "choose a creature" are fine with single press).
+                // ShouldBlockSpaceFromGame keeps MTGA's KeyboardManager out of this browser for
+                // the whole visit — otherwise the game submitted on the first press and the
+                // warning below described a decision that had already been made.
                 if (_isMultiZone)
                 {
                     if (_browserConfirmWaitRelease)
@@ -1461,7 +1493,8 @@ namespace AccessibleArena.Core.Services
             }
 
             var info = CardDetector.ExtractCardInfo(card);
-            bool isSelectionBrowser = _browserInfo?.BrowserType == "SelectCards" || _browserInfo?.BrowserType == "SelectCardsMultiZone";
+            bool isSelectionBrowser = _browserInfo?.BrowserType == BrowserDetector.BrowserTypeSelectCards
+                || _browserInfo?.BrowserType == BrowserDetector.BrowserTypeSelectCardsMultiZone;
             bool isRepeatSelection = _browserInfo?.BrowserType == "RepeatSelection";
 
             // Virtual option cards (InstanceId == 0) are modal choices (Warp, Adventure, MDFC, etc.)
@@ -1499,7 +1532,7 @@ namespace AccessibleArena.Core.Services
             // For multi-zone browsers with multiple zones, append the card's zone
             // (e.g., "Your graveyard", "Opponent's exile"). Skip when only one zone — redundant.
             string zoneSuffix = "";
-            if (_browserInfo?.BrowserType == "SelectCardsMultiZone" && _zoneButtons.Count > 1)
+            if (_browserInfo?.BrowserType == BrowserDetector.BrowserTypeSelectCardsMultiZone && _zoneButtons.Count > 1)
             {
                 zoneSuffix = GetMultiZoneCardZoneName(card);
             }
@@ -1596,12 +1629,59 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Returns true if a card is selectable (Hot or Selected highlight),
         /// or if we're not in a highlight-filtered browser.
+        ///
+        /// Falls back to accepting every card when nothing in the browser is highlighted.
+        /// That state is normal for "you may cast the exiled card" prompts where the card
+        /// turns out to be uncastable — a land, or a spell you cannot pay for. The filter
+        /// would then hide the browser's entire contents, so Tab announced nothing at all
+        /// and the card you were being asked about was unreachable. Deciding to decline
+        /// still requires hearing what is on offer.
         /// </summary>
         private bool IsCardSelectable(GameObject card)
         {
             if (!_isHighlightFilteredBrowser) return true;
+            if (!HasAnySelectableCard()) return true;
             int hl = GetCardHighlightValue(card);
             return hl == HighlightTypeHot || hl == HighlightTypeSelected;
+        }
+
+        /// <summary>
+        /// True when at least one card in the browser carries a Hot/Selected highlight.
+        ///
+        /// Frame-cached: the Find*SelectableCard scans consult this once per card, and each
+        /// underlying CurrentHighlight() read is a reflection Invoke — an 85-card tutor
+        /// browser would otherwise pay for that scan on every step of every walk.
+        /// Deliberately probed on use rather than at browser entry: highlights are applied
+        /// a frame or two after the scaffold appears, so an entry-time answer would be a
+        /// false negative on a browser that does have legal picks.
+        /// </summary>
+        private bool HasAnySelectableCard()
+        {
+            int frame = Time.frameCount;
+            if (frame == _anySelectableFrame) return _anySelectableResult;
+            _anySelectableFrame = frame;
+            _anySelectableResult = false;
+
+            foreach (var card in _browserCards)
+            {
+                int hl = GetCardHighlightValue(card);
+                if (hl == HighlightTypeHot || hl == HighlightTypeSelected)
+                {
+                    _anySelectableResult = true;
+                    break;
+                }
+            }
+
+            // Logged once per browser visit — a browser where nothing is selectable is the
+            // shape that used to swallow Tab, so it should be visible in the log.
+            if (!_anySelectableResult && !_loggedNoSelectableCards && _browserCards.Count > 0)
+            {
+                _loggedNoSelectableCards = true;
+                Log.Msg("BrowserNavigator",
+                    $"No selectable cards in {_browserInfo?.BrowserType} ({_browserCards.Count} card(s)) — Tab offers all of them");
+            }
+
+            return _anySelectableResult;
         }
 
         /// <summary>

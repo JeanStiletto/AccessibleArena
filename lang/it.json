@@ -587,7 +587,7 @@
   "BrowserHint_London": "C per tenere, D per sotto. Sinistra Destra per navigare. Invio per spostare. Spazio per inviare",
   "BrowserHint_Mulligan": "Tab per navigare. Spazio per tenere la mano. Backspace per mulligan",
   "BrowserHint_SelectCards": "Tab per navigare. Invio per selezionare o deselezionare. Spazio per confermare. Backspace per annullare",
-  "BrowserHint_SelectCardsMultiZone": "Su Giù per cambiare zona. Tab per navigare. Invio per selezionare. Spazio per confermare",
+  "BrowserHint_SelectCardsMultiZone": "Su Giù per cambiare zona. Tab per navigare. Invio per selezionare. Spazio per confermare. Backspace per annullare",
   "BrowserHint_SelectGroup": "Sinistra Destra per navigare. Tab per opzioni pila. Invio o Spazio per scegliere",
   "BrowserHint_OptionalAction": "Tab per navigare. Invio o Spazio per selezionare",
   "BrowserHint_Mutate": "Tab per navigare tra carte e pulsanti. Spazio per mutare. Backspace per rifiutare",

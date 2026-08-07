@@ -587,7 +587,7 @@
   "BrowserHint_London": "C aby zachować, D na dół. Lewo Prawo do nawigacji. Enter aby przenieść. Spacja aby wysłać",
   "BrowserHint_Mulligan": "Tab do nawigacji. Spacja aby zachować rękę. Backspace aby wziąć mulligan",
   "BrowserHint_SelectCards": "Tab do nawigacji. Enter aby wybrać lub odznaczyć. Spacja aby potwierdzić. Backspace aby anulować",
-  "BrowserHint_SelectCardsMultiZone": "Góra Dół aby zmienić strefę. Tab do nawigacji. Enter aby wybrać. Spacja aby potwierdzić",
+  "BrowserHint_SelectCardsMultiZone": "Góra Dół aby zmienić strefę. Tab do nawigacji. Enter aby wybrać. Spacja aby potwierdzić. Backspace aby anulować",
   "BrowserHint_SelectGroup": "Lewo Prawo do nawigacji. Tab dla opcji stosu. Enter lub Spacja aby wybrać",
   "BrowserHint_OptionalAction": "Tab do nawigacji. Enter lub Spacja aby wybrać",
   "BrowserHint_Mutate": "Tab do nawigacji między kartami i przyciskami. Spacja aby mutować. Backspace aby odrzucić",

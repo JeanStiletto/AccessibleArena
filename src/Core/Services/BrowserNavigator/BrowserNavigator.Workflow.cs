@@ -988,17 +988,26 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Detects the "may"-trigger stuck case: highlight-filtered scaffold (SelectCards/
         /// SelectCardsMultiZone) where the provider's button dict has DoneButton but no
-        /// CancelButton AND the workflow's currentSelections is non-empty.
+        /// CancelButton.
         ///
-        /// Why this gate: when AllowCancel.No on the request, GenerateMultiZoneButtonStates
+        /// Why this shape: with AllowCancel.No on the request, GenerateMultiZoneButtonStates
         /// (Core.dll) emits only DoneButton. With selections present, DoneButton is the
         /// "Done" face — Space (auto-) submits the cast. With selections cleared,
-        /// DoneButton becomes "FailToFind" Secondary — the only legal decline path.
-        /// CanAutoSubmitBasedOnInitialTargetList re-fires SubmitTargets on every workflow
-        /// re-apply while count==max, which is the visible cast→cancel→cast loop.
+        /// DoneButton becomes "FailToFind" Secondary — the only legal decline path. Because
+        /// there is no CancelButton, ClickCancelButton has nothing to click and Backspace
+        /// does literally nothing ("no 'CancelButton' in dict (keys: DoneButton)").
         ///
-        /// This predicate identifies that exact shape so Backspace can offer a guarded
-        /// "deselect-then-submit-empty" escape without touching any other browser flow.
+        /// The selection count is deliberately NOT part of the gate. Two variants reach the
+        /// same trap:
+        ///   - selections &gt; 0 (Tinybones-style "may cast target"): the target arrives
+        ///     pre-applied and CanAutoSubmitBasedOnInitialTargetList re-fires SubmitTargets
+        ///     on every workflow re-apply while count==max — the cast→cancel→cast loop.
+        ///   - selections == 0 (Chandra, Torch of Defiance "you may cast the exiled card"):
+        ///     nothing is selected, casting is Enter-on-the-card, and declining is the
+        ///     FailToFind face of DoneButton. Requiring count &gt; 0 here left this variant
+        ///     with no escape at all.
+        /// A count of -1 (field out of reach) is treated like 0 — submitting DoneButton
+        /// as-is is the same action a sighted player gets from the single visible button.
         /// </summary>
         private bool IsOptionalTriggerStuckCase()
         {
@@ -1012,7 +1021,11 @@ namespace AccessibleArena.Core.Services
             if (!dict.Contains("DoneButton")) return false;
             if (dict.Contains("CancelButton")) return false;
 
-            return GetCurrentSelectionsCount(browser) > 0;
+            // Logged because 0 and -1 are indistinguishable in their effect but not in
+            // their cause — a real empty selection vs. reflection failing to reach the field.
+            Log.Msg("BrowserNavigator",
+                $"OptionalDecline: DoneButton-only browser ({_browserInfo?.BrowserType}), currentSelections={GetCurrentSelectionsCount(browser)}");
+            return true;
         }
 
         /// <summary>
@@ -1076,11 +1089,17 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Deselects every card in the workflow's currentSelections by simulating a
-        /// pointer click on each (mirrors how Enter-on-card toggles selection — same
-        /// path as a sighted player clicking the card off), then invokes
-        /// OnButtonCallback("DoneButton") which is the FailToFind decline path when
-        /// count==0 and minSelections==0.
+        /// Declines the optional trigger by submitting an empty selection.
+        ///
+        /// When cards are selected they are deselected first, by simulating a pointer click
+        /// on each (mirrors how Enter-on-card toggles selection — same path as a sighted
+        /// player clicking the card off). Then OnButtonCallback("DoneButton") is invoked,
+        /// which is the FailToFind decline path when count==0 and minSelections==0.
+        ///
+        /// With nothing selected there is nothing to deselect and DoneButton is already
+        /// showing its FailToFind face, so the button is submitted as-is. An unreachable
+        /// currentSelections field takes the same path rather than aborting: the button
+        /// submit is what actually declines, the deselect loop only prepares for it.
         ///
         /// If minSelections > 0 (decline not legal), the game's CanSubmitCurrentTargetSelection
         /// will reject the empty submit and the user remains in the browser with cards
@@ -1100,20 +1119,27 @@ namespace AccessibleArena.Core.Services
 
                 var selectionsField = FindFieldWalkingHierarchy(provider.GetType(), "currentSelections");
                 var list = selectionsField?.GetValue(provider) as IList;
-                if (list == null || list.Count == 0) return false;
 
-                // Snapshot before iterating — toggling each removes from the live list
-                var snapshot = new List<object>();
-                foreach (var item in list) snapshot.Add(item);
-
-                int deselected = 0;
-                foreach (var cdcObj in snapshot)
+                if (list != null && list.Count > 0)
                 {
-                    if (!(cdcObj is Component cdc)) continue;
-                    var result = UIActivator.SimulatePointerClick(cdc.gameObject);
-                    if (result.Success) deselected++;
+                    // Snapshot before iterating — toggling each removes from the live list
+                    var snapshot = new List<object>();
+                    foreach (var item in list) snapshot.Add(item);
+
+                    int deselected = 0;
+                    foreach (var cdcObj in snapshot)
+                    {
+                        if (!(cdcObj is Component cdc)) continue;
+                        var result = UIActivator.SimulatePointerClick(cdc.gameObject);
+                        if (result.Success) deselected++;
+                    }
+                    Log.Msg("BrowserNavigator", $"OptionalDecline: deselected {deselected}/{snapshot.Count} cards");
                 }
-                Log.Msg("BrowserNavigator", $"OptionalDecline: deselected {deselected}/{snapshot.Count} cards");
+                else
+                {
+                    Log.Msg("BrowserNavigator",
+                        $"OptionalDecline: nothing to deselect (currentSelections={(list == null ? -1 : list.Count)})");
+                }
 
                 return TryClickProviderLogicalButton("DoneButton", "BrowserDecline");
             }

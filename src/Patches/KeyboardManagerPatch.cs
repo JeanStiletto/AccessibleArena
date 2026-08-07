@@ -160,6 +160,16 @@ namespace AccessibleArena.Patches
                     Log.Msg("KeyboardManagerPatch", "Blocked Space — PhaseSkipGuard active");
                     return true;
                 }
+                // Block Space in multi-zone selection browsers. Our mod guards Space there
+                // with a double-press, but the game's own browser subscriber submitted on
+                // the first press and cast the card the warning was about — the guard never
+                // got a chance to stop anything, and Backspace-to-decline was unreachable.
+                // EventSystemPatch only covers the Submit dispatch, not this path.
+                if (key == KeyCode.Space && BrowserNavigator.ShouldBlockSpaceFromGame)
+                {
+                    Log.Msg("KeyboardManagerPatch", "Blocked Space — multi-zone browser owns confirm");
+                    return true;
+                }
             }
 
             // In menu scenes, block Tab entirely - our mod handles Tab for navigation

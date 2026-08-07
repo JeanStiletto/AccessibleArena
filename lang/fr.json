@@ -587,7 +587,7 @@
   "BrowserHint_London": "C pour garder, D pour dessous. Gauche Droite pour naviguer. Entrée pour déplacer. Espace pour soumettre",
   "BrowserHint_Mulligan": "Tab pour naviguer. Espace pour garder la main. Retour pour mulligan",
   "BrowserHint_SelectCards": "Tab pour naviguer. Entrée pour sélectionner ou désélectionner. Espace pour confirmer. Retour pour annuler",
-  "BrowserHint_SelectCardsMultiZone": "Haut Bas pour changer de zone. Tab pour naviguer. Entrée pour sélectionner. Espace pour confirmer",
+  "BrowserHint_SelectCardsMultiZone": "Haut Bas pour changer de zone. Tab pour naviguer. Entrée pour sélectionner. Espace pour confirmer. Retour pour annuler",
   "BrowserHint_SelectGroup": "Gauche Droite pour naviguer. Tab pour les options de pile. Entrée ou Espace pour choisir",
   "BrowserHint_OptionalAction": "Tab pour naviguer. Entrée ou Espace pour sélectionner",
   "BrowserHint_Mutate": "Tab pour naviguer entre les cartes et les boutons. Espace pour muter. Retour arrière pour refuser",

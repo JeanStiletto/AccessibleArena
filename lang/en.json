@@ -589,7 +589,7 @@
   "BrowserHint_London": "C for keep pile, D for bottom pile. Left Right to navigate. Enter to move card. Space to submit",
   "BrowserHint_Mulligan": "Tab to navigate cards. Space to keep hand. Backspace to mulligan",
   "BrowserHint_SelectCards": "Tab to navigate. Enter to select or deselect. Space to confirm. Backspace to cancel",
-  "BrowserHint_SelectCardsMultiZone": "Up Down to switch zones. Tab to navigate cards. Enter to select. Space to confirm",
+  "BrowserHint_SelectCardsMultiZone": "Up Down to switch zones. Tab to navigate cards. Enter to select. Space to confirm. Backspace to cancel",
   "BrowserHint_SelectGroup": "Left Right to navigate cards. Tab for pile options. Enter or Space to choose",
   "BrowserHint_OptionalAction": "Tab to navigate. Enter or Space to select",
   "BrowserHint_Mutate": "Tab to navigate cards and buttons. Space to mutate. Backspace to decline",

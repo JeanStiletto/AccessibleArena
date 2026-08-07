@@ -65,6 +65,8 @@ namespace AccessibleArena.Core.Services
         public const string BrowserTypeViewDismiss = "ViewDismiss";
         // Also reported for the Mutate variant, whose scaffold suffix is stripped here.
         public const string BrowserTypeYesNo = "YesNo";
+        public const string BrowserTypeSelectCards = "SelectCards";
+        public const string BrowserTypeSelectCardsMultiZone = "SelectCardsMultiZone";
 
         // Button name patterns for detection
         public static readonly string[] ButtonPatterns = { "Button", "Accept", "Confirm", "Cancel", "Done", "Keep", "Submit", "Yes", "No", "Mulligan" };

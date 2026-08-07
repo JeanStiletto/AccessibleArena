@@ -587,7 +587,7 @@
   "BrowserHint_London": "C для сохранения, D вниз. Лево Право для навигации. Enter для перемещения. Пробел для отправки",
   "BrowserHint_Mulligan": "Tab для навигации. Пробел для сохранения руки. Backspace для маллигана",
   "BrowserHint_SelectCards": "Tab для навигации. Enter для выбора или снятия. Пробел для подтверждения. Backspace для отмены",
-  "BrowserHint_SelectCardsMultiZone": "Верх Низ для смены зоны. Tab для навигации. Enter для выбора. Пробел для подтверждения",
+  "BrowserHint_SelectCardsMultiZone": "Верх Низ для смены зоны. Tab для навигации. Enter для выбора. Пробел для подтверждения. Backspace для отмены",
   "BrowserHint_SelectGroup": "Лево Право для навигации. Tab для вариантов стопки. Enter или Пробел для выбора",
   "BrowserHint_OptionalAction": "Tab для навигации. Enter или Пробел для выбора",
   "BrowserHint_Mutate": "Tab для навигации по картам и кнопкам. Пробел — мутировать. Backspace — отказаться",

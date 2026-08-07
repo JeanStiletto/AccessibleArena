@@ -587,7 +587,7 @@
   "BrowserHint_London": "C 保留，D 置底。左右 导航。Enter 移动卡牌。空格 提交",
   "BrowserHint_Mulligan": "Tab 导航。空格 保留手牌。退格 调度",
   "BrowserHint_SelectCards": "Tab 导航。Enter 选择或取消。空格 确认。退格 取消",
-  "BrowserHint_SelectCardsMultiZone": "上下 切换区域。Tab 导航。Enter 选择。空格 确认",
+  "BrowserHint_SelectCardsMultiZone": "上下 切换区域。Tab 导航。Enter 选择。空格 确认。退格 取消",
   "BrowserHint_SelectGroup": "左右 导航。Tab 牌堆选项。Enter或空格选择",
   "BrowserHint_OptionalAction": "Tab导航。Enter或空格选择",
   "BrowserHint_Mutate": "Tab 切换卡牌和按钮。空格变异。退格拒绝",
