@@ -149,13 +149,6 @@ namespace AccessibleArena.Core.Services
                 },
                 new SettingItem
                 {
-                    Name = Strings.SettingCheckForUpdates,
-                    GetValue = () => _settings.CheckForUpdates ? Strings.SettingOn : Strings.SettingOff,
-                    Toggle = () => _settings.CheckForUpdates = !_settings.CheckForUpdates,
-                    Description = Strings.SettingCheckForUpdatesDesc
-                },
-                new SettingItem
-                {
                     Name = Strings.SettingSpeechBackend,
                     GetValue = DescribeSpeechBackend,
                     Toggle = CycleSpeechBackend,
@@ -177,11 +170,10 @@ namespace AccessibleArena.Core.Services
                 },
                 new SettingItem
                 {
-                    Name = Strings.SettingUpdateNotes,
-                    GetValue = () => Strings.SettingActionOpen,
-                    Toggle = () => OpenUrl("https://github.com/JeanStiletto/AccessibleArena/releases/latest", Strings.SettingUpdateNotes),
-                    IsAction = true,
-                    Description = Strings.SettingUpdateNotesDesc
+                    Name = Strings.SettingCheckForUpdates,
+                    GetValue = () => _settings.CheckForUpdates ? Strings.SettingOn : Strings.SettingOff,
+                    Toggle = () => _settings.CheckForUpdates = !_settings.CheckForUpdates,
+                    Description = Strings.SettingCheckForUpdatesDesc
                 },
                 new SettingItem
                 {
@@ -190,6 +182,14 @@ namespace AccessibleArena.Core.Services
                     Toggle = () => OpenUrl("https://ko-fi.com/jeanstiletto", Strings.SettingSupport),
                     IsAction = true,
                     Description = Strings.SettingSupportDesc
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingUpdateNotes,
+                    GetValue = () => Strings.SettingActionOpen,
+                    Toggle = () => OpenUrl("https://github.com/JeanStiletto/AccessibleArena/releases/latest", Strings.SettingUpdateNotes),
+                    IsAction = true,
+                    Description = Strings.SettingUpdateNotesDesc
                 }
             };
         }

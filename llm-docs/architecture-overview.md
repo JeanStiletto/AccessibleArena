@@ -118,6 +118,6 @@ signatures, `ScreenReaderOutput` the policy):
 - `prism_registry_acquire_best` — normal channel; NVDA, JAWS, ZDSR, PC-Talker, OneCore, UIA, SAPI in priority order
 - `prism_backend_speak(backend, utf8, interrupt)` — announcement priority maps straight onto `interrupt`
 - `prism_backend_stop` — Silence
-- Second channel pinned to SAPI for `SpeakUrgent`, off by default (settings: CriticalViaSystemVoice)
+- Second channel pinned to SAPI for `SpeakUrgent`, on by default (settings: CriticalViaSystemVoice)
 - Text is NUL-terminated UTF-8; Prism rejects anything else and silently drops the utterance
 - Runs silent if prism.dll is missing or no backend initialises; never throws at a call site

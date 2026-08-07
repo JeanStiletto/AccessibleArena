@@ -46,9 +46,9 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Route Critical announcements through the system voice (SAPI) instead of the screen
         /// reader, so they cannot be cut short by the reader's own cancel-on-keypress handling.
-        /// Off by default — on, alerts arrive in a second, different voice.
+        /// On by default — alerts arrive in a second, different voice.
         /// </summary>
-        public bool CriticalViaSystemVoice { get; set; } = false;
+        public bool CriticalViaSystemVoice { get; set; } = true;
 
         /// <summary>Volume of the system-voice channel, 0-100. Only audible with <see cref="CriticalViaSystemVoice"/> on.</summary>
         public int UrgentSpeechVolume { get; set; } = 100;
