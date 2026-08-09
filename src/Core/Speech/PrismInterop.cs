@@ -18,9 +18,8 @@ namespace AccessibleArena.Core.Speech
     /// go over as NUL-terminated <c>byte[]</c> built by <see cref="ToUtf8"/> rather than as
     /// <c>string</c>, because the default string marshalling on .NET Framework is ANSI and
     /// would silently mangle any card name with an accent.</item>
-    /// <item><c>prism_config_init</c> returns a one-byte struct by value. The Windows x64 ABI
-    /// returns that in RAX, so it is declared as returning <c>byte</c> — this sidesteps
-    /// struct-return marshalling under Unity's Mono entirely.</item>
+    /// <item><c>prism_init</c> is always passed a NULL config — see the declaration for why
+    /// that is deliberate rather than lazy, and why <c>prism_config_init</c> is not bound.</item>
     /// <item><c>size_t</c> parameters are <c>IntPtr</c> so the same declarations stay correct
     /// if the mod is ever built for another word size.</item>
     /// </list>
@@ -33,11 +32,20 @@ namespace AccessibleArena.Core.Speech
         internal const int PRISM_OK = 0;
         /// <summary>Returned when a backend was already brought up by an earlier acquire. Not a failure.</summary>
         internal const int PRISM_ERROR_ALREADY_INITIALIZED = 15;
+        /// <summary>The backend's reader is not reachable right now — it may have been reachable at initialize().</summary>
+        internal const int PRISM_ERROR_BACKEND_NOT_AVAILABLE = 16;
 
         // --- Backend ids (prism.h PRISM_BACKEND_*). ---
         internal const ulong BackendSapi = 0x1D6DF72422CEEE66UL;
 
         // --- PrismBackendFeature bits we query before calling an optional entry point. ---
+        /// <summary>
+        /// Set only while the backend's reader is actually reachable — every Windows backend
+        /// recomputes it on each call (NVDA queries its RPC endpoint, SAPI asks COM for the
+        /// SpVoice class object, ZDSR and BoyPC scan the process list). Unlike a successful
+        /// <c>initialize()</c> this is trustworthy, so it is the gate on adopting a backend.
+        /// </summary>
+        internal const ulong FeatureIsSupportedAtRuntime = 1UL << 0;
         internal const ulong FeatureSupportsSpeak = 1UL << 2;
         internal const ulong FeatureSupportsIsSpeaking = 1UL << 6;
         internal const ulong FeatureSupportsStop = 1UL << 7;
@@ -46,24 +54,28 @@ namespace AccessibleArena.Core.Speech
         internal const ulong FeatureSupportsCountVoices = 1UL << 17;
         internal const ulong FeatureSupportsSetVoice = 1UL << 21;
 
-        /// <summary>
-        /// Mirrors prism.h's <c>PrismConfig</c>: a single version byte. Filled from
-        /// <see cref="prism_config_init"/> so the shipped DLL decides its own version
-        /// rather than us hard-coding PRISM_CONFIG_VERSION.
-        /// </summary>
-        [StructLayout(LayoutKind.Sequential, Size = 1)]
-        internal struct PrismConfig
-        {
-            internal byte Version;
-        }
-
         // --- Context lifecycle ---
 
+        /// <summary>
+        /// Brings up a Prism context. Always call this with <see cref="IntPtr.Zero"/>:
+        /// <c>prism_init</c> reads nothing at all from a NULL config and falls back to the
+        /// global backend registry, which is exactly the configuration the mod wants.
+        ///
+        /// Passing a real config would mean binding <c>PrismConfig</c>, and that struct is
+        /// version-specific in a way no single binding survives. In 0.16.5 it was one byte and
+        /// <c>prism_init</c> required <c>version == PRISM_CONFIG_VERSION</c> exactly; in 0.17.3
+        /// it carries a registry pointer, an availability callback plus userdata, three
+        /// <c>uint32_t</c> tuning fields and a <c>bool</c>, and the version check relaxed to
+        /// <c>&gt;</c>. So a config built for one of those versions is rejected outright by the
+        /// other — and since the mod uses none of the fields (global registry, no availability
+        /// callback), there is nothing to gain by binding it. NULL keeps this file correct
+        /// across both, and across whatever the struct grows into next.
+        ///
+        /// <c>prism_config_init</c> is deliberately not bound for the same reason: it returns
+        /// PrismConfig by value, so its calling convention changes shape with the struct.
+        /// </summary>
         [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern byte prism_config_init();
-
-        [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr prism_init(ref PrismConfig cfg);
+        internal static extern IntPtr prism_init(IntPtr cfg);
 
         [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void prism_shutdown(IntPtr ctx);
@@ -99,6 +111,14 @@ namespace AccessibleArena.Core.Speech
         internal static extern IntPtr prism_registry_acquire_best(IntPtr ctx);
 
         // --- Backend ---
+
+        /// <summary>
+        /// Releases one acquired backend handle. Every acquire hands back a freshly allocated
+        /// wrapper holding its own reference, so freeing one we decided against never disturbs a
+        /// wrapper we kept — and it hands back the RPC binding or COM object that wrapper held.
+        /// </summary>
+        [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void prism_backend_free(IntPtr backend);
 
         [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr prism_backend_name(IntPtr backend);

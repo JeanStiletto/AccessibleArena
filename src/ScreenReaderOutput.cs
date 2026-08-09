@@ -53,6 +53,15 @@ namespace AccessibleArena
 
         private static string _normalName = "None";
         private static int _urgentVolumePercent = 100;
+        private static string _preferredBackend = AutoBackend;
+
+        /// <summary>
+        /// Throttle for the re-acquire that <see cref="Speak"/> runs when the backend reports
+        /// itself gone. A walk costs an RPC round trip and a COM class lookup, and announcements
+        /// arrive in bursts, so a reader that stays down must not pay for one walk per utterance.
+        /// </summary>
+        private static readonly TimeSpan ReacquireInterval = TimeSpan.FromSeconds(5);
+        private static DateTime _lastReacquire = DateTime.MinValue;
 
         // Optional entry points: older prism.dll builds may not export them, and a backend
         // without the matching SUPPORTS_* feature bit fails at call time. Each is probed once
@@ -89,6 +98,7 @@ namespace AccessibleArena
 
                 _initialized = true;
                 _urgentVolumePercent = Clamp(urgentVolumePercent, 0, 100);
+                _preferredBackend = string.IsNullOrEmpty(preferredBackend) ? AutoBackend : preferredBackend;
 
                 try
                 {
@@ -98,10 +108,7 @@ namespace AccessibleArena
                     // deliberately never called (see Shutdown), so a second init would otherwise
                     // strand the first context.
                     if (_ctx == IntPtr.Zero)
-                    {
-                        var cfg = new PrismInterop.PrismConfig { Version = PrismInterop.prism_config_init() };
-                        _ctx = PrismInterop.prism_init(ref cfg);
-                    }
+                        _ctx = PrismInterop.prism_init(IntPtr.Zero);
 
                     if (_ctx == IntPtr.Zero)
                     {
@@ -171,10 +178,11 @@ namespace AccessibleArena
         }
 
         /// <summary>
-        /// Acquires the normal channel. With <see cref="AutoBackend"/> this is a single
-        /// acquire_best call — Prism owns the priority walk and (in the patched build we ship)
-        /// skips a backend whose vendor DLL faults during initialize(). A named preference is
-        /// tried first and falls back to acquire_best if that backend is gone or refuses.
+        /// Acquires the normal channel. A named preference is tried first, then acquire_best —
+        /// Prism owns that priority walk and (in the patched build we ship) skips a backend whose
+        /// vendor DLL faults during initialize(). Whatever comes back still has to pass
+        /// <see cref="Adopt"/>'s liveness gate, and <see cref="AcquireFirstLive"/> takes over when
+        /// it does not.
         /// </summary>
         private static void AcquireNormal(string preferredBackend)
         {
@@ -185,34 +193,175 @@ namespace AccessibleArena
                 !string.Equals(preferredBackend, AutoBackend, StringComparison.OrdinalIgnoreCase))
             {
                 IntPtr chosen = AcquireByName(preferredBackend);
-                if (chosen != IntPtr.Zero)
-                {
-                    Adopt(chosen);
+                if (chosen != IntPtr.Zero && Adopt(chosen))
                     return;
-                }
 
+                Release(chosen);
                 Log.Warn(LogTag, $"preferred backend '{preferredBackend}' unavailable; falling back to automatic");
             }
 
             IntPtr best = PrismInterop.prism_registry_acquire_best(_ctx);
+            if (best != IntPtr.Zero && Adopt(best))
+                return;
+
             if (best != IntPtr.Zero)
-                Adopt(best);
+            {
+                Log.Msg(LogTag, $"acquire_best chose '{NameOf(best)}' but it is not live; walking the registry");
+                Release(best);
+            }
+
+            AcquireFirstLive();
         }
 
-        /// <summary>Adopts a backend as the normal channel, gated on it actually supporting speech.</summary>
-        private static void Adopt(IntPtr backend)
+        /// <summary>
+        /// Walks the registry and adopts the first backend that is live and initialises. Registry
+        /// order is descending priority (Prism inserts by priority), so this reproduces
+        /// acquire_best's ordering — which we cannot simply call again, because it caches its first
+        /// pick and would hand back the same dead backend.
+        ///
+        /// Liveness is checked before initialize(), never after, so a reader that is not running
+        /// never gets its vendor client library loaded. That is what keeps this walk as safe as
+        /// Prism's own SEH-guarded one despite running unguarded from managed code.
+        /// </summary>
+        private static void AcquireFirstLive()
+        {
+            const ulong required = PrismInterop.FeatureSupportsSpeak | PrismInterop.FeatureIsSupportedAtRuntime;
+
+            long count = PrismInterop.prism_registry_count(_ctx).ToInt64();
+            for (long i = 0; i < count; i++)
+            {
+                ulong id = PrismInterop.prism_registry_id_at(_ctx, new IntPtr(i));
+                if (id == 0)
+                    continue;
+
+                IntPtr backend = PrismInterop.prism_registry_acquire(_ctx, id);
+                if (backend == IntPtr.Zero)
+                    continue;
+
+                if ((PrismInterop.prism_backend_get_features(backend) & required) != required)
+                {
+                    Release(backend);
+                    continue;
+                }
+
+                int rc = PrismInterop.prism_backend_initialize(backend);
+                if (rc != PrismInterop.PRISM_OK && rc != PrismInterop.PRISM_ERROR_ALREADY_INITIALIZED)
+                {
+                    Log.Msg(LogTag, $"backend '{NameOf(backend)}' reported itself live but " +
+                                    $"initialize failed: {PrismInterop.ErrorText(rc)}; trying the next one");
+                    Release(backend);
+                    continue;
+                }
+
+                if (Adopt(backend))
+                    return;
+
+                Release(backend);
+            }
+
+            Log.Warn(LogTag, "no live speech backend found; running silent");
+        }
+
+        /// <summary>
+        /// Adopts a backend as the normal channel. It has to support speech and report itself
+        /// live — a successful initialize() alone is not enough: Prism 0.16.5's NVDA backend
+        /// returns success when NVDA is not running, because its testIfRunning check sits behind
+        /// an RPC interface query that itself fails when there is no server to query. NVDA holds
+        /// the highest priority, so unchecked it wins acquire_best on every machine and then
+        /// drops every utterance with BACKEND_NOT_AVAILABLE — total silence for anyone not
+        /// running NVDA. IS_SUPPORTED_AT_RUNTIME is the check initialize() should have made.
+        /// </summary>
+        private static bool Adopt(IntPtr backend)
         {
             ulong features = PrismInterop.prism_backend_get_features(backend);
+
             if ((features & PrismInterop.FeatureSupportsSpeak) == 0)
             {
-                Log.Warn(LogTag, $"backend '{PrismInterop.FromUtf8(PrismInterop.prism_backend_name(backend))}' " +
-                                 "does not support speech; ignoring it");
-                return;
+                Log.Warn(LogTag, $"backend '{NameOf(backend)}' does not support speech; ignoring it");
+                return false;
+            }
+
+            if ((features & PrismInterop.FeatureIsSupportedAtRuntime) == 0)
+            {
+                Log.Msg(LogTag, $"backend '{NameOf(backend)}' initialised but reports it is not " +
+                                "running; ignoring it");
+                return false;
             }
 
             _normal = backend;
-            _normalName = PrismInterop.FromUtf8(PrismInterop.prism_backend_name(backend)) ?? "Unknown";
+            _normalName = NameOf(backend);
             _available = true;
+            return true;
+        }
+
+        /// <summary>Registry name of a backend, for the log.</summary>
+        private static string NameOf(IntPtr backend)
+        {
+            return PrismInterop.FromUtf8(PrismInterop.prism_backend_name(backend)) ?? "Unknown";
+        }
+
+        /// <summary>
+        /// Hands back a backend handle we decided against. Only ever called on a handle that was
+        /// not adopted, so it can never release the channel that is speaking. Failure is ignored:
+        /// the handle is already unreachable, and a leak must not cost us a backend.
+        /// </summary>
+        private static void Release(IntPtr backend)
+        {
+            if (backend == IntPtr.Zero)
+                return;
+
+            try
+            {
+                PrismInterop.prism_backend_free(backend);
+            }
+            catch (Exception)
+            {
+                // Older prism.dll builds may not export it; nothing here is worth a log line.
+            }
+        }
+
+        /// <summary>
+        /// Re-runs backend selection after the live backend reported itself gone, so that closing
+        /// one reader and opening another mid-session recovers speech instead of ending it. Rate
+        /// limited by <see cref="ReacquireInterval"/>, and the previous backend is put back on
+        /// failure — a failed re-selection must never be what silences a working session.
+        /// Caller holds <see cref="Gate"/>. Returns true when a live backend is now selected.
+        /// </summary>
+        private static bool TryReacquireNormal()
+        {
+            DateTime now = DateTime.UtcNow;
+            if (now - _lastReacquire < ReacquireInterval)
+                return false;
+            _lastReacquire = now;
+
+            IntPtr previous = _normal;
+            string previousName = _normalName;
+            bool previousAvailable = _available;
+
+            try
+            {
+                AcquireNormal(_preferredBackend);
+                if (_available)
+                {
+                    Log.Msg(LogTag, $"'{previousName}' went away; normal backend is now {_normalName}");
+
+                    // Every acquire allocates a fresh handle, so the replacement is never the
+                    // handle we are about to release — checked anyway, because releasing the
+                    // channel that is about to speak would be a use-after-free.
+                    if (previous != _normal)
+                        Release(previous);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogTag, $"re-acquiring after a lost backend threw {ex.GetType().Name}: {ex.Message}");
+            }
+
+            _normal = previous;
+            _normalName = previousName;
+            _available = previousAvailable;
+            return false;
         }
 
         /// <summary>
@@ -355,6 +504,13 @@ namespace AccessibleArena
                 try
                 {
                     int rc = PrismInterop.prism_backend_speak(_normal, utf8, interrupt);
+
+                    // The reader went away since we adopted it — it was closed, restarted, or
+                    // never really there. Re-select and say this one on the new backend rather
+                    // than losing it.
+                    if (rc == PrismInterop.PRISM_ERROR_BACKEND_NOT_AVAILABLE && TryReacquireNormal())
+                        rc = PrismInterop.prism_backend_speak(_normal, utf8, interrupt);
+
                     if (rc != PrismInterop.PRISM_OK)
                         Log.Warn(LogTag, $"speak failed, dropping utterance: {PrismInterop.ErrorText(rc)}");
                 }
@@ -521,6 +677,7 @@ namespace AccessibleArena
                     AcquireNormal(backendName);
                     if (_available)
                     {
+                        _preferredBackend = string.IsNullOrEmpty(backendName) ? AutoBackend : backendName;
                         Log.Msg(LogTag, $"normal backend switched to {_normalName}");
                         bool wantedAuto = string.IsNullOrEmpty(backendName) ||
                                           string.Equals(backendName, AutoBackend, StringComparison.OrdinalIgnoreCase);
