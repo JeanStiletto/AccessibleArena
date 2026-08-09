@@ -2,6 +2,29 @@
 
 All notable changes to Accessible Arena.
 
+## v1.4.7
+
+**Press F5 in the game to update.** This release replaces the speech library again, and unlike the
+v1.4.5 to v1.4.6 step, F5 carries it: v1.4.6's updater fetches the speech library alongside the mod
+and installs both together. Downloading the installer again works too, but is not needed. If you
+are still on v1.4.5 or earlier, use the installer — those versions only ever update the mod file.
+
+Silence fixed for everyone not running NVDA:
+
+- The mod is no longer silent for anyone who is not running NVDA. This is the bug behind the "installed 1.4.6, still hear nothing" reports, and it hit every user whose screen reader was something other than NVDA, as well as anyone who started the game before their reader. The speech library picks an output by asking each one in turn whether it started up successfully, from the highest-priority reader downwards, and takes the first that says yes. Its NVDA support said yes whether or not NVDA was there: the check for a running NVDA sat behind a query that itself only works when NVDA is running, so with NVDA absent the check was skipped and start-up counted as successful. NVDA is asked first, so on a machine without it the mod adopted an output that then refused every single announcement — the log filled up with "Backend not available" while the game said nothing at all. The mod now also asks each output whether its reader is genuinely running, which is a live check the library answers correctly, and moves on to the next one when the answer is no. Anyone without a screen reader running lands on Narrator's voice or the Windows system voice, as v1.4.6 promised.
+
+- Speech now recovers if your screen reader stops and starts again. If the reader carrying announcements disappears mid-session, the mod picks a new output and speaks the announcement that would otherwise have been the first one lost, instead of staying quiet until you restart the game. Closing NVDA and opening JAWS mid-game moves the speech across.
+
+- Critical alerts were never affected, because they go through the system voice on a separate channel. If you ran v1.4.6 and heard the Steam overlay warning at start-up and then nothing whatsoever for the rest of the session, that was this bug exactly.
+
+Speech library updated to Prism 0.17.3:
+
+- The bundled speech library moves from Prism 0.16.5 to 0.17.3, which fixes the same bug at its source: its NVDA support now confirms NVDA is running before reporting that it started up. The mod keeps its own check as well. The two are independent, so speech no longer depends on either one of them being right on its own.
+
+- The local fixes the shipped library carries were re-applied on top of the new version rather than assumed to have been adopted upstream — they have not been. That includes the one that keeps the game from crashing at start-up for users who have ZDSR, PC-Talker or BoyPC Reader installed at a version whose files do not match, which is now applied in a second place as well, covering the path the mod itself uses to start an output.
+
+- Two smaller things came with the update. ZDSR braille output is supported where the installed ZDSR provides it, and an older ZDSR that does not provide it now loses only braille rather than failing to load at all. BoyPC Reader keeps working across a function rename in the new library that would otherwise have disabled it outright.
+
 ## v1.4.6
 
 **Update with the installer, not with F5.** This release replaces the speech library — Tolk is gone, Prism takes its place — and the in-game F5 update in v1.4.5 only ever fetches the mod file. It would install this version without the new library, and the mod would then start up with nothing to speak through: silent, unable to say what went wrong, and unable to update itself out of it again, since F5 also lives in the part that has gone quiet. Download AccessibleArenaInstaller.exe from this release and run it instead. It puts both files in place, and it takes the old Tolk files out. From this version on, F5 carries the speech library along with it and this stops being something you have to think about.
