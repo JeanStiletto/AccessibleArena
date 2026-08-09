@@ -67,7 +67,11 @@ if (-not (Test-Path $changelogFile)) {
     Write-Host "ERROR: $changelogFile not found" -ForegroundColor Red; exit 1
 }
 
-$changelogContent = Get-Content $changelogFile -Raw
+# -Encoding utf8 is load-bearing: Windows PowerShell 5.1 reads a file without a BOM using the
+# system ANSI codepage, so docs/CHANGELOG.md (UTF-8, no BOM) comes back with every em-dash and
+# quote mangled, and Out-File then writes that mojibake back out as valid UTF-8. The damage is
+# invisible here and permanent in the published release notes.
+$changelogContent = Get-Content $changelogFile -Raw -Encoding utf8
 if ($changelogContent -notmatch "(?m)^## $([regex]::Escape($tag))") {
     Write-Host "ERROR: No '## $tag' section found in docs/CHANGELOG.md" -ForegroundColor Red; exit 1
 }
@@ -128,7 +132,7 @@ Write-Host "Artifacts verified" -ForegroundColor Green
 
 # ── 6. Extract release notes ────────────────────────────────────────────────
 
-$lines = Get-Content $changelogFile
+$lines = Get-Content $changelogFile -Encoding utf8
 $notes = @()
 $capturing = $false
 
@@ -176,7 +180,9 @@ Verify in PowerShell with ``Get-FileHash <filename> -Algorithm SHA256`` or in Co
 "@
 
 $notesFile = Join-Path $root 'release_notes.txt'
-$notesText | Out-File -FilePath $notesFile -Encoding utf8
+# Written without a BOM: Out-File -Encoding utf8 emits one on 5.1, and gh passes it straight
+# through into the release body, where it shows up as a stray character before the first word.
+[System.IO.File]::WriteAllText($notesFile, $notesText, (New-Object System.Text.UTF8Encoding($false)))
 
 Write-Host "Release notes extracted ($($notes.Count) lines)" -ForegroundColor Green
 
