@@ -84,8 +84,9 @@ user's:
 - `dumpbin /exports` still covers every entry point `PrismInterop.cs` declares
 
 Then run `powershell -NoProfile -File third_party\prism\probe-prism.ps1` against the deployed DLL. It lists
-every backend with its `IS_SUPPORTED_AT_RUNTIME` and `SUPPORTS_SPEAK` bits and what `initialize()`
-returns — the fastest way to confirm a new build behaves before it reaches a user.
+every backend with its `IS_SUPPORTED_AT_RUNTIME`, `SUPPORTS_SPEAK`, `SUPPORTS_BRAILLE` and
+`SUPPORTS_OUTPUT` bits and what `initialize()` returns — the fastest way to confirm a new build
+behaves before it reaches a user.
 
 `PRISM_ENABLE_LEGACY_BACKENDS` is left off, matching the configuration KOTOR ships. Turning it on
 adds System Access and Window-Eyes.

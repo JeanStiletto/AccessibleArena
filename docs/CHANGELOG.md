@@ -2,7 +2,15 @@
 
 All notable changes to Accessible Arena.
 
-## v1.4.7
+## v1.4.8
+
+Braille output restored:
+
+- Braille displays show announcements again. Tolk sent every announcement to speech and braille together, and the switch to Prism unknowingly dropped the braille half — Prism separates the two, and the mod was only calling the speech function. Braille users got nothing at all from v1.4.6 on. The mod now uses Prism's combined speech-plus-braille call where the screen reader offers it, and speech plus a separate braille message otherwise, which restores exactly what Tolk did: each announcement appears on the display as a flash message until the next one replaces it.
+
+- Critical alerts reach the braille display too. When "Critical alerts via system voice" is on, the alert is spoken by the Windows voice, which has no braille — the mod now additionally sends the alert text to your screen reader's braille display, so an alert is never audio-only. Nothing is spoken twice; the braille call makes no sound.
+
+- The start-up log line now records braille capability. `MelonLoader\Latest.log` shows "ready — normal backend = NVDA (braille via output())" or "(no braille)", so whether braille is expected to work on a given setup is one grep away.
 
 **Press F5 in the game to update.** This release replaces the speech library again, and unlike the
 v1.4.5 to v1.4.6 step, F5 carries it: v1.4.6's updater fetches the speech library alongside the mod

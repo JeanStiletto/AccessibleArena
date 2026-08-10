@@ -52,6 +52,8 @@ namespace AccessibleArena
         private static bool _sapiReady;
 
         private static string _normalName = "None";
+        private static bool _normalSupportsOutput;   // combined speak+braille call (Tolk_Output equivalent)
+        private static bool _normalSupportsBraille;  // braille-only call
         private static int _urgentVolumePercent = 100;
         private static string _preferredBackend = AutoBackend;
 
@@ -68,6 +70,8 @@ namespace AccessibleArena
         // and latched off, so a missing export costs one exception rather than one per call.
         private static bool _canSetVolume = true;
         private static bool _canSetRate = true;
+        private static bool _canOutput = true;
+        private static bool _canBraille = true;
 
         /// <summary>True once a speech backend is up. False means the mod runs silent.</summary>
         public static bool IsAvailable => _available;
@@ -121,7 +125,7 @@ namespace AccessibleArena
 
                     if (_available)
                     {
-                        Log.Msg(LogTag, $"ready — normal backend = {_normalName}, urgent backend = " +
+                        Log.Msg(LogTag, $"ready — normal backend = {_normalName} ({BrailleMode()}), urgent backend = " +
                                         (_sapiReady ? $"SAPI at {_urgentVolumePercent}%"
                                                     : "(SAPI unavailable, urgent falls back to normal)"));
                     }
@@ -290,8 +294,23 @@ namespace AccessibleArena
 
             _normal = backend;
             _normalName = NameOf(backend);
+            _normalSupportsOutput = (features & PrismInterop.FeatureSupportsOutput) != 0;
+            _normalSupportsBraille = (features & PrismInterop.FeatureSupportsBraille) != 0;
             _available = true;
             return true;
+        }
+
+        /// <summary>
+        /// How the adopted backend reaches a braille display, for the log — the line a braille
+        /// user's report gets checked against. Keyed on SUPPORTS_BRAILLE, not SUPPORTS_OUTPUT:
+        /// every backend advertises output() (on the speech-only ones its braille half is a
+        /// no-op), so only the braille bit says whether a display can actually be reached.
+        /// </summary>
+        private static string BrailleMode()
+        {
+            if (!_normalSupportsBraille)
+                return "no braille";
+            return _normalSupportsOutput && _canOutput ? "braille via output()" : "braille supported";
         }
 
         /// <summary>Registry name of a backend, for the log.</summary>
@@ -343,7 +362,7 @@ namespace AccessibleArena
                 AcquireNormal(_preferredBackend);
                 if (_available)
                 {
-                    Log.Msg(LogTag, $"'{previousName}' went away; normal backend is now {_normalName}");
+                    Log.Msg(LogTag, $"'{previousName}' went away; normal backend is now {_normalName} ({BrailleMode()})");
 
                     // Every acquire allocates a fresh handle, so the replacement is never the
                     // handle we are about to release — checked anyway, because releasing the
@@ -503,13 +522,13 @@ namespace AccessibleArena
 
                 try
                 {
-                    int rc = PrismInterop.prism_backend_speak(_normal, utf8, interrupt);
+                    int rc = DispatchNormal(utf8, interrupt);
 
                     // The reader went away since we adopted it — it was closed, restarted, or
                     // never really there. Re-select and say this one on the new backend rather
                     // than losing it.
                     if (rc == PrismInterop.PRISM_ERROR_BACKEND_NOT_AVAILABLE && TryReacquireNormal())
-                        rc = PrismInterop.prism_backend_speak(_normal, utf8, interrupt);
+                        rc = DispatchNormal(utf8, interrupt);
 
                     if (rc != PrismInterop.PRISM_OK)
                         Log.Warn(LogTag, $"speak failed, dropping utterance: {PrismInterop.ErrorText(rc)}");
@@ -518,6 +537,71 @@ namespace AccessibleArena
                 {
                     Log.Warn(LogTag, $"speak threw {ex.GetType().Name}: {ex.Message}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Sends one announcement to the normal backend on every channel it offers. Tolk's
+        /// Tolk_Output spoke and brailled in one call; Prism splits those, so a backend
+        /// advertising SUPPORTS_OUTPUT gets prism_backend_output (the direct equivalent) and
+        /// the rest get speak plus, where supported, a braille flash message. Caller holds
+        /// <see cref="Gate"/>.
+        /// </summary>
+        private static int DispatchNormal(byte[] utf8, bool interrupt)
+        {
+            if (_normalSupportsOutput && _canOutput)
+            {
+                try
+                {
+                    int rc = PrismInterop.prism_backend_output(_normal, utf8, interrupt);
+                    if (rc != PrismInterop.PRISM_ERROR_NOT_IMPLEMENTED)
+                        return rc;
+
+                    // The feature bit promised output() but the call disagreed — an older vendor
+                    // client DLL can do that. Take speak (+ braille) from here on.
+                    _normalSupportsOutput = false;
+                    Log.Msg(LogTag, $"'{_normalName}' advertises output() but reports NotImplemented; " +
+                                    $"switching to speak ({BrailleMode()})");
+                }
+                catch (EntryPointNotFoundException)
+                {
+                    _canOutput = false;
+                    Log.Msg(LogTag, "prism_backend_output not exported by this prism.dll; using speak" +
+                                    (_normalSupportsBraille ? " + braille" : ""));
+                }
+            }
+
+            int rcSpeak = PrismInterop.prism_backend_speak(_normal, utf8, interrupt);
+            BrailleNormal(utf8);
+            return rcSpeak;
+        }
+
+        /// <summary>
+        /// Mirrors text to the braille display through the normal backend, when it has one.
+        /// Quiet by design: braille is supplementary on this path, so a failure must never cost
+        /// speech or spam the log — only a NotImplemented or missing export is noted, once, when
+        /// latching the capability off. Caller holds <see cref="Gate"/>.
+        /// </summary>
+        private static void BrailleNormal(byte[] utf8)
+        {
+            if (!_normalSupportsBraille || !_canBraille)
+                return;
+
+            try
+            {
+                int rc = PrismInterop.prism_backend_braille(_normal, utf8);
+                if (rc == PrismInterop.PRISM_ERROR_NOT_IMPLEMENTED)
+                {
+                    // Advertised but not really there — e.g. a ZDSRAPI predating its Braille export.
+                    _normalSupportsBraille = false;
+                    Log.Msg(LogTag, $"'{_normalName}' advertises braille but reports NotImplemented; " +
+                                    "braille off for this backend");
+                }
+            }
+            catch (EntryPointNotFoundException)
+            {
+                _canBraille = false;
+                Log.Msg(LogTag, "prism_backend_braille not exported by this prism.dll; braille mirroring disabled");
             }
         }
 
@@ -552,6 +636,12 @@ namespace AccessibleArena
                     int rc = PrismInterop.prism_backend_speak(_sapi, utf8, true);
                     if (rc != PrismInterop.PRISM_OK)
                         Log.Warn(LogTag, $"urgent speak failed, dropping utterance (no fallback, would double-speak): {PrismInterop.ErrorText(rc)}");
+
+                    // SAPI has no braille display, so mirror the alert through the normal
+                    // backend's braille channel — braille() makes no sound, so unlike a speech
+                    // fallback this cannot say the text twice.
+                    if (_available)
+                        BrailleNormal(utf8);
                 }
                 catch (Exception ex)
                 {
@@ -678,7 +768,7 @@ namespace AccessibleArena
                     if (_available)
                     {
                         _preferredBackend = string.IsNullOrEmpty(backendName) ? AutoBackend : backendName;
-                        Log.Msg(LogTag, $"normal backend switched to {_normalName}");
+                        Log.Msg(LogTag, $"normal backend switched to {_normalName} ({BrailleMode()})");
                         bool wantedAuto = string.IsNullOrEmpty(backendName) ||
                                           string.Equals(backendName, AutoBackend, StringComparison.OrdinalIgnoreCase);
                         return wantedAuto || string.Equals(backendName, _normalName, StringComparison.OrdinalIgnoreCase);

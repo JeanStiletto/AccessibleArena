@@ -1,6 +1,8 @@
 # Enumerates every prism backend in registry (= priority) order with the two
-# feature bits ScreenReaderOutput's selection gate depends on, plus what
-# initialize() returns. Run it after building a new prism.dll, before shipping.
+# feature bits ScreenReaderOutput's selection gate depends on, the two braille
+# bits its output dispatch depends on (SUPPORTS_BRAILLE / SUPPORTS_OUTPUT), plus
+# what initialize() returns. Run it after building a new prism.dll, before
+# shipping.
 #
 #   powershell -NoProfile -File third_party\prism\probe-prism.ps1
 #   powershell -NoProfile -File third_party\prism\probe-prism.ps1 -DllPath <build>\prism.dll
@@ -79,6 +81,8 @@ Write-Output "ctx (NULL config, as the mod now passes): $ctx"
 # with the $live / $speak results computed from them.
 $bitRuntime = [uint64]1
 $bitSpeak   = [uint64]4
+$bitBraille = [uint64]16
+$bitOutput  = [uint64]32
 
 $count = [P]::prism_registry_count($ctx).ToInt64()
 Write-Output "registered backends: $count (registry order = descending priority)"
@@ -94,6 +98,8 @@ for ($i = 0; $i -lt $count; $i++) {
   $f = [P]::prism_backend_get_features($b)
   $live = (([uint64]$f -band [uint64]$bitRuntime) -ne 0)
   $speak = (([uint64]$f -band [uint64]$bitSpeak) -ne 0)
+  $brl = (([uint64]$f -band [uint64]$bitBraille) -ne 0)
+  $outp = (([uint64]$f -band [uint64]$bitOutput) -ne 0)
   Write-Output "  raw features: 0x$($f.ToString('X16'))  (type $($f.GetType().Name))"
   $initTxt = "not attempted (gate would skip)"
   if ($live -and $speak) { $initTxt = "initialize rc=$([P]::prism_backend_initialize($b))" }
@@ -101,6 +107,8 @@ for ($i = 0; $i -lt $count; $i++) {
   Write-Output "  priority: $prio"
   Write-Output "  IS_SUPPORTED_AT_RUNTIME: $live"
   Write-Output "  SUPPORTS_SPEAK: $speak"
+  Write-Output "  SUPPORTS_BRAILLE: $brl"
+  Write-Output "  SUPPORTS_OUTPUT: $outp"
   Write-Output "  $initTxt"
   [P]::prism_backend_free($b)
 }

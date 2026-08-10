@@ -30,6 +30,9 @@ namespace AccessibleArena.Core.Speech
 
         // --- PrismError (prism.h) — only the values we branch on. ---
         internal const int PRISM_OK = 0;
+        /// <summary>The backend has no implementation of the entry point — e.g. braille on a
+        /// speech-only backend, or ZDSR running against a ZDSRAPI that predates its Braille export.</summary>
+        internal const int PRISM_ERROR_NOT_IMPLEMENTED = 3;
         /// <summary>Returned when a backend was already brought up by an earlier acquire. Not a failure.</summary>
         internal const int PRISM_ERROR_ALREADY_INITIALIZED = 15;
         /// <summary>The backend's reader is not reachable right now — it may have been reachable at initialize().</summary>
@@ -47,6 +50,10 @@ namespace AccessibleArena.Core.Speech
         /// </summary>
         internal const ulong FeatureIsSupportedAtRuntime = 1UL << 0;
         internal const ulong FeatureSupportsSpeak = 1UL << 2;
+        /// <summary>Braille-only entry point (<c>prism_backend_braille</c>).</summary>
+        internal const ulong FeatureSupportsBraille = 1UL << 4;
+        /// <summary>Combined speech+braille entry point (<c>prism_backend_output</c>) — the Tolk_Output equivalent.</summary>
+        internal const ulong FeatureSupportsOutput = 1UL << 5;
         internal const ulong FeatureSupportsIsSpeaking = 1UL << 6;
         internal const ulong FeatureSupportsStop = 1UL << 7;
         internal const ulong FeatureSupportsSetVolume = 1UL << 10;
@@ -132,6 +139,15 @@ namespace AccessibleArena.Core.Speech
         [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int prism_backend_speak(IntPtr backend, byte[] utf8Text,
                                                        [MarshalAs(UnmanagedType.I1)] bool interrupt);
+
+        /// <summary>Speech plus braille in one call — Prism's equivalent of Tolk_Output.</summary>
+        [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int prism_backend_output(IntPtr backend, byte[] utf8Text,
+                                                        [MarshalAs(UnmanagedType.I1)] bool interrupt);
+
+        /// <summary>Braille only, no audio and no interrupt flag — a flash message on the display.</summary>
+        [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int prism_backend_braille(IntPtr backend, byte[] utf8Text);
 
         [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int prism_backend_stop(IntPtr backend);
