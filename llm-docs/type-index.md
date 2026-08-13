@@ -124,6 +124,7 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | LearnToPlayControllerV2 | LearnToPlayControllerV2 | Core |
 | DeckManagerController | DeckManagerController | Core |
 | PlayBladeController | PlayBladeController | Core |
+| PlayBladeV3 | Wizards.Mtga.PlayBlade.PlayBladeV3 | Core |
 | DeckSelectBlade | DeckSelectBlade | Core |
 | SettingsMenu | Wotc.Mtga.Wrapper.SettingsMenu | Core |
 | GameManager | GameManager | Core |

@@ -70,36 +70,105 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Handle back navigation in the deck builder.
-        /// The deck builder uses MainButton (labeled "Fertig"/"Done") to exit editing mode.
+        ///
+        /// Editing mode exits through MainButton (labeled "Fertig"/"Done"). The read-only view
+        /// that precon decks open in — the Colour Challenge deck, starter decks — has no such
+        /// button, because there is nothing to confirm on a deck you cannot change. Hunting for
+        /// it there and then falling through to Home dropped the player out of the screen they
+        /// had opened the deck from, so the read-only view exits through its own Back button.
         /// </summary>
         private bool HandleDeckBuilderBack()
         {
-            Log.Nav(NavigatorId, $"Deck Builder detected, looking for Done button");
-
-            // Find MainButton within DeckBuilderWidget (not the Home page's MainButton)
-            // The deck builder's button is at: DeckBuilderWidget_Desktop_16x9/BottomRight/Buttons/MainButton
-            var deckBuilderWidget = GameObject.Find("DeckBuilderWidget_Desktop_16x9");
-            if (deckBuilderWidget != null)
+            if (_isDeckBuilderReadOnly)
             {
-                var mainButton = deckBuilderWidget.transform.Find("BottomRight/Buttons/MainButton");
-                if (mainButton != null && mainButton.gameObject.activeInHierarchy)
-                {
-                    Log.Nav(NavigatorId, $"Found deck builder Done button: {mainButton.name}");
-                    _announcer.Announce(Models.Strings.ExitingDeckBuilder, Models.AnnouncementPriority.High);
-                    UIActivator.Activate(mainButton.gameObject);
-                    TriggerRescan();
-                    return true;
-                }
-                Log.Nav(NavigatorId, $"DeckBuilderWidget found but MainButton not at expected path");
+                Log.Nav(NavigatorId, $"Read-only deck builder, looking for its Back button");
             }
             else
             {
-                Log.Nav(NavigatorId, $"DeckBuilderWidget_Desktop_16x9 not found");
+                Log.Nav(NavigatorId, $"Deck Builder detected, looking for Done button");
+
+                // Find MainButton within DeckBuilderWidget (not the Home page's MainButton)
+                // The deck builder's button is at: DeckBuilderWidget_Desktop_16x9/BottomRight/Buttons/MainButton
+                var deckBuilderWidget = GameObject.Find("DeckBuilderWidget_Desktop_16x9");
+                if (deckBuilderWidget != null)
+                {
+                    var mainButton = deckBuilderWidget.transform.Find("BottomRight/Buttons/MainButton");
+                    if (mainButton != null && mainButton.gameObject.activeInHierarchy)
+                    {
+                        Log.Nav(NavigatorId, $"Found deck builder Done button: {mainButton.name}");
+                        _announcer.Announce(Models.Strings.ExitingDeckBuilder, Models.AnnouncementPriority.High);
+                        UIActivator.Activate(mainButton.gameObject);
+                        TriggerRescan();
+                        return true;
+                    }
+                    Log.Nav(NavigatorId, $"DeckBuilderWidget found but MainButton not at expected path");
+                }
+                else
+                {
+                    Log.Nav(NavigatorId, $"DeckBuilderWidget_Desktop_16x9 not found");
+                }
             }
 
-            // Fallback: navigate to Home if MainButton not found
-            Log.Nav(NavigatorId, $"Deck Builder Done button not found, navigating to Home");
+            // Read-only view, or an editing layout we no longer recognise: leave through the
+            // screen's own Back button, which returns to wherever the deck was opened from.
+            // Scoped to the deck builder panel so it cannot pick up a button from another screen.
+            var backButton = FindDismissButtonInPanel(_activeControllerGameObject);
+            if (backButton != null)
+            {
+                Log.Nav(NavigatorId, $"Found deck builder Back button: {backButton.name}");
+                _announcer.AnnounceVerbose(Models.Strings.NavigatingBack, Models.AnnouncementPriority.High);
+                UIActivator.Activate(backButton);
+                TriggerRescan();
+                return true;
+            }
+
+            // Last resort: no exit button at all, so at least land somewhere predictable.
+            Log.Nav(NavigatorId, $"No deck builder exit button found, navigating to Home");
             return NavigateToHome();
+        }
+
+        /// <summary>
+        /// Trim the read-only deck view down to what is actually usable there.
+        ///
+        /// Two things in it are already covered by keys that work everywhere: its Back button,
+        /// which Backspace now activates, and the play-blade controls ("Spieloptionen") that
+        /// belong to the screen the deck was opened from and do nothing while the deck is shown.
+        /// Listing either one makes the user arrow past a control that duplicates a key or leads
+        /// nowhere, so both are dropped before grouping.
+        ///
+        /// Editable deck building is untouched — there the same controls are real targets.
+        /// </summary>
+        private void FilterReadOnlyDeckBuilderElements()
+        {
+            var backButton = FindDismissButtonInPanel(_activeControllerGameObject);
+            int removed = 0;
+
+            for (int i = _elements.Count - 1; i >= 0; i--)
+            {
+                var obj = _elements[i].GameObject;
+                if (obj == null) continue;
+
+                if (!IsSameOrRelated(obj, backButton) &&
+                    _groupAssigner.DetermineGroup(obj) != ElementGroup.PlayBladeContent)
+                    continue;
+
+                _elements.RemoveAt(i);
+                removed++;
+            }
+
+            if (removed > 0)
+                Log.Nav(NavigatorId, $"Read-only deck view: hid {removed} element(s) already covered by global keys");
+        }
+
+        /// <summary>
+        /// True when the two objects are the same, or one sits inside the other. The discovered
+        /// element is often a hitbox child of the button the back-button search returns.
+        /// </summary>
+        private static bool IsSameOrRelated(GameObject obj, GameObject other)
+        {
+            if (obj == null || other == null) return false;
+            if (obj == other) return true;
+            return obj.transform.IsChildOf(other.transform) || other.transform.IsChildOf(obj.transform);
         }
 
         /// <summary>

@@ -4,7 +4,9 @@ All notable changes to Accessible Arena.
 
 ## v1.4.9
 
-Profile screen fixed after the 13 August game update:
+Compatibility with the 13 August game update, which rebuilt the Profile screen, split the play blade into two separate classes, and renamed the field behind the duel timeout counter.
+
+Profile screen:
 
 - The Profile screen speaks again. The update rebuilt the screen from the ground up: the player name and the avatar blurb moved into two new components, and the five cosmetic buttons — avatar, title, emote, pet, sleeve — were replaced by a shared customization panel that the game can lay out in either of two ways. Nothing the mod looked for existed any more, so it failed to read the screen and then hit an error on every check, which stopped announcements dead. The mod now reads the new components, and finds the cosmetic categories through the customization panel the screen is actually using rather than assuming one layout. Reported and diagnosed by **@patricus3** (issue #117, PR #118), who traced the freeze to the reflection lookups coming back empty and identified the two new display components and the customization panel that replaced them; reimplemented here against the live game so that all five cosmetics share one open, detect and close path, and so that the screen degrades rather than falls silent if these pieces move again.
 
@@ -14,9 +16,23 @@ Profile screen fixed after the 13 August game update:
 
 - The set collection line on the Profile screen reads its numbers again, and Enter on it opens the full Set Collection screen again. The update split the game's collection code into a new class and moved two of its inner types out to the top level, which broke both the reading and the screen detection — the Set Collection screen's position in the game's own screen list shifted by one, so the mod was watching for the pet selector instead.
 
+- All five cosmetic panels are now opened, detected and closed by one code path. The game used to present them as two different kinds of thing and the mod followed suit, recognising three of them by matching text in the panel's internal name — so a renamed panel would have gone unnoticed. The rework gave all five a common owner, and the mod now identifies them by asking that owner directly, which is exact rather than a guess.
+
 - If a future update moves these pieces again, the Profile screen degrades instead of going silent, and the log names what it could not find.
 
-- All five cosmetic panels are now opened, detected and closed by one code path. The game used to present them as two different kinds of thing and the mod followed suit, recognising three of them by matching text in the panel's internal name — so a renamed panel would have gone unnoticed. The rework gave all five a common owner, and the mod now identifies them by asking that owner directly, which is exact rather than a guess.
+Play blade and duel timer:
+
+- The Play blade is tracked again. The update split the play blade and the challenge blade into two separate classes, and removed the two switches on the home screen that the mod watched to know when either one opened — one of them no longer exists, the other became read-only. The mod now follows the play blade's own show and hide, and reads the challenge blade through the state it already shared with it, so both report opening and closing through one path instead of three.
+
+- Timeout announcements work again. The same update renamed the field the mod reads to find out how many timeouts a player has left, so the timer patch gave up at start-up and every timeout in a duel passed silently. The mod now reads the new name and keeps the old one as a fallback.
+
+Opening a deck from the Colour Challenge:
+
+- The read-only deck view no longer lists two controls you cannot use from there. Its Back button is what Backspace now presses, so arrowing onto it only repeated a key that works everywhere, and the "Spieloptionen" controls behind the view belong to the screen the deck was opened from and did nothing while the deck was showing. Both are gone from that view; editable deck building still lists them, where they are real targets.
+
+- Backspace out of a read-only deck now returns you to where you opened it. Opening the Colour Challenge deck — or any precon or starter deck — shows it in a read-only view, which has no "Fertig" button because there is nothing to confirm on a deck you cannot change. The mod looked for that button anyway, did not find it, and fell back to jumping to the home screen, so you lost the screen you came from. It now leaves through the read-only view's own Back button and only falls back to the home screen if there is no exit button at all.
+
+- Pressing Enter on a deck no longer claims "Deck Selected" when it did something else. The same click selects the deck in the play blade but opens it read-only in the Colour Challenge, and the mod announced a selection either way. It now confirms the activation plainly and lets the screen announcement that follows say which of the two happened. The old message was also the last hardcoded English text on an activation path, so it was spoken in English regardless of your language setting.
 
 ## v1.4.8
 

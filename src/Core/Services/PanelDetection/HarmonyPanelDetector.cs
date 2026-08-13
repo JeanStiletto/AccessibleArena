@@ -151,14 +151,6 @@ namespace AccessibleArena.Core.Services.PanelDetection
                             Log.Msg("{DetectorId}", $"Set PlayBladeState={bladeState} from content view: {contentView}");
                         }
                     }
-                    else if (typeName == "EventBlade")
-                    {
-                        // HomePageContentController.IsEventBladeActive = true
-                        // This fires when the play blade opens from home screen objectives
-                        // (e.g., Sparked Rank achievement). Treat it as PlayBlade state 1.
-                        _stateManager.SetPlayBladeState(1);
-                        Log.Msg("{DetectorId}", $"Set PlayBladeState=1 from EventBlade");
-                    }
 
                     _stateManager.ReportPanelOpened(panelInfo);
                     Log.Msg("{DetectorId}", $"Reported panel opened: {typeName}");
@@ -180,12 +172,6 @@ namespace AccessibleArena.Core.Services.PanelDetection
                         // BladeContentView hiding - blade is closing
                         _stateManager.SetPlayBladeState(0);
                         Log.Msg("{DetectorId}", $"Set PlayBladeState=0 from content view closing: {typeName}");
-                    }
-                    else if (typeName == "EventBlade")
-                    {
-                        // HomePageContentController.IsEventBladeActive = false
-                        _stateManager.SetPlayBladeState(0);
-                        Log.Msg("{DetectorId}", $"Set PlayBladeState=0 from EventBlade closing");
                     }
 
                     // Report panel closed
@@ -255,7 +241,10 @@ namespace AccessibleArena.Core.Services.PanelDetection
 
         private int ParsePlayBladeState(string stateName)
         {
-            // PlayBladeVisualStates: Hidden=0, Events=1, DirectChallenge=2, FriendChallenge=3
+            // Since game 2026.62 the enum is PlayBladeVisualStates { Hidden, Events, Challenge }
+            // and only the challenge blade still uses it; PlayBladeV3.Show/Hide reports "Events"
+            // and "Hidden" directly. The older DirectChallenge/FriendChallenge names are kept so
+            // an older client keeps mapping to the same states.
             switch (stateName)
             {
                 case "Hidden":

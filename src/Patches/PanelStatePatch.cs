@@ -58,8 +58,8 @@ namespace AccessibleArena.Patches
                 // Try to patch PlayBladeController (play mode selection)
                 PatchPlayBladeController(harmony);
 
-                // Try to patch HomePageContentController blade states
-                PatchHomePageBladeStates(harmony);
+                // Try to patch the play blade itself (PlayBladeV3)
+                PatchPlayBladeV3(harmony);
 
                 // Try to patch JoinMatchMaking for bot match interception
                 PatchJoinMatchMaking(harmony);
@@ -359,28 +359,38 @@ namespace AccessibleArena.Patches
                 "PlayBladeController.PlayBladeVisualState setter");
         }
 
-        private static void PatchHomePageBladeStates(HarmonyLib.Harmony harmony)
+        /// <summary>
+        /// Play blade open/close.
+        ///
+        /// Game 2026.62 split the two blades apart. The play blade is now its own class,
+        /// <c>Wizards.Mtga.PlayBlade.PlayBladeV3</c>, while <c>PlayBladeController</c> survives
+        /// only as the challenge blade (<c>HomePageContentController.ChallengeBladeController</c>),
+        /// which <see cref="PatchPlayBladeController"/> already covers through its
+        /// PlayBladeVisualState setter.
+        ///
+        /// The two HomePageContentController bool setters the mod used to hook are gone with it:
+        /// IsEventBladeActive is now a computed getter over the blade GameObject, and
+        /// IsDirectChallengeBladeActive no longer exists. PlayBladeV3.Show/Hide is the
+        /// replacement hook for the play blade half.
+        /// </summary>
+        private static void PatchPlayBladeV3(HarmonyLib.Harmony harmony)
         {
-            var homePageType = FindType(T.HomePageContentController);
-            if (homePageType == null)
+            var playBladeType = FindType(T.PlayBladeV3FQ) ?? FindType(T.PlayBladeV3);
+            if (playBladeType == null)
             {
-                Log.Warn("PanelStatePatch", "Could not find HomePageContentController type");
+                Log.Warn("PanelStatePatch", "Could not find PlayBladeV3 type - play blade open/close not tracked");
                 return;
             }
 
-            Log.Patch("PanelStatePatch", $"Found HomePageContentController: {homePageType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found PlayBladeV3: {playBladeType.FullName}");
 
-            var eventSetter = homePageType.GetProperty("IsEventBladeActive", AllInstanceFlags)?.GetSetMethod(true);
-            if (eventSetter == null)
-                Log.Warn("PanelStatePatch", "Could not find HomePageContentController.IsEventBladeActive setter");
-            TryPatchPostfix(harmony, eventSetter, nameof(IsEventBladeActivePostfix),
-                "HomePageContentController.IsEventBladeActive setter");
+            var showMethod = playBladeType.GetMethod("Show", AllInstanceFlags, null, Type.EmptyTypes, null);
+            if (showMethod == null) Log.Warn("PanelStatePatch", "PlayBladeV3.Show() not found");
+            TryPatchPostfix(harmony, showMethod, nameof(PlayBladeV3ShowPostfix), "PlayBladeV3.Show()");
 
-            var directSetter = homePageType.GetProperty("IsDirectChallengeBladeActive", AllInstanceFlags)?.GetSetMethod(true);
-            if (directSetter == null)
-                Log.Warn("PanelStatePatch", "Could not find HomePageContentController.IsDirectChallengeBladeActive setter");
-            TryPatchPostfix(harmony, directSetter, nameof(IsDirectChallengeBladeActivePostfix),
-                "HomePageContentController.IsDirectChallengeBladeActive setter");
+            var hideMethod = playBladeType.GetMethod("Hide", AllInstanceFlags);
+            if (hideMethod == null) Log.Warn("PanelStatePatch", "PlayBladeV3.Hide() not found");
+            TryPatchPostfix(harmony, hideMethod, nameof(PlayBladeV3HidePostfix), "PlayBladeV3.Hide()");
         }
 
         private static void PatchJoinMatchMaking(HarmonyLib.Harmony harmony)
@@ -813,12 +823,13 @@ namespace AccessibleArena.Patches
                 $"PlayBladeController.PlayBladeVisualState = {stateName}");
         }
 
-        public static void IsEventBladeActivePostfix(object __instance, bool value)
-            => FirePanelStateChange(__instance, value, "EventBlade", "HomePageContentController.IsEventBladeActive");
+        // Reported under the same "PlayBlade:" keys the PlayBladeVisualState setter uses, so the
+        // detector reads the play blade and the challenge blade through one code path.
+        public static void PlayBladeV3ShowPostfix(object __instance)
+            => FirePanelStateChange(__instance, true, "PlayBlade:Events", "PlayBladeV3.Show()");
 
-        public static void IsDirectChallengeBladeActivePostfix(object __instance, bool value)
-            => FirePanelStateChange(__instance, value, "DirectChallengeBlade",
-                "HomePageContentController.IsDirectChallengeBladeActive");
+        public static void PlayBladeV3HidePostfix(object __instance)
+            => FirePanelStateChange(__instance, false, "PlayBlade:Hidden", "PlayBladeV3.Hide()");
 
         public static void BladeContentViewShowPostfix(object __instance)
         {

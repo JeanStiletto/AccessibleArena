@@ -48,7 +48,10 @@ namespace AccessibleArena.Patches
                 if (tnType != null)
                 {
                     _triggeredByLocalField = tnType.GetField("TriggeredByLocaPlayer", PublicInstance);
-                    _timeoutCountField = tnType.GetField("CurrentTimeoutCountForPlayer", PublicInstance);
+                    // 2026.62 renamed CurrentTimeoutCountForPlayer to TimeoutCount (same uint,
+                    // same ctor slot) and added a TriggeredBy player id alongside it.
+                    _timeoutCountField = tnType.GetField("TimeoutCount", PublicInstance)
+                        ?? tnType.GetField("CurrentTimeoutCountForPlayer", PublicInstance);
                 }
 
                 if (_triggeredByLocalField == null || _timeoutCountField == null)

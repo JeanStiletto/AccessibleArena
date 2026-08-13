@@ -127,7 +127,12 @@ namespace AccessibleArena.Core.Services
                 Log.Activation("UIActivator", $"Detected deck entry, trying specialized deck selection");
                 if (CardTileActivator.TrySelectDeck(element))
                 {
-                    return new ActivationResult(true, "Deck Selected", ActivationType.Button);
+                    // Neutral wording on purpose: DeckView.OnDeckClick() selects the deck in the
+                    // play blade, but in screens like the Colour Challenge it opens the deck in a
+                    // read-only view instead. Claiming "Deck Selected" would be wrong there, and
+                    // the screen announcement that follows says which one actually happened.
+                    // (This was also the last hardcoded English literal on an activation path.)
+                    return new ActivationResult(true, Models.Strings.ActivatedBare, ActivationType.Button);
                 }
                 // Fall through to standard activation if specialized selection fails
                 Log.Activation("UIActivator", $"Specialized deck selection failed, falling back to standard activation");

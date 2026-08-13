@@ -2361,6 +2361,13 @@ namespace AccessibleArena.Core.Services
                 AddBoosterCarouselElement();
             }
 
+            // Read-only deck view: Backspace already leaves through the screen's own Back button,
+            // and the play-blade controls behind the view belong to the screen underneath.
+            if (_isDeckBuilderReadOnly && _activeContentController == T.WrapperDeckBuilder)
+            {
+                FilterReadOnlyDeckBuilderElements();
+            }
+
             Log.Nav(NavigatorId, $"Discovered {_elements.Count} navigable elements");
 
             // Enrich color button labels before grouping (so grouped navigator gets enriched labels)
