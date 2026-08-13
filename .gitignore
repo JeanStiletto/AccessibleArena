@@ -43,14 +43,22 @@ decompiled_*
 # Pre-decompiled game type references (proprietary game code, never commit)
 llm-docs/decompiled/
 
+# Game API baseline for tools/check-game-update.ps1 (derived game metadata, local only)
+llm-docs/api-baseline/
+
 # Game DLLs (proprietary, reference from game install path)
 libs/
 
-# Tools directory (local utilities, not part of the mod)
-tools/
+# Tools directory (local utilities, not part of the mod).
+# `tools/*` rather than `tools/`: git cannot re-include a file whose parent directory is
+# excluded, so the negations below are silently dead against a directory pattern.
+tools/*
 # But track decompile scripts (useful for LLM workflow)
 !tools/decompile.ps1
 !tools/decompile-all.ps1
+# ...and the game-update regression workflow
+!tools/check-game-update.ps1
+!tools/patch-notes.ps1
 
 # Logs
 logs/

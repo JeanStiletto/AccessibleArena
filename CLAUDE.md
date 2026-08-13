@@ -57,6 +57,7 @@ Detailed documentation in `docs/` — primary entry points (the directory contai
 - **SCREENS.md** - Navigator quick reference
 - **CHANGELOG.md** - Recent changes
 - **KNOWN_ISSUES.md** - Bugs, limitations, planned features
+- **GAME_UPDATE_CHECKLIST.md** - What to run after an MTGA update to catch reflection regressions
 - **old/** - Archived planning documents
 
 LLM reference documentation in `llm-docs/`:

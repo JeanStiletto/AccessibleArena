@@ -101,48 +101,54 @@ foreach ($dllKey in $searchOrder) {
 
     Write-Host "  [TRY] $dllKey ($dllPath) for type '$TypeName'..." -ForegroundColor Cyan
 
+    # ilspycmd writes decompiler warnings to stderr and exits non-zero even when it produced
+    # perfectly good code (HomePageContentController is one such type). Merging stderr into the
+    # output under $ErrorActionPreference = "Stop" turned that into a terminating error, so the
+    # type looked undecompilable. Keep the two streams apart and judge by what came out.
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     try {
-        $output = & $ilspycmd $dllPath -t $TypeName 2>&1
-        $outputStr = $output | Out-String
+        $raw = & $ilspycmd $dllPath -t $TypeName 2>&1
+    } finally {
+        $ErrorActionPreference = $previousEap
+    }
 
-        # Check for common failure patterns
-        if ($outputStr -match "Error" -and $outputStr -match "not find") {
-            Write-Host "  [MISS] Type not found in $dllKey" -ForegroundColor Yellow
-            continue
+    $codeLines = @($raw | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+    $errLines = @($raw | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } |
+        ForEach-Object { $_.ToString() })
+    $outputStr = ($codeLines -join [Environment]::NewLine)
+    $errStr = ($errLines -join [Environment]::NewLine)
+
+    # A type declaration is the proof that decompilation worked. Bare `using` lines and a
+    # `namespace` header alone are what a miss looks like.
+    if ($outputStr -match "\b(class|struct|enum|interface|record|delegate)\b") {
+        $outputStr | Out-File -Encoding utf8 $outFile
+        Write-Host "  [OK] Decompiled '$TypeName' from $dllKey -> $outFile" -ForegroundColor Green
+        if ($errStr) {
+            Write-Host "  [NOTE] ilspycmd also reported: $($errStr.Split([Environment]::NewLine)[0])" -ForegroundColor DarkGray
         }
+        $success = $true
+        break
+    }
 
-        # Check if we got actual code (has class/struct/enum/interface keyword)
-        if ($outputStr -match "\b(class|struct|enum|interface|namespace)\b") {
-            $outputStr | Out-File -Encoding utf8 $outFile
-            Write-Host "  [OK] Decompiled '$TypeName' from $dllKey -> $outFile" -ForegroundColor Green
-            $success = $true
-            break
-        } else {
-            Write-Host "  [MISS] No code output from $dllKey" -ForegroundColor Yellow
-            # Save error output for debugging if it's the last attempt
-            if ($dllKey -eq $searchOrder[-1]) {
-                Write-Host "  Last attempt output: $($outputStr.Substring(0, [Math]::Min(200, $outputStr.Length)))" -ForegroundColor DarkGray
+    # Parse "not found in module but only in X" to suggest the correct DLL
+    if ($errStr -match "only in (\w+)") {
+        $hint = $matches[1]
+        Write-Host "  [MISS] $dllKey - type is in '$hint' assembly instead" -ForegroundColor Yellow
+        if ($Dll -eq "Auto") {
+            $hintKey = $null
+            if ($hint -eq "Core") { $hintKey = "Core" }
+            elseif ($hint -eq "Assembly-CSharp") { $hintKey = "Asm" }
+            elseif ($hint -match "SharedClientCore") { $hintKey = "Shared" }
+            elseif ($hint -match "GreProtobuf") { $hintKey = "Gre" }
+            if ($hintKey -and $searchOrder -notcontains $hintKey) {
+                $searchOrder += $hintKey
             }
         }
-    } catch {
-        $errMsg = $_.Exception.Message
-        # Parse "not found in module but only in X" to suggest correct DLL
-        if ($errMsg -match "only in (\w+)") {
-            $hint = $matches[1]
-            Write-Host "  [MISS] $dllKey - type is in '$hint' assembly instead" -ForegroundColor Yellow
-            # If in Auto mode and the hint maps to a known DLL key, try it next
-            if ($Dll -eq "Auto") {
-                $hintKey = $null
-                if ($hint -eq "Core") { $hintKey = "Core" }
-                elseif ($hint -eq "Assembly-CSharp") { $hintKey = "Asm" }
-                elseif ($hint -match "SharedClientCore") { $hintKey = "Shared" }
-                elseif ($hint -match "GreProtobuf") { $hintKey = "Gre" }
-                if ($hintKey -and $searchOrder -notcontains $hintKey) {
-                    $searchOrder += $hintKey
-                }
-            }
-        } else {
-            Write-Host "  [ERR] $dllKey failed: $errMsg" -ForegroundColor Red
+    } else {
+        Write-Host "  [MISS] No code output from $dllKey" -ForegroundColor Yellow
+        if ($dllKey -eq $searchOrder[-1] -and $errStr) {
+            Write-Host "  Last attempt error: $($errStr.Substring(0, [Math]::Min(200, $errStr.Length)))" -ForegroundColor DarkGray
         }
     }
 }
@@ -153,3 +159,7 @@ if (-not $success) {
     Write-Host "  Hint: Check the full namespace. Use type-index.md for known mappings." -ForegroundColor Yellow
     exit 1
 }
+
+# Explicit, so decompile-all.ps1's $LASTEXITCODE check sees this script's result rather than
+# ilspycmd's, which is non-zero even on a successful decompile.
+exit 0
