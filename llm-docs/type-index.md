@@ -337,6 +337,37 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | CollationMapping | Wotc.Mtga.Wrapper.CollationMapping | Shared |
 | CollationMappingExtensions | Wotc.Mtga.Wrapper.CollationMappingExtensions | Shared |
 
+## Profile Screen (reworked 2026-08-10)
+
+The per-cosmetic buttons and text fields on ProfileContentController were replaced by two display
+components and a CustomizationPanel holding five CosmeticSelectorOpener subclasses. Each opener
+instantiates its selector prefab on first Open(), keeps it in a private field (`_selector`, or
+`_view` for emotes), and hides it again through `HideSelector()` / `HandleSelectorClosed()`.
+`GoBackToPreviousMode` is gone — the screen-level equivalent is `GoToProfileDetails()`.
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| ProfileContentController | Core.Meta.MainNavigation.Profile.ProfileContentController | Core |
+| ProfileScreenMode | Core.Meta.MainNavigation.Profile.ProfileScreenMode | Core |
+| ProfileUsernameDisplay | Core.Meta.MainNavigation.Profile.ProfileUsernameDisplay | Core |
+| ProfileAvatarDisplay | Core.Meta.MainNavigation.Profile.ProfileAvatarDisplay | Core |
+| CustomizationPanel | Core.Meta.MainNavigation.Profile.CustomizationPanel | Core |
+| CosmeticSelectorOpener | Core.Meta.MainNavigation.Profile.CosmeticSelectorOpener | Core |
+| AvatarSelectorOpener | Core.Meta.MainNavigation.Profile.AvatarSelectorOpener | Core |
+| TitleSelectorOpener | Core.Meta.MainNavigation.Profile.TitleSelectorOpener | Core |
+| EmoteSelectorOpener | Core.Meta.MainNavigation.Profile.EmoteSelectorOpener | Core |
+| PetSelectorOpener | Core.Meta.MainNavigation.Profile.PetSelectorOpener | Core |
+| SleeveSelectorOpener | Core.Meta.MainNavigation.Profile.SleeveSelectorOpener | Core |
+| ProfileDetailsPanel | ProfileUI.ProfileDetailsPanel | Core |
+| AvatarSelectPanel | ProfileUI.AvatarSelectPanel | Core |
+| TitleSelectPanel | ProfileUI.TitleSelectPanel | Core |
+| PetPopUpV2 | Core.Meta.MainNavigation.Profile.PetPopUpV2 | Core |
+| CardBackSelectorPopup | CardBackSelectorPopup | Core |
+| EmoteSelectionController | EmoteSelectionController | Core |
+| EmoteSelectionScreenView | EmoteSelectionScreenView | Core |
+| SetCollectionControllerLogic | SetCollectionControllerLogic | Core |
+| SetCollectionScreenView | SetCollectionScreenView | Core |
+
 ## Provider / Utility Types
 
 | Short Name | Full Namespace | DLL |

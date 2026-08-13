@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "可在商店購買",
   "ProfileEmoteSaveBlocked": "裝備的表情過多。卸下一些後再次按 Backspace 儲存，或連按兩次 Backspace 放棄變更。",
   "ProfileEmoteChangesDiscarded": "已放棄表情變更",
+  "CosmeticOpenFailed_Format": "無法開啟{0}",
   "ProfileEmoteAlwaysEquipped": "{0}，始終裝備",
   "ProfileEmoteToggleFailed": "{0}，無法變更",
   "ProfileCollectionPlayset_Format": "收藏：{0}，已集滿。整套 {2} 中的 {1}，{3}%",

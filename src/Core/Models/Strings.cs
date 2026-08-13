@@ -1755,6 +1755,10 @@ namespace AccessibleArena.Core.Models
         public static string ProfileItemNotEquipped => L.Get("ProfileItemNotEquipped");
         public static string ProfileItemStore => L.Get("ProfileItemStore");
 
+        /// <summary>A cosmetic selector could not be opened, so there is no panel to navigate.</summary>
+        public static string CosmeticOpenFailed(string category) =>
+            L.Format("CosmeticOpenFailed_Format", category);
+
         // Emote selection panel (deferred commit: toggles are batched, saved on exit)
         public static string ProfileEmoteSaveBlocked => L.Get("ProfileEmoteSaveBlocked");
         public static string ProfileEmoteChangesDiscarded => L.Get("ProfileEmoteChangesDiscarded");

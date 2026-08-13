@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "disponibile nel negozio",
   "ProfileEmoteSaveBlocked": "Troppe emote equipaggiate. Rimuovine alcune e premi di nuovo Backspace per salvare, oppure premi Backspace due volte per annullare le modifiche.",
   "ProfileEmoteChangesDiscarded": "Modifiche alle emote annullate",
+  "CosmeticOpenFailed_Format": "Impossibile aprire {0}",
   "ProfileEmoteAlwaysEquipped": "{0}, sempre equipaggiato",
   "ProfileEmoteToggleFailed": "{0}, impossibile modificare",
   "ProfileCollectionPlayset_Format": "Collezione: {0}, completa. Set da gioco {1} di {2}, {3} percento",

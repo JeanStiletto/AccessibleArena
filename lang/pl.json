@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "dostępny w sklepie",
   "ProfileEmoteSaveBlocked": "Zbyt wiele wyposażonych emotek. Zdejmij kilka i naciśnij Backspace ponownie, aby zapisać, albo naciśnij Backspace dwa razy, aby odrzucić zmiany.",
   "ProfileEmoteChangesDiscarded": "Odrzucono zmiany emotek",
+  "CosmeticOpenFailed_Format": "Nie można otworzyć: {0}",
   "ProfileEmoteAlwaysEquipped": "{0}, zawsze wyposażony",
   "ProfileEmoteToggleFailed": "{0}, nie można zmienić",
   "ProfileCollectionPlayset_Format": "Kolekcja: {0}, kompletna. Pełne zestawy {1} z {2}, {3} procent",

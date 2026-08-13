@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "상점에서 구매 가능",
   "ProfileEmoteSaveBlocked": "장착된 감정표현이 너무 많습니다. 몇 개를 해제하고 Backspace를 다시 누르면 저장되며, Backspace를 두 번 누르면 변경사항이 취소됩니다.",
   "ProfileEmoteChangesDiscarded": "감정표현 변경사항 취소됨",
+  "CosmeticOpenFailed_Format": "{0}을(를) 열 수 없습니다",
   "ProfileEmoteAlwaysEquipped": "{0}, 항상 장착됨",
   "ProfileEmoteToggleFailed": "{0}, 변경할 수 없음",
   "ProfileCollectionPlayset_Format": "컬렉션: {0}, 완성됨. 플레이세트 {2}개 중 {1}개, {3}퍼센트",

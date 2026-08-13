@@ -1232,6 +1232,7 @@
   "ProfileItemStore": "im Shop erhältlich",
   "ProfileEmoteSaveBlocked": "Zu viele Emotes ausgerüstet. Rüste einige ab und drücke erneut Rücktaste zum Speichern, oder drücke zweimal Rücktaste, um die Änderungen zu verwerfen.",
   "ProfileEmoteChangesDiscarded": "Emote-Änderungen verworfen",
+  "CosmeticOpenFailed_Format": "{0} konnte nicht geöffnet werden",
   "ProfileEmoteAlwaysEquipped": "{0}, immer ausgerüstet",
   "ProfileEmoteToggleFailed": "{0}, konnte nicht geändert werden",
   "ScreenSetCollection": "Set-Sammlung",

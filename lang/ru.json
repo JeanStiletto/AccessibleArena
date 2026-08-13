@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "доступно в магазине",
   "ProfileEmoteSaveBlocked": "Экипировано слишком много эмоций. Снимите несколько и нажмите Backspace снова, чтобы сохранить, или нажмите Backspace дважды, чтобы отменить изменения.",
   "ProfileEmoteChangesDiscarded": "Изменения эмоций отменены",
+  "CosmeticOpenFailed_Format": "Не удалось открыть {0}",
   "ProfileEmoteAlwaysEquipped": "{0}, всегда экипировано",
   "ProfileEmoteToggleFailed": "{0}, не удалось изменить",
   "ProfileCollectionPlayset_Format": "Коллекция: {0}, завершена. Полные комплекты {1} из {2}, {3} процентов",

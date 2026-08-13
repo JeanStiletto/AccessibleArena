@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "ショップで購入可能",
   "ProfileEmoteSaveBlocked": "装備中のエモートが多すぎます。いくつか外してもう一度Backspaceを押すと保存します。Backspaceを2回押すと変更を破棄します。",
   "ProfileEmoteChangesDiscarded": "エモートの変更を破棄しました",
+  "CosmeticOpenFailed_Format": "{0}を開けませんでした",
   "ProfileEmoteAlwaysEquipped": "{0}、常に装備中",
   "ProfileEmoteToggleFailed": "{0}、変更できません",
   "ProfileCollectionPlayset_Format": "コレクション: {0}、コンプリート。プレイセット {2} 中 {1}、{3} パーセント",

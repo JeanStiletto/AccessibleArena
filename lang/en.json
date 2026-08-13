@@ -1234,6 +1234,7 @@
   "ProfileItemStore": "available in store",
   "ProfileEmoteSaveBlocked": "Too many emotes equipped. Unequip some and press backspace again to save, or press backspace twice to discard your changes.",
   "ProfileEmoteChangesDiscarded": "Emote changes discarded",
+  "CosmeticOpenFailed_Format": "Could not open {0}",
   "ProfileEmoteAlwaysEquipped": "{0}, always equipped",
   "ProfileEmoteToggleFailed": "{0}, could not change",
   "ScreenSetCollection": "Set Collection",

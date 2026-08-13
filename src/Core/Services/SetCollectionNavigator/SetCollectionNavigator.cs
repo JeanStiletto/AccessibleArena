@@ -17,7 +17,7 @@ namespace AccessibleArena.Core.Services
     /// The screen is a browse view: filter controls narrow a list of set badges, and the
     /// selected set expands into eleven completion meters (total, four rarities, six colors).
     /// Sighted players read the meters off a widget row; none of it carries text, so every
-    /// number here is read straight out of <c>SetCollectionController</c> rather than the UI.
+    /// number here is read straight out of <c>SetCollectionControllerLogic</c> rather than the UI.
     ///
     /// Navigation mirrors <see cref="StoreNavigator"/>'s drill-down levels:
     ///   Filters → (Enter) → Sets → (Enter) → Actions, Backspace walks back up and out.
@@ -32,8 +32,12 @@ namespace AccessibleArena.Core.Services
         // below AchievementsNavigator (57)... note: 58 keeps it clear of both.
         private const int SetCollectionPriority = 58;
 
-        /// <summary>ProfileScreenModeEnum.SetCollection</summary>
-        private const int SetCollectionMode = 6;
+        /// <summary>
+        /// ProfileScreenMode.SetCollection. The 2026-08-10 profile rework inserted PetSelect ahead
+        /// of SetCollection in the enum, shifting this from 6 to 7 — at 6 the navigator would take
+        /// over the pet selector and never the collection screen.
+        /// </summary>
+        private const int SetCollectionMode = 7;
 
         #endregion
 
@@ -56,7 +60,7 @@ namespace AccessibleArena.Core.Services
 
         private MonoBehaviour _profileController;   // ProfileContentController
         private MonoBehaviour _screenView;          // SetCollectionScreenView
-        private object _collectionController;       // SetCollectionController
+        private object _collectionController;       // SetCollectionControllerLogic
 
         #endregion
 
@@ -83,7 +87,7 @@ namespace AccessibleArena.Core.Services
         {
             public InfoKind Kind;
             public string Label;
-            public object Metric;           // boxed SetCollectionController.Metrics
+            public object Metric;           // boxed SetCollectionMetrics
         }
 
         private readonly List<SetEntry> _sets = new List<SetEntry>();
@@ -129,7 +133,9 @@ namespace AccessibleArena.Core.Services
             {
                 var h = new SetCollectionHandles
                 {
-                    Controller = viewType.GetField("_controller", PrivateInstance),
+                    // Renamed with the SetCollectionController → SetCollectionControllerLogic split.
+                    Controller = viewType.GetField("_controllerLogic", PrivateInstance)
+                                 ?? viewType.GetField("_controller", PrivateInstance),
                     SetBadges = viewType.GetField("_setBadges", PrivateInstance),
                     SelectedBadge = viewType.GetField("_selectedBadge", PrivateInstance),
                     SortDropdown = viewType.GetField("_sortDropDown", PrivateInstance),

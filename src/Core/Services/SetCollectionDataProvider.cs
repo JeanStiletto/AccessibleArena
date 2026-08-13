@@ -7,7 +7,7 @@ using T = AccessibleArena.Core.Constants.GameTypeNames;
 namespace AccessibleArena.Core.Services
 {
     /// <summary>
-    /// Reads collection completion numbers out of the game's <c>SetCollectionController</c>.
+    /// Reads collection completion numbers out of the game's <c>SetCollectionControllerLogic</c>.
     ///
     /// The controller keeps owned/available counts per (set, metric) pair, where a metric is the
     /// total, one of four rarities, or one of six colors. Nothing about those numbers reaches the
@@ -46,10 +46,17 @@ namespace AccessibleArena.Core.Services
                     GetMostRecentExpansion = controllerType.GetMethod("GetMostRecentExpansion", PublicInstance),
                     UpdateOwnedCards = controllerType.GetMethod("UpdateOwnedCards", PublicInstance),
                     UpdateMetricTotalsPerSet = controllerType.GetMethod("UpdateMetricTotalsPerSet", PublicInstance),
-                    MetricsEnumType = controllerType.GetNestedType("Metrics", BindingFlags.Public | BindingFlags.NonPublic),
                 };
 
-                var totalsType = controllerType.GetNestedType("MetricTotals", BindingFlags.Public | BindingFlags.NonPublic);
+                // Metrics and MetricTotals used to be nested inside SetCollectionController; the
+                // 2026-08-10 split into SetCollectionControllerLogic promoted both to top-level
+                // types (SetCollectionMetrics / MetricTotals). Reading them off GetMetricTotals's
+                // own signature covers either shape and survives the next rename too.
+                h.MetricsEnumType = controllerType.GetNestedType("Metrics", BindingFlags.Public | BindingFlags.NonPublic)
+                    ?? MetricParameterType(h.GetMetricTotals);
+
+                var totalsType = controllerType.GetNestedType("MetricTotals", BindingFlags.Public | BindingFlags.NonPublic)
+                    ?? h.GetMetricTotals?.ReturnType;
                 if (totalsType != null)
                 {
                     h.NumOwned = totalsType.GetField("numOwned", AllInstanceFlags);
@@ -71,7 +78,22 @@ namespace AccessibleArena.Core.Services
             validator: h => h.GetMetricTotals != null && h.MetricsEnumType != null
                          && h.NumOwned != null && h.NumAvailable != null,
             logTag: "SetCollectionData",
-            logSubject: T.SetCollectionController);
+            logSubject: T.SetCollectionControllerLogic);
+
+        /// <summary>
+        /// The metric enum type, taken from GetMetricTotals(string expansionCode, TMetric metric).
+        /// </summary>
+        private static Type MetricParameterType(MethodInfo getMetricTotals)
+        {
+            var parameters = getMetricTotals?.GetParameters();
+            if (parameters == null) return null;
+
+            foreach (var p in parameters)
+            {
+                if (p.ParameterType.IsEnum) return p.ParameterType;
+            }
+            return null;
+        }
 
         private static CollectionHandles H => _cache.Handles;
 
@@ -86,7 +108,7 @@ namespace AccessibleArena.Core.Services
 
         #region Metrics
 
-        /// <summary>Boxed <c>SetCollectionController.Metrics</c> value, or null if unavailable.</summary>
+        /// <summary>Boxed metric-enum value (SetCollectionMetrics), or null if unavailable.</summary>
         public static object GetMetric(string enumName)
         {
             if (H?.MetricsEnumType == null || string.IsNullOrEmpty(enumName)) return null;

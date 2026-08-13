@@ -2,6 +2,22 @@
 
 All notable changes to Accessible Arena.
 
+## v1.4.9
+
+Profile screen fixed after the 13 August game update:
+
+- The Profile screen speaks again. The update rebuilt the screen from the ground up: the player name and the avatar blurb moved into two new components, and the five cosmetic buttons — avatar, title, emote, pet, sleeve — were replaced by a shared customization panel that the game can lay out in either of two ways. Nothing the mod looked for existed any more, so it failed to read the screen and then hit an error on every check, which stopped announcements dead. The mod now reads the new components, and finds the cosmetic categories through the customization panel the screen is actually using rather than assuming one layout. Reported and diagnosed by **@patricus3** (issue #117, PR #118), who traced the freeze to the reflection lookups coming back empty and identified the two new display components and the customization panel that replaced them; reimplemented here against the live game so that all five cosmetics share one open, detect and close path, and so that the screen degrades rather than falls silent if these pieces move again.
+
+- Backspace closes every cosmetic selector again. The method the mod used to back out of a selector was removed in the update, and selectors are no longer screen modes at all — each one is a panel that the game shows and hides on demand. Backspace now closes them the same way the game's own back button does, which also brings the cosmetic buttons back with it. This covers all five categories; previously only the emote panel had a working close path.
+
+- Opening a cosmetic category no longer relies on its button being visible. The new layout hides the whole button row while a selector is open, so the mod asks the game to open the selector directly. If that fails, or if the panel never appears, you now hear that it could not be opened instead of being left on a screen that says nothing.
+
+- The set collection line on the Profile screen reads its numbers again, and Enter on it opens the full Set Collection screen again. The update split the game's collection code into a new class and moved two of its inner types out to the top level, which broke both the reading and the screen detection — the Set Collection screen's position in the game's own screen list shifted by one, so the mod was watching for the pet selector instead.
+
+- If a future update moves these pieces again, the Profile screen degrades instead of going silent, and the log names what it could not find.
+
+- All five cosmetic panels are now opened, detected and closed by one code path. The game used to present them as two different kinds of thing and the mod followed suit, recognising three of them by matching text in the panel's internal name — so a renamed panel would have gone unnoticed. The rework gave all five a common owner, and the mod now identifies them by asking that owner directly, which is exact rather than a guess.
+
 ## v1.4.8
 
 Braille output restored:

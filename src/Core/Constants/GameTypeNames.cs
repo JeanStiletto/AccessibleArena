@@ -112,18 +112,12 @@ namespace AccessibleArena.Core.Constants
         public const string ProfileContentController = "ProfileContentController";
         public const string ProfileDetailsPanel = "ProfileDetailsPanel";
         public const string RankDisplay = "RankDisplay";
-        public const string CosmeticSelectorController = "CosmeticSelectorController";
         public const string AvatarSelectPanel = "AvatarSelectPanel";
         public const string EmoteSelectionScreenView = "EmoteSelectionScreenView";
-        public const string DisplayItemAvatar = "DisplayItemAvatar";
-        public const string DisplayItemTitle = "DisplayItemTitle";
-        public const string DisplayItemEmote = "DisplayItemEmote";
-        public const string DisplayItemPet = "DisplayItemPet";
-        public const string DisplayItemSleeve = "DisplayItemSleeve";
         public const string ObjectiveBubble = "ObjectiveBubble";
         public const string SetBadge = "SetBadge";
         public const string SetCollectionScreenView = "SetCollectionScreenView";
-        public const string SetCollectionController = "SetCollectionController";
+        public const string SetCollectionControllerLogic = "SetCollectionControllerLogic";
         public const string MetricMeter = "MetricMeter";
 
         // --- Fully-Qualified Type Names (for FindType lookups) ---

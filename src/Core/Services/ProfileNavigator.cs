@@ -24,6 +24,15 @@ namespace AccessibleArena.Core.Services
 
         private const int ProfilePriority = 56;
         private const float SubPanelPollInterval = 0.3f;
+        // Selectors are instantiated from a prefab on first open, so give the load real headroom
+        // before reporting that the panel never came up.
+        private const float SubPanelPollTimeoutSeconds = 6f;
+
+        /// <summary>
+        /// The five cosmetic categories, in the order they appear on the screen. All of them are
+        /// opened, detected and closed the same way — only their item contents differ.
+        /// </summary>
+        private static readonly string[] CosmeticTypes = { "Avatar", "Title", "Emote", "Pet", "Sleeve" };
 
         #endregion
 
@@ -50,8 +59,11 @@ namespace AccessibleArena.Core.Services
         private int _subPanelIndex;
         private int _savedMainIndex;
         private float _subPanelPollTimer;
-        private bool _pollForMonoBehaviourPanels; // Poll for Avatar/Emote panels (not PopupBase)
-        private GameObject _popupSubPanelGo;      // Captured popup root for Pet/Title/Sleeve (PopupBase types)
+        private float _subPanelPollElapsed;        // Total time spent waiting for a selector to appear
+        private bool _pollForSelectorPanel;       // Waiting for a just-opened cosmetic selector to appear
+        // The opener behind the sub-panel currently open. Every cosmetic selector is created and
+        // shown by one of these, so it is also the one handle that can close any of them again.
+        private MonoBehaviour _activeOpener;
         private float _rescanDelay;               // Countdown for silent info-block rescan after sub-panel exit
         private bool _persistedDuringSubPanel;    // Marks "user actually applied a cosmetic change" so ExitSubPanel can schedule a rescan
 
@@ -72,6 +84,7 @@ namespace AccessibleArena.Core.Services
             public bool IsActivatable;        // Whether Enter should activate this item
             public string CosmeticType;       // null for info, "Avatar"/"Title"/etc. for cosmetics
             public bool OpensSetCollection;   // Enter opens the full set collection screen
+            public MonoBehaviour CosmeticOpener; // CosmeticSelectorOpener driving this category
         }
 
         private struct SubPanelItem
@@ -89,30 +102,51 @@ namespace AccessibleArena.Core.Services
         private sealed class ProfileHandles
         {
             // ProfileContentController
-            public FieldInfo UsernameText;
-            public FieldInfo AvatarNameText;
-            public FieldInfo AvatarBioText;
+            public FieldInfo UsernameDisplay;        // _usernameDisplay (ProfileUsernameDisplay)
+            public FieldInfo AvatarDisplay;          // _avatarDisplay (ProfileAvatarDisplay)
             public FieldInfo ProfileDetailsPanel;
-            public FieldInfo ProfileScreenMode;
-            public FieldInfo AvatarButton;
-            public FieldInfo EmoteButton;
-            public FieldInfo PetButton;
-            public FieldInfo SleeveButton;
-            public FieldInfo TitleButton;
-            public FieldInfo CosmeticSelector;
-            public FieldInfo CosmeticSelectorsTransform;
-            public FieldInfo AvatarDisplayItem;
-            public FieldInfo EmoteDisplayItem;
-            public FieldInfo PetDisplayItem;
-            public FieldInfo SleeveDisplayItem;
-            public FieldInfo TitleDisplayItem;
+            public FieldInfo UseNewNavigationBar;    // _useNewNavigationBar — picks which host is live
+            public FieldInfo CustomizationPanelNew;  // _customizationPanel (new nav bar layout)
+            public FieldInfo CustomizationPanelOld;  // _oldCustomizationHost (legacy layout)
+            public MethodInfo GoToProfileDetails;    // replaces the removed GoBackToPreviousMode
+
+            // ProfileUsernameDisplay / ProfileAvatarDisplay — the username and avatar blurb moved
+            // off the controller into these two components in the 2026-08-10 profile rework.
+            public PropertyInfo UsernameText;        // ProfileUsernameDisplay.Text
+            public FieldInfo AvatarNameText;         // ProfileAvatarDisplay._avatarNameText (Localize)
+            public FieldInfo AvatarBioText;          // ProfileAvatarDisplay._avatarBioText (Localize)
+
+            // CustomizationPanel — holds the five opener components that replaced the old buttons
+            public FieldInfo AvatarOpener;
+            public FieldInfo TitleOpener;
+            public FieldInfo EmoteOpener;
+            public FieldInfo PetOpener;
+            public FieldInfo SleeveOpener;
+
+            // CosmeticSelectorOpener — the shared base of all five openers.
+            // Open() instantiates the selector on first use and shows it; HideSelector() hides it;
+            // HandleSelectorClosed() is what each selector's own back button is wired to, so it is
+            // the one close path that also re-shows the opener buttons (via the Closed event).
+            public MethodInfo OpenerOpen;
+            public MethodInfo OpenerHideSelector;
+            public MethodInfo OpenerHandleSelectorClosed;
+
+            // Per-opener selector instance, used to tell whether that cosmetic's panel is showing.
+            // Every opener lazily instantiates its selector into a private field: Avatar/Pet/Sleeve/
+            // Title call it _selector, Emote calls it _view.
+            public FieldInfo AvatarOpenerSelector;
+            public FieldInfo TitleOpenerSelector;
+            public FieldInfo PetOpenerSelector;
+            public FieldInfo SleeveOpenerSelector;
+            public FieldInfo EmoteOpenerView;
+            public FieldInfo EmoteOpenerController;  // EmoteSelectorOpener._controller
 
             // ProfileDetailsPanel
             public FieldInfo ConstructedRank;
             public FieldInfo LimitedRank;
             public FieldInfo SeasonName;
             public FieldInfo BattlePassBubble;
-            public FieldInfo CollectionController;   // SetCollectionController behind the badge
+            public FieldInfo CollectionController;   // SetCollectionControllerLogic behind the badge
             public FieldInfo SetMetadataProvider;
             public MethodInfo SetCollectionClicked;  // opens the full set collection screen
 
@@ -146,8 +180,7 @@ namespace AccessibleArena.Core.Services
             public Type EmoteViewType;
             public FieldInfo EmoteIsEquipped;
             public PropertyInfo EmoteViewId;
-            public FieldInfo EmoteSelector;             // DisplayItemEmote._selector
-            public FieldInfo EmoteDataProvider;         // DisplayItemEmote._emoteDataProvider
+            public FieldInfo EmoteDataProvider;         // EmoteSelectionController._emoteDataProvider
             public MethodInfo EmoteGetDefaultData;      // IEmoteDataProvider.GetDefaultEmoteData()
             public MethodInfo EmoteSaveAndHide;         // EmoteSelectionController.SaveAndHide()
             public MethodInfo EmoteSelectorClose;       // EmoteSelectionController.Close()
@@ -163,24 +196,54 @@ namespace AccessibleArena.Core.Services
                 var h = new ProfileHandles
                 {
                     // Controller
-                    UsernameText = t.GetField("UsernameText", AllInstanceFlags),
-                    AvatarNameText = t.GetField("AvatarNameText", AllInstanceFlags),
-                    AvatarBioText = t.GetField("AvatarBioText", AllInstanceFlags),
+                    UsernameDisplay = t.GetField("_usernameDisplay", PrivateInstance),
+                    AvatarDisplay = t.GetField("_avatarDisplay", PrivateInstance),
                     ProfileDetailsPanel = t.GetField("ProfileDetailsPanel", AllInstanceFlags),
-                    ProfileScreenMode = t.GetField("_profileScreenMode", PrivateInstance),
-                    AvatarButton = t.GetField("_avatarButton", PrivateInstance),
-                    EmoteButton = t.GetField("_emoteButton", PrivateInstance),
-                    PetButton = t.GetField("_petButton", PrivateInstance),
-                    SleeveButton = t.GetField("_sleeveButton", PrivateInstance),
-                    TitleButton = t.GetField("_titleButton", PrivateInstance),
-                    CosmeticSelector = t.GetField("_cosmeticSelectorController", PrivateInstance),
-                    CosmeticSelectorsTransform = t.GetField("_cosmeticSelectorsTransform", PrivateInstance),
-                    AvatarDisplayItem = t.GetField("_avatarDisplayItem", PrivateInstance),
-                    EmoteDisplayItem = t.GetField("_emoteDisplayItem", PrivateInstance),
-                    PetDisplayItem = t.GetField("_petDisplayItem", PrivateInstance),
-                    SleeveDisplayItem = t.GetField("_sleeveDisplayItem", PrivateInstance),
-                    TitleDisplayItem = t.GetField("_titleDisplayItem", PrivateInstance),
+                    UseNewNavigationBar = t.GetField("_useNewNavigationBar", PrivateInstance),
+                    CustomizationPanelNew = t.GetField("_customizationPanel", PrivateInstance),
+                    CustomizationPanelOld = t.GetField("_oldCustomizationHost", PrivateInstance),
+                    GoToProfileDetails = t.GetMethod("GoToProfileDetails", PublicInstance, null, Type.EmptyTypes, null),
                 };
+
+                var usernameDisplayType = FindType("Core.Meta.MainNavigation.Profile.ProfileUsernameDisplay");
+                if (usernameDisplayType != null)
+                    h.UsernameText = usernameDisplayType.GetProperty("Text", PublicInstance);
+
+                var avatarDisplayType = FindType("Core.Meta.MainNavigation.Profile.ProfileAvatarDisplay");
+                if (avatarDisplayType != null)
+                {
+                    h.AvatarNameText = avatarDisplayType.GetField("_avatarNameText", PrivateInstance);
+                    h.AvatarBioText = avatarDisplayType.GetField("_avatarBioText", PrivateInstance);
+                }
+
+                var customizationPanelType = FindType("Core.Meta.MainNavigation.Profile.CustomizationPanel");
+                if (customizationPanelType != null)
+                {
+                    h.AvatarOpener = customizationPanelType.GetField("_avatarOpener", PrivateInstance);
+                    h.TitleOpener = customizationPanelType.GetField("_titleOpener", PrivateInstance);
+                    h.EmoteOpener = customizationPanelType.GetField("_emoteOpener", PrivateInstance);
+                    h.PetOpener = customizationPanelType.GetField("_petOpener", PrivateInstance);
+                    h.SleeveOpener = customizationPanelType.GetField("_sleeveOpener", PrivateInstance);
+                }
+
+                var openerBaseType = FindType("Core.Meta.MainNavigation.Profile.CosmeticSelectorOpener");
+                if (openerBaseType != null)
+                {
+                    h.OpenerOpen = openerBaseType.GetMethod("Open", PublicInstance, null, Type.EmptyTypes, null);
+                    h.OpenerHideSelector = openerBaseType.GetMethod("HideSelector", PublicInstance, null, Type.EmptyTypes, null);
+                    h.OpenerHandleSelectorClosed = openerBaseType.GetMethod("HandleSelectorClosed",
+                        BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                }
+
+                // The selector instance lives on the concrete opener, not the base, so each one has
+                // to be bound against its own type — GetField with private flags never sees a base
+                // class's privates.
+                h.AvatarOpenerSelector = GetOpenerSelectorField("AvatarSelectorOpener", "_selector");
+                h.TitleOpenerSelector = GetOpenerSelectorField("TitleSelectorOpener", "_selector");
+                h.PetOpenerSelector = GetOpenerSelectorField("PetSelectorOpener", "_selector");
+                h.SleeveOpenerSelector = GetOpenerSelectorField("SleeveSelectorOpener", "_selector");
+                h.EmoteOpenerView = GetOpenerSelectorField("EmoteSelectorOpener", "_view");
+                h.EmoteOpenerController = GetOpenerSelectorField("EmoteSelectorOpener", "_controller");
 
                 var detailsType = FindType("ProfileUI.ProfileDetailsPanel");
                 if (detailsType != null)
@@ -189,7 +252,7 @@ namespace AccessibleArena.Core.Services
                     h.LimitedRank = detailsType.GetField("_limitedRankDisplay", PrivateInstance);
                     h.SeasonName = detailsType.GetField("_seasonNameRankText", PrivateInstance);
                     h.BattlePassBubble = detailsType.GetField("_battlePassBubble", PrivateInstance);
-                    h.CollectionController = detailsType.GetField("_collectionController", PrivateInstance);
+                    h.CollectionController = detailsType.GetField("_collectionControllerLogic", PrivateInstance);
                     h.SetMetadataProvider = detailsType.GetField("_setMetadataProvider", PrivateInstance);
                     h.SetCollectionClicked = detailsType.GetMethod("SetCollectionClicked", PublicInstance);
                 }
@@ -230,13 +293,6 @@ namespace AccessibleArena.Core.Services
                     h.EmoteViewId = h.EmoteViewType.GetProperty("Id", PublicInstance);
                 }
 
-                var displayItemEmoteType = FindType("DisplayItemEmote");
-                if (displayItemEmoteType != null)
-                {
-                    h.EmoteSelector = displayItemEmoteType.GetField("_selector", PrivateInstance);
-                    h.EmoteDataProvider = displayItemEmoteType.GetField("_emoteDataProvider", PrivateInstance);
-                }
-
                 var emoteProviderType = FindType("IEmoteDataProvider");
                 if (emoteProviderType != null)
                     h.EmoteGetDefaultData = emoteProviderType.GetMethod("GetDefaultEmoteData", PublicInstance);
@@ -244,6 +300,7 @@ namespace AccessibleArena.Core.Services
                 var emoteSelectorType = FindType("EmoteSelectionController");
                 if (emoteSelectorType != null)
                 {
+                    h.EmoteDataProvider = emoteSelectorType.GetField("_emoteDataProvider", PrivateInstance);
                     h.EmoteSaveAndHide = emoteSelectorType.GetMethod("SaveAndHide", PublicInstance, null, Type.EmptyTypes, null);
                     h.EmoteSelectorClose = emoteSelectorType.GetMethod("Close", PublicInstance, null, Type.EmptyTypes, null);
                     h.EmoteHasUnsavedChanges = emoteSelectorType.GetProperty("HasUnsavedChanges", PublicInstance);
@@ -257,13 +314,48 @@ namespace AccessibleArena.Core.Services
                     h.EmoteStickersText = emoteScreenViewType.GetField("_stickersText", PrivateInstance);
                 }
 
+                WarnIfCosmeticsUnavailable(h);
                 return h;
             },
-            validator: h => h.UsernameText != null && h.AvatarButton != null
+            // Only the main-screen reading path is required. The cosmetic openers are reported
+            // separately by WarnIfCosmeticsUnavailable so that a rework of the customization host
+            // costs the user the five cosmetic entries, not the whole Profile screen.
+            validator: h => h.UsernameDisplay != null && h.UsernameText != null
                          && h.ProfileDetailsPanel != null && h.ConstructedRank != null
                          && h.RankTierText != null,
             logTag: "Profile",
             logSubject: "ProfileContentController");
+
+        /// <summary>
+        /// Binds a concrete opener's private selector field. Each of the five openers declares its
+        /// own selector instance, so the lookup has to go against the derived type — a private
+        /// field on a base class is invisible to GetField on the subclass.
+        /// </summary>
+        private static FieldInfo GetOpenerSelectorField(string openerTypeName, string fieldName)
+        {
+            var type = FindType("Core.Meta.MainNavigation.Profile." + openerTypeName);
+            return type?.GetField(fieldName, PrivateInstance);
+        }
+
+        /// <summary>
+        /// The cosmetic categories are optional as far as the cache validator is concerned, so an
+        /// unresolved opener would otherwise vanish from the screen with no trace in the log.
+        /// </summary>
+        private static void WarnIfCosmeticsUnavailable(ProfileHandles h)
+        {
+            var missing = new List<string>();
+            if (h.CustomizationPanelNew == null && h.CustomizationPanelOld == null) missing.Add("CustomizationPanel host");
+            if (h.AvatarOpener == null) missing.Add("_avatarOpener");
+            if (h.TitleOpener == null) missing.Add("_titleOpener");
+            if (h.EmoteOpener == null) missing.Add("_emoteOpener");
+            if (h.PetOpener == null) missing.Add("_petOpener");
+            if (h.SleeveOpener == null) missing.Add("_sleeveOpener");
+            if (h.OpenerOpen == null) missing.Add("CosmeticSelectorOpener.Open");
+            if (h.OpenerHandleSelectorClosed == null) missing.Add("CosmeticSelectorOpener.HandleSelectorClosed");
+
+            if (missing.Count > 0)
+                Log.Warn("Profile", $"Cosmetic categories unavailable, missing: {string.Join(", ", missing)}");
+        }
 
         #endregion
 
@@ -446,12 +538,40 @@ namespace AccessibleArena.Core.Services
                 });
             }
 
-            // 8-12. Cosmetic category buttons
-            AddCosmeticButton(_profileCache.Handles.AvatarButton, "Avatar");
-            AddCosmeticButton(_profileCache.Handles.TitleButton, "Title");
-            AddCosmeticButton(_profileCache.Handles.EmoteButton, "Emote");
-            AddCosmeticButton(_profileCache.Handles.PetButton, "Pet");
-            AddCosmeticButton(_profileCache.Handles.SleeveButton, "Sleeve");
+            // 8-12. Cosmetic categories, read off the live CustomizationPanel's five openers.
+            var host = GetActiveCustomizationHost();
+            if (host != null)
+            {
+                foreach (string type in CosmeticTypes)
+                    AddCosmeticOpener(host, GetOpenerField(_profileCache.Handles, type), type);
+            }
+        }
+
+        /// <summary>
+        /// Mirrors ProfileContentController.ActiveCustomizationHost. The screen ships both layouts
+        /// side by side and picks between them with _useNewNavigationBar: the new navigation bar
+        /// routes the cosmetic buttons through _customizationPanel, the legacy layout through
+        /// _oldCustomizationHost. Reading the wrong one yields openers that are never shown.
+        /// </summary>
+        private MonoBehaviour GetActiveCustomizationHost()
+        {
+            var h = _profileCache.Handles;
+            if (h == null || _controller == null) return null;
+
+            try
+            {
+                bool useNew = h.UseNewNavigationBar != null
+                    && h.UseNewNavigationBar.GetValue(_controller) as bool? == true;
+                var field = useNew ? h.CustomizationPanelNew : h.CustomizationPanelOld;
+                return field?.GetValue(_controller) as MonoBehaviour
+                    // Either layout may be left unassigned in the prefab; fall back to the other.
+                    ?? (useNew ? h.CustomizationPanelOld : h.CustomizationPanelNew)?.GetValue(_controller) as MonoBehaviour;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Reading the customization host failed: {ex.Message}");
+                return null;
+            }
         }
 
         private void EnsureDetailsPanel()
@@ -461,7 +581,7 @@ namespace AccessibleArena.Core.Services
 
             _detailsPanel = null;
 
-            if (_profileCache.Handles.ProfileDetailsPanel != null && _controller != null)
+            if (_profileCache.Handles?.ProfileDetailsPanel != null && _controller != null)
             {
                 try
                 {
@@ -480,12 +600,14 @@ namespace AccessibleArena.Core.Services
 
         private string ReadUsername()
         {
-            if (_profileCache.Handles.UsernameText == null || _controller == null) return null;
+            var h = _profileCache.Handles;
+            if (h?.UsernameDisplay == null || h.UsernameText == null || _controller == null) return null;
             try
             {
-                var tmpText = _profileCache.Handles.UsernameText.GetValue(_controller) as TMP_Text;
-                if (tmpText == null) return null;
-                string text = tmpText.text;
+                // ProfileUsernameDisplay.Text is a passthrough to its own TMP_Text.
+                var display = h.UsernameDisplay.GetValue(_controller);
+                if (display == null) return null;
+                string text = h.UsernameText.GetValue(display) as string;
                 if (string.IsNullOrEmpty(text)) return null;
                 // Strip rich text color tags (game adds <color=#696969>#1234</color> suffix)
                 text = UITextExtractor.CleanText(text);
@@ -496,21 +618,27 @@ namespace AccessibleArena.Core.Services
 
         private string ReadAvatarInfo()
         {
-            if (_controller == null) return null;
+            var h = _profileCache.Handles;
+            if (h?.AvatarDisplay == null || _controller == null) return null;
 
-            string name = ReadLocalizeText(_profileCache.Handles.AvatarNameText);
-            string bio = ReadLocalizeText(_profileCache.Handles.AvatarBioText);
+            object display;
+            try { display = h.AvatarDisplay.GetValue(_controller); }
+            catch { return null; }
+            if (display == null) return null;
+
+            string name = ReadLocalizeText(display, h.AvatarNameText);
+            string bio = ReadLocalizeText(display, h.AvatarBioText);
 
             if (string.IsNullOrEmpty(name)) return null;
             return Strings.ProfileAvatar(name, bio ?? "");
         }
 
-        private string ReadLocalizeText(FieldInfo localizeField)
+        private string ReadLocalizeText(object source, FieldInfo localizeField)
         {
-            if (localizeField == null || _controller == null) return null;
+            if (localizeField == null || source == null) return null;
             try
             {
-                var localize = localizeField.GetValue(_controller) as MonoBehaviour;
+                var localize = localizeField.GetValue(source) as MonoBehaviour;
                 if (localize == null) return null;
 
                 // Read TMP_Text from the Localize component's game object
@@ -655,7 +783,7 @@ namespace AccessibleArena.Core.Services
         /// so the badge's tooltip and _expansionCode are never populated and there is no set name
         /// to scrape. The percentage label is also ambiguous: the game reuses it for playset
         /// completion once the set is complete at one-of. Both problems go away by reading the
-        /// same SetCollectionController the badge itself is fed from.
+        /// same SetCollectionControllerLogic the badge itself is fed from.
         /// </summary>
         private string ReadSetCollectionInfo()
         {
@@ -718,59 +846,68 @@ namespace AccessibleArena.Core.Services
             }
         }
 
-        private void AddCosmeticButton(FieldInfo buttonField, string cosmeticType)
+        /// <summary>
+        /// Adds one cosmetic category, backed by its CosmeticSelectorOpener rather than a button.
+        /// The opener's own GameObject is hidden while any selector is open (CustomizationPanel
+        /// hides the whole button row), so activeInHierarchy is deliberately not required here —
+        /// Open() works either way, and the category name stands in when the label can't be read.
+        /// </summary>
+        private void AddCosmeticOpener(MonoBehaviour host, FieldInfo openerField, string cosmeticType)
         {
-            if (buttonField == null || _controller == null) return;
+            if (openerField == null || host == null) return;
             try
             {
-                var button = buttonField.GetValue(_controller) as MonoBehaviour;
-                if (button == null || !button.gameObject.activeInHierarchy) return;
+                var opener = openerField.GetValue(host) as MonoBehaviour;
+                if (opener == null) return;
 
-                // Get the button's text label
-                string buttonLabel = UITextExtractor.GetText(button.gameObject);
-                if (string.IsNullOrEmpty(buttonLabel))
-                    buttonLabel = cosmeticType;
-
-                string label = buttonLabel;
+                string label = UITextExtractor.GetText(opener.gameObject);
+                if (string.IsNullOrEmpty(label))
+                    label = cosmeticType;
 
                 _infoBlocks.Add(new InfoBlock
                 {
                     Label = label,
-                    GameObject = button.gameObject,
+                    GameObject = opener.gameObject,
+                    CosmeticOpener = opener,
                     IsActivatable = true,
                     CosmeticType = cosmeticType
                 });
             }
             catch (Exception ex)
             {
-                Log.Warn("{NavigatorId}", $"Failed to add cosmetic button {cosmeticType}: {ex.Message}");
+                Log.Warn("{NavigatorId}", $"Failed to add cosmetic category {cosmeticType}: {ex.Message}");
             }
         }
 
-        private string ReadCurrentCosmeticValue(string cosmeticType)
+        /// <summary>The opener field for a cosmetic type, or null for an unknown type.</summary>
+        private static FieldInfo GetOpenerField(ProfileHandles h, string cosmeticType)
         {
-            // Read from the corresponding DisplayItem* field on the controller
-            var displayItemField = GetDisplayItemField(cosmeticType);
-            if (displayItemField == null || _controller == null) return null;
-
-            try
-            {
-                var displayItem = displayItemField.GetValue(_controller) as MonoBehaviour;
-                if (displayItem == null || !displayItem.gameObject.activeInHierarchy) return null;
-                return ReadFirstText(displayItem.gameObject);
-            }
-            catch { return null; }
-        }
-
-        private FieldInfo GetDisplayItemField(string cosmeticType)
-        {
+            if (h == null) return null;
             switch (cosmeticType)
             {
-                case "Avatar": return _profileCache.Handles.AvatarDisplayItem;
-                case "Title": return _profileCache.Handles.TitleDisplayItem;
-                case "Emote": return _profileCache.Handles.EmoteDisplayItem;
-                case "Pet": return _profileCache.Handles.PetDisplayItem;
-                case "Sleeve": return _profileCache.Handles.SleeveDisplayItem;
+                case "Avatar": return h.AvatarOpener;
+                case "Title": return h.TitleOpener;
+                case "Emote": return h.EmoteOpener;
+                case "Pet": return h.PetOpener;
+                case "Sleeve": return h.SleeveOpener;
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// The field holding a cosmetic's live selector instance. Avatar, Title, Pet and Sleeve
+        /// each keep theirs in _selector; the emote opener keeps its view in _view.
+        /// </summary>
+        private static FieldInfo GetOpenerSelectorField(ProfileHandles h, string cosmeticType)
+        {
+            if (h == null) return null;
+            switch (cosmeticType)
+            {
+                case "Avatar": return h.AvatarOpenerSelector;
+                case "Title": return h.TitleOpenerSelector;
+                case "Pet": return h.PetOpenerSelector;
+                case "Sleeve": return h.SleeveOpenerSelector;
+                case "Emote": return h.EmoteOpenerView;
                 default: return null;
             }
         }
@@ -783,9 +920,11 @@ namespace AccessibleArena.Core.Services
         {
             _infoIndex = 0;
             _inSubPanel = false;
-            _pollForMonoBehaviourPanels = false;
+            _pollForSelectorPanel = false;
 
-            // Enable popup detection for PopupBase panels (Title, Pet, Sleeve)
+            // Cosmetic selectors are handled by their openers and excluded in IsPopupExcluded;
+            // this is for everything else that can pop up over the profile (store redirects,
+            // the emote equip-cap modal).
             EnablePopupDetection();
         }
 
@@ -793,8 +932,9 @@ namespace AccessibleArena.Core.Services
         {
             DisablePopupDetection();
             _inSubPanel = false;
-            _pollForMonoBehaviourPanels = false;
-            _popupSubPanelGo = null;
+            _pollForSelectorPanel = false;
+            _subPanelPollElapsed = 0f;
+            _activeOpener = null;
             _rescanDelay = 0f;
             _persistedDuringSubPanel = false;
             _subPanelItems.Clear();
@@ -1169,19 +1309,25 @@ namespace AccessibleArena.Core.Services
         #region Emote Selection
 
         /// <summary>
-        /// Resolves the live EmoteSelectionController via the controller's own display item
-        /// (ProfileContentController._emoteDisplayItem → DisplayItemEmote._selector).
+        /// Resolves the live EmoteSelectionController. DisplayItemEmote is gone; the controller is
+        /// now built lazily by EmoteSelectorOpener the first time its selector is opened and kept
+        /// in EmoteSelectorOpener._controller, so it is only reachable through that opener.
         /// </summary>
         private object GetEmoteSelector()
         {
-            if (_controller == null) return null;
             var h = _profileCache.Handles;
-            if (h?.EmoteDisplayItem == null || h.EmoteSelector == null) return null;
+            if (h?.EmoteOpenerController == null) return null;
+
+            // Prefer the opener the user actually went through, but fall back to the one on the
+            // live customization host so a save can still be driven if state was lost. Only trust
+            // _activeOpener while the emote panel is the one open — it holds a different opener
+            // type for every other cosmetic.
+            var opener = (_subPanelType == "Emote" ? _activeOpener : null) ?? ResolveOpener("Emote");
+            if (opener == null) return null;
 
             try
             {
-                var displayItem = h.EmoteDisplayItem.GetValue(_controller);
-                return displayItem == null ? null : h.EmoteSelector.GetValue(displayItem);
+                return h.EmoteOpenerController.GetValue(opener);
             }
             catch (Exception ex)
             {
@@ -1198,15 +1344,15 @@ namespace AccessibleArena.Core.Services
         private HashSet<string> GetDefaultEmoteIds()
         {
             var result = new HashSet<string>();
-            if (_controller == null) return result;
             var h = _profileCache.Handles;
-            if (h?.EmoteDisplayItem == null || h.EmoteDataProvider == null || h.EmoteGetDefaultData == null)
+            if (h?.EmoteDataProvider == null || h.EmoteGetDefaultData == null)
                 return result;
 
             try
             {
-                var displayItem = h.EmoteDisplayItem.GetValue(_controller);
-                var provider = displayItem == null ? null : h.EmoteDataProvider.GetValue(displayItem);
+                // The provider moved onto the controller itself when DisplayItemEmote was removed.
+                var selector = GetEmoteSelector();
+                var provider = selector == null ? null : h.EmoteDataProvider.GetValue(selector);
                 if (provider == null) return result;
 
                 if (!(h.EmoteGetDefaultData.Invoke(provider, null) is System.Collections.IEnumerable defaults)) return result;
@@ -1431,65 +1577,115 @@ namespace AccessibleArena.Core.Services
         private void ActivateCosmeticButton(InfoBlock block)
         {
             _announcer.Announce(Strings.Activating(block.Label));
-            UIActivator.Activate(block.GameObject);
 
-            // For Avatar and Emote panels (MonoBehaviour, not PopupBase),
-            // start polling for the panel to become active
-            if (block.CosmeticType == "Avatar" || block.CosmeticType == "Emote")
-            {
-                _pollForMonoBehaviourPanels = true;
-                _subPanelPollTimer = 0;
-                _subPanelType = block.CosmeticType;
-            }
-            // Title, Pet, Sleeve are PopupBase → handled via OnPopupDetected
-        }
+            // Remember the opener for every category, not just the polled ones: it is what closes
+            // the selector again on Backspace, whichever way the panel was detected.
+            _activeOpener = block.CosmeticOpener ?? ResolveOpener(block.CosmeticType);
 
-        protected override void OnPopupDetected(PanelInfo panel)
-        {
-            if (panel?.GameObject == null)
+            if (!OpenCosmeticSelector(block))
             {
-                base.OnPopupDetected(panel);
+                _activeOpener = null;
+                _announcer.Announce(Strings.CosmeticOpenFailed(block.Label), AnnouncementPriority.High);
                 return;
             }
 
-            string panelName = panel.Name ?? "";
-
-            // Identify which cosmetic popup this is
-            string cosmeticType = null;
-            if (panelName.Contains("Title")) cosmeticType = "Title";
-            else if (panelName.Contains("Pet")) cosmeticType = "Pet";
-            else if (panelName.Contains("CardBack") || panelName.Contains("Sleeve")) cosmeticType = "Sleeve";
-
-            if (cosmeticType != null)
-            {
-                Log.Msg("{NavigatorId}", $"Cosmetic popup detected: {cosmeticType} ({panelName})");
-                _subPanelType = cosmeticType;
-                EnterSubPanel(panel.GameObject);
-            }
-            else
-            {
-                // Unknown popup - use default popup mode
-                base.OnPopupDetected(panel);
-            }
+            // Selectors are instantiated from a prefab on first open, so none of them exist yet at
+            // this point. Poll the opener until its selector shows up — the same way for all five.
+            _pollForSelectorPanel = true;
+            _subPanelPollTimer = 0;
+            _subPanelPollElapsed = 0;
+            _subPanelType = block.CosmeticType;
         }
 
-        protected override void OnPopupClosed()
+        /// <summary>
+        /// Opens a cosmetic selector through CosmeticSelectorOpener.Open(). The opener's button is
+        /// a plain click target, but by the time the user reaches this the button row may already
+        /// be hidden, so driving Open() directly is both simpler and more reliable than a synthetic
+        /// click. Falls back to activating the button if the method could not be resolved.
+        /// </summary>
+        private bool OpenCosmeticSelector(InfoBlock block)
         {
-            if (_inSubPanel)
+            var h = _profileCache.Handles;
+            if (_activeOpener != null && h?.OpenerOpen != null)
             {
-                ExitSubPanel();
+                try
+                {
+                    h.OpenerOpen.Invoke(_activeOpener, null);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("{NavigatorId}", $"Opener.Open() failed for {block.CosmeticType}: {ex.Message}");
+                }
             }
+
+            if (block.GameObject == null) return false;
+            UIActivator.Activate(block.GameObject);
+            return true;
+        }
+
+        /// <summary>Re-reads a cosmetic type's opener from the live customization host.</summary>
+        private MonoBehaviour ResolveOpener(string cosmeticType)
+        {
+            var host = GetActiveCustomizationHost();
+            var field = GetOpenerField(_profileCache.Handles, cosmeticType);
+            if (host == null || field == null) return null;
+
+            try { return field.GetValue(host) as MonoBehaviour; }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Keeps the cosmetic selectors out of generic popup mode.
+        ///
+        /// Title, Pet and Sleeve are PopupBase types, so PanelStateManager reports them — but all
+        /// five cosmetics are now entered and left through their opener, and letting the base class
+        /// also claim three of them would put the navigator in two modes at once. The match is by
+        /// GameObject identity against the live openers rather than by panel name, so it cannot
+        /// drift the way the old Contains("Title") / Contains("CardBack") test could.
+        ///
+        /// Anything else on the screen — a store redirect, the emote equip-cap modal — still gets
+        /// the base popup treatment.
+        /// </summary>
+        protected override bool IsPopupExcluded(PanelInfo panel)
+        {
+            if (base.IsPopupExcluded(panel)) return true;
+            if (panel?.GameObject == null) return false;
+            return IsCosmeticSelectorGo(panel.GameObject);
+        }
+
+        /// <summary>Whether a GameObject is one of the five openers' selector instances.</summary>
+        private bool IsCosmeticSelectorGo(GameObject go)
+        {
+            if (go == null) return false;
+
+            var host = GetActiveCustomizationHost();
+            if (host == null) return false;
+
+            foreach (string type in CosmeticTypes)
+            {
+                var openerField = GetOpenerField(_profileCache.Handles, type);
+                var selectorField = GetOpenerSelectorField(_profileCache.Handles, type);
+                if (openerField == null || selectorField == null) continue;
+
+                try
+                {
+                    var opener = openerField.GetValue(host) as MonoBehaviour;
+                    if (opener == null) continue;
+                    if (selectorField.GetValue(opener) is MonoBehaviour selector && selector.gameObject == go)
+                        return true;
+                }
+                catch { }
+            }
+
+            return false;
         }
 
         private void EnterSubPanel(GameObject panelGo)
         {
             _inSubPanel = true;
-            _pollForMonoBehaviourPanels = false;
-            // Capture popup root for Pet/Title/Sleeve so Update() can detect when the game hides it
-            // (OnConfirm → Hide()). We never enter base popup mode for cosmetic popups, so the
-            // standard OnPopupClosed path doesn't fire — we have to poll the GO ourselves.
-            _popupSubPanelGo = (_subPanelType == "Pet" || _subPanelType == "Title" || _subPanelType == "Sleeve")
-                ? panelGo : null;
+            _pollForSelectorPanel = false;
+            _subPanelPollElapsed = 0f;
             _subPanelItems.Clear();
             _subPanelIndex = 0;
 
@@ -1505,8 +1701,9 @@ namespace AccessibleArena.Core.Services
         private void ExitSubPanel()
         {
             _inSubPanel = false;
-            _pollForMonoBehaviourPanels = false;
-            _popupSubPanelGo = null;
+            _pollForSelectorPanel = false;
+            _subPanelPollElapsed = 0f;
+            _activeOpener = null;
             _subPanelItems.Clear();
             _subPanelType = null;
             _emoteDiscardArmed = false;
@@ -1552,25 +1749,68 @@ namespace AccessibleArena.Core.Services
                 _announcer.Announce(Strings.ProfileEmoteChangesDiscarded, AnnouncementPriority.High);
             }
 
-            // Try to go back via the game's GoBackToPreviousMode
-            if (_controller != null)
+            DismissCosmeticSelector();
+            ExitSubPanel();
+        }
+
+        /// <summary>
+        /// Closes whichever cosmetic selector is showing, for all five categories.
+        ///
+        /// The old GoBackToPreviousMode() is gone: cosmetic selectors are no longer screen modes at
+        /// all. Each one is a prefab that its CosmeticSelectorOpener instantiates on first use and
+        /// then just shows and hides, and every selector's own back button is wired to the opener's
+        /// HandleSelectorClosed(). Calling that is therefore exactly what the game does when the
+        /// user clicks back: it hides the selector *and* raises Closed, which is what makes
+        /// CustomizationPanel show the cosmetic button row again. Hiding the selector without that
+        /// event would leave the profile screen with no visible cosmetic buttons.
+        ///
+        /// HideSelector() is the public half of the same pair and is kept as a fallback; the
+        /// screen-level GoToProfileDetails() is the last resort if neither resolved.
+        /// </summary>
+        private void DismissCosmeticSelector()
+        {
+            var h = _profileCache.Handles;
+
+            if (_activeOpener != null && h?.OpenerHandleSelectorClosed != null)
             {
                 try
                 {
-                    var goBackMethod = _controller.GetType().GetMethod("GoBackToPreviousMode",
-                        BindingFlags.Public | BindingFlags.Instance);
-                    if (goBackMethod != null)
-                    {
-                        goBackMethod.Invoke(_controller, null);
-                    }
+                    h.OpenerHandleSelectorClosed.Invoke(_activeOpener, null);
+                    return;
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn("{NavigatorId}", $"GoBackToPreviousMode failed: {ex.Message}");
+                    Log.Warn("{NavigatorId}", $"HandleSelectorClosed failed for {_subPanelType}: {ex.Message}");
                 }
             }
 
-            ExitSubPanel();
+            if (_activeOpener != null && h?.OpenerHideSelector != null)
+            {
+                try
+                {
+                    h.OpenerHideSelector.Invoke(_activeOpener, null);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("{NavigatorId}", $"HideSelector failed for {_subPanelType}: {ex.Message}");
+                }
+            }
+
+            if (_controller != null && h?.GoToProfileDetails != null)
+            {
+                try
+                {
+                    h.GoToProfileDetails.Invoke(_controller, null);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("{NavigatorId}", $"GoToProfileDetails failed: {ex.Message}");
+                }
+            }
+
+            Log.Warn("{NavigatorId}", $"No way to close the {_subPanelType} selector — it may stay on screen");
         }
 
         #endregion
@@ -2086,39 +2326,23 @@ namespace AccessibleArena.Core.Services
 
             if (!_isActive) return;
 
-            // Poll for MonoBehaviour panels (Avatar, Emote) that PanelStateManager can't detect
-            if (_pollForMonoBehaviourPanels)
+            // Wait for the selector the user just opened to appear.
+            if (_pollForSelectorPanel)
             {
                 _subPanelPollTimer += Time.deltaTime;
                 if (_subPanelPollTimer >= SubPanelPollInterval)
                 {
                     _subPanelPollTimer = 0;
-                    CheckForMonoBehaviourPanel();
+                    CheckForSelectorPanel();
                 }
             }
 
-            // Check if a MonoBehaviour sub-panel was closed (game object deactivated)
-            if (_inSubPanel && (_subPanelType == "Avatar" || _subPanelType == "Emote"))
+            // ...and notice when it goes away again, however it was closed: our own Backspace, the
+            // selector's back button, or the game hiding it after a confirm.
+            if (_inSubPanel && !IsSelectorPanelActive(_subPanelType))
             {
-                if (!IsMonoBehaviourPanelActive(_subPanelType))
-                {
-                    Log.Msg("{NavigatorId}", $"MonoBehaviour panel closed: {_subPanelType}");
-                    ExitSubPanel();
-                }
-            }
-
-            // Pet/Title/Sleeve are PopupBase popups, but ProfileNavigator's OnPopupDetected
-            // handles them with EnterSubPanel without calling base.OnPopupDetected — so
-            // _isInPopupMode is never set, and OnPopupClosed never fires when the game hides
-            // the popup itself (OnConfirm → Hide()). Poll the captured popup GO directly.
-            if (_inSubPanel && _popupSubPanelGo != null
-                && (_subPanelType == "Pet" || _subPanelType == "Title" || _subPanelType == "Sleeve"))
-            {
-                if (_popupSubPanelGo == null || !_popupSubPanelGo.activeInHierarchy)
-                {
-                    Log.Msg("{NavigatorId}", $"Popup sub-panel closed (poll): {_subPanelType}");
-                    ExitSubPanel();
-                }
+                Log.Msg("{NavigatorId}", $"Selector closed: {_subPanelType}");
+                ExitSubPanel();
             }
 
             // Delayed silent rescan after cosmetic persistence + sub-panel exit.
@@ -2187,62 +2411,65 @@ namespace AccessibleArena.Core.Services
                 _infoIndex = Math.Min(_infoIndex, _infoBlocks.Count - 1);
         }
 
-        private void CheckForMonoBehaviourPanel()
+        private void CheckForSelectorPanel()
         {
-            if (_controller == null) return;
+            _subPanelPollElapsed += SubPanelPollInterval;
 
-            // Check if the game's profileScreenMode matches the expected cosmetic type
-            string currentMode = ReadProfileScreenMode();
-            string expectedMode = _subPanelType == "Avatar" ? "AvatarSelect" : "EmoteSelect";
-
-            if (currentMode != expectedMode) return;
-
-            // Mode matches - find the panel content from CosmeticSelectorController's transform
-            var panelGo = FindCosmeticSelectorContent();
+            var panelGo = FindSelectorPanelGo(_subPanelType);
             if (panelGo != null)
             {
-                Log.Msg("{NavigatorId}", $"{_subPanelType} panel detected via mode={currentMode}");
+                Log.Msg("{NavigatorId}", $"{_subPanelType} panel detected");
+                _subPanelPollElapsed = 0f;
                 EnterSubPanel(panelGo);
+                return;
+            }
+
+            // The selector is instantiated from a prefab the first time it is opened, so a little
+            // waiting is normal — but polling forever would leave the user on a screen that never
+            // announces anything, with nothing in the log to explain it.
+            if (_subPanelPollElapsed >= SubPanelPollTimeoutSeconds)
+            {
+                Log.Warn("{NavigatorId}", $"{_subPanelType} selector never appeared after {SubPanelPollTimeoutSeconds:0.#}s");
+                _announcer.Announce(Strings.CosmeticOpenFailed(_subPanelType), AnnouncementPriority.High);
+                _pollForSelectorPanel = false;
+                _subPanelPollElapsed = 0f;
+                _subPanelType = null;
+                _activeOpener = null;
             }
         }
 
-        private string ReadProfileScreenMode()
+        /// <summary>
+        /// The live selector GameObject for a cosmetic type, or null when it is not showing.
+        /// This is the single detection path for all five cosmetics.
+        ///
+        /// _profileScreenMode is no longer usable for this. The controller only sets it when its own
+        /// SetMode() runs, and SetMode() is private — the mod opens selectors through the opener
+        /// instead, so the mode never changes and would report the wrong panel forever. The opener's
+        /// selector instance is the direct signal: it is created on first open, activated while the
+        /// selector shows, and deactivated by HideSelector(). For the three PopupBase selectors that
+        /// is the same GameObject PopupBase.Hide() deactivates, so it tracks their own back and
+        /// confirm buttons as well.
+        /// </summary>
+        private GameObject FindSelectorPanelGo(string cosmeticType)
         {
-            if (_profileCache.Handles.ProfileScreenMode == null || _controller == null) return null;
+            if (_activeOpener == null) return null;
+
+            var field = GetOpenerSelectorField(_profileCache.Handles, cosmeticType);
+            if (field == null) return null;
+
             try
             {
-                var mode = _profileCache.Handles.ProfileScreenMode.GetValue(_controller);
-                return mode?.ToString();
+                var selector = field.GetValue(_activeOpener) as MonoBehaviour;
+                if (selector == null || !selector.gameObject.activeInHierarchy) return null;
+                return selector.gameObject;
             }
             catch { return null; }
         }
 
-        private GameObject FindCosmeticSelectorContent()
+        /// <summary>Whether the given cosmetic's selector is still showing.</summary>
+        private bool IsSelectorPanelActive(string type)
         {
-            // CosmeticSelectorController places panels under _cosmeticSelectorsTransform
-            if (_profileCache.Handles.CosmeticSelectorsTransform != null && _controller != null)
-            {
-                try
-                {
-                    var transform = _profileCache.Handles.CosmeticSelectorsTransform.GetValue(_controller) as Transform;
-                    if (transform != null && transform.gameObject.activeInHierarchy)
-                        return transform.gameObject;
-                }
-                catch { }
-            }
-
-            // Fallback: use the controller's gameObject (items will be found scene-wide)
-            return _controller?.gameObject;
-        }
-
-        /// <summary>
-        /// Checks if a MonoBehaviour sub-panel is still active by verifying the profile screen mode.
-        /// </summary>
-        private bool IsMonoBehaviourPanelActive(string type)
-        {
-            string currentMode = ReadProfileScreenMode();
-            string expectedMode = type == "Avatar" ? "AvatarSelect" : "EmoteSelect";
-            return currentMode == expectedMode;
+            return FindSelectorPanelGo(type) != null;
         }
 
         #endregion

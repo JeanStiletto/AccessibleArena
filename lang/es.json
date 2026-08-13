@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "disponible en tienda",
   "ProfileEmoteSaveBlocked": "Demasiados emotes equipados. Desequipa algunos y pulsa Retroceso de nuevo para guardar, o pulsa Retroceso dos veces para descartar los cambios.",
   "ProfileEmoteChangesDiscarded": "Cambios de emotes descartados",
+  "CosmeticOpenFailed_Format": "No se pudo abrir {0}",
   "ProfileEmoteAlwaysEquipped": "{0}, siempre equipado",
   "ProfileEmoteToggleFailed": "{0}, no se pudo cambiar",
   "ProfileCollectionPlayset_Format": "Colección: {0}, completa. Juegos completos {1} de {2}, {3} por ciento",

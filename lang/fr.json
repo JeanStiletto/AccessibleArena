@@ -1230,6 +1230,7 @@
   "ProfileItemStore": "disponible en boutique",
   "ProfileEmoteSaveBlocked": "Trop d'emotes équipées. Déséquipez-en et appuyez de nouveau sur Retour arrière pour enregistrer, ou appuyez deux fois sur Retour arrière pour annuler vos modifications.",
   "ProfileEmoteChangesDiscarded": "Modifications des emotes annulées",
+  "CosmeticOpenFailed_Format": "Impossible d'ouvrir {0}",
   "ProfileEmoteAlwaysEquipped": "{0}, toujours équipé",
   "ProfileEmoteToggleFailed": "{0}, modification impossible",
   "ProfileCollectionPlayset_Format": "Collection : {0}, complète. Jeux complets {1} sur {2}, {3} pour cent",
