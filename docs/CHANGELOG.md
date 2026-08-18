@@ -2,6 +2,10 @@
 
 All notable changes to Accessible Arena.
 
+## v1.4.9.1
+
+- Playable lands in hand are back in the Tab cycle. The 13 August game update made the glow on hand lands contextual — it disappears as soon as you control an untapped land — and Tab discovered hand lands only through that glow, so from turn two onward Tab skipped a land you were still allowed to play while you cycled through everything else. Tab now asks the game's own action list whether the land drop is available (the same source already used for castable spells), so a playable land always shows up in the cycle regardless of what the game chooses to glow. The same update also started highlighting your untapped battlefield lands, which Tab mirrors; that stays in as a feature — it tells you which mana sources are ready.
+
 ## v1.4.9
 
 Compatibility with the 13 August game update, which rebuilt the Profile screen, split the play blade into two separate classes, and renamed the field behind the duel timeout counter.

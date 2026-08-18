@@ -543,7 +543,10 @@ namespace AccessibleArena.Core.Services
             // still-castable hand cards lose their visual cue). We look up MTGA's own answer
             // instead — the active ActionsAvailableWorkflow tracks GreInteractions per card with
             // CanAffordToCast pre-computed for each — and add any hand card the workflow says is
-            // currently castable. Selection mode (discard pick, etc.) keeps the existing
+            // currently castable. Hand cards also accept Play/PlayMdfc (land drops): since game
+            // 2026.62 the hand-land glow is contextual (suppressed while an untapped land sits on
+            // the battlefield), so the visual scan alone no longer covers playable lands.
+            // Selection mode (discard pick, etc.) keeps the existing
             // visual-scan-only behavior since arbitrary castable cards would just be noise there.
             if (!selectionMode)
             {
@@ -559,7 +562,7 @@ namespace AccessibleArena.Core.Services
                         int id = go.GetInstanceID();
                         if (result.ContainsKey(id)) continue;
 
-                        if (!IsCardCastableByGameState(go)) continue;
+                        if (!IsCardCastableByGameState(go, includeLandPlays: true)) continue;
 
                         var item = CreateHighlightedItem(go, "CastableNow");
                         if (item != null)
@@ -919,6 +922,8 @@ namespace AccessibleArena.Core.Services
         /// <c>CanAffordToCast == true</c> — "playable" being any Cast variant, plain
         /// <c>Activate</c> (cycling, channel, foretell-the-card, plot-the-card, ninjutsu, …),
         /// or non-payment <c>Special</c> actions (see <see cref="IsPlayableActionType"/>).
+        /// With <paramref name="includeLandPlays"/> (hand cards only) <c>Play</c>/<c>PlayMdfc</c>
+        /// land drops count as playable too.
         /// That's the game's own answer to "is the user able to do something with this card
         /// right now?", computed when the workflow built each interaction (via
         /// <c>Action.CanAffordToCast()</c> against the current <c>AutoTapSolution</c>).
@@ -933,7 +938,7 @@ namespace AccessibleArena.Core.Services
         /// produces the visual glow) and <c>CanClick</c> both gate on <c>IsActive</c>, so
         /// requiring it here makes this supplement match the game exactly.
         /// </summary>
-        private bool IsCardCastableByGameState(GameObject card)
+        private bool IsCardCastableByGameState(GameObject card, bool includeLandPlays = false)
         {
             if (!_greInteractionCacheSearched)
             {
@@ -989,7 +994,7 @@ namespace AccessibleArena.Core.Services
                 var typeVal = _greInteractionTypeField.GetValue(interaction);
                 if (typeVal == null) continue;
                 string typeName = typeVal.ToString();
-                if (!IsPlayableActionType(typeName)) continue;
+                if (!IsPlayableActionType(typeName, includeLandPlays)) continue;
 
                 var afford = _greInteractionCanAffordField.GetValue(interaction);
                 if (afford is bool b && b) return true;
@@ -1014,14 +1019,20 @@ namespace AccessibleArena.Core.Services
         /// <item><c>Special</c> + <c>SpecialTurnFaceUp</c> — generic special actions (conspire,
         /// monarch claim, dungeon advance) and morph/manifest face-up. Excluded:
         /// <c>SpecialPayment</c> (payment subaction, never standalone).</item>
+        /// <item><c>Play</c> + <c>PlayMdfc</c> — land drops, only when
+        /// <paramref name="includeLandPlays"/> is set (the hand supplement). Game 2026.62
+        /// suppresses the hand-land glow while an untapped land is on the battlefield, so the
+        /// visual scan no longer covers playable lands; the Play interaction stays IsActive and
+        /// clickable throughout, making it the reliable signal.</item>
         /// </list>
-        /// Everything else (<c>Play*</c> for lands — Tab is for actions, not land drops;
-        /// <c>Pass</c>, <c>None</c>; payment subactions <c>MakePayment</c> / <c>CombatCost</c> /
-        /// <c>ResolutionCost</c> / <c>FloatMana</c> / <c>OpeningHandAction</c>) is filtered out.
+        /// Everything else (<c>Pass</c>, <c>None</c>; payment subactions <c>MakePayment</c> /
+        /// <c>CombatCost</c> / <c>ResolutionCost</c> / <c>FloatMana</c> /
+        /// <c>OpeningHandAction</c>) is filtered out.
         /// </summary>
-        private static bool IsPlayableActionType(string typeName)
+        private static bool IsPlayableActionType(string typeName, bool includeLandPlays)
         {
             if (typeName.StartsWith("Cast")) return true;
+            if (includeLandPlays && (typeName == "Play" || typeName == "PlayMdfc")) return true;
             return typeName == "Activate"
                 || typeName == "Special"
                 || typeName == "SpecialTurnFaceUp";
