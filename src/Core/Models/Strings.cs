@@ -1413,6 +1413,20 @@ namespace AccessibleArena.Core.Models
         public static string DraftPickedCount(int count) =>
             count == 1 ? L.Get("DraftPickedCount_One") : L.Format("DraftPickedCount_Format", count);
         public static string DraftWaitingForPlayers => L.Get("DraftWaitingForPlayers");
+        // Position in the draft. Sighted players read this off the pack header.
+        public static string DraftPackPick(int pack, int pick) => L.Format("DraftPackPick_Format", pack, pick);
+        // Pick quota. Only announced when it is greater than 1 — "take 1 card" on every pack
+        // of every ordinary draft would be dead information.
+        public static string DraftTakeCards(int count) => L.Format("DraftTakeCards_Format", count);
+        public static string DraftSelectMore(int count) =>
+            count == 1 ? L.Get("DraftSelectMore_One") : L.Format("DraftSelectMore_Format", count);
+        public static string DraftConfirmSelection => L.Get("DraftConfirmSelection");
+        public static string DraftNoConfirmButton => L.Get("DraftNoConfirmButton");
+        public static string DraftPackNotReady => L.Get("DraftPackNotReady");
+        public static string DraftPickTooFast => L.Get("DraftPickTooFast");
+        // Selecting past the pick quota evicts the oldest unlocked reservation. Only reported
+        // in multi-pick drafts, where the dropped card is otherwise lost without a word.
+        public static string DraftReplacedCard(string cardName) => L.Format("DraftReplacedCard_Format", cardName);
         // Human-draft pick timer (auto-pick countdown). Only meaningful in HumanDraft mode.
         public static string DraftTimerRemaining(int seconds) =>
             seconds == 1 ? L.Get("DraftTimerRemaining_One") : L.Format("DraftTimerRemaining_Format", seconds);
@@ -1607,6 +1621,13 @@ namespace AccessibleArena.Core.Models
         public static string EventScreenTitle(string eventName) => L.Format("EventScreenTitle_Format", eventName);
         public static string PacketOf(int current, int total) => L.Format("PacketOf_Format", current, total);
         public static string EventInfoLabel => L.Get("EventInfoLabel");
+        // Paid event entry. Gold and token entries are charged the moment the button is
+        // clicked — the game only opens a confirmation dialog for gem entries.
+        public static string EventEntryFeeConfirm(string price) => L.Format("EventEntryFeeConfirm_Format", price);
+        public static string EventEntryFeeConfirmUnknown => L.Get("EventEntryFeeConfirmUnknown");
+        // Arena Direct physical-prize confirmation popup.
+        public static string PhysicalPrizeNoDismiss => L.Get("PhysicalPrizeNoDismiss");
+        public static string PhysicalPrizeOpensBrowser => L.Get("PhysicalPrizeOpensBrowser");
         public static string ColorChallengeProgress(string trackName, int unlocked, int total, bool completed, int aiCount = 0, int pvpCount = 0)
         {
             bool hasTrack = !string.IsNullOrEmpty(trackName);

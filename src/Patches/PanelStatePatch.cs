@@ -35,6 +35,22 @@ namespace AccessibleArena.Patches
         public static event Action<Guid, string, string, bool, bool> OnMailLetterSelected;
 
         /// <summary>
+        /// Event fired when the event page reconfigures itself in place.
+        ///
+        /// EventPageContentController caches one scaffolding per event
+        /// (<c>_instantiatedEventPages</c>) and only builds its components on the first visit;
+        /// later visits re-activate the same GameObjects. On top of that,
+        /// EventComponentManager.SetProgressBarState swaps the whole page between
+        /// DisplayQuest / ClaimQuestRewards / DisplayEvent / ClaimEventRewards, and
+        /// UpdateComponents re-runs every component's Update. None of that opens or closes a
+        /// panel, so no panel event fires and nothing triggers a rescan — the classic
+        /// "returned from a Midweek Magic match and the page still reads the old state".
+        ///
+        /// Parameter: a short reason string for the log.
+        /// </summary>
+        public static event Action<string> OnEventPageRefreshed;
+
+        /// <summary>
         /// Manually applies the Harmony patch after game assemblies are loaded.
         /// Called during mod initialization.
         /// </summary>
@@ -75,6 +91,9 @@ namespace AccessibleArena.Patches
 
                 // Try to patch the table (human) draft queue notification handlers
                 PatchTableDraftQueue(harmony);
+
+                // Try to patch the event page's in-place state changes
+                PatchEventComponentManager(harmony);
 
                 _patchApplied = true;
                 Log.Patch("PanelStatePatch", $"Harmony patches applied successfully");
@@ -561,6 +580,41 @@ namespace AccessibleArena.Patches
 
             // Reset captured state cleanly whenever the queue panel opens/closes.
             Core.Services.TableDraftQueueState.EnsureSubscribed();
+        }
+
+        /// <summary>
+        /// Patch the event page's two in-place refresh points. Neither opens or closes a panel,
+        /// so without this the screen reader keeps describing the state the page had when it
+        /// was last opened. See <see cref="OnEventPageRefreshed"/>.
+        /// </summary>
+        private static void PatchEventComponentManager(HarmonyLib.Harmony harmony)
+        {
+            var managerType = FindType(T.EventComponentManagerFQ)
+                ?? FindType("EventComponentManager");
+            if (managerType == null)
+            {
+                Log.Warn("PanelStatePatch", "Could not find EventComponentManager type");
+                return;
+            }
+
+            Log.Patch("PanelStatePatch", $"Found EventComponentManager: {managerType.FullName}");
+
+            TryPatchPostfix(harmony, managerType.GetMethod("SetProgressBarState", AllInstanceFlags),
+                nameof(EventPageStateChangedPostfix), "EventComponentManager.SetProgressBarState()");
+            TryPatchPostfix(harmony, managerType.GetMethod("UpdateComponents", AllInstanceFlags),
+                nameof(EventPageComponentsUpdatedPostfix), "EventComponentManager.UpdateComponents()");
+        }
+
+        public static void EventPageStateChangedPostfix()
+            => FireEventPageRefreshed("SetProgressBarState");
+
+        public static void EventPageComponentsUpdatedPostfix()
+            => FireEventPageRefreshed("UpdateComponents");
+
+        private static void FireEventPageRefreshed(string reason)
+        {
+            try { OnEventPageRefreshed?.Invoke(reason); }
+            catch (Exception ex) { Log.Warn("PanelStatePatch", $"OnEventPageRefreshed({reason}) error: {ex.Message}"); }
         }
 
         public static void PodQueueNotificationPostfix(object podQueueNotification)

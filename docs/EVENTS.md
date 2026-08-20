@@ -204,12 +204,179 @@ This enables Up/Down card detail reading via `CardInfoNavigator`.
 - Home/End: Jump to first/last card
 - Tab/Shift+Tab: Navigate cards
 - Up/Down: Card details (via CardInfoNavigator)
-- Enter: Select/toggle a card for picking (bypasses `ActivateCurrentElement()` to avoid CardInfoNavigator redirect, calls `UIActivator.Activate()` directly)
-- Space: Confirm selection (clicks confirm button)
+- Enter: Select/toggle a card for picking (bypasses `ActivateCurrentElement()` to avoid the CardInfoNavigator redirect)
+- Space: Confirm selection
+- E: Remaining pick time (human draft only)
 - Backspace: Back/exit
 - F11: Debug dump current card
 
-**Enter key bypass:** `BaseNavigator.ActivateCurrentElement()` detects cards and redirects to `CardInfoNavigator` for detail display. In draft, Enter must click the card to select it. `DraftNavigator.HandleInput()` calls `UIActivator.Activate()` directly for cards, bypassing the base class redirect.
+**Enter key bypass:** `BaseNavigator.ActivateCurrentElement()` detects cards and redirects to `CardInfoNavigator` for detail display. In draft, Enter must select the card. `DraftNavigator.HandleInput()` handles cards itself, bypassing the base class redirect.
+
+### Card selection — why not a simulated click
+
+`DraftContentController.HandleOnCardClicked` runs a private double-click detector
+(`_lastClickedCard` + `_clickStopwatch`, 0.5 s window). A second click on the same card
+inside that window does not toggle twice — it calls `ReserveCardAndLockIn`, which ends with:
+
+```csharp
+if (AtMaxReservedCards && _draftDeckManager.AllReservedCardsLocked())
+{
+    DraftCards(_draftDeckManager.GetReservedCards());   // submits immediately
+    return;
+}
+```
+
+That is a full pick submission with no confirm button and no undo — reachable by pressing
+Enter twice in quick succession, which is exactly the gesture for "select, then change my
+mind". `DraftNavigator.ToggleCurrentCard` therefore invokes
+`DraftContentController.ToggleCardReservation(DraftPackCardView)` by reflection: the same
+method the single-click path calls, with the detector bypassed entirely.
+
+Fallbacks, in order:
+1. `ToggleCardReservation` via reflection (preferred).
+2. `UIActivator.Activate`, refused when the same card was toggled less than
+   `DoubleClickGuardSeconds` (0.6 s) ago — announces `DraftPickTooFast`.
+
+`IsPackAnimating()` mirrors the controller's own `!_draftPackHolder.IsAnimating` guard, so a
+keypress the game would drop is reported (`DraftPackNotReady`) rather than silently lost.
+
+### Multi-pick drafts (Pick Two)
+
+Pick Two events are the same `DraftContentController` with a different quota. There is no
+Pick Two type, prefab or screen — only localization keys.
+
+- `IDraftPod.PickNumCardsToTake` → `DraftDeckManager.NumCardsToPick` (1 normally, 2 here)
+- `DraftDeckManager.ReservedCardCount()` — cards selected so far
+- `DraftDeckManager.TryAddReservedCard` evicts the oldest **unlocked** reservation when the
+  quota is already full
+
+**Confirm button resolution.** `DraftDeckView.UpdateConfirmButton(numSelected, numToTake)`
+switches the caption:
+
+- quota met (or quota == 1) → `EPP/RewardWeb/ConfirmPick` = "Confirm Pick" / "Auswahl bestätigen",
+  `Interactable = true`
+- below quota → `Social/Presence/Button_PackPick_PickX` = "Select ({n}/{m})",
+  `Interactable = false`
+
+Matching on the word "confirm" therefore finds nothing in a Pick Two draft until the second
+card is selected. `GetConfirmPickButton()` resolves it structurally instead —
+`DraftContentController._activeDeckView` → `DraftDeckView._confirmPickButton` — with
+`FindConfirmButtonByLabel()` kept only as a last resort. Space on a non-interactable confirm
+button announces `DraftSelectMore(n)` rather than firing a click the game drops.
+
+**Announcement rule — numbers only when they diverge from one-per-pick.** A normal draft
+takes one card per pick, so "1 of 1 selected" after every pick is dead information:
+
+- `GetSelectionProgressIfMeaningful()` returns null when `NumCardsToPick <= 1`, so
+  `AnnounceSelectionStatus` says a bare "selected" / "deselected".
+- With a quota above 1 it appends `Strings.SelectionProgress(reserved, quota)`.
+- `GetScreenName()` appends `DraftTakeCards(n)` only when `n > 1`.
+- Eviction (`DraftReplacedCard`) is announced only when the quota is above 1 — swapping a
+  single pick for another needs no commentary.
+
+### Cube drafts
+
+No dedicated types exist. `DraftModes` has exactly two values (`BotDraft`, `HumanDraft`);
+cube appears only as localization keys (`Events_Event_Title_CubeDraft_Arena`, `..._Chromatic`,
+`..._Tinkerers`, `..._Power`, `..._Planar_*`, `CubeSealed_Arena`). A cube draft routes through
+the same path as any other draft, so `DraftNavigator`, `TableDraftQueueState` and the deck
+builder cover it as-is.
+
+---
+
+## Event Page Refresh
+
+`EventPageContentController` caches one scaffolding per event in
+`_instantiatedEventPages`, keyed by `InternalEventName`. `_factory.CreateComponents(...)` runs
+**only on the first visit**; every later visit re-activates the same GameObjects and calls
+`UpdateComponents()`.
+
+On top of that, `EventComponentManager.SetProgressBarState(EventPageStates)` broadcasts to
+every component controller and swaps the page between `DisplayQuest`, `ClaimQuestRewards`,
+`DisplayEvent` and `ClaimEventRewards`. `UpdateComponents(bool)` re-runs every component's
+`Update`. **Neither opens or closes a panel**, so the mod's panel detection never fires — the
+screen keeps being described in the state it had when it was last opened.
+
+`SelectedDeckComponent.UpdateDeckBoxUI` compounds it by calling `ReleaseDeckView` then
+`CreateDeckView`, i.e. destroying and recreating the deck-box GameObject on every update; any
+cached element reference across an update is a dead Unity object.
+
+**Hook:** `PanelStatePatch.PatchEventComponentManager` postfixes both methods and raises
+`PanelStatePatch.OnEventPageRefreshed(reason)`. `GeneralMenuNavigator.OnEventPageRefreshed`
+schedules a normal rescan. Because the controller does not change, the grouped navigator
+restores the cursor and suppresses the usual screen announcement, so
+`AnnounceEventPageRefreshIfChanged()` re-announces the focused element instead — deduped
+against the last one, since one visible change can produce several `UpdateComponents` calls.
+
+This is not Midweek Magic specific; MWM is simply the event most often left and re-entered.
+
+---
+
+## Paid Event Entry
+
+The event page's main button is five separate `CustomButtonWithTooltip` objects on
+`MainButtonComponent` (`_playButton`, `_startButton`, `_payWithGemsButton`,
+`_payWithGoldButton`, `_payWithEventTokenButton`). `ResetButtons()` hides all of them and
+`MainButtonComponentController.Update` shows one **per entry fee** — an event offering
+"gems or gold or a token" renders three live buttons at once.
+
+**Only the gem path confirms.** `EventComponentManager.MainButton_OnPayJoinButtonClicked`:
+
+- `EventEntryCurrencyType.Gem` → cancellable `SystemMessageManager.ShowSystemMessage`, and
+  only its confirm callback calls `JoinAndPayEvent`
+- Gold, `DraftToken`, `EventToken`, `SealedToken` → straight to `JoinAndPayEvent`. One click,
+  one charge, no dialog, no undo.
+
+The gem and gold buttons carry only `UpdateTextWithQuantity(entryFee.Quantity)` — a bare
+number, with the currency conveyed by a sprite.
+
+**Guard:** `EventAccessor.GetEventEntryFee(element)` maps the focused element to its button
+field, derives the currency class, and reads the amount from
+`IPlayerEvent.EventInfo.EntryFees` (`EventEntryFeeInfo.CurrencyType` / `.Quantity`) rather
+than from the caption. `GeneralMenuNavigator.ConfirmEventEntryFee` then withholds the first
+Enter on any non-gem fee, announces the price, and lets a second Enter within
+`EntryFeeConfirmSeconds` (15 s) through.
+
+This works because `CustomButton` implements only pointer handlers, not `ISubmitHandler` —
+Unity's own Submit event does nothing for it, so declining to call `UIActivator.Activate` is
+sufficient to withhold the click.
+
+---
+
+## Physical Prize Confirmation (Arena Direct)
+
+`EventComponentManager.ClaimPrize()`, gated on `EventTag.PhysicalPrize` plus an "ArenaDirect"
+chest image, shows a `SystemMessageView` whose body is
+`Events/Rewards/Physical_PopUp_Directions` followed by the account's registered email and
+country — the information the player needs for the prize to actually be shipped.
+
+Its buttons come from the two-button `SystemMessageManager.ShowMessage` overload, which sets
+`IsConfirm` on the second and `IsCancel` on **neither**. `SystemMessageView.CreateButtons`
+therefore falls back to `_cancelButton == null` and assigns the *first* button — "Contact
+Customer Support", which calls `Application.OpenURL`. So `OnBack` / Escape / the mod's
+Backspace dismiss chain would all throw the player out to a browser.
+
+`BaseNavigator.IsPhysicalPrizePopup` matches the popup by its localized title (resolved once
+via `UITextExtractor.ResolveLocKey("Events/Rewards/Physical_PopUp_Title")`, so it works in
+every language). `DismissPopup` refuses to act on it and announces `PhysicalPrizeNoDismiss`;
+`AnnotatePhysicalPrizeButtons` appends `PhysicalPrizeOpensBrowser` to the support button.
+
+`ClaimPrize()` runs regardless of which button is pressed, so nothing is lost by refusing —
+the popup is informational, but its contents must be read rather than dismissed by reflex.
+
+---
+
+## Event Taxonomy
+
+`Wizards.Arena.Enums.Event.EventTag` (`Wizards.Arena.Enums.dll`) is the game's own
+classification, available through `IEventInfo.EventTags`:
+
+- `QuickDraft = 2`, `PlayerDraft = 6`, `Sealed = 3`, `JumpIn = 5`, `Traditional = 14`
+- `MidweekMagic = 15`, `PhysicalPrize = 17`
+- `ArenaDirect = 2000`, `ArenaOpenDay1 = 2001`, `ArenaOpenDay2 = 2002`
+- `QualifierPlayIn = 2003`, `QualifierDay1 = 2004`, `QualifierDay2 = 2005`
+
+Cube and Pick Two are absent — both are content, not event types.
 
 ### Rescan and Timing
 
@@ -281,11 +448,14 @@ Deck Builder Opens
 
 ## Files
 
-- `src/Core/Services/EventAccessor.cs` - All reflection-based event/packet data access
-- `src/Core/Services/UITextExtractor.cs` - `TryGetEventTileLabel`, `TryGetPacketLabel`
+- `src/Core/Services/EventAccessor.cs` - All reflection-based event/packet data access, plus `GetEventEntryFee`
+- `src/Core/Services/UITextExtractor.cs` - `TryGetEventTileLabel`, `TryGetPacketLabel`, `ResolveLocKey`
 - `src/Core/Services/MenuScreenDetector.cs` - Screen detection for EventPage, PacketSelect, Draft
-- `src/Core/Services/GeneralMenuNavigator.cs` - Packet navigation, info blocks, activation, rescan
-- `src/Core/Services/DraftNavigator.cs` - Draft card picking navigator with popup handling
+- `src/Core/Services/GeneralMenuNavigator.cs` - Packet navigation, info blocks, activation, rescan, entry-fee guard, event-page refresh handling
+- `src/Core/Services/DraftNavigator.cs` - Draft card picking navigator with popup handling, pick quota and pack/pick position
+- `src/Core/Services/BaseNavigator/BaseNavigator.Popup.cs` - Physical-prize popup guard
+- `src/Patches/PanelStatePatch.cs` - `EventComponentManager` refresh hooks (`OnEventPageRefreshed`)
 - `src/Core/Services/CardDetector.cs` - Card detection (includes `DraftPackCardView` recognition)
 - `src/Core/Services/CardModelProvider.cs` - Card model extraction (includes `DraftPackCardView`)
 - `src/Core/Models/Strings.cs` - Localized strings for event/packet/draft labels
+- `docs/investigations/unsupported-events.md` - The decompilation these behaviours are based on

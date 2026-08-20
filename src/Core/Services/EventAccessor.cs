@@ -60,6 +60,18 @@ namespace AccessibleArena.Core.Services
             public PropertyInfo EventUxInfo;      // optional
         }
 
+        private sealed class EventInfoHandles
+        {
+            public PropertyInfo EntryFees;        // IEventInfo.EntryFees (List<EventEntryFeeInfo>)
+        }
+
+        private sealed class EntryFeeHandles
+        {
+            public FieldInfo CurrencyType;        // EventEntryFeeInfo.CurrencyType (EventEntryCurrencyType)
+            public FieldInfo Quantity;            // EventEntryFeeInfo.Quantity (int)
+            public FieldInfo UsesRemaining;       // EventEntryFeeInfo.UsesRemaining (bool)
+        }
+
         private sealed class PacketHandles
         {
             public FieldInfo CurrentState;        // _currentState (ServiceState)
@@ -167,6 +179,26 @@ namespace AccessibleArena.Core.Services
             validator: _ => true,
             logTag: "EventAccessor",
             logSubject: "IPlayerEvent");
+
+        private static readonly ReflectionCache<EventInfoHandles> _eventInfoCache = new ReflectionCache<EventInfoHandles>(
+            builder: t => new EventInfoHandles
+            {
+                EntryFees = t.GetProperty("EntryFees", PublicInstance),
+            },
+            validator: h => h.EntryFees != null,
+            logTag: "EventAccessor",
+            logSubject: "IEventInfo");
+
+        private static readonly ReflectionCache<EntryFeeHandles> _entryFeeCache = new ReflectionCache<EntryFeeHandles>(
+            builder: t => new EntryFeeHandles
+            {
+                CurrencyType = t.GetField("CurrencyType", PublicInstance),
+                Quantity = t.GetField("Quantity", PublicInstance),
+                UsesRemaining = t.GetField("UsesRemaining", PublicInstance),
+            },
+            validator: h => h.CurrencyType != null && h.Quantity != null,
+            logTag: "EventAccessor",
+            logSubject: "EventEntryFeeInfo");
 
         private static readonly ReflectionCache<PacketHandles> _packetCache = new ReflectionCache<PacketHandles>(
             builder: t => new PacketHandles
@@ -1470,6 +1502,128 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Check whether the element is the same GameObject as the field's button or a descendant of it.
         /// </summary>
+        /// <summary>
+        /// What activating this event-page main button will cost.
+        /// </summary>
+        public sealed class EventEntryFee
+        {
+            /// <summary>Localized currency name ("gems", "gold", …), or null for token entries
+            /// whose button carries its own localized caption.</summary>
+            public string CurrencyName;
+            /// <summary>Amount charged. 0 when unknown.</summary>
+            public int Quantity;
+            /// <summary>
+            /// True when clicking spends the entry immediately with no dialog of its own.
+            ///
+            /// Only the gem path opens a confirmation:
+            /// EventComponentManager.MainButton_OnPayJoinButtonClicked shows a cancellable
+            /// system message for EventEntryCurrencyType.Gem and falls straight through to
+            /// JoinAndPayEvent for gold and for every token type. One Enter on a token entry
+            /// is one token gone, with no undo — hence the mod's own confirmation step.
+            /// </summary>
+            public bool SpendsWithoutConfirmation;
+        }
+
+        /// <summary>
+        /// Resolve what the focused event-page main button costs, or null when it is not a
+        /// pay/join button (Play, Start, Build Deck, Claim Prize and friends charge nothing).
+        ///
+        /// The game writes only a bare number onto the gem and gold buttons and conveys the
+        /// currency with a sprite, so a screen reader hears "750" and nothing else. Worse, an
+        /// event can list several entry fees at once, in which case the page shows one live
+        /// button per fee side by side.
+        /// </summary>
+        public static EventEntryFee GetEventEntryFee(GameObject element)
+        {
+            if (element == null) return null;
+
+            try
+            {
+                var component = FindParentComponent(element, T.MainButtonComponent);
+                if (component == null) return null;
+
+                if (!_mainButtonCache.EnsureInitialized(component.GetType()))
+                    return null;
+
+                string fieldName = null;
+                foreach (var field in _mainButtonCache.Handles.ButtonFields)
+                {
+                    if (field == null) continue;
+                    if (!IsElementInButtonField(element, component, field)) continue;
+                    fieldName = field.Name;
+                    break;
+                }
+
+                if (fieldName == null) return null;
+
+                // Play/Start carry no entry fee at all.
+                bool isGem = fieldName.Contains("Gem");
+                bool isGold = fieldName.Contains("Gold");
+                bool isToken = fieldName.Contains("Token");
+                if (!isGem && !isGold && !isToken) return null;
+
+                var fee = new EventEntryFee
+                {
+                    CurrencyName = isGem ? Strings.CurrencyGems : (isGold ? Strings.CurrencyGold : null),
+                    // Everything except gems bypasses the game's own confirmation dialog.
+                    SpendsWithoutConfirmation = !isGem,
+                };
+
+                // Quantity comes from the event's own fee list rather than the button caption:
+                // the token button shows a localized phrase, not a number.
+                fee.Quantity = ReadEntryFeeQuantity(isGem, isGold);
+                return fee;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAccessor", $"GetEventEntryFee failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Read the charged amount for a currency class out of
+        /// <c>IPlayerEvent.EventInfo.EntryFees</c>. Returns 0 when it cannot be resolved —
+        /// callers must treat 0 as "amount unknown", never as "free".
+        /// </summary>
+        private static int ReadEntryFeeQuantity(bool isGem, bool isGold)
+        {
+            var controller = FindActiveEventController();
+            if (controller == null) return 0;
+
+            var playerEvent = GetPlayerEvent(controller);
+            if (playerEvent == null) return 0;
+
+            var eventInfoProp = _playerEventCache.Handles?.EventInfo;
+            if (eventInfoProp == null) return 0;
+
+            var eventInfo = eventInfoProp.GetValue(playerEvent);
+            if (eventInfo == null) return 0;
+
+            if (!_eventInfoCache.EnsureInitialized(eventInfo.GetType())) return 0;
+
+            if (!(_eventInfoCache.Handles.EntryFees.GetValue(eventInfo) is IEnumerable fees)) return 0;
+
+            foreach (var fee in fees)
+            {
+                if (fee == null) continue;
+                if (!_entryFeeCache.EnsureInitialized(fee.GetType())) return 0;
+
+                var fh = _entryFeeCache.Handles;
+                string currency = fh.CurrencyType.GetValue(fee)?.ToString();
+                if (string.IsNullOrEmpty(currency)) continue;
+
+                bool matches = isGem ? currency == "Gem"
+                    : isGold ? currency == "Gold"
+                    : currency == "DraftToken" || currency == "EventToken" || currency == "SealedToken";
+                if (!matches) continue;
+
+                if (fh.Quantity.GetValue(fee) is int q) return q;
+            }
+
+            return 0;
+        }
+
         private static bool IsElementInButtonField(GameObject element, MonoBehaviour component, FieldInfo field)
         {
             var button = field.GetValue(component) as Component;

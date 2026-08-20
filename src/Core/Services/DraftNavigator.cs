@@ -38,6 +38,13 @@ namespace AccessibleArena.Core.Services
         private bool _isToggleRescan; // true = quiet rescan after Enter, false = may need full rescan
         private bool _isConfirmRescan; // true = rescan after Space confirm
 
+        // Double-click guard for the click fallback path. DraftContentController treats two
+        // clicks on the same card within 0.5s as a lock-in, which submits the pick outright
+        // once the quota is full. Only used when ToggleCardReservation is unavailable.
+        private GameObject _lastToggledCard;
+        private float _lastToggleTime;
+        private const float DoubleClickGuardSeconds = 0.6f;
+
         private sealed class DraftHandles
         {
             public FieldInfo DraftDeckManager;
@@ -56,6 +63,40 @@ namespace AccessibleArena.Core.Services
             public PropertyInfo PodDraftMode;       // IDraftPod.DraftMode (DraftModes enum)
             public PropertyInfo PodPickRemaining;   // IDraftPod.PickSecondsRemaining (live)
             public PropertyInfo PodPickTotal;       // IDraftPod.PickSecondsTotal
+
+            // --- Multi-pick drafts ("Pick Two" and friends) ---
+            // The pick quota is data-driven: DraftDeckManager.NumCardsToPick forwards
+            // IDraftPod.PickNumCardsToTake, which is 1 in an ordinary draft and 2 in a
+            // Pick Two event. Nothing else about the screen changes.
+            public PropertyInfo NumCardsToPick;     // DraftDeckManager.NumCardsToPick (int)
+            public MethodInfo ReservedCardCount;    // DraftDeckManager.ReservedCardCount()
+
+            // Reserve toggle. This is the exact method the game's own single-click path calls
+            // (DraftContentController.HandleOnCardClicked -> ToggleCardReservation). Calling it
+            // directly avoids the controller's private 0.5s double-click detector: a second
+            // simulated click on the same card within that window routes to ReserveCardAndLockIn,
+            // which submits the whole pick outright once the quota is full and locked — with no
+            // confirm button and no undo.
+            public MethodInfo ToggleCardReservation; // DraftContentController.ToggleCardReservation(DraftPackCardView)
+            public FieldInfo PackHolder;             // DraftContentController._draftPackHolder
+            public PropertyInfo PackHolderAnimating; // DraftPackHolder.IsAnimating
+
+            // Confirm button, resolved structurally rather than by label text. Its caption is
+            // "Confirm Pick" only once the quota is full; below that the game shows
+            // "Select (n/m)", which no substring match for "confirm" can find.
+            public FieldInfo ActiveDeckView;         // DraftContentController._activeDeckView (DraftDeckView)
+            public FieldInfo ConfirmPickButton;      // DraftDeckView._confirmPickButton (CustomButton)
+            public PropertyInfo ButtonInteractable;  // CustomButton.Interactable
+
+            // --- Pack / pick position ---
+            // The two pod implementations store it differently: the bot pod keeps 0-based
+            // counters, the human pod keeps a PickInfo whose SelfPack/SelfPick are already
+            // 1-based (BotDraftPod adds +1 when building the same visual data struct).
+            public FieldInfo BotCurrentPack;         // BotDraftPod._currentPack (0-based)
+            public FieldInfo BotCurrentPick;         // BotDraftPod._currentPick (0-based)
+            public FieldInfo HumanPickInfo;          // HumanDraftPod._currentPickInfo (PickInfo)
+            public FieldInfo PickInfoSelfPack;       // PickInfo.SelfPack (1-based)
+            public FieldInfo PickInfoSelfPick;       // PickInfo.SelfPick (1-based)
         }
 
         private static readonly ReflectionCache<DraftHandles> _draftCache = new ReflectionCache<DraftHandles>(
@@ -63,14 +104,40 @@ namespace AccessibleArena.Core.Services
             {
                 var h = new DraftHandles();
 
-                var controllerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftContentController");
+                // Resolved first: ToggleCardReservation is overload-selected on this type.
+                var draftCardViewType = FindType(T.DraftPackCardView);
+                if (draftCardViewType != null)
+                {
+                    h.UseButtonOverlay = draftCardViewType.GetProperty("UseButtonOverlay", PublicInstance);
+                    h.CurrentCard = draftCardViewType.GetProperty("CurrentCard", PublicInstance);
+                }
+
+                var controllerType = FindType(T.DraftContentControllerFQ);
                 if (controllerType != null)
                 {
                     h.DraftDeckManager = controllerType.GetField("_draftDeckManager", PrivateInstance);
                     h.DraftPodProp = controllerType.GetProperty("DraftPod", PublicInstance);
+                    h.ActiveDeckView = controllerType.GetField("_activeDeckView", PrivateInstance);
+                    h.PackHolder = controllerType.GetField("_draftPackHolder", PrivateInstance);
+                    h.ToggleCardReservation = draftCardViewType != null
+                        ? controllerType.GetMethod("ToggleCardReservation", PrivateInstance, null,
+                            new[] { draftCardViewType }, null)
+                        : null;
                 }
 
-                var podType = FindType("Wotc.Mtga.Wrapper.Draft.IDraftPod");
+                var packHolderType = FindType(T.DraftPackHolderFQ);
+                if (packHolderType != null)
+                    h.PackHolderAnimating = packHolderType.GetProperty("IsAnimating", PublicInstance);
+
+                var deckViewType = FindType(T.DraftDeckViewFQ);
+                if (deckViewType != null)
+                    h.ConfirmPickButton = deckViewType.GetField("_confirmPickButton", PrivateInstance);
+
+                var customButtonType = FindType(T.CustomButton);
+                if (customButtonType != null)
+                    h.ButtonInteractable = customButtonType.GetProperty("Interactable", PublicInstance);
+
+                var podType = FindType(T.IDraftPodFQ);
                 if (podType != null)
                 {
                     h.PodDraftMode = podType.GetProperty("DraftMode", PublicInstance);
@@ -78,12 +145,32 @@ namespace AccessibleArena.Core.Services
                     h.PodPickTotal = podType.GetProperty("PickSecondsTotal", PublicInstance);
                 }
 
-                var managerType = FindType("Wotc.Mtga.Wrapper.Draft.DraftDeckManager");
+                var botPodType = FindType(T.BotDraftPodFQ);
+                if (botPodType != null)
+                {
+                    h.BotCurrentPack = botPodType.GetField("_currentPack", PrivateInstance);
+                    h.BotCurrentPick = botPodType.GetField("_currentPick", PrivateInstance);
+                }
+
+                var humanPodType = FindType(T.HumanDraftPodFQ);
+                if (humanPodType != null)
+                    h.HumanPickInfo = humanPodType.GetField("_currentPickInfo", PrivateInstance);
+
+                var pickInfoType = FindType("Wizards.Unification.Models.Draft.PickInfo");
+                if (pickInfoType != null)
+                {
+                    h.PickInfoSelfPack = pickInfoType.GetField("SelfPack", PublicInstance);
+                    h.PickInfoSelfPick = pickInfoType.GetField("SelfPick", PublicInstance);
+                }
+
+                var managerType = FindType(T.DraftDeckManagerFQ);
                 if (managerType != null)
                 {
                     h.GetDeck = managerType.GetMethod("GetDeck", PublicInstance);
                     h.GetReservedCards = managerType.GetMethod("GetReservedCards", PublicInstance);
                     h.IsCardAlreadyReserved = managerType.GetMethod("IsCardAlreadyReserved", PublicInstance);
+                    h.NumCardsToPick = managerType.GetProperty("NumCardsToPick", PublicInstance);
+                    h.ReservedCardCount = managerType.GetMethod("ReservedCardCount", PublicInstance);
                 }
 
                 var deckType = FindType("Deck");
@@ -98,13 +185,6 @@ namespace AccessibleArena.Core.Services
                 if (cardCollectionType != null && cardDataType != null)
                 {
                     h.CardCollectionQuantity = cardCollectionType.GetMethod("Quantity", PublicInstance, null, new[] { cardDataType }, null);
-                }
-
-                var draftCardViewType = FindType("DraftPackCardView");
-                if (draftCardViewType != null)
-                {
-                    h.UseButtonOverlay = draftCardViewType.GetProperty("UseButtonOverlay", PublicInstance);
-                    h.CurrentCard = draftCardViewType.GetProperty("CurrentCard", PublicInstance);
                 }
 
                 var metaCardViewType = FindType("MetaCardView");
@@ -132,9 +212,23 @@ namespace AccessibleArena.Core.Services
         {
             if (IsInPopupMode)
                 return Strings.ScreenDraftPopup;
-            if (_totalCards > 0)
-                return Strings.ScreenDraftPickCount(_totalCards);
-            return Strings.ScreenDraftPick;
+
+            string name = _totalCards > 0
+                ? Strings.ScreenDraftPickCount(_totalCards)
+                : Strings.ScreenDraftPick;
+
+            // Where we are in the draft. Sighted players read this off the pack header.
+            var (pack, pick) = GetPackAndPick();
+            if (pack > 0 && pick > 0)
+                name += $", {Strings.DraftPackPick(pack, pick)}";
+
+            // Only announced when it diverges from the usual one-card-per-pick rule.
+            // "Take 1 card" on every pack of every normal draft would be dead information.
+            int toTake = GetNumCardsToPick();
+            if (toTake > 1)
+                name += $", {Strings.DraftTakeCards(toTake)}";
+
+            return name;
         }
 
         protected override bool DetectScreen()
@@ -220,7 +314,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private object GetDraftDeckManager()
         {
-            if (_draftCache.Handles.DraftDeckManager == null) return null;
+            EnsureReflectionInitialized();
+            if (_draftCache.Handles?.DraftDeckManager == null) return null;
 
             try
             {
@@ -242,7 +337,8 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private object GetDraftPod()
         {
-            if (_draftCache.Handles.DraftPodProp == null) return null;
+            EnsureReflectionInitialized();
+            if (_draftCache.Handles?.DraftPodProp == null) return null;
 
             try
             {
@@ -311,6 +407,230 @@ namespace AccessibleArena.Core.Services
 
             return 0f;
         }
+
+        #region Pick quota, reservation and pack position
+
+        /// <summary>
+        /// How many cards this pick takes. 1 for an ordinary draft, 2 in a "Pick Two" event.
+        /// Falls back to 1 when the quota can't be read, which keeps every announcement in the
+        /// quiet single-pick form rather than inventing numbers.
+        /// </summary>
+        private int GetNumCardsToPick()
+        {
+            var manager = GetDraftDeckManager();
+            if (manager == null || _draftCache.Handles?.NumCardsToPick == null) return 1;
+
+            try
+            {
+                var val = _draftCache.Handles.NumCardsToPick.GetValue(manager);
+                if (val is int n && n > 0) return n;
+            }
+            catch { /* best effort */ }
+
+            return 1;
+        }
+
+        /// <summary>How many cards are currently reserved for this pick (not yet submitted).</summary>
+        private int GetReservedCount()
+        {
+            var manager = GetDraftDeckManager();
+            if (manager == null || _draftCache.Handles?.ReservedCardCount == null) return 0;
+
+            try
+            {
+                var val = _draftCache.Handles.ReservedCardCount.Invoke(manager, null);
+                if (val is int n) return n;
+            }
+            catch { /* best effort */ }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Selection progress suffix, but only when it carries information. In a normal draft
+        /// the quota is 1 and "1 of 1 selected" after every single pick is pure noise, so this
+        /// returns null there. Multi-pick drafts (Pick Two) get the count, because "how many
+        /// more do I still owe" is exactly what the player cannot see otherwise.
+        /// </summary>
+        private string GetSelectionProgressIfMeaningful()
+        {
+            int toTake = GetNumCardsToPick();
+            if (toTake <= 1) return null;
+
+            // Bare "1 of 2" rather than "1 of 2 selected" — the caller has already said
+            // "selected" or "deselected", and saying it twice is worse than not at all.
+            // Forced past the position-count setting: this is the pick quota, not navigation
+            // chatter, and it is the number a Pick Two draft is otherwise silent about.
+            return Strings.PositionOf(GetReservedCount(), toTake, force: true);
+        }
+
+        /// <summary>
+        /// True while the pack holder is animating cards in or out. The game refuses card
+        /// clicks in that window (HandleOnCardClicked checks the same flag), so we mirror it
+        /// instead of firing a reservation the controller would drop.
+        /// </summary>
+        private bool IsPackAnimating()
+        {
+            EnsureReflectionInitialized();
+            var h = _draftCache.Handles;
+            if (h?.PackHolder == null || h.PackHolderAnimating == null) return false;
+
+            try
+            {
+                var controller = GetControllerComponent();
+                if (controller == null) return false;
+                var holder = h.PackHolder.GetValue(controller);
+                if (holder == null) return false;
+                var val = h.PackHolderAnimating.GetValue(holder);
+                return val is bool b && b;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Toggle a card's reservation through the controller's own single-click handler.
+        ///
+        /// Deliberately NOT a simulated click: DraftContentController.HandleOnCardClicked runs a
+        /// private 0.5s double-click detector, and a second click on the same card inside that
+        /// window goes to ReserveCardAndLockIn, which submits the entire pick the moment the
+        /// quota is full and locked. A screen-reader user pressing Enter twice — once to select,
+        /// once to change their mind — would silently commit the pick instead. Calling
+        /// ToggleCardReservation directly bypasses the detector entirely.
+        ///
+        /// Returns false when the method is unavailable, so the caller can fall back to a
+        /// debounced click.
+        /// </summary>
+        private bool TryToggleCardReservation(MonoBehaviour cardViewMb)
+        {
+            EnsureReflectionInitialized();
+            var h = _draftCache.Handles;
+            if (h?.ToggleCardReservation == null || cardViewMb == null) return false;
+
+            try
+            {
+                var controller = GetControllerComponent();
+                if (controller == null) return false;
+
+                h.ToggleCardReservation.Invoke(controller, new object[] { cardViewMb });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"ToggleCardReservation failed, falling back to click: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// The confirm button, resolved from DraftDeckView._confirmPickButton on the deck view
+        /// the controller currently shows. Label matching cannot find it: the caption is
+        /// "Confirm Pick" only once the quota is full, and "Select (n/m)" below that.
+        /// </summary>
+        private GameObject GetConfirmPickButton()
+        {
+            EnsureReflectionInitialized();
+            var h = _draftCache.Handles;
+            if (h?.ActiveDeckView == null || h.ConfirmPickButton == null) return null;
+
+            try
+            {
+                var controller = GetControllerComponent();
+                if (controller == null) return null;
+
+                var deckView = h.ActiveDeckView.GetValue(controller) as Component;
+                if (deckView == null) return null;
+
+                var button = h.ConfirmPickButton.GetValue(deckView) as Component;
+                if (button == null) return null;
+
+                return button.gameObject;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Could not resolve confirm button: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Whether a CustomButton GameObject is currently clickable. Returns true when the
+        /// state can't be read, so an unreadable button still gets its click attempt rather
+        /// than being silently swallowed.
+        /// </summary>
+        private bool IsButtonInteractable(GameObject buttonObj)
+        {
+            if (buttonObj == null) return false;
+            EnsureReflectionInitialized();
+            if (_draftCache.Handles?.ButtonInteractable == null) return true;
+
+            try
+            {
+                foreach (var mb in buttonObj.GetComponents<MonoBehaviour>())
+                {
+                    if (mb == null) continue;
+                    string typeName = mb.GetType().Name;
+                    if (typeName != T.CustomButton && typeName != T.CustomButtonWithTooltip) continue;
+
+                    var prop = mb.GetType().GetProperty("Interactable", PublicInstance);
+                    if (prop == null) continue;
+                    var val = prop.GetValue(mb);
+                    if (val is bool b) return b;
+                }
+            }
+            catch { /* best effort */ }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Current pack and pick number, 1-based, or (0, 0) when unavailable.
+        /// The bot pod stores 0-based counters; the human pod stores a PickInfo whose
+        /// SelfPack/SelfPick are already display values.
+        /// </summary>
+        private (int pack, int pick) GetPackAndPick()
+        {
+            var pod = GetDraftPod();
+            if (pod == null) return (0, 0);
+
+            var h = _draftCache.Handles;
+            if (h == null) return (0, 0);
+
+            try
+            {
+                string podTypeName = pod.GetType().Name;
+
+                if (podTypeName == "BotDraftPod" && h.BotCurrentPack != null && h.BotCurrentPick != null)
+                {
+                    var packVal = h.BotCurrentPack.GetValue(pod);
+                    var pickVal = h.BotCurrentPick.GetValue(pod);
+                    if (packVal is int p && pickVal is int q)
+                        return (p + 1, q + 1);
+                    return (0, 0);
+                }
+
+                if (h.HumanPickInfo != null && h.PickInfoSelfPack != null && h.PickInfoSelfPick != null)
+                {
+                    var pickInfo = h.HumanPickInfo.GetValue(pod);
+                    if (pickInfo == null) return (0, 0);
+
+                    var packVal = h.PickInfoSelfPack.GetValue(pickInfo);
+                    var pickVal = h.PickInfoSelfPick.GetValue(pickInfo);
+                    if (packVal is int p && pickVal is int q)
+                        return (p, q);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Could not read pack/pick position: {ex.Message}");
+            }
+
+            return (0, 0);
+        }
+
+        #endregion
 
         /// <summary>
         /// Count how many copies of a card (by GrpId) have been drafted into the deck so far.
@@ -624,6 +944,17 @@ namespace AccessibleArena.Core.Services
         {
             if (_draftControllerObject == null) return;
 
+            // Structural lookup first. In a multi-pick draft the confirm button is captioned
+            // "Select (n/m)" until the quota is met, so the caption match below never sees it
+            // and the button would be unreachable exactly when the player needs to check it.
+            var confirmButton = GetConfirmPickButton();
+            if (confirmButton != null && confirmButton.activeInHierarchy && !addedObjects.Contains(confirmButton))
+            {
+                AddElement(confirmButton, BuildConfirmButtonLabel(confirmButton));
+                addedObjects.Add(confirmButton);
+                Log.Msg("{NavigatorId}", $"Found confirm button (structural): {confirmButton.name}");
+            }
+
             foreach (var mb in _draftControllerObject.GetComponentsInChildren<MonoBehaviour>(false))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
@@ -641,21 +972,38 @@ namespace AccessibleArena.Core.Services
                     (!string.IsNullOrEmpty(buttonText) && (buttonText.Contains("bestätigen") ||
                      buttonText.Contains("Confirm") || buttonText.Contains("confirm"))))
                 {
-                    string label = !string.IsNullOrEmpty(buttonText) ? buttonText : "Confirm Selection";
-                    AddElement(button, $"{label}, button");
+                    string label = !string.IsNullOrEmpty(buttonText) ? buttonText : Strings.DraftConfirmSelection;
+                    AddElement(button, $"{label}, {Strings.RoleButton}");
                     addedObjects.Add(button);
                     Log.Msg("{NavigatorId}", $"Found confirm button: {name} -> {label}");
                 }
             }
         }
 
+        /// <summary>
+        /// Label for the confirm button. The game's own caption already carries the numbers
+        /// where they matter ("Select (1/2)" below the quota, "Confirm Pick" once it is met),
+        /// so we only add the role and, when it is not clickable, say so.
+        /// </summary>
+        private string BuildConfirmButtonLabel(GameObject button)
+        {
+            string text = UITextExtractor.GetButtonText(button, null);
+            if (string.IsNullOrEmpty(text)) text = Strings.DraftConfirmSelection;
+
+            string label = $"{text}, {Strings.RoleButton}";
+            if (!IsButtonInteractable(button))
+                label += $", {Strings.DeckStatusUnavailable}";
+
+            return label;
+        }
+
         public override string GetTutorialHint() => LocaleManager.Instance.Get("DraftHint");
 
         protected override string GetActivationAnnouncement()
         {
-            string countInfo = _totalCards > 0 ? $" {_totalCards} cards." : "";
-            string core = $"Draft Pick.{countInfo}".TrimEnd();
-            return Strings.WithHint(core, "DraftHint");
+            // ScreenName already carries the localized name, the card count, the pack/pick
+            // position and (only when it is not 1) the pick quota.
+            return Strings.WithHint(GetScreenName(), "DraftHint");
         }
 
         protected override void HandleInput()
@@ -736,26 +1084,23 @@ namespace AccessibleArena.Core.Services
                     var elem = _elements[_currentIndex];
                     Log.Msg("{NavigatorId}", $"Enter pressed on: {elem.GameObject?.name ?? "null"} (Label: {elem.Label})");
 
-                    // Check if this is the confirm button — use confirm rescan path
-                    string label = elem.Label?.ToLowerInvariant() ?? "";
-                    bool isConfirmButton = label.Contains("confirm") || label.Contains("bestätigen");
-
-                    UIActivator.Activate(elem.GameObject);
-
-                    _rescanPending = true;
-                    _rescanFrameCounter = 0;
-                    if (isConfirmButton)
+                    // The confirm button shares the element list with the cards. Route by
+                    // component/identity rather than by caption — below the pick quota the
+                    // caption reads "Select (n/m)", so no substring match for "confirm" would
+                    // recognise it.
+                    if (GetDraftPackCardView(elem.GameObject) == null)
                     {
-                        _isToggleRescan = false;
-                        _isConfirmRescan = true;
-                        _currentRescanDelay = ConfirmRescanDelayFrames;
+                        var confirmButton = GetConfirmPickButton();
+                        // Either this is the confirm button, or we could not resolve one at all
+                        // and ClickConfirmButton's own fallback is the better guess.
+                        if (confirmButton == null || elem.GameObject == confirmButton)
+                            ClickConfirmButton();
+                        else
+                            UIActivator.Activate(elem.GameObject);
+                        return;
                     }
-                    else
-                    {
-                        _isToggleRescan = true;
-                        _isConfirmRescan = false;
-                        _currentRescanDelay = ToggleRescanDelayFrames;
-                    }
+
+                    ToggleCurrentCard(elem.GameObject);
                 }
                 return;
             }
@@ -781,50 +1126,207 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void ClickConfirmButton()
         {
-            foreach (var elem in _elements)
-            {
-                if (elem.GameObject == null) continue;
-                string label = elem.Label?.ToLowerInvariant() ?? "";
-                if (label.Contains("confirm") || label.Contains("bestätigen"))
-                {
-                    Log.Msg("{NavigatorId}", $"Clicking confirm button: {elem.GameObject.name}");
-                    UIActivator.Activate(elem.GameObject);
+            // Structural lookup first (DraftDeckView._confirmPickButton). Caption matching is
+            // unreliable: below the pick quota the game relabels this button "Select (n/m)",
+            // so a Pick Two draft has no button reading "Confirm" until the second card is in.
+            var button = GetConfirmPickButton();
 
-                    _rescanPending = true;
-                    _rescanFrameCounter = 0;
-                    _isToggleRescan = false;
-                    _isConfirmRescan = true;
-                    _currentRescanDelay = ConfirmRescanDelayFrames;
-                    return;
+            if (button == null || !button.activeInHierarchy)
+                button = FindConfirmButtonByLabel();
+
+            if (button == null)
+            {
+                _announcer?.Announce(Strings.DraftNoConfirmButton, AnnouncementPriority.Normal);
+                return;
+            }
+
+            // Not yet clickable: say how many cards are still owed instead of firing a click
+            // the game silently drops. Only reachable in a multi-pick draft, where the quota
+            // really is the missing information.
+            if (!IsButtonInteractable(button))
+            {
+                int toTake = GetNumCardsToPick();
+                int reserved = GetReservedCount();
+                int missing = toTake - reserved;
+
+                if (missing > 0)
+                    _announcer?.AnnounceInterrupt(Strings.DraftSelectMore(missing));
+                else
+                    _announcer?.AnnounceInterrupt(Strings.ItemDisabled);
+                return;
+            }
+
+            Log.Msg("{NavigatorId}", $"Clicking confirm button: {button.name}");
+            UIActivator.Activate(button);
+
+            _rescanPending = true;
+            _rescanFrameCounter = 0;
+            _isToggleRescan = false;
+            _isConfirmRescan = true;
+            _currentRescanDelay = ConfirmRescanDelayFrames;
+        }
+
+        /// <summary>
+        /// Last-ditch confirm-button lookup by name/caption, used only when the structural
+        /// path fails (game update renamed the field, deck view not yet built). Kept as a
+        /// fallback because a draft with no reachable confirm button is unplayable.
+        /// </summary>
+        private GameObject FindConfirmButtonByLabel()
+        {
+            if (_draftControllerObject == null) return null;
+
+            foreach (var mb in _draftControllerObject.GetComponentsInChildren<MonoBehaviour>(false))
+            {
+                if (mb == null || !mb.gameObject.activeInHierarchy) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName != T.CustomButton && typeName != T.CustomButtonWithTooltip) continue;
+
+                string name = mb.gameObject.name;
+                string text = UITextExtractor.GetButtonText(mb.gameObject, null);
+                if (name.Contains("Confirm") || name.Contains("MainButton") ||
+                    (!string.IsNullOrEmpty(text) && (text.Contains("bestätigen") || text.Contains("Confirm"))))
+                {
+                    Log.Msg("{NavigatorId}", $"Confirm button found by label fallback: {name}");
+                    return mb.gameObject;
                 }
             }
 
-            // Fallback: search all CustomButtons in draft area for confirm
-            if (_draftControllerObject != null)
-            {
-                foreach (var mb in _draftControllerObject.GetComponentsInChildren<MonoBehaviour>(false))
-                {
-                    if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                    if (mb.GetType().Name != T.CustomButton) continue;
+            return null;
+        }
 
-                    string name = mb.gameObject.name;
-                    string text = UITextExtractor.GetButtonText(mb.gameObject, null);
-                    if (name.Contains("Confirm") || name.Contains("MainButton") ||
-                        (!string.IsNullOrEmpty(text) && (text.Contains("bestätigen") || text.Contains("Confirm"))))
-                    {
-                        Log.Msg("{NavigatorId}", $"Clicking confirm button (fallback): {name}");
-                        UIActivator.Activate(mb.gameObject);
-                        _rescanPending = true;
-                        _rescanFrameCounter = 0;
-                        _isToggleRescan = false;
-                        _isConfirmRescan = true;
-                        _currentRescanDelay = ConfirmRescanDelayFrames;
-                        return;
-                    }
+        /// <summary>
+        /// Select or deselect the focused card. Routes through the controller's own
+        /// ToggleCardReservation so a fast second Enter cannot be read as a double-click
+        /// (which locks the card in and can submit the whole pick unconfirmed).
+        /// Falls back to a debounced click when that method cannot be resolved.
+        /// </summary>
+        /// <summary>
+        /// The card views currently reserved for this pick, or null when they can't be read.
+        /// </summary>
+        private List<MonoBehaviour> GetReservedCardViews()
+        {
+            var manager = GetDraftDeckManager();
+            if (manager == null || _draftCache.Handles?.GetReservedCards == null) return null;
+
+            try
+            {
+                var reserved = _draftCache.Handles.GetReservedCards.Invoke(manager, new object[] { false });
+                if (!(reserved is IEnumerable entries)) return null;
+
+                var views = new List<MonoBehaviour>();
+                foreach (var kvp in entries)
+                {
+                    if (kvp == null) continue;
+                    var keyProp = kvp.GetType().GetProperty("Key", PublicInstance);
+                    if (keyProp?.GetValue(kvp) is MonoBehaviour view)
+                        views.Add(view);
                 }
+                return views;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Could not read reserved cards: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Report a reservation that the game dropped to make room for the card just selected.
+        /// Only called for multi-pick drafts — in a one-card pick the swap is self-evident.
+        /// </summary>
+        private void AnnounceEvictedReservation(List<MonoBehaviour> before, MonoBehaviour justToggled)
+        {
+            if (before == null || before.Count == 0) return;
+
+            var after = GetReservedCardViews();
+            if (after == null) return;
+
+            foreach (var view in before)
+            {
+                if (view == null || view == justToggled) continue;
+                if (after.Contains(view)) continue;
+
+                string name = ExtractCardName(view.gameObject);
+                if (string.IsNullOrEmpty(name)) continue;
+
+                _announcer?.Announce(Strings.DraftReplacedCard(name), AnnouncementPriority.Normal);
+                return;
+            }
+        }
+
+        /// <summary>The DraftPackCardView on a GameObject, or null when it is not a pack card.</summary>
+        private static MonoBehaviour GetDraftPackCardView(GameObject obj)
+        {
+            if (obj == null) return null;
+
+            foreach (var mb in obj.GetComponents<MonoBehaviour>())
+            {
+                if (mb != null && mb.GetType().Name == T.DraftPackCardView)
+                    return mb;
             }
 
-            _announcer?.Announce("No confirm button found", AnnouncementPriority.Normal);
+            return null;
+        }
+
+        private void ToggleCurrentCard(GameObject cardObj)
+        {
+            if (cardObj == null) return;
+
+            var cardViewMb = GetDraftPackCardView(cardObj);
+
+            // Not a card (stray button): keep the plain activation path.
+            if (cardViewMb == null)
+            {
+                UIActivator.Activate(cardObj);
+                ScheduleToggleRescan();
+                return;
+            }
+
+            // The controller ignores card clicks while the pack animates; mirror that so a
+            // dropped input is reported rather than silently doing nothing.
+            if (IsPackAnimating())
+            {
+                _announcer?.AnnounceInterrupt(Strings.DraftPackNotReady);
+                return;
+            }
+
+            // Selecting past the quota silently evicts the oldest unlocked reservation
+            // (DraftDeckManager.TryAddReservedCard). In a one-card draft that is the obvious
+            // "you swapped your pick"; in a multi-pick draft a card you already chose vanishes
+            // with no feedback at all, so snapshot and report it.
+            bool trackEviction = GetNumCardsToPick() > 1;
+            var before = trackEviction ? GetReservedCardViews() : null;
+
+            if (TryToggleCardReservation(cardViewMb))
+            {
+                AnnounceEvictedReservation(before, cardViewMb);
+                ScheduleToggleRescan();
+                return;
+            }
+
+            // Fallback path: simulate the click, but never twice on the same card inside the
+            // controller's 0.5s double-click window.
+            float now = Time.unscaledTime;
+            if (cardObj == _lastToggledCard && now - _lastToggleTime < DoubleClickGuardSeconds)
+            {
+                Log.Msg("{NavigatorId}", $"Enter debounced on {cardObj.name} (double-click guard)");
+                _announcer?.AnnounceInterrupt(Strings.DraftPickTooFast);
+                return;
+            }
+
+            _lastToggledCard = cardObj;
+            _lastToggleTime = now;
+            UIActivator.Activate(cardObj);
+            ScheduleToggleRescan();
+        }
+
+        private void ScheduleToggleRescan()
+        {
+            _rescanPending = true;
+            _rescanFrameCounter = 0;
+            _isToggleRescan = true;
+            _isConfirmRescan = false;
+            _currentRescanDelay = ToggleRescanDelayFrames;
         }
 
         /// <summary>
@@ -1073,6 +1575,11 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Announce just the selection status of the current card (selected/deselected).
         /// Used after Enter toggle so the player doesn't hear the picked count again.
+        ///
+        /// In an ordinary one-card-per-pick draft this is a bare "selected" / "deselected":
+        /// the count is always 1 of 1 and saying so every time is dead information. In a
+        /// multi-pick draft the running total is appended, because how many cards the pick
+        /// still owes is exactly what is otherwise invisible.
         /// </summary>
         private void AnnounceSelectionStatus()
         {
@@ -1081,17 +1588,7 @@ namespace AccessibleArena.Core.Services
             var elem = _elements[_currentIndex];
             if (elem.GameObject == null) return;
 
-            // Get the card view MonoBehaviour to check selection state
-            MonoBehaviour cardViewMb = null;
-            foreach (var mb in elem.GameObject.GetComponents<MonoBehaviour>())
-            {
-                if (mb != null && mb.GetType().Name == T.DraftPackCardView)
-                {
-                    cardViewMb = mb;
-                    break;
-                }
-            }
-
+            var cardViewMb = GetDraftPackCardView(elem.GameObject);
             if (cardViewMb == null)
             {
                 // Not a card (e.g., confirm button) - announce full label
@@ -1100,12 +1597,15 @@ namespace AccessibleArena.Core.Services
             }
 
             var draftDeckManager = GetDraftDeckManager();
-            string status = GetCardSelectedStatus(draftDeckManager, cardViewMb);
+            // Null status means the card is not reserved — i.e. the Enter just deselected it.
+            // Previously that produced silence, leaving the user unsure whether it registered.
+            string status = GetCardSelectedStatus(draftDeckManager, cardViewMb) ?? Strings.Deselected;
 
-            if (!string.IsNullOrEmpty(status))
-            {
-                _announcer.AnnounceInterrupt(status);
-            }
+            string progress = GetSelectionProgressIfMeaningful();
+            if (!string.IsNullOrEmpty(progress))
+                status += $", {progress}";
+
+            _announcer.AnnounceInterrupt(status);
         }
 
         /// <summary>
@@ -1257,6 +1757,8 @@ namespace AccessibleArena.Core.Services
             _lastPickRemaining = -1f;
             _lastPickTotal = -1f;
             _warned30 = _warned10 = _warned5 = false;
+            _lastToggledCard = null;
+            _lastToggleTime = 0f;
             EnablePopupDetection();
         }
 

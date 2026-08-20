@@ -427,6 +427,14 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isInPopupMode || _popupGameObject == null) return;
 
+            // Physical-prize confirmation: Backspace must not act. See IsPhysicalPrizePopup.
+            if (IsPhysicalPrizePopup(_popupGameObject))
+            {
+                Log.Msg("{NavigatorId}", $"Popup: refusing to dismiss the physical-prize confirmation");
+                _announcer?.AnnounceInterrupt(Strings.PhysicalPrizeNoDismiss);
+                return;
+            }
+
             // Escape hatch: if PanelStateManager no longer tracks this popup as open, its
             // buttons are dead — clicking them cannot produce a close event, so popup mode
             // would loop forever. Give the normal dismiss chain one attempt (in case our
@@ -792,6 +800,35 @@ namespace AccessibleArena.Core.Services
 
             // Phase 6: Detect stepper elements (e.g., craft quantity in CardViewerPopup)
             DiscoverPopupSteppers(popup);
+
+            // Phase 7: Physical-prize confirmation — flag the button that leaves the game
+            AnnotatePhysicalPrizeButtons(popup);
+        }
+
+        /// <summary>
+        /// On the Arena Direct physical-prize confirmation, say which button leaves the game.
+        /// "Contact Customer Support" calls Application.OpenURL and drops the player into a
+        /// browser on a support form; the caption alone does not make that obvious, and this
+        /// is not a popup anyone should press their way through by trial and error.
+        /// </summary>
+        private void AnnotatePhysicalPrizeButtons(GameObject popup)
+        {
+            if (!IsPhysicalPrizePopup(popup)) return;
+
+            string contactLabel = UITextExtractor.ResolveLocKey("Events/Rewards/Physical_PopUp_ContactCS");
+            if (string.IsNullOrEmpty(contactLabel)) return;
+
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var elem = _elements[i];
+                if (elem.Role != UIElementClassifier.ElementRole.Button) continue;
+                if (string.IsNullOrEmpty(elem.Label)) continue;
+                if (elem.Label.IndexOf(contactLabel, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                elem.Label = $"{elem.Label}, {Strings.PhysicalPrizeOpensBrowser}";
+                _elements[i] = elem;
+                Log.Msg("{NavigatorId}", $"Popup: flagged external-link button '{elem.Label}'");
+            }
         }
 
         private void DiscoverPopupTextBlocks(GameObject popup, bool hasDeckCosts, List<Transform> skipTransforms)
@@ -1363,6 +1400,45 @@ namespace AccessibleArena.Core.Services
         #endregion
 
         #region Popup Helpers
+
+        // Localized title of the Arena Direct physical-prize confirmation, resolved once from
+        // the game's own loc table so the check works in every language.
+        private const string PhysicalPrizeTitleLocKey = "Events/Rewards/Physical_PopUp_Title";
+        private static string _physicalPrizeTitle;
+        private static bool _physicalPrizeTitleResolved;
+
+        /// <summary>
+        /// True for the physical-prize confirmation shown when claiming an Arena Direct prize
+        /// (EventComponentManager.ClaimPrize, gated on EventTag.PhysicalPrize).
+        ///
+        /// Backspace must not act on it. The popup is built with the two-button
+        /// SystemMessageManager.ShowMessage overload, which marks neither button IsCancel, so
+        /// SystemMessageView falls back to treating the *first* button as cancel — and that
+        /// button is "Contact Customer Support", which calls Application.OpenURL. The universal
+        /// back key would therefore throw the player out to a browser.
+        ///
+        /// Nothing is lost by refusing: ClaimPrize() runs regardless of which button is
+        /// pressed, so the popup is informational. But its body carries the registered email
+        /// and country the player needs in order to actually receive the prize, so it must be
+        /// read rather than dismissed by reflex.
+        /// </summary>
+        private bool IsPhysicalPrizePopup(GameObject popup)
+        {
+            if (popup == null) return false;
+
+            if (!_physicalPrizeTitleResolved)
+            {
+                _physicalPrizeTitleResolved = true;
+                _physicalPrizeTitle = UITextExtractor.ResolveLocKey(PhysicalPrizeTitleLocKey);
+                Log.Msg("{NavigatorId}", $"Popup: physical-prize title resolved as '{_physicalPrizeTitle ?? "(unresolved)"}'");
+            }
+
+            if (string.IsNullOrEmpty(_physicalPrizeTitle)) return false;
+
+            string title = ExtractPopupTitle(popup);
+            return !string.IsNullOrEmpty(title) &&
+                   string.Equals(title.Trim(), _physicalPrizeTitle.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
 
         private string ExtractPopupTitle(GameObject popup)
         {

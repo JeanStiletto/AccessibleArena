@@ -53,6 +53,8 @@ namespace AccessibleArena.Core.Constants
         public const string LearnToPlayControllerV2 = "LearnToPlayControllerV2";
         public const string DeckManagerController = "DeckManagerController";
         public const string DraftContentController = "DraftContentController";
+        public const string DraftDeckView = "DraftDeckView";
+        public const string DraftPackHolder = "DraftPackHolder";
         public const string TableDraftQueueContentController = "TableDraftQueueContentController";
         public const string ProgressionTracksContentController = "ProgressionTracksContentController";
         public const string ContentControllerStoreCarousel = "ContentController_StoreCarousel";
@@ -135,6 +137,16 @@ namespace AccessibleArena.Core.Constants
         public const string EventBladeContentViewFQ = "Wizards.Mtga.PlayBlade.EventBladeContentView";
         public const string EventBladeContentView = "EventBladeContentView";
         public const string ContentControllerPlayerInboxFQ = "Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox";
+        public const string DraftContentControllerFQ = "Wotc.Mtga.Wrapper.Draft.DraftContentController";
+        public const string DraftDeckViewFQ = "Wotc.Mtga.Wrapper.Draft.DraftDeckView";
+        public const string DraftDeckManagerFQ = "Wotc.Mtga.Wrapper.Draft.DraftDeckManager";
+        public const string DraftPackHolderFQ = "Wotc.Mtga.Wrapper.Draft.DraftPackHolder";
+        public const string BotDraftPodFQ = "Wotc.Mtga.Wrapper.Draft.BotDraftPod";
+        public const string HumanDraftPodFQ = "Wotc.Mtga.Wrapper.Draft.HumanDraftPod";
+        public const string IDraftPodFQ = "Wotc.Mtga.Wrapper.Draft.IDraftPod";
+        // Event page component manager: single broadcast point for in-place event page state
+        // changes (SetProgressBarState / UpdateComponents). No panel event fires for these.
+        public const string EventComponentManagerFQ = "EventPage.Components.EventComponentManager";
         public const string UXEventQueueFQ = "Wotc.Mtga.DuelScene.UXEvents.UXEventQueue";
         public const string UXEventFQ = "Wotc.Mtga.DuelScene.UXEvents.UXEvent";
     }

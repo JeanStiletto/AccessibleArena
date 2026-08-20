@@ -166,6 +166,30 @@ Actions level: Up/Down choose, Enter activates ("Open in deck builder" / "Buy pa
 Deck cosmetics (avatar, sleeve, pet, emotes) are reachable through the deck-title button — pressing Enter on it opens the deck-details popup, which the mod then makes keyboard-navigable.
 Style on focused card is read out as part of the card info blocks (Arrow Down).
 
+**Draft - Card Picking (all drafts, including Cube and Pick Two):**
+Left/Right or Tab/Shift+Tab: Navigate cards. Home/End: first/last. Up/Down: card details.
+Enter on a card: Select or deselect it. Says "selected" or "deselected".
+Space: Confirm the pick. Also reachable as the last element in the Tab cycle.
+E: Remaining pick time (human/premier drafts; bot drafts are untimed).
+Backspace: Leave the draft.
+The screen name carries the position: "Draft Pick, 15 cards, pack 2, pick 5".
+Pick Two and other multi-pick drafts additionally announce "take 2 cards" in the screen name,
+"selected, 1 of 2" after each Enter, and the name of any earlier choice the game drops to make
+room. Ordinary one-card drafts stay quiet about counts — "1 of 1" every pick is dead information.
+Pressing Space before enough cards are selected says how many more to pick, rather than nothing.
+
+**Events - Paid Entry:**
+The game only asks for confirmation on gem entries. Gold and event/draft/sealed tokens are
+charged the instant the button is pressed, so the mod requires two presses: the first Enter
+reads the fee back ("Entry fee 750 gold. Press Enter again to pay, or move away to cancel."),
+the second one pays. Moving to another element cancels it.
+
+**Events - Physical Prize Popup (Arena Direct):**
+Backspace deliberately does nothing here. The popup's first button is "Contact Customer
+Support", which the game treats as the cancel button, so a reflex Backspace would open a web
+browser. Read the body (it contains the registered email and country the prize ships to) and
+choose a button with Enter. The support button announces that it opens a web browser.
+
 **Input Fields (Login, Search, etc.):**
 Enter: Start editing text field
 Escape: Stop editing, return to navigation

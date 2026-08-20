@@ -139,6 +139,19 @@ namespace AccessibleArena.Core.Services
         private float _rescanDelay;
         private bool _suppressRescanAnnouncement;
 
+        // Event page in-place refresh: the page stays on the same controller, so the grouped
+        // navigator restores the cursor and the normal screen announcement is suppressed. Say
+        // the focused element again instead, but only when its text actually changed — several
+        // UpdateComponents calls can land for one visible change.
+        private bool _announceAfterEventRefresh;
+        private string _lastEventRefreshAnnouncement;
+
+        // Paid event entry: gold and token entries are charged the instant the button is
+        // clicked, with no dialog from the game. Arm on the first Enter, spend on the second.
+        private GameObject _pendingEntryFeeElement;
+        private float _pendingEntryFeeTime;
+        private const float EntryFeeConfirmSeconds = 15f;
+
         // Element tracking
         private float _bladeAutoExpandDelay;
 
@@ -282,6 +295,26 @@ namespace AccessibleArena.Core.Services
 
             // Subscribe to mail letter selection events
             PanelStatePatch.OnMailLetterSelected += OnMailLetterSelected;
+
+            // Subscribe to the event page's in-place refreshes. The page reconfigures itself
+            // without any panel open/close (see PanelStatePatch.OnEventPageRefreshed), so this
+            // is the only signal that its contents changed.
+            PanelStatePatch.OnEventPageRefreshed += OnEventPageRefreshed;
+        }
+
+        /// <summary>
+        /// The event page rebuilt its widgets in place (state transition after a match, entry
+        /// paid, timer expired, prize claimed, sold out, …). Rescan so the announced state is
+        /// the live one rather than whatever the page showed when it was last opened.
+        /// </summary>
+        private void OnEventPageRefreshed(string reason)
+        {
+            if (!_isActive || IsInPopupMode) return;
+            if (!IsEventPageController(_activeContentController)) return;
+
+            Log.Nav(NavigatorId, $"Event page refreshed ({reason}) - scheduling rescan");
+            _announceAfterEventRefresh = true;
+            TriggerRescan();
         }
 
         /// <summary>
@@ -788,6 +821,14 @@ namespace AccessibleArena.Core.Services
 
         public override void Update()
         {
+            // An armed entry-fee confirmation is tied to the button it was armed on. Moving the
+            // cursor elsewhere cancels it, as the announcement promises.
+            if (_pendingEntryFeeElement != null && GetFocusedGameObject() != _pendingEntryFeeElement)
+            {
+                Log.Nav(NavigatorId, $"Entry fee confirmation cancelled (moved away from {_pendingEntryFeeElement.name})");
+                _pendingEntryFeeElement = null;
+            }
+
             // Handle rescan delay after button activation
             if (_rescanDelay > 0)
             {
@@ -1680,6 +1721,15 @@ namespace AccessibleArena.Core.Services
             DetectActiveContentController();
             Log.Nav(NavigatorId, $"Rescanning elements after panel change (controller: {_activeContentController ?? "none"})");
 
+            // Leaving (or entering) a screen resets the event-refresh dedupe, so re-opening the
+            // same event page announces its state again instead of being swallowed as a repeat.
+            // Also drops any pending re-announce, which belongs to the screen we just left.
+            if (previousController != _activeContentController)
+            {
+                _lastEventRefreshAnnouncement = null;
+                _announceAfterEventRefresh = false;
+            }
+
             // Remember the navigator's current selection before clearing
             GameObject previousSelection = null;
             if (_currentIndex >= 0 && _currentIndex < _elements.Count)
@@ -1746,7 +1796,11 @@ namespace AccessibleArena.Core.Services
 
             // Skip full screen announcement if position was restored (same screen, same context)
             if (_groupedNavigationEnabled && _groupedNavigator.PositionWasRestored)
+            {
+                AnnounceEventPageRefreshIfChanged();
                 return;
+            }
+            _announceAfterEventRefresh = false;
 
             // Skip announcement when HandleGroupedBackspace already announced (e.g., folder exit)
             if (_suppressRescanAnnouncement)
@@ -1769,6 +1823,26 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(first))
                     _announcer.Announce(first, Models.AnnouncementPriority.High);
             }
+        }
+
+        /// <summary>
+        /// After an in-place event page refresh the cursor is restored, so the usual screen
+        /// announcement is suppressed and the user would hear nothing at all — the very
+        /// symptom this is meant to fix. Re-announce the focused element, but only when its
+        /// text actually changed: one visible change can produce several UpdateComponents
+        /// calls, and repeating an identical line is worse than saying nothing.
+        /// </summary>
+        private void AnnounceEventPageRefreshIfChanged()
+        {
+            if (!_announceAfterEventRefresh) return;
+            _announceAfterEventRefresh = false;
+
+            string announcement = GetElementAnnouncement(_currentIndex);
+            if (string.IsNullOrEmpty(announcement)) return;
+            if (announcement == _lastEventRefreshAnnouncement) return;
+
+            _lastEventRefreshAnnouncement = announcement;
+            _announcer.Announce(announcement, Models.AnnouncementPriority.Normal);
         }
 
         protected override bool DetectScreen()
@@ -2438,6 +2512,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected override void ActivateCurrentElement()
         {
+            // Paid event entry: confirm before spending anything the game would take silently.
+            if (IsValidIndex && !ConfirmEventEntryFee(_elements[_currentIndex].GameObject))
+                return;
+
             if (_isDeckBuilderReadOnly && IsValidIndex)
             {
                 var element = _elements[_currentIndex].GameObject;
@@ -2462,6 +2540,63 @@ namespace AccessibleArena.Core.Services
             }
 
             base.ActivateCurrentElement();
+        }
+
+        /// <summary>
+        /// Gate on paid event entry. Returns true when activation may proceed.
+        ///
+        /// Only gem entries get a confirmation from the game itself
+        /// (MainButton_OnPayJoinButtonClicked shows a cancellable system message for
+        /// EventEntryCurrencyType.Gem and calls JoinAndPayEvent directly for everything else).
+        /// So a single Enter on a gold or token entry spends it outright, with no dialog, no
+        /// undo, and — because the game writes only a bare number or an icon onto the button —
+        /// often without the player having heard the price at all. Say the price, then require
+        /// a second deliberate Enter.
+        /// </summary>
+        /// <summary>
+        /// The GameObject the cursor is on, whichever navigation mode is in effect.
+        /// </summary>
+        private GameObject GetFocusedGameObject()
+        {
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                return _groupedNavigator.CurrentElement?.GameObject;
+
+            return IsValidIndex ? _elements[_currentIndex].GameObject : null;
+        }
+
+        private bool ConfirmEventEntryFee(GameObject element)
+        {
+            if (element == null) return true;
+
+            var fee = EventAccessor.GetEventEntryFee(element);
+            if (fee == null || !fee.SpendsWithoutConfirmation)
+            {
+                _pendingEntryFeeElement = null;
+                return true;
+            }
+
+            // Second press on the same button, still within the window: let it through.
+            if (_pendingEntryFeeElement == element &&
+                Time.unscaledTime - _pendingEntryFeeTime < EntryFeeConfirmSeconds)
+            {
+                _pendingEntryFeeElement = null;
+                Log.Nav(NavigatorId, $"Entry fee confirmed for {element.name}");
+                return true;
+            }
+
+            _pendingEntryFeeElement = element;
+            _pendingEntryFeeTime = Time.unscaledTime;
+
+            // Prefer the resolved amount; fall back to the button's own caption for token
+            // entries, which carry a localized phrase instead of a number.
+            string price = (fee.CurrencyName != null && fee.Quantity > 0)
+                ? $"{fee.Quantity} {fee.CurrencyName}"
+                : UITextExtractor.GetButtonText(element, null);
+
+            _announcer.AnnounceInterrupt(string.IsNullOrEmpty(price)
+                ? Strings.EventEntryFeeConfirmUnknown
+                : Strings.EventEntryFeeConfirm(price));
+            return false;
         }
 
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);

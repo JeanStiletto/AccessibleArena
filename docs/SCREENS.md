@@ -1056,6 +1056,66 @@ The Codex of the Multiverse screen provides a hierarchical table of contents for
 
 ---
 
+## Draft Pick Screen
+
+**Controller:** `Wotc.Mtga.Wrapper.Draft.DraftContentController`
+**Navigator:** `DraftNavigator`
+**Priority:** 78 (below BoosterOpen at 80, above General at 15)
+
+One screen for every draft the game runs — Quick Draft, Premier/Traditional, Cube and Pick Two
+alike. `DraftModes` has exactly two values (`BotDraft`, `HumanDraft`); everything else that
+looks like a different draft type is content, not code.
+
+**Navigation:**
+- Left/Right or Tab/Shift+Tab: move between cards; Home/End for first/last
+- Up/Down: card details via `CardInfoNavigator`
+- Enter on a card: select or deselect; Enter on the confirm button: confirm
+- Space: confirm the pick from anywhere
+- E: remaining pick time (human drafts only — bot drafts report no timer)
+- Backspace: leave
+
+**Screen name:** `"Draft Pick, {n} cards, pack {p}, pick {q}"`, plus `", take {m} cards"`
+when the pick quota is above 1.
+
+**Technical Notes:**
+- Enter routes through `DraftContentController.ToggleCardReservation` by reflection, never a
+  simulated click — the controller's own 0.5 s double-click detector turns a second click into
+  a lock-in that can submit the pick outright. See "Card selection" in `EVENTS.md`.
+- The confirm button is resolved as `_activeDeckView` → `DraftDeckView._confirmPickButton`.
+  Caption matching fails in multi-pick drafts, where the button reads "Select (1/2)".
+- Pack/pick position comes from `BotDraftPod._currentPack`/`_currentPick` (0-based, +1 for
+  display) or `HumanDraftPod._currentPickInfo.SelfPack`/`.SelfPick` (already 1-based).
+- Counts are announced only when the quota is above 1; a one-card draft never hears "1 of 1".
+
+**Files:**
+- `src/Core/Services/DraftNavigator.cs`
+- `docs/EVENTS.md` — full detail, including the Pick Two and Cube findings
+
+## Event Page
+
+**Controller:** `EventPage.EventPageContentController` (V1) / `FactionalizedEventTemplate` (V2)
+**Navigator:** `GeneralMenuNavigator`
+
+Every event — Midweek Magic, drafts, sealed, Arena Direct, Arena Open, Qualifiers — uses this
+one page. The widget set is data-driven from `EventComponentData`; there is no per-event screen.
+
+**Technical Notes:**
+- The page is cached per event (`_instantiatedEventPages`) and its components are built only on
+  the first visit. It also reconfigures itself in place via
+  `EventComponentManager.SetProgressBarState` / `UpdateComponents`, neither of which opens or
+  closes a panel. `PanelStatePatch` postfixes both and raises `OnEventPageRefreshed` so the mod
+  rescans; without it the screen keeps describing its state from the previous visit.
+- The main button is five alternative buttons; several pay buttons can be live at once when the
+  event lists several entry fees.
+- Gold and token entries are charged on click with no dialog from the game, so
+  `GeneralMenuNavigator.ConfirmEventEntryFee` withholds the first Enter and announces the price.
+
+**Files:**
+- `src/Core/Services/EventAccessor.cs`, `src/Patches/PanelStatePatch.cs`
+- `docs/EVENTS.md` — full detail
+
+---
+
 ## Adding New Screens
 
 For implementing accessibility for a new screen, see the "Adding Support for New Screens" section in BEST_PRACTICES.md which covers:

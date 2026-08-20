@@ -13,8 +13,10 @@ param(
     [Parameter(Mandatory=$true, Position=0)]
     [string]$TypeName,
 
+    # Well-known abbreviations (Core/Asm/Gre/Shared/Models/Enums), "Auto" to try them
+    # in order, or any other assembly name from MTGA_Data/Managed (with or without the
+    # .dll suffix) for the long tail of Wizards.* assemblies.
     [Parameter(Position=1)]
-    [ValidateSet("Core", "Asm", "Gre", "Shared", "Auto")]
     [string]$Dll = "Auto",
 
     [Parameter()]
@@ -74,12 +76,20 @@ $dllMap = @{
     "Asm"    = Join-Path $managedDir "Assembly-CSharp.dll"
     "Gre"    = Join-Path $managedDir "Wizards.MDN.GreProtobuf.dll"
     "Shared" = Join-Path $managedDir "SharedClientCore.dll"
+    "Models" = Join-Path $managedDir "Wizards.Arena.Models.dll"
+    "Enums"  = Join-Path $managedDir "Wizards.Arena.Enums.dll"
 }
 
 # Build search order
 if ($Dll -eq "Auto") {
-    $searchOrder = @("Core", "Asm", "Gre", "Shared")
+    $searchOrder = @("Core", "Asm", "Gre", "Shared", "Models", "Enums")
 } else {
+    # Anything that is not a known abbreviation is taken as a literal assembly name,
+    # so type-index rows can name a Wizards.* DLL directly.
+    if (-not $dllMap.ContainsKey($Dll)) {
+        $fileName = if ($Dll -like "*.dll") { $Dll } else { "$Dll.dll" }
+        $dllMap[$Dll] = Join-Path $managedDir $fileName
+    }
     $searchOrder = @($Dll)
 }
 

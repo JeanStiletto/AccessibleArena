@@ -8,6 +8,11 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 - `Asm` = `Assembly-CSharp.dll`
 - `Gre` = `Wizards.MDN.GreProtobuf.dll`
 - `Shared` = `SharedClientCore.dll`
+- `Models` = `Wizards.Arena.Models.dll`
+- `Enums` = `Wizards.Arena.Enums.dll`
+
+Any other value in the DLL column is taken as a literal assembly name from the
+managed directory (with or without the `.dll` suffix).
 
 **DLL location:** `C:\Program Files\Wizards of the Coast\MTGA\MTGA_Data\Managed\`
 
@@ -149,6 +154,48 @@ Used by `tools/decompile.ps1` and `tools/decompile-all.ps1`.
 | BladeContentView | Wizards.Mtga.PlayBlade.BladeContentView | Core |
 | EventBladeContentView | Wizards.Mtga.PlayBlade.EventBladeContentView | Core |
 | LastPlayedBladeContentView | LastPlayedBladeContentView | Core |
+
+## Event Page
+
+One page for every event; the widget set is data-driven from `EventComponentData`.
+See `docs/investigations/unsupported-events.md`.
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| EventPageContentController | EventPage.EventPageContentController | Core |
+| EventPageScaffolding | EventPage.EventPageScaffolding | Core |
+| EventPageComponentFactory | EventPage.Components.EventPageComponentFactory | Core |
+| EventComponentManager | EventPage.Components.EventComponentManager | Core |
+| EventPageRewardsController | EventPage.EventPageRewardsController | Core |
+| EventPageStates | EventPage.Components.EventPageStates | Core |
+| MainButtonComponent | EventPage.Components.MainButtonComponent | Core |
+| MainButtonComponentController | EventPage.Components.MainButtonComponentController | Core |
+| CashTournamentComponent | EventPage.Components.CashTournamentComponent | Core |
+| PrizeWallComponent | EventPage.Components.PrizeWallComponent | Core |
+| PrizeWallComponentController | EventPage.Components.PrizeWallComponentController | Core |
+| TimerComponent | EventPage.Components.TimerComponent | Core |
+| TimerComponentController | EventPage.Components.TimerComponentController | Core |
+| ObjectiveTrackComponent | EventPage.Components.ObjectiveTrackComponent | Core |
+| LossDetailsComponent | EventPage.Components.LossDetailsComponent | Core |
+| SelectedDeckComponent | EventPage.Components.SelectedDeckComponent | Core |
+| TournamentController | Core.Meta.MainNavigation.Tournaments.TournamentController | Core |
+| PlayerEventModule | Wizards.Mtga.FrontDoorModels.PlayerEventModule | Shared |
+| MDNEFormatType | Wizards.Mtga.FrontDoorModels.MDNEFormatType | Shared |
+| EventTag | Wizards.Arena.Enums.Event.EventTag | Enums |
+
+## Draft (pick screen & pods)
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| DraftModes | Wotc.Mtga.Wrapper.Draft.DraftModes | Core |
+| DraftState | Wotc.Mtga.Wrapper.Draft.DraftState | Core |
+| DraftPackHolder | Wotc.Mtga.Wrapper.Draft.DraftPackHolder | Core |
+| DraftDeckView | Wotc.Mtga.Wrapper.Draft.DraftDeckView | Core |
+| BotDraftPod | Wotc.Mtga.Wrapper.Draft.BotDraftPod | Core |
+| DynamicDraftStateVisualData | Wotc.Mtga.Wrapper.Draft.DynamicDraftStateVisualData | Core |
+| StaticDraftStateVisualData | Wotc.Mtga.Wrapper.Draft.StaticDraftStateVisualData | Core |
+| PickInfo | Wizards.Unification.Models.Draft.PickInfo | Models |
+| TableInfo | Wizards.Unification.Models.Draft.TableInfo | Models |
 
 ## Deck Builder
 

@@ -2,7 +2,43 @@
 
 All notable changes to Accessible Arena.
 
-## v1.4.9.2
+## v1.5
+
+Events and drafts that were previously left alone are now covered, the constructed sideboard is navigable, and playable lands are back in the duel Tab cycle.
+
+### Events and drafts
+
+Coverage for the event types that were previously left alone: Cube drafts, Pick Two drafts, Midweek Magic, and the paid events (Arena Direct, Arena Open, Qualifiers). The decompilation behind this is written up in `docs/investigations/unsupported-events.md`; the short version is that none of them has a screen of its own. They all run through the event page, the draft pick screen and the draft queue that the mod already handles, and what differs between them is data. So the work below is not new screens — it is closing the places where a familiar-looking screen was quietly telling you the wrong thing, or where one keypress could spend something you cannot get back.
+
+#### Draft
+
+- The draft pick screen says where you are: "Draft Pick, 15 cards, pack 2, pick 5". Sighted players read the pack and pick number off the header above the pack; there was no way to hear it, so after a few picks you had no idea how far into the draft you were or whether a new pack had started. Both draft types store this differently — the bot draft keeps its own counters, the human draft carries them in the pick message from the server — and the mod reads whichever applies.
+
+- Enter on a card can no longer submit your pick by accident. The game runs its own double-click detector on pack cards: two clicks on the same card within half a second do not toggle it twice, they *lock it in*, and a locked-in card completes the pick immediately once you have selected as many as the pick calls for — no confirm button, no undo. Pressing Enter twice in quick succession, which is exactly what you do when you mean to deselect a card you just chose, went straight through that path. The mod now calls the game's own select/deselect routine directly instead of simulating a click, so the double-click detector is never involved at all. Where that routine cannot be reached, a second Enter on the same card within the danger window is refused with "Too fast, press Enter again in a moment" rather than risking it.
+
+- Deselecting a card says so. Enter on an already-selected card announced nothing at all, so you could not tell whether the key had registered.
+
+- Pick Two drafts work. In these events every pick takes two cards, and the game does not label its button "Confirm Pick" until you have both — below that it reads "Select (1/2)". The mod looked for the confirm button by searching for the word "confirm", so in a Pick Two draft there was no confirm button at all until the second card was in: Space did nothing and said nothing. The button is now found by asking the deck view which button it is, so it is reachable and readable the whole time. If you press Space too early you hear how many more cards to select instead of silence, and the button itself announces that it is unavailable.
+
+- Selection counts are announced only where they mean something. In an ordinary draft you pick one card per pack and hearing "1 of 1 selected" after every single pick is noise, so you just hear "selected". In a Pick Two draft you hear "selected, 1 of 2" — how many the pick still owes you is precisely what is otherwise invisible. The pick quota is announced in the screen name for the same reason: "take 2 cards" only appears when it is not the usual one.
+
+- In a multi-pick draft, a card dropped to make room is announced. Selecting a third card when the pick only takes two silently deselects one of your earlier choices. You now hear "Sundering Eruption was deselected to make room". In a one-card draft this is left silent, because swapping your single pick for another is what you obviously just did.
+
+- Cube drafts needed no separate work and are covered. A cube draft is an ordinary bot or human draft with a different card pool — it uses the same pick screen, the same queue lobby and the same deck builder, all of which the mod already handles. The improvements above apply to it like any other draft.
+
+#### Event pages (this includes Midweek Magic)
+
+- The event page keeps up with itself. The page you land on after clicking an event is built once and then reused: revisiting an event re-activates the same screen rather than rebuilding it, and the page reconfigures itself in place — after a match it swaps through a quest bar, then the event state, then possibly a rewards panel. None of that opens or closes a panel, which is the only thing the mod was watching, so it kept describing the state the page had when you last opened it. This is the "sometimes the opening screen does not refresh" that Midweek Magic showed most often, because Midweek Magic is the event you leave and come back to repeatedly. The mod now hooks the game's own two refresh points and re-reads the screen, telling you what changed without repeating itself when nothing did. It is not a Midweek Magic fix specifically — every event page benefits, including the paid ones.
+
+#### Paid events
+
+- Paying an entry fee takes two presses. Only gem entries get a confirmation dialog from the game; gold and every kind of event token are charged the instant the button is clicked, with no dialog and no undo. The button often shows nothing but a bare number, with the currency conveyed by an icon a screen reader cannot see — so a single Enter on a button reading "750" could enter a paid event you had not identified. The first Enter now reads the fee back to you ("Entry fee 750 gold. Press Enter again to pay, or move away to cancel.") and the second one pays it. Gem entries are untouched: the game already asks, and that dialog is navigable.
+
+- The physical-prize confirmation no longer sends you to a browser on Backspace. When you claim an Arena Direct prize, the game shows a popup with your registered email and country so you can check them before the prize is shipped. Its two buttons are "Contact Customer Support" and "Confirm", and because neither is marked as the cancel button the game treats the *first* one as cancel — so the universal back key would have opened a support form in a web browser. Backspace now does nothing on this popup and says so; the support button is announced as opening a web browser. Nothing is at risk either way, since the prize is claimed regardless of which button you press, but the details in that popup are worth reading rather than dismissing by reflex.
+
+Note on testing: the Midweek Magic event page is confirmed to load properly again. The rest of this section is derived from the game's own decompiled code rather than from play — these events are expensive to enter and the maintainer cannot run them, which is precisely why they had been left uncovered until the code behind them could be read directly. Every claim above is traceable to a specific method in `docs/investigations/unsupported-events.md`. The changes are shaped so that being wrong is cheap: the entry-fee confirmation only ever *withholds* a click, the physical-prize popup change only ever *declines* to press a button, and the draft selection path calls the game's own select routine rather than second-guessing it. If you do run a Cube, Pick Two, Arena Direct or Arena Open event, a report either way is worth a lot.
+
+### Deck builder
 
 - The sideboard in the deck builder works. Switching the Sideboard toggle on used to leave you with nothing: the "Sideboard" header appeared, Enter on it did nothing useful, and no sideboard cards were ever reachable. The reason is that the constructed deck builder does not open a second list next to your deck — it swaps the whole deck blade over, hiding the main deck list and showing a separate sideboard list in its place. The mod's sideboard detection was written for the draft and sealed layout and looked for a differently named holder that exposes its cards through a property the constructed sideboard does not have, so it always came back empty. It now finds the real sideboard list through the deck view that owns it, and reads its cards out of the field they are actually stored in. With the toggle on, the Deck List group is replaced by a Sideboard group in the Tab cycle: Left/Right walks the cards, Up/Down reads card details, Enter removes a copy, Shift+Enter opens the card viewer, and cards you activate in the Collection group go to the sideboard.
 
@@ -14,7 +50,7 @@ All notable changes to Accessible Arena.
 
 - Turning the sideboard on no longer leaves a phantom deck list behind. When the game hides the main deck list, the mod would find the hidden list anyway and — because it assumed a hidden list meant a loading glitch — force it back on, so you were offered a Deck List group whose cards were not on screen and which was drawn on top of the sideboard. The mod now tells the two situations apart and only revives the list when it is genuinely the loading case.
 
-## v1.4.9.1
+### Duel
 
 - Playable lands in hand are back in the Tab cycle. The 13 August game update made the glow on hand lands contextual — it disappears as soon as you control an untapped land — and Tab discovered hand lands only through that glow, so from turn two onward Tab skipped a land you were still allowed to play while you cycled through everything else. Tab now asks the game's own action list whether the land drop is available (the same source already used for castable spells), so a playable land always shows up in the cycle regardless of what the game chooses to glow. The same update also started highlighting your untapped battlefield lands, which Tab mirrors; that stays in as a feature — it tells you which mana sources are ready.
 
