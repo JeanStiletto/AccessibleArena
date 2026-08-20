@@ -902,17 +902,20 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Ctrl+Enter on a focused pool card toggles the game's preferred-printing
-            // expansion — the same chevron sighted users click on the tile's tag to
-            // fan out adjacent tiles for every available art style/printing. The
-            // pool refreshes and TriggerRescan picks up the new tiles for navigation.
+            // Ctrl+Enter is the deck builder's "secondary action on this tile", and which
+            // action that is depends on the tile:
+            //   Pool tile      -> toggle the game's preferred-printing expansion (the chevron
+            //                     sighted users click to fan out one tile per art style).
+            //   Deck-list tile -> fire the "4x" tag button, which adds another copy to
+            //   Sideboard tile    whichever pile the blade is showing. Enter stays "remove one".
             // Always consume Ctrl+Enter inside the deck builder so a plain Enter
             // doesn't fire on the focused element when the user holds Ctrl.
             if (_activeContentController == T.WrapperDeckBuilder
                 && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
                 && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
             {
-                TryToggleStyleExpansionForFocusedCard();
+                if (!TryToggleStyleExpansionForFocusedCard())
+                    TryAddCopyForFocusedDeckCard();
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
                 return true;
@@ -1724,6 +1727,26 @@ namespace AccessibleArena.Core.Services
 
             // Update menu type based on new state
             _detectedMenuType = DetectMenuType();
+
+            // Ctrl+Enter added a copy: announce the focused tile's rebuilt label, which
+            // carries the real quantity. Takes precedence over the deck count, which does
+            // not move when the copy went into the sideboard pile.
+            if (_announceFocusedCardAfterRescan && _activeContentController == T.WrapperDeckBuilder)
+            {
+                _announceFocusedCardAfterRescan = false;
+                _announceDeckCountOnRescan = false;
+                _deckCountBeforeActivation = null;
+
+                string focusedLabel = (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                    ? _groupedNavigator.CurrentElement?.Label
+                    : (IsValidIndex ? _elements[_currentIndex].Label : null);
+
+                if (!string.IsNullOrEmpty(focusedLabel))
+                    _announcer.AnnounceInterrupt(focusedLabel);
+
+                UpdateCardNavigationForGroupedElement();
+                return;
+            }
 
             // When a card was added/removed, announce just the card count if it changed
             if (_announceDeckCountOnRescan && _activeContentController == T.WrapperDeckBuilder)
@@ -3300,8 +3323,11 @@ namespace AccessibleArena.Core.Services
                 AutoPressPlayButtonInPlayBlade();
             }
 
-            // Deck list card activated (removing card from deck) - trigger rescan to update both lists
-            if (elementGroup == ElementGroup.DeckBuilderDeckList)
+            // Deck list / sideboard card activated (removing a copy) - trigger rescan to update both lists.
+            // Sideboard tiles use the same prefab and the same remove-on-click behaviour, so they
+            // need the same refresh (SideboardListCardHolder.OnCardRemoveClicked).
+            if (elementGroup == ElementGroup.DeckBuilderDeckList ||
+                elementGroup == ElementGroup.DeckBuilderSideboard)
             {
                 Log.Nav(NavigatorId, $"Deck list card activated - scheduling rescan to update lists");
                 // _deckCountBeforeActivation already captured before UIActivator.Activate above

@@ -153,6 +153,10 @@ Backspace: Back one level
 **Deck Builder - Cosmetics:**
 Shift+Enter on a focused card: Open card viewer (style picker / craft preview), same flow as a sighted right-click.
 Ctrl+Enter on a focused pool card: Toggle the game's preferred-printing expansion — fans the title out into one adjacent tile per available art style/printing (or collapses back). After expansion, arrow Left/Right walks the variants; the per-tile "Style:" info block tells them apart; Shift+Enter on the wanted variant opens the craft popup for that exact printing.
+Ctrl+Enter on a focused deck-list or sideboard card: Add one more copy, without going back to the collection. Fires the tile's "4x" quantity button, the same control a sighted user clicks. Enter on the same card still removes a copy. The copy goes to whichever pile the blade is showing — the main deck, or the sideboard while the Sideboard toggle is on. Announces the card's new quantity; says "Cannot add another copy" when the game has the add button disabled.
+
+**Deck Builder - Sideboard:**
+The Sideboard toggle does not open a second list — it swaps the deck blade over, so the Deck List group is replaced by a Sideboard group in the Tab cycle. Within it: Left/Right navigate, Up/Down read card details, Enter removes a copy, Ctrl+Enter adds one, Shift+Enter opens the card viewer. Enter on a Collection card adds to the sideboard while the toggle is on. The Sideboard header announces the count, so an empty sideboard still speaks.
 **Profile - Set Collection:**
 Enter on the profile's collection line: Open the full Set Collection screen.
 Filters level (entry): Up/Down walk the controls (Sort, Format, Standard/Historic/Alchemy quick filters), Left/Right change the focused control (announces how many sets remain), Space activates a toggle, Enter goes to the set list, Backspace leaves the screen.

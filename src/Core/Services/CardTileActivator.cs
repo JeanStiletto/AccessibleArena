@@ -178,8 +178,10 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Checks if an element is a deck list card (CustomButton - Tile in MainDeckContentCONTAINER).
-        /// These cards need special handling to avoid double activation.
+        /// Checks if an element is a deck-blade card tile (CustomButton - Tile in
+        /// MainDeckContentCONTAINER, or in the sideboard holder that replaces it while
+        /// the "Sideboard" toggle is on). Both use the same prefab and can open the card
+        /// viewer popup under the Craft filter, so they need the same special handling.
         /// </summary>
         public static bool IsDeckListCard(GameObject element)
         {
@@ -188,6 +190,11 @@ namespace AccessibleArena.Core.Services
             // Deck list cards are CustomButton - Tile elements inside MainDeckContentCONTAINER
             if (!element.name.Contains("CustomButton") && !element.name.Contains("Tile"))
                 return false;
+
+            // Sideboard tiles live under SideboardListCardHolder, not MainDeckContentCONTAINER.
+            // Match the exact prefab name so ordinary CustomButtons never trigger the lookup.
+            if (element.name == "CustomButton - Tile" && DeckCardProvider.IsUnderSideboardHolder(element))
+                return true;
 
             // Check parent hierarchy for deck list container
             Transform current = element.transform;

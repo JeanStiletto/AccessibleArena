@@ -1487,6 +1487,22 @@ namespace AccessibleArena.Core.Models
         public static string WaitingForServer => L.Get("WaitingForServer");
 
         // ===========================================
+        // DECK BUILDER SIDEBOARD (constructed)
+
+        /// <summary>
+        /// Label for the deck builder's sideboard title panel, e.g. "Sideboard, 4 cards".
+        /// Carries the count so an empty sideboard is still announced when the toggle is on.
+        /// </summary>
+        public static string DeckBuilderSideboardCount(int count) =>
+            count == 1 ? L.Get("DeckBuilderSideboardCount_One")
+                       : L.Format("DeckBuilderSideboardCount_Format", count);
+
+        /// <summary>
+        /// Spoken when Ctrl+Enter cannot add a copy because the game disabled the tile's
+        /// add button (read-only decks, style mode).
+        /// </summary>
+        public static string DeckBuilderCannotAddCopy => L.Get("DeckBuilderCannotAddCopy");
+
         // SIDEBOARD (Bo3)
         // ===========================================
         public static string Sideboard_Activated(string playerName, int playerWins, string opponentName, int opponentWins, int poolCount, int deckCount) =>

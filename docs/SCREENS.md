@@ -280,7 +280,7 @@ The Deck Builder screen allows editing deck contents with access to the card col
 
 **Groups:**
 - `DeckBuilderCollection` - Collection card grid (when browsing collection without a deck)
-- `DeckBuilderSideboard` - Sideboard/available cards (pool cards when editing a deck - draft, sealed, or normal)
+- `DeckBuilderSideboard` - Sideboard cards. In constructed this is the list that replaces the deck list while the Sideboard toggle is on; in draft/sealed it is the non-MainDeck holder inside `MetaCardHolders_Container`
 - `DeckBuilderDeckList` - Deck list cards (compact list with quantities)
 - `DeckBuilderInfo` - Deck statistics (card count, types, mana curve) with 2D sub-navigation
 - `Filters` - Color checkboxes, type filters, advanced filters
@@ -303,8 +303,24 @@ The Deck Builder screen allows editing deck contents with access to the card col
 **Deck List Navigation (DeckBuilderDeckList):**
 - Left/Right arrows: Navigate between cards in deck list
 - Up/Down arrows: Read card details (shows Quantity after Name)
-- Enter: Remove one copy of the card from deck (click event removes one copy)
+- Enter: Remove one copy of the card from deck (fires the tile's TILE button → `OnRemoveClicked`)
+- Ctrl+Enter: Add one more copy (fires the tile's TAG button → `OnAddClicked`), without going back to the collection
 - Home/End: Jump to first/last card
+
+**Sideboard Navigation (DeckBuilderSideboard):**
+The Sideboard toggle in the header does not open a second list — it swaps the whole deck blade
+over to the sideboard (`DeckListView.ShowMainDeckOrSideboard`), deactivating
+`MainDeck_MetaCardHolder` and activating `SideboardListCardHolder`. So while the toggle is on:
+
+- The Deck List group disappears and the Sideboard group takes its place in the Tab cycle
+- The Sideboard title panel announces the count ("Sideboard, 4 cards"), so an empty sideboard is still audible
+- Left/Right arrows: Navigate between cards in the sideboard
+- Up/Down arrows: Read card details (shows Quantity after Name)
+- Enter: Remove one copy from the sideboard
+- Ctrl+Enter: Add one more copy to the sideboard
+- Shift+Enter: Open the card viewer popup, same as on any other deck builder card
+- Home/End: Jump to first/last card
+- Adding from the Collection group while the toggle is on adds to the sideboard, not the main deck
 
 **Deck Info Navigation (DeckBuilderInfo):**
 Tab-cyclable group providing live deck statistics with 2D sub-navigation.
@@ -345,6 +361,9 @@ When focused on a card, Up/Down arrows cycle through card information blocks:
 **Technical Notes:**
 - Collection cards use `PagesMetaCardView` with Model-based detection + `_lastDisplayInfo` for owned/used quantities
 - Deck list cards use `ListMetaCardView_Expanding` with GrpId-based lookup via `CardDataProvider`
+- Every deck-blade tile splits into two buttons: `TileButton` (card name) → `OnRemoveClicked`, `TagButton` (the "4x" chip) → `OnAddClicked`. `DeckListView` routes both to `IsListViewSideboarding ? Sideboard : MainDeck`, so one pair of buttons serves both piles. `TagButton.enabled` is the authoritative gate (`ListCardUtility.SetButtonEnabled`); check it before firing
+- Sideboard cards use the same `ListMetaCardView_Expanding` prefab, but `SideboardListCardHolder` has no public `CardViews` property — its tiles live in the private `_allModesListCardViews` field. `DeckCardProvider.GetHolderCardViews` handles both shapes
+- `DeckCardProvider.GetSideboardHolder()` resolves the holder through `DeckListView.SideboardCardHolder` (public field) rather than by gameObject name; `IsListViewSideboarding()` reads its active state
 - Deck list unowned detection via `MetaCardView.ShowUnCollectedTreatment` field (set by `SetDisplayInformation`)
 - Quantity buttons (`CustomButton - Tag` showing "4x", "2x") are filtered to Unknown group
 - Deck header controls (Sideboard toggle, deck name field) are in Content group

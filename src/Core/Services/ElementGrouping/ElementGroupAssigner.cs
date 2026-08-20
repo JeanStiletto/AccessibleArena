@@ -104,6 +104,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 (name.Contains("MetaCardView") || name.Contains("PagesMetaCardView")))
                 return ElementGroup.DeckBuilderCollection;
 
+            // Deck Builder sideboard cards (constructed): the "Sideboard" toggle swaps the
+            // list blade over to SideboardListCardHolder, whose tiles use the same
+            // CardTile_Base prefab as the main deck list - so this must be checked BEFORE
+            // the MainDeck rule below, or sideboard cards land in the Deck List group.
+            if (name == "CustomButton - Tile" && DeckCardProvider.IsUnderSideboardHolder(element))
+                return ElementGroup.DeckBuilderSideboard;
+
             // Deck Builder deck list cards (MainDeck_MetaCardHolder)
             // These are the cards currently in your deck, shown as a compact list
             // Note: Tag button exclusion is handled in DetermineGroup, not here (Unknown returns are ignored)

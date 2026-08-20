@@ -11,6 +11,7 @@ namespace AccessibleArena.Core.Constants
         public const string MetaCDC = "Meta_CDC";
         public const string MetaCardView = "MetaCardView";
         public const string PagesMetaCardView = "PagesMetaCardView";
+        public const string ListMetaCardViewExpanding = "ListMetaCardView_Expanding";
         public const string BoosterMetaCardView = "BoosterMetaCardView";
         public const string DraftPackCardView = "DraftPackCardView";
         public const string CardView = "CardView";
@@ -38,6 +39,9 @@ namespace AccessibleArena.Core.Constants
         public const string ScrollCardPoolHolder = "ScrollCardPoolHolder";
         public const string CardBrowserCardHolder = "CardBrowserCardHolder";
         public const string ListMetaCardHolder = "ListMetaCardHolder";
+        public const string SideboardListCardHolder = "SideboardListCardHolder";
+        public const string DeckListView = "DeckListView";
+        public const string DeckSideboardTitlePanel = "DeckSideboardTitlePanel";
 
         // --- Content Controllers ---
         public const string HomePageContentController = "HomePageContentController";

@@ -17,6 +17,9 @@ namespace AccessibleArena.Core.Services
         // Deck builder card count announcement - when true, PerformRescan announces just the card count
         // instead of the full rescan announcement (set when adding/removing a card)
         private bool _announceDeckCountOnRescan;
+        // Set by TryAddCopyForFocusedDeckCard: after the rescan, re-announce the focused
+        // tile's label so the user hears the card's actual new quantity.
+        private bool _announceFocusedCardAfterRescan;
         // Card count captured BEFORE activation (before game processes add/remove)
         // so we can detect actual changes in PerformRescan
         private string _deckCountBeforeActivation;
@@ -897,8 +900,9 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Find sideboard cards in draft/sealed deck builder.
-        /// These are cards in non-MainDeck holders inside MetaCardHolders_Container.
+        /// Find sideboard cards.
+        /// Constructed: the SideboardListCardHolder that replaces the main deck list while the
+        /// "Sideboard" toggle is on. Draft/sealed: non-MainDeck holders in MetaCardHolders_Container.
         /// </summary>
         private void FindSideboardCards(HashSet<GameObject> addedObjects)
         {
@@ -907,6 +911,11 @@ namespace AccessibleArena.Core.Services
                 return;
 
             var sideboardCards = DeckCardProvider.GetSideboardCards();
+
+            // Put the count on the sideboard title panel so an empty sideboard is still
+            // announced - otherwise the toggle produces no navigable feedback at all.
+            AnnotateSideboardTitlePanel(sideboardCards.Count);
+
             if (sideboardCards.Count == 0)
                 return;
 
@@ -936,6 +945,39 @@ namespace AccessibleArena.Core.Services
                 AddElement(cardObj, label);
                 addedObjects.Add(cardObj);
                 cardNum++;
+            }
+        }
+
+        /// <summary>
+        /// Rewrites the sideboard title panel's label to include the card count.
+        /// The panel is only active while the list blade shows the sideboard, so its
+        /// presence in the element list doubles as the "sideboarding is on" cue.
+        /// </summary>
+        private void AnnotateSideboardTitlePanel(int cardCount)
+        {
+            for (int i = 0; i < _elements.Count; i++)
+            {
+                var go = _elements[i].GameObject;
+                if (go == null) continue;
+
+                bool isTitlePanel = false;
+                foreach (var mb in go.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.GetType().Name == T.DeckSideboardTitlePanel)
+                    {
+                        isTitlePanel = true;
+                        break;
+                    }
+                }
+
+                if (!isTitlePanel)
+                    continue;
+
+                var element = _elements[i];
+                element.Label = Strings.DeckBuilderSideboardCount(cardCount);
+                _elements[i] = element;
+                Log.Nav(NavigatorId, $"Sideboard title panel labelled: {element.Label}");
+                return;
             }
         }
 
@@ -1304,6 +1346,88 @@ namespace AccessibleArena.Core.Services
             catch (Exception ex)
             {
                 Log.Warn(NavigatorId, $"Ctrl+Enter ExpandClicked failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Handle Ctrl+Enter on a focused deck-list or sideboard card by firing the tile's
+        /// TAG button — the "4x" quantity chip a sighted user clicks to add another copy.
+        /// The game routes it through ListMetaCardView_Expanding.OnAddClicked into
+        /// DeckListView.DeckList_OnCardAddClicked, which targets whichever pile the blade is
+        /// currently showing: the main deck, or the sideboard while the Sideboard toggle is on.
+        /// Enter on the same tile stays "remove one copy" (the TILE button).
+        /// Returns true when the keypress was handled (including the "not available" case).
+        /// </summary>
+        private bool TryAddCopyForFocusedDeckCard()
+        {
+            if (_activeContentController != T.WrapperDeckBuilder) return false;
+
+            GameObject focused = null;
+            if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
+                focused = _groupedNavigator.CurrentElement?.GameObject;
+            else if (IsValidIndex)
+                focused = _elements[_currentIndex].GameObject;
+
+            if (focused == null) return false;
+
+            // Deck-list and sideboard tiles share the ListMetaCardView_Expanding prefab.
+            // Pool tiles (PagesMetaCardView) were already handled by the style expansion.
+            Component metaCardView = FindMetaCardViewOnOrAbove(focused);
+            if (metaCardView == null) return false;
+
+            Type metaType = metaCardView.GetType();
+            if (metaType.Name != T.ListMetaCardViewExpanding)
+            {
+                Log.Nav(NavigatorId, $"Ctrl+Enter: {metaType.Name} is not a deck-blade tile; no add button");
+                return false;
+            }
+
+            try
+            {
+                var tagButtonProp = metaType.GetProperty("TagButton", PublicInstance | BindingFlags.FlattenHierarchy);
+                var tagButton = tagButtonProp?.GetValue(metaCardView) as Behaviour;
+                if (tagButton == null)
+                {
+                    Log.Nav(NavigatorId, $"Ctrl+Enter: TagButton not found on {metaType.Name}");
+                    return false;
+                }
+
+                // The game disables the add button per holder (ListMetaCardHolder_Expanding sets
+                // TagButton.enabled from ButtonsAreInteractable && !DisableAddButtonOnly) and
+                // hides it outright in style mode. Don't fake a click the user couldn't make.
+                if (!tagButton.enabled || !tagButton.gameObject.activeInHierarchy)
+                {
+                    Log.Nav(NavigatorId, $"Ctrl+Enter: add button not interactable on {focused.name}");
+                    _announcer.AnnounceInterrupt(Strings.DeckBuilderCannotAddCopy);
+                    return true;
+                }
+
+                var onClickProp = tagButton.GetType().GetProperty("OnClick", PublicInstance);
+                if (!(onClickProp?.GetValue(tagButton) is UnityEngine.Events.UnityEvent onClick))
+                {
+                    Log.Nav(NavigatorId, $"Ctrl+Enter: OnClick not found on TagButton");
+                    return false;
+                }
+
+                Log.Nav(NavigatorId, $"Ctrl+Enter: firing add button on {focused.name}");
+
+                // Capture the deck count first, exactly like the collection-card add path.
+                OnDeckBuilderCardCountCapture();
+                onClick.Invoke();
+
+                // Announce the focused tile's rebuilt label after the rescan rather than a
+                // synthetic "added": the label carries the real quantity, so a rejected add
+                // (deck limits, or the craft popup opening instead) doesn't get announced as
+                // a success. The deck count alone would not do - it does not move when the
+                // card goes into the sideboard pile.
+                _announceFocusedCardAfterRescan = true;
+                OnDeckBuilderCardActivated();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(NavigatorId, $"Ctrl+Enter add copy failed: {ex.Message}");
                 return false;
             }
         }

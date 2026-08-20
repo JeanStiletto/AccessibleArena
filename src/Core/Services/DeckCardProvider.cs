@@ -40,9 +40,13 @@ namespace AccessibleArena.Core.Services
         internal static GameObject CachedDeckHolder => _cachedDeckHolder;
         private static int _cachedDeckListFrame = -1;
 
-        // Cache for sideboard cards (draft/sealed deck builder)
+        // Cache for sideboard cards (draft/sealed pool holders + constructed SideboardListCardHolder)
         private static List<DeckListCardInfo> _cachedSideboardCards = new List<DeckListCardInfo>();
         private static int _cachedSideboardFrame = -1;
+
+        // Cache for the constructed deck builder's SideboardListCardHolder gameObject
+        private static GameObject _cachedSideboardHolder = null;
+        private static int _cachedSideboardHolderFrame = -1;
 
         /// <summary>
         /// Clears the deck list card cache, forcing a fresh lookup on next call.
@@ -55,6 +59,8 @@ namespace AccessibleArena.Core.Services
             _cachedDeckListFrame = -1;
             _cachedSideboardCards.Clear();
             _cachedSideboardFrame = -1;
+            _cachedSideboardHolder = null;
+            _cachedSideboardHolderFrame = -1;
         }
 
         /// <summary>
@@ -86,8 +92,6 @@ namespace AccessibleArena.Core.Services
                         if (t.name == "MainDeck_MetaCardHolder")
                         {
                             deckHolder = t.gameObject;
-                            // Activate the holder so we can access its components
-                            deckHolder.SetActive(true);
                             break;
                         }
                     }
@@ -96,6 +100,17 @@ namespace AccessibleArena.Core.Services
                     {
                         return _cachedDeckListCards;
                     }
+
+                    // The holder is also deactivated on purpose while the list blade is swapped
+                    // to the sideboard (DeckListView.ShowMainDeckOrSideboard). Its tiles still
+                    // exist but are hidden, so reporting them would produce a phantom "Deck List"
+                    // group - and reactivating it would visually un-hide the main deck on top of
+                    // the sideboard. Only force it active for the popup-less entry case.
+                    if (IsListViewSideboarding())
+                        return _cachedDeckListCards;
+
+                    // Activate the holder so we can access its components
+                    deckHolder.SetActive(true);
                 }
 
                 _cachedDeckHolder = deckHolder;
@@ -141,8 +156,106 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Gets all sideboard cards from non-MainDeck holders inside MetaCardHolders_Container.
-        /// Used in draft/sealed deck building where sideboard cards are in a separate holder.
+        /// Returns the constructed deck builder's SideboardListCardHolder gameObject, or null.
+        /// Resolved through DeckListView.SideboardCardHolder (a public field) so it does not
+        /// depend on gameObject names, with a scene-wide component scan as fallback.
+        /// The holder exists but is inactive while the blade shows the main deck.
+        /// </summary>
+        public static GameObject GetSideboardHolder()
+        {
+            // Unity's overloaded == catches destroyed objects, so a stale reference from a
+            // previous deck builder session resolves to null and triggers a fresh search.
+            if (_cachedSideboardHolder != null)
+                return _cachedSideboardHolder;
+
+            // The search below walks every MonoBehaviour in the scene. Outside the deck
+            // builder it will never find anything, so cap it at one attempt per frame.
+            if (_cachedSideboardHolderFrame == Time.frameCount)
+                return null;
+
+            _cachedSideboardHolderFrame = Time.frameCount;
+
+            try
+            {
+                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>(true))
+                {
+                    if (mb == null) continue;
+
+                    var typeName = mb.GetType().Name;
+
+                    // Preferred: DeckListView exposes the holder directly
+                    if (typeName == T.DeckListView)
+                    {
+                        var field = mb.GetType().GetField("SideboardCardHolder",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        if (field?.GetValue(mb) is Component holder)
+                        {
+                            _cachedSideboardHolder = holder.gameObject;
+                            return _cachedSideboardHolder;
+                        }
+                    }
+
+                    // Fallback: the holder component itself
+                    if (typeName == T.SideboardListCardHolder && _cachedSideboardHolder == null)
+                        _cachedSideboardHolder = mb.gameObject;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Card("DeckCardProvider", $"Error finding sideboard holder: {ex.Message}");
+            }
+
+            return _cachedSideboardHolder;
+        }
+
+        /// <summary>
+        /// True while the deck builder's list blade is swapped from the main deck to the
+        /// sideboard (the "Sideboard" toggle). Mirrors DeckBuilderLayoutState.IsListViewSideboarding
+        /// via the holder's active state, which DeckListView.ShowMainDeckOrSideboard drives.
+        /// </summary>
+        public static bool IsListViewSideboarding()
+        {
+            var holder = GetSideboardHolder();
+            return holder != null && holder.activeInHierarchy;
+        }
+
+        /// <summary>
+        /// Returns true if the element is inside the constructed sideboard holder.
+        /// Name-independent, so it stays correct across game layout renames.
+        /// </summary>
+        public static bool IsUnderSideboardHolder(GameObject element)
+        {
+            if (element == null) return false;
+            var holder = GetSideboardHolder();
+            return holder != null && element.transform.IsChildOf(holder.transform);
+        }
+
+        /// <summary>
+        /// Reads the card tiles out of a card holder component.
+        /// ListMetaCardHolder_Expanding exposes them as a public CardViews property;
+        /// SideboardListCardHolder has no such property and keeps them in the private
+        /// _allModesListCardViews field instead.
+        /// </summary>
+        private static IEnumerable GetHolderCardViews(MonoBehaviour holderComponent)
+        {
+            if (holderComponent == null) return null;
+
+            var holderType = holderComponent.GetType();
+
+            var cardViewsProp = holderType.GetProperty("CardViews");
+            if (cardViewsProp?.GetValue(holderComponent) is IEnumerable fromProperty)
+                return fromProperty;
+
+            var tilesField = holderType.GetField("_allModesListCardViews",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            return tilesField?.GetValue(holderComponent) as IEnumerable;
+        }
+
+        /// <summary>
+        /// Gets all sideboard cards.
+        /// Constructed deck builder: the SideboardListCardHolder that replaces the main deck
+        /// list while the "Sideboard" toggle is on.
+        /// Draft/sealed: non-MainDeck holders inside MetaCardHolders_Container.
         /// </summary>
         public static List<DeckListCardInfo> GetSideboardCards()
         {
@@ -155,6 +268,30 @@ namespace AccessibleArena.Core.Services
 
             try
             {
+                // Constructed deck builder: the dedicated sideboard holder, when it is showing
+                var sideboardHolder = GetSideboardHolder();
+                if (sideboardHolder != null && sideboardHolder.activeInHierarchy)
+                {
+                    MonoBehaviour sideboardComponent = null;
+                    foreach (var mb in sideboardHolder.GetComponents<MonoBehaviour>())
+                    {
+                        if (mb != null && mb.GetType().Name == T.SideboardListCardHolder)
+                        {
+                            sideboardComponent = mb;
+                            break;
+                        }
+                    }
+
+                    var sideboardViews = GetHolderCardViews(sideboardComponent);
+                    if (sideboardViews != null)
+                    {
+                        ExtractCardViewsInto(sideboardViews, _cachedSideboardCards);
+                        Log.Msg("DeckCardProvider",
+                            $"Sideboard holder '{sideboardHolder.name}': {_cachedSideboardCards.Count} card(s)");
+                        return _cachedSideboardCards;
+                    }
+                }
+
                 // Find the MetaCardHolders_Container parent
                 // Strategy: start from _cachedDeckHolder (MainDeck_MetaCardHolder) and walk up
                 if (_cachedDeckHolder == null)
@@ -190,17 +327,21 @@ namespace AccessibleArena.Core.Services
                     return _cachedSideboardCards;
                 }
 
-                // Search all children for ListMetaCardHolder components that aren't on MainDeck_MetaCardHolder
+                // Search all children for card holder components that aren't on MainDeck_MetaCardHolder
                 foreach (Transform child in holdersContainer)
                 {
                     if (child == null || child.name == "MainDeck_MetaCardHolder")
                         continue;
 
-                    // Find ListMetaCardHolder component on this child
+                    // Find a list-style card holder component on this child.
+                    // Note SideboardListCardHolder does NOT contain "ListMetaCardHolder",
+                    // so it needs its own check.
                     MonoBehaviour holderComponent = null;
                     foreach (var mb in child.GetComponents<MonoBehaviour>())
                     {
-                        if (mb != null && mb.GetType().Name.Contains(T.ListMetaCardHolder))
+                        if (mb == null) continue;
+                        var mbName = mb.GetType().Name;
+                        if (mbName.Contains(T.ListMetaCardHolder) || mbName == T.SideboardListCardHolder)
                         {
                             holderComponent = mb;
                             break;
@@ -212,13 +353,7 @@ namespace AccessibleArena.Core.Services
 
                     Log.Msg("DeckCardProvider", $"Found sideboard holder: '{child.name}' with component {holderComponent.GetType().Name}");
 
-                    // Get CardViews property (same pattern as GetDeckListCards)
-                    var holderType = holderComponent.GetType();
-                    var cardViewsProp = holderType.GetProperty("CardViews");
-                    if (cardViewsProp == null)
-                        continue;
-
-                    var cardViews = cardViewsProp.GetValue(holderComponent) as System.Collections.IEnumerable;
+                    var cardViews = GetHolderCardViews(holderComponent);
                     if (cardViews == null)
                         continue;
 
