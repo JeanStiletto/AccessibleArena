@@ -17,9 +17,6 @@ namespace AccessibleArena.Core.Services
         // Deck builder card count announcement - when true, PerformRescan announces just the card count
         // instead of the full rescan announcement (set when adding/removing a card)
         private bool _announceDeckCountOnRescan;
-        // Set by TryAddCopyForFocusedDeckCard: after the rescan, re-announce the focused
-        // tile's label so the user hears the card's actual new quantity.
-        private bool _announceFocusedCardAfterRescan;
         // Card count captured BEFORE activation (before game processes add/remove)
         // so we can detect actual changes in PerformRescan
         private string _deckCountBeforeActivation;
@@ -475,8 +472,23 @@ namespace AccessibleArena.Core.Services
         {
             if (_activeContentController == T.WrapperDeckBuilder)
             {
-                _deckCountBeforeActivation = DeckInfoProvider.GetCardCountText();
+                _deckCountBeforeActivation = GetDeckCountForAnnouncement();
             }
+        }
+
+        /// <summary>
+        /// The card count reported after an add or remove.
+        /// While the blade shows the sideboard, DeckMainTitlePanel keeps rendering the
+        /// unchanged main-deck total (the game only hides its button, not the panel), so
+        /// reading it would report "no change" for every sideboard edit and the
+        /// announcement would never fire. Report the sideboard's own total there instead.
+        /// </summary>
+        internal static string GetDeckCountForAnnouncement()
+        {
+            if (DeckCardProvider.IsListViewSideboarding())
+                return Strings.DeckBuilderSideboardCount(DeckCardProvider.GetSideboardTotalCount());
+
+            return DeckInfoProvider.GetCardCountText();
         }
 
         /// <summary>
@@ -914,7 +926,7 @@ namespace AccessibleArena.Core.Services
 
             // Put the count on the sideboard title panel so an empty sideboard is still
             // announced - otherwise the toggle produces no navigable feedback at all.
-            AnnotateSideboardTitlePanel(sideboardCards.Count);
+            AnnotateSideboardTitlePanel(DeckCardProvider.GetSideboardTotalCount());
 
             if (sideboardCards.Count == 0)
                 return;
@@ -1416,12 +1428,10 @@ namespace AccessibleArena.Core.Services
                 OnDeckBuilderCardCountCapture();
                 onClick.Invoke();
 
-                // Announce the focused tile's rebuilt label after the rescan rather than a
-                // synthetic "added": the label carries the real quantity, so a rejected add
-                // (deck limits, or the craft popup opening instead) doesn't get announced as
-                // a success. The deck count alone would not do - it does not move when the
-                // card goes into the sideboard pile.
-                _announceFocusedCardAfterRescan = true;
+                // OnDeckBuilderCardActivated announces the new card count after the rescan,
+                // the same feedback a collection add or a deck-list remove gives. It only
+                // speaks when the count actually moved, so a rejected add (deck limits, or
+                // the craft popup opening instead) is never announced as a success.
                 OnDeckBuilderCardActivated();
                 return true;
             }

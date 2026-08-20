@@ -220,6 +220,19 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Total number of cards in the sideboard - the sum of the tile quantities, not the
+        /// tile count. One tile stands for every copy of a card, so counting tiles would
+        /// report 1 for a card sitting at three copies.
+        /// </summary>
+        public static int GetSideboardTotalCount()
+        {
+            int total = 0;
+            foreach (var card in GetSideboardCards())
+                total += card.Quantity;
+            return total;
+        }
+
+        /// <summary>
         /// Returns true if the element is inside the constructed sideboard holder.
         /// Name-independent, so it stays correct across game layout renames.
         /// </summary>

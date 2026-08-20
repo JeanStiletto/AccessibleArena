@@ -1728,32 +1728,12 @@ namespace AccessibleArena.Core.Services
             // Update menu type based on new state
             _detectedMenuType = DetectMenuType();
 
-            // Ctrl+Enter added a copy: announce the focused tile's rebuilt label, which
-            // carries the real quantity. Takes precedence over the deck count, which does
-            // not move when the copy went into the sideboard pile.
-            if (_announceFocusedCardAfterRescan && _activeContentController == T.WrapperDeckBuilder)
-            {
-                _announceFocusedCardAfterRescan = false;
-                _announceDeckCountOnRescan = false;
-                _deckCountBeforeActivation = null;
-
-                string focusedLabel = (_groupedNavigationEnabled && _groupedNavigator.IsActive)
-                    ? _groupedNavigator.CurrentElement?.Label
-                    : (IsValidIndex ? _elements[_currentIndex].Label : null);
-
-                if (!string.IsNullOrEmpty(focusedLabel))
-                    _announcer.AnnounceInterrupt(focusedLabel);
-
-                UpdateCardNavigationForGroupedElement();
-                return;
-            }
-
             // When a card was added/removed, announce just the card count if it changed
             if (_announceDeckCountOnRescan && _activeContentController == T.WrapperDeckBuilder)
             {
                 _announceDeckCountOnRescan = false;
                 _deckCountBeforeActivation = null;
-                string cardCount = DeckInfoProvider.GetCardCountText();
+                string cardCount = GetDeckCountForAnnouncement();
                 if (!string.IsNullOrEmpty(cardCount) && cardCount != previousCardCount)
                 {
                     _announcer.AnnounceInterrupt(cardCount);
