@@ -51,6 +51,19 @@ namespace AccessibleArena.Patches
         public static event Action<string> OnEventPageRefreshed;
 
         /// <summary>
+        /// Event fired when the home screen's big Play button is shown or hidden.
+        /// Parameters: (the Play button GameObject, whether it is showing now)
+        ///
+        /// The button carries a <c>MainButton</c> component whose <c>UpdateState</c> deactivates
+        /// the whole GameObject while <c>HomePageContentController.HomePageState</c> is anything
+        /// other than Normal. Opening the home page always runs the notification-popup flow first
+        /// (OnFinishOpen → ShowNotificationPopups → HomePageState.NotificationFlow), so a scan
+        /// landing in that window finds no Play button at all — and the game raises no panel
+        /// event when the flow ends, making this the only signal that the button came back.
+        /// </summary>
+        public static event Action<UnityEngine.GameObject, bool> OnHomePlayButtonVisibilityChanged;
+
+        /// <summary>
         /// Manually applies the Harmony patch after game assemblies are loaded.
         /// Called during mod initialization.
         /// </summary>
@@ -79,6 +92,9 @@ namespace AccessibleArena.Patches
 
                 // Try to patch JoinMatchMaking for bot match interception
                 PatchJoinMatchMaking(harmony);
+
+                // Try to patch the home screen's Play button show/hide
+                PatchHomePlayButton(harmony);
 
                 // Try to patch BladeContentView base class (Events, FindMatch, LastPlayed blades)
                 PatchBladeContentView(harmony);
@@ -443,6 +459,57 @@ namespace AccessibleArena.Patches
                 Log.Msg("PanelStatePatch", $"Bot Match mode active, replacing '{internalEventName}' with 'AIBotMatch'");
                 internalEventName = "AIBotMatch";
                 PlayBladeNavigationHelper.SetBotMatchMode(false);
+            }
+        }
+
+        /// <summary>
+        /// Patches MainButton.UpdateState so the mod hears when the home screen's Play button is
+        /// deactivated and reactivated. See <see cref="OnHomePlayButtonVisibilityChanged"/> for
+        /// why no panel event covers this.
+        ///
+        /// The component is resolved through HomePageContentController's MainButton field rather
+        /// than by type name: "MainButton" sits in the global namespace, so a name-only lookup
+        /// could bind to an unrelated type.
+        /// </summary>
+        private static void PatchHomePlayButton(HarmonyLib.Harmony harmony)
+        {
+            var homePageType = FindType(T.HomePageContentController);
+            if (homePageType == null)
+            {
+                Log.Warn("PanelStatePatch", "Could not find HomePageContentController for Play button patch");
+                return;
+            }
+
+            var mainButtonType = homePageType.GetField("MainButton", AllInstanceFlags)?.FieldType;
+            if (mainButtonType == null)
+            {
+                Log.Warn("PanelStatePatch", "Could not find HomePageContentController.MainButton field - home Play button visibility not tracked");
+                return;
+            }
+
+            var updateState = mainButtonType.GetMethod("UpdateState", AllInstanceFlags);
+            if (updateState == null)
+                Log.Warn("PanelStatePatch", $"Could not find {mainButtonType.Name}.UpdateState - home Play button visibility not tracked");
+            TryPatchPostfix(harmony, updateState, nameof(MainButtonUpdateStatePostfix),
+                $"{mainButtonType.Name}.UpdateState (home Play button visibility)");
+        }
+
+        /// <summary>
+        /// Harmony postfix for MainButton.UpdateState. The call has already applied the new
+        /// state, so the GameObject's own active flag is the answer — reading it instead of the
+        /// PlayBladeState argument keeps this independent of that enum's values.
+        /// </summary>
+        public static void MainButtonUpdateStatePostfix(object __instance)
+        {
+            try
+            {
+                var playButton = (__instance as UnityEngine.MonoBehaviour)?.gameObject;
+                if (playButton == null) return;
+                OnHomePlayButtonVisibilityChanged?.Invoke(playButton, playButton.activeInHierarchy);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("PanelStatePatch", $"MainButton.UpdateState postfix error: {ex.Message}");
             }
         }
 

@@ -300,6 +300,32 @@ namespace AccessibleArena.Core.Services
             // without any panel open/close (see PanelStatePatch.OnEventPageRefreshed), so this
             // is the only signal that its contents changed.
             PanelStatePatch.OnEventPageRefreshed += OnEventPageRefreshed;
+
+            // Subscribe to the home screen's Play button appearing. It is deactivated for the
+            // whole notification-popup flow that runs every time the home page opens, and comes
+            // back without any panel event (see PanelStatePatch.OnHomePlayButtonVisibilityChanged).
+            PanelStatePatch.OnHomePlayButtonVisibilityChanged += OnHomePlayButtonVisibilityChanged;
+        }
+
+        /// <summary>
+        /// The home screen's Play button was shown or hidden. The game deactivates it while the
+        /// page runs its notification-popup flow, so a scan that lands in that window drops it
+        /// from the Play group and nothing puts it back — the button stays missing until some
+        /// unrelated event (another navigator handing control back, say) forces a rescan.
+        /// Rescan as soon as it reappears.
+        ///
+        /// Only the appearing half needs handling: when it goes away the entry is stale for a
+        /// second or two at most, and the flow that hid it ends with the button back.
+        /// </summary>
+        private void OnHomePlayButtonVisibilityChanged(GameObject playButton, bool visible)
+        {
+            if (!_isActive || IsInPopupMode) return;
+            if (!visible || playButton == null) return;
+            if (_activeContentController != T.HomePageContentController) return;
+            if (_elements.Any(e => e.GameObject == playButton)) return;
+
+            Log.Nav(NavigatorId, $"Home Play button appeared - scheduling rescan");
+            TriggerRescan();
         }
 
         /// <summary>
