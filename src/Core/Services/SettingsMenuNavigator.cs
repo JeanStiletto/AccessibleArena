@@ -794,7 +794,7 @@ namespace AccessibleArena.Core.Services
         protected override bool HandleCustomInput()
         {
             // Backspace: Navigate back in settings or close settings
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 if (UIFocusTracker.IsAnyInputFieldFocused())
                     return false; // Let backspace delete characters

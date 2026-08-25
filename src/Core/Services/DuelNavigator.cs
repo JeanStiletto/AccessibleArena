@@ -513,7 +513,7 @@ namespace AccessibleArena.Core.Services
             // F4: Open chat (checked after modals so chat can't open during
             // mana picking, browser, spinner, or X-cost interactions).
             // When DuelChatNavigator is already active, HandleEarlyInput consumes F4 above.
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (KeyInput.GetKeyDown(KeyCode.F4))
             {
                 OpenDuelChat();
                 return true;
@@ -521,10 +521,10 @@ namespace AccessibleArena.Core.Services
 
             // Shift+Backspace: Pass until opponent action, Ctrl+Backspace: Skip turn
             // Must be checked before CombatNavigator which also consumes Backspace
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
+                bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
 
                 if (ctrl)
                 {
@@ -558,9 +558,9 @@ namespace AccessibleArena.Core.Services
                 return true;
 
             // P key: Full control toggle
-            if (Input.GetKeyDown(KeyCode.P))
+            if (KeyInput.GetKeyDown(KeyCode.P))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 Log.Msg("{NavigatorId}", $"P key pressed (shift={shift})");
                 if (shift)
                 {
@@ -588,7 +588,7 @@ namespace AccessibleArena.Core.Services
                 return true;
 
             // T key: Announce browser name if active, otherwise turn and phase info
-            if (Input.GetKeyDown(KeyCode.T))
+            if (KeyInput.GetKeyDown(KeyCode.T))
             {
                 if (BrowserNavigator.IsActive)
                 {
@@ -610,7 +610,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // I key: Extended card info (navigable menu with keyword descriptions + linked face)
-            if (Input.GetKeyDown(KeyCode.I))
+            if (KeyInput.GetKeyDown(KeyCode.I))
             {
                 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -635,7 +635,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // O key: Game log (review all duel announcements)
-            if (Input.GetKeyDown(KeyCode.O))
+            if (KeyInput.GetKeyDown(KeyCode.O))
             {
                 var logNav = AccessibleArenaMod.Instance?.GameLogNavigator;
                 if (logNav != null)
@@ -646,14 +646,14 @@ namespace AccessibleArena.Core.Services
             // N key: announce what's currently resolving (top of stack). Useful during long
             // combos where workflow prompts ("Submit 0", target select, "you may discard...")
             // don't say which trigger or spell they belong to.
-            if (Input.GetKeyDown(KeyCode.N))
+            if (KeyInput.GetKeyDown(KeyCode.N))
             {
                 _announcer.AnnounceInterrupt(_duelAnnouncer.DescribeStackTop());
                 return true;
             }
 
             // K key: Counter info on focused card
-            if (Input.GetKeyDown(KeyCode.K))
+            if (KeyInput.GetKeyDown(KeyCode.K))
             {
                 GameObject card = null;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -688,24 +688,24 @@ namespace AccessibleArena.Core.Services
 
             // J key: Jump focus to attachment parent / attachments / targets / targeted-by.
             // Cycles through the related-card list; resets when the source card changes.
-            if (Input.GetKeyDown(KeyCode.J))
+            if (KeyInput.GetKeyDown(KeyCode.J))
             {
                 JumpToRelatedCard();
                 return true;
             }
 
             // E key: Timer and timeouts (E = your timer, Shift+E = opponent timer)
-            if (Input.GetKeyDown(KeyCode.E))
+            if (KeyInput.GetKeyDown(KeyCode.E))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 _portraitNavigator.AnnounceTimer(opponent: shift);
                 return true;
             }
 
             // M key: Land summary (M = your lands, Shift+M = opponent lands)
-            if (Input.GetKeyDown(KeyCode.M))
+            if (KeyInput.GetKeyDown(KeyCode.M))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 var landRow = shift ? BattlefieldRow.EnemyLands : BattlefieldRow.PlayerLands;
                 string summary = _battlefieldNavigator.GetLandSummary(landRow);
                 _announcer.AnnounceInterrupt(summary);
@@ -724,7 +724,7 @@ namespace AccessibleArena.Core.Services
             // All duel Enter actions are handled by sub-navigators above (browser, combat,
             // highlight, etc.). Without this guard, unhandled Enter activates whatever
             // Selectable is at _currentIndex (e.g. the settings button).
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
                 return true;
 
             // Consume Up/Down so it never falls through to BaseNavigator element navigation.
@@ -732,7 +732,7 @@ namespace AccessibleArena.Core.Services
             // battlefield, zone, portrait). Without this guard, unhandled Up/Down navigates
             // internal UI elements (PromptButtons, Nav_Settings, etc.) - e.g. during the gap
             // between Informational browser exit and Mulligan browser open.
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
                 return true;
 
             return base.HandleCustomInput();
@@ -929,16 +929,16 @@ namespace AccessibleArena.Core.Services
             // Map KeyCode.Alpha1-Alpha9 to index 0-8, Alpha0 to index 9
             int keyIndex = -1;
 
-            if (Input.GetKeyDown(KeyCode.Alpha1)) keyIndex = 0;
-            else if (Input.GetKeyDown(KeyCode.Alpha2)) keyIndex = 1;
-            else if (Input.GetKeyDown(KeyCode.Alpha3)) keyIndex = 2;
-            else if (Input.GetKeyDown(KeyCode.Alpha4)) keyIndex = 3;
-            else if (Input.GetKeyDown(KeyCode.Alpha5)) keyIndex = 4;
-            else if (Input.GetKeyDown(KeyCode.Alpha6)) keyIndex = 5;
-            else if (Input.GetKeyDown(KeyCode.Alpha7)) keyIndex = 6;
-            else if (Input.GetKeyDown(KeyCode.Alpha8)) keyIndex = 7;
-            else if (Input.GetKeyDown(KeyCode.Alpha9)) keyIndex = 8;
-            else if (Input.GetKeyDown(KeyCode.Alpha0)) keyIndex = 9;
+            if (KeyInput.GetKeyDown(KeyCode.Alpha1)) keyIndex = 0;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha2)) keyIndex = 1;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha3)) keyIndex = 2;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha4)) keyIndex = 3;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha5)) keyIndex = 4;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha6)) keyIndex = 5;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha7)) keyIndex = 6;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha8)) keyIndex = 7;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha9)) keyIndex = 8;
+            else if (KeyInput.GetKeyDown(KeyCode.Alpha0)) keyIndex = 9;
 
             if (keyIndex < 0) return false;
 

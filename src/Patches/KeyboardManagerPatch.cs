@@ -189,17 +189,21 @@ namespace AccessibleArena.Patches
         /// <summary>
         /// Target the PublishKeyDown method on KeyboardManager.
         /// This is called when a key is pressed and needs to notify subscribers.
+        /// Since the Unity 6 update KeyboardManager reads the Input System and
+        /// publishes physical Key values; KeyMap translates them back to the
+        /// layout-aware KeyCode semantics the block conditions use.
         /// </summary>
         [HarmonyPatch("MTGA.KeyboardManager.KeyboardManager", "PublishKeyDown")]
         [HarmonyPrefix]
-        public static bool PublishKeyDown_Prefix(KeyCode key)
+        public static bool PublishKeyDown_Prefix(UnityEngine.InputSystem.Key key)
         {
-            if (ShouldBlockKey(key))
+            var keyCode = KeyMap.ToKeyCode(key);
+            if (ShouldBlockKey(keyCode))
             {
                 // Only log occasionally to avoid spam
-                if (Time.frameCount % 60 == 0 || key != KeyCode.Return)
+                if (Time.frameCount % 60 == 0 || keyCode != KeyCode.Return)
                 {
-                    Log.Msg("KeyboardManagerPatch", $"Blocked {key} from game (scene: {_cachedSceneName})");
+                    Log.Msg("KeyboardManagerPatch", $"Blocked {keyCode} from game (scene: {_cachedSceneName})");
                 }
                 return false; // Skip the original method - don't publish to game
             }
@@ -211,13 +215,15 @@ namespace AccessibleArena.Patches
         /// </summary>
         [HarmonyPatch("MTGA.KeyboardManager.KeyboardManager", "PublishKeyUp")]
         [HarmonyPrefix]
-        public static bool PublishKeyUp_Prefix(KeyCode key)
+        public static bool PublishKeyUp_Prefix(UnityEngine.InputSystem.Key key)
         {
+            var keyCode = KeyMap.ToKeyCode(key);
+
             // Block Enter KeyUp throughout popup mode. The game's PopupManager.HandleKeyUp
             // calls _activePopup.OnEnter() on Enter KeyUp, which submits the popup.
             // For ChallengeInviteWindowPopup this fires OnInviteButtonPressed and closes
             // the popup even when the user only meant to toggle a friend tile.
-            if ((key == KeyCode.Return || key == KeyCode.KeypadEnter) &&
+            if ((keyCode == KeyCode.Return || keyCode == KeyCode.KeypadEnter) &&
                 (InputManager.BlockNextEnterKeyUp || InputManager.PopupModeActive))
             {
                 InputManager.BlockNextEnterKeyUp = false;
@@ -225,7 +231,7 @@ namespace AccessibleArena.Patches
             }
 
             // Block key up events for blocked keys too
-            if (ShouldBlockKey(key))
+            if (ShouldBlockKey(keyCode))
             {
                 return false;
             }

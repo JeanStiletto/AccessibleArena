@@ -168,14 +168,14 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return false;
 
             // C key - Enter top/keep zone
-            if (Input.GetKeyDown(KeyCode.C))
+            if (KeyInput.GetKeyDown(KeyCode.C))
             {
                 EnterZone(BrowserZoneType.Top);
                 return true;
             }
 
             // D key - Enter bottom zone
-            if (Input.GetKeyDown(KeyCode.D))
+            if (KeyInput.GetKeyDown(KeyCode.D))
             {
                 EnterZone(BrowserZoneType.Bottom);
                 return true;
@@ -184,31 +184,31 @@ namespace AccessibleArena.Core.Services
             // Left/Right arrows - navigate within zone (only if in a zone)
             if (_currentZone != BrowserZoneType.None && _cardIndex >= 0)
             {
-                if (Input.GetKeyDown(KeyCode.LeftArrow))
+                if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
                 {
                     NavigatePrevious();
                     return true;
                 }
-                if (Input.GetKeyDown(KeyCode.RightArrow))
+                if (KeyInput.GetKeyDown(KeyCode.RightArrow))
                 {
                     NavigateNext();
                     return true;
                 }
 
                 // Home/End for jumping to first/last card in zone
-                if (Input.GetKeyDown(KeyCode.Home))
+                if (KeyInput.GetKeyDown(KeyCode.Home))
                 {
                     NavigateFirst();
                     return true;
                 }
-                if (Input.GetKeyDown(KeyCode.End))
+                if (KeyInput.GetKeyDown(KeyCode.End))
                 {
                     NavigateLast();
                     return true;
                 }
 
                 // Enter - activate current card (toggle between zones)
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
                 {
                     ActivateCurrentCard();
                     return true;

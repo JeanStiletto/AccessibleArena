@@ -354,7 +354,7 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return false;
 
             // F4: close chat (toggle off)
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (KeyInput.GetKeyDown(KeyCode.F4))
             {
                 Close();
                 return true;
@@ -370,34 +370,34 @@ namespace AccessibleArena.Core.Services
             // Tab/Shift+Tab: switch conversation
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool reverse = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool reverse = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 SwitchConversation(reverse);
                 return true;
             }
 
             // Backspace: close chat
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 Close();
                 return true;
             }
 
             // Up: previous element
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 MovePrevious();
                 return true;
             }
 
             // Down: next element
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 MoveNext();
                 return true;
             }
 
             // Home: first element
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_elements.Count > 0)
                 {
@@ -408,7 +408,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // End: last element
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_elements.Count > 0)
                 {
@@ -419,7 +419,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter: activate current element
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 ActivateCurrentElement();
                 return true;
@@ -432,14 +432,14 @@ namespace AccessibleArena.Core.Services
         private void HandleEditingInput()
         {
             // Enter while editing: send message
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 SendMessage();
                 return;
             }
 
             // F4 while editing: exit edit mode and close chat
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (KeyInput.GetKeyDown(KeyCode.F4))
             {
                 _inputFieldHelper.ExitEditMode();
                 Close();
@@ -449,7 +449,7 @@ namespace AccessibleArena.Core.Services
             // Tab while editing: exit edit mode, switch conversation
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool reverse = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool reverse = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 _inputFieldHelper.ExitEditMode();
                 SwitchConversation(reverse);
                 return;

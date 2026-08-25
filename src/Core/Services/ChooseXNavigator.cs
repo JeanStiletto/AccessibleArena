@@ -123,7 +123,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab always reclaims ChooseX focus
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
                 _hasFocus = true;
                 AnnounceCurrentValue();
@@ -132,17 +132,17 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter/Space = submit (always consumed when active)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter) || KeyInput.GetKeyDown(KeyCode.Space))
             {
                 Submit();
                 return true;
             }
 
             // Backspace = cancel (always consumed, but let Shift/Ctrl modifiers pass through)
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
+                bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
                 if (!shift && !ctrl)
                 {
                     Cancel();
@@ -159,28 +159,28 @@ namespace AccessibleArena.Core.Services
             var h = _chooseXCache.Handles;
 
             // Up arrow = increment by 1
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 ClickButton(h.UpArrow, 1);
                 return true;
             }
 
             // Down arrow = decrement by 1
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 ClickButton(h.DownArrow, -1);
                 return true;
             }
 
             // Page Up = increment by 5
-            if (Input.GetKeyDown(KeyCode.PageUp))
+            if (KeyInput.GetKeyDown(KeyCode.PageUp))
             {
                 ClickButton(h.UpFiveArrow, 5);
                 return true;
             }
 
             // Page Down = decrement by 5
-            if (Input.GetKeyDown(KeyCode.PageDown))
+            if (KeyInput.GetKeyDown(KeyCode.PageDown))
             {
                 ClickButton(h.DownFiveArrow, -5);
                 return true;
@@ -201,12 +201,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsZoneShortcut()
         {
-            return Input.GetKeyDown(KeyCode.B) || Input.GetKeyDown(KeyCode.A) ||
-                   Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.C) ||
-                   Input.GetKeyDown(KeyCode.G) || Input.GetKeyDown(KeyCode.X) ||
-                   Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.W) ||
-                   Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.L) ||
-                   Input.GetKeyDown(KeyCode.V);
+            return KeyInput.GetKeyDown(KeyCode.B) || KeyInput.GetKeyDown(KeyCode.A) ||
+                   KeyInput.GetKeyDown(KeyCode.R) || KeyInput.GetKeyDown(KeyCode.C) ||
+                   KeyInput.GetKeyDown(KeyCode.G) || KeyInput.GetKeyDown(KeyCode.X) ||
+                   KeyInput.GetKeyDown(KeyCode.S) || KeyInput.GetKeyDown(KeyCode.W) ||
+                   KeyInput.GetKeyDown(KeyCode.D) || KeyInput.GetKeyDown(KeyCode.L) ||
+                   KeyInput.GetKeyDown(KeyCode.V);
         }
 
         private MonoBehaviour FindActiveView()

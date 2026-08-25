@@ -401,28 +401,21 @@ namespace AccessibleArena.Core.Services
             })) return;
 
             // Home/End within current row
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveToFirstItemInRow();
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveToLastItemInRow();
                 return;
             }
 
             // Enter or Space activates (toggle or click).
-            // GetEnterAndConsume also recovers Enter via EnterPressedWhileBlocked: after the
-            // format dropdown closes, the rescan re-arms BlockSubmitForToggle for the dropdown
-            // item and grid navigation never clears it, so our Input.GetKeyDown patch swallows
-            // raw Return presses on every item in this popup (including OK).
-            bool enterViaBlockedFlag = InputManager.EnterPressedWhileBlocked;
-            if (InputManager.GetEnterAndConsume() || Input.GetKeyDown(KeyCode.Space))
+            if (InputManager.GetEnterAndConsume() || KeyInput.GetKeyDown(KeyCode.Space))
             {
-                if (enterViaBlockedFlag)
-                    Log.Msg("{NavigatorId}", $"Enter recovered via EnterPressedWhileBlocked (BlockSubmitForToggle armed)");
                 // Consume Space to prevent GeneralMenuNavigator from processing it after popup closes
                 InputManager.ConsumeKey(KeyCode.Space);
                 ActivateCurrentItem();
@@ -430,7 +423,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace closes popup - consume key to prevent deck builder from also closing
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 ClosePopup();
@@ -440,7 +433,7 @@ namespace AccessibleArena.Core.Services
             // Letter navigation (A-Z): jump to item in current row
             for (KeyCode key = KeyCode.A; key <= KeyCode.Z; key++)
             {
-                if (Input.GetKeyDown(key))
+                if (KeyInput.GetKeyDown(key))
                 {
                     HandleLetterNavigation(key);
                     return;

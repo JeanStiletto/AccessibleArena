@@ -16,7 +16,7 @@ namespace AccessibleArena.Core.Services
     /// 1. SendSubmitEventToSelectedObject prefix — blocks Unity EventSystem's Submit dispatch.
     ///    This is the method that actually clicks the pass button. MTGA's input module may
     ///    NOT use Input.GetButtonDown, so patching Input methods alone is insufficient.
-    /// 2. Input.GetKeyDown(Space) postfix — blocks KeyboardManager and direct callers.
+    /// 2. KeyInput.GetKeyDown(Space) postfix — blocks KeyboardManager and direct callers.
     ///
     /// Uses release-tracking to prevent oscillation: after showing warning, blocks all
     /// frames until Space is released. Next press after release confirms pass.
@@ -55,13 +55,13 @@ namespace AccessibleArena.Core.Services
         /// Per-frame release poll. Must be called every frame (from OnUpdate) so
         /// `_waitingForRelease` clears even when none of the hook-driven paths
         /// (PublishKeyUp, SendSubmit, GetKeyDown) happen to fire on the release frame.
-        /// Without this, blocking `Input.GetKeyDown(Space)` globally can prevent MTGA's
+        /// Without this, blocking `KeyInput.GetKeyDown(Space)` globally can prevent MTGA's
         /// KeyboardManager from tracking the press, so it never fires a matching KeyUp,
         /// and `_waitingForRelease` stays stuck until the turn timer forces a phase change.
         /// </summary>
         public static void Poll()
         {
-            bool spaceDown = Input.GetKey(KeyCode.Space);
+            bool spaceDown = KeyInput.GetKey(KeyCode.Space);
 
             // Track modal-active-during-press: if a modal was up at any point
             // while Space is held, the whole press belongs to that modal. Guards
@@ -103,7 +103,7 @@ namespace AccessibleArena.Core.Services
             // Block on the release frame too — the confirm must be a NEW key-down.
             if (_waitingForRelease)
             {
-                if (!Input.GetKey(KeyCode.Space))
+                if (!KeyInput.GetKey(KeyCode.Space))
                 {
                     _waitingForRelease = false;
                     Log.Msg("PhaseSkipGuard", "Space released — next press will confirm");

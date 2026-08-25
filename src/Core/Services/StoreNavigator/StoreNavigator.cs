@@ -947,7 +947,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: back navigation per level
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
 

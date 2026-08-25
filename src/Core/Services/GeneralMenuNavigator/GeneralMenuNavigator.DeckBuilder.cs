@@ -368,7 +368,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_isInRenameMode)
             {
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
                 {
                     string newName = GetEditingFieldText()?.Trim() ?? "";
                     _isInRenameMode = false;
@@ -379,7 +379,7 @@ namespace AccessibleArena.Core.Services
                     ForceExitFieldEditMode();
                     return;
                 }
-                else if (Input.GetKeyDown(KeyCode.Escape))
+                else if (KeyInput.GetKeyDown(KeyCode.Escape))
                 {
                     _isInRenameMode = false;
                     // Let base handle Escape (exits edit mode, announces cancelled)

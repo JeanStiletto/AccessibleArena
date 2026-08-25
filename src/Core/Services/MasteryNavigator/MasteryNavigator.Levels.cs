@@ -952,8 +952,8 @@ namespace AccessibleArena.Core.Services
         private void HandleLevelInput()
         {
             // Up/Down: Navigate levels (index 0 = status item, 1+ = real levels)
-            if (Input.GetKeyDown(KeyCode.UpArrow) ||
-                Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) ||
+                KeyInput.GetKeyDown(KeyCode.Tab) && (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift)))
             {
                 if (_currentLevelIndex > 0)
                     GoToLevel(_currentLevelIndex - 1);
@@ -962,8 +962,8 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.DownArrow) ||
-                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow) ||
+                (KeyInput.GetKeyDown(KeyCode.Tab) && !KeyInput.GetKey(KeyCode.LeftShift) && !KeyInput.GetKey(KeyCode.RightShift)))
             {
                 if (_currentLevelIndex < _levelData.Count - 1)
                     GoToLevel(_currentLevelIndex + 1);
@@ -973,46 +973,46 @@ namespace AccessibleArena.Core.Services
             }
 
             // Left/Right: Cycle reward tiers (or buttons on status item)
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 CycleTier(-1);
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 CycleTier(1);
                 return;
             }
 
             // Home/End: Jump to first/last
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 GoToLevel(0);
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 GoToLevel(_levelData.Count - 1);
                 return;
             }
 
             // PageUp/PageDown: Jump ~10 levels
-            if (Input.GetKeyDown(KeyCode.PageUp))
+            if (KeyInput.GetKeyDown(KeyCode.PageUp))
             {
                 GoToLevel(_currentLevelIndex - LevelsPerPageJump);
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.PageDown))
+            if (KeyInput.GetKeyDown(KeyCode.PageDown))
             {
                 GoToLevel(_currentLevelIndex + LevelsPerPageJump);
                 return;
             }
 
             // Enter: On status item, activate button tier or announce detail. On levels, announce detail.
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
@@ -1032,7 +1032,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: Leave mastery screen and return home
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 NavigateToHome();

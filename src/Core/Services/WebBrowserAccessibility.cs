@@ -337,7 +337,7 @@ namespace AccessibleArena.Core.Services
             if (_isLoading)
             {
                 // Allow Backspace to exit even while loading
-                if (Input.GetKeyDown(KeyCode.Backspace))
+                if (KeyInput.GetKeyDown(KeyCode.Backspace))
                 {
                     InputManager.ConsumeKey(KeyCode.Backspace);
                     ClickBackToArena();
@@ -349,19 +349,19 @@ namespace AccessibleArena.Core.Services
             if (IsClickOnCooldown())
             {
                 // Consume Enter/Space so they don't leak to the game
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
                 {
                     InputManager.ConsumeKey(KeyCode.Return);
                     InputManager.ConsumeKey(KeyCode.KeypadEnter);
                     return;
                 }
-                if (Input.GetKeyDown(KeyCode.Space))
+                if (KeyInput.GetKeyDown(KeyCode.Space))
                 {
                     InputManager.ConsumeKey(KeyCode.Space);
                     return;
                 }
                 // Allow Backspace to exit
-                if (Input.GetKeyDown(KeyCode.Backspace))
+                if (KeyInput.GetKeyDown(KeyCode.Backspace))
                 {
                     InputManager.ConsumeKey(KeyCode.Backspace);
                     ClickBackToArena();
@@ -401,7 +401,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void HandleRawPassthroughInput()
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 InputManager.ConsumeKey(KeyCode.Escape);
                 ExitRawPassthrough(announce: true);
@@ -464,22 +464,22 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void HandleNavigationOnlyInput()
         {
-            if (Input.GetKeyDown(KeyCode.UpArrow)) { MoveElement(-1); return; }
-            if (Input.GetKeyDown(KeyCode.DownArrow)) { MoveElement(1); return; }
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow)) { MoveElement(-1); return; }
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow)) { MoveElement(1); return; }
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 // Don't auto-enter edit mode during cooldown — just navigate
                 MoveElement(shift ? -1 : 1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.Home) && _elements.Count > 0)
+            if (KeyInput.GetKeyDown(KeyCode.Home) && _elements.Count > 0)
             {
                 _currentIndex = 0;
                 AnnounceCurrentElement();
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End) && _elements.Count > 0)
+            if (KeyInput.GetKeyDown(KeyCode.End) && _elements.Count > 0)
             {
                 _currentIndex = _elements.Count - 1;
                 AnnounceCurrentElement();
@@ -490,12 +490,12 @@ namespace AccessibleArena.Core.Services
         private void HandleNavigationInput()
         {
             // Up/Down navigate elements
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 MoveElement(-1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 MoveElement(1);
                 return;
@@ -504,13 +504,13 @@ namespace AccessibleArena.Core.Services
             // Tab/Shift+Tab — auto-enter edit mode if landing on a text field
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 TabNavigate(shift ? -1 : 1);
                 return;
             }
 
             // Home/End
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_elements.Count > 0)
                 {
@@ -519,7 +519,7 @@ namespace AccessibleArena.Core.Services
                 }
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_elements.Count > 0)
                 {
@@ -530,7 +530,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter — activate
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool enterPressed = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             if (enterPressed)
             {
                 InputManager.ConsumeKey(KeyCode.Return);
@@ -554,7 +554,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace — click "Back to Arena"
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 ClickBackToArena();
@@ -580,7 +580,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Escape — exit edit mode
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 InputManager.ConsumeKey(KeyCode.Escape);
                 ExitEditMode();
@@ -591,14 +591,14 @@ namespace AccessibleArena.Core.Services
             // Tab — exit edit mode and move to next element (auto-enter if next is also a text field)
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 ExitEditMode();
                 TabNavigate(shift ? -1 : 1);
                 return;
             }
 
             // Enter — submit form, exit edit mode, schedule rescan
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
@@ -617,38 +617,38 @@ namespace AccessibleArena.Core.Services
             }
 
             // Arrow Up/Down — read full field content
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 RefreshAndReadFieldValue(readFull: true);
                 return;
             }
 
             // Arrow Left/Right — read character at cursor position
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorDelta: -1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorDelta: 1);
                 return;
             }
 
             // Home/End — jump to beginning/end of field
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorJump: 0);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorJump: -1);
                 return;
             }
 
             // Ctrl+A — select all text in field (so next keystroke replaces it)
-            if (Input.GetKeyDown(KeyCode.A) && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+            if (KeyInput.GetKeyDown(KeyCode.A) && (KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl)))
             {
                 if (_currentIndex >= 0 && _currentIndex < _elements.Count)
                 {
@@ -661,7 +661,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace — delete last character
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 if (_currentIndex >= 0 && _currentIndex < _elements.Count)
@@ -688,7 +688,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Printable characters — append text
-            string inputStr = Input.inputString;
+            string inputStr = KeyInput.InputString;
             if (!string.IsNullOrEmpty(inputStr))
             {
                 // Filter out control characters
@@ -745,7 +745,7 @@ namespace AccessibleArena.Core.Services
         private void HandlePassthroughEditModeInput()
         {
             // Escape — exit edit mode (consume so CEF doesn't see it either)
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 InputManager.ConsumeKey(KeyCode.Escape);
                 ExitEditMode();
@@ -756,14 +756,14 @@ namespace AccessibleArena.Core.Services
             // Tab — exit edit mode and navigate (consume so CEF doesn't steal focus)
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 ExitEditMode();
                 TabNavigate(shift ? -1 : 1);
                 return;
             }
 
             // Enter — natural form submission passes through; schedule rescan for new page
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 ExitEditMode();
                 _announcer.AnnounceInterrupt(Strings.WebBrowser_Submitted);
@@ -774,29 +774,29 @@ namespace AccessibleArena.Core.Services
             }
 
             // Arrow Up/Down — read full field content (cursor stays put in browser)
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 RefreshAndReadFieldValue(readFull: true);
                 return;
             }
 
             // Arrow Left/Right — read char at cursor (also moves cursor naturally in browser)
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorDelta: -1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorDelta: 1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorJump: 0);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 RefreshAndReadFieldValue(readFull: false, cursorJump: -1);
                 return;

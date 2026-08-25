@@ -761,12 +761,12 @@ namespace AccessibleArena.Core.Services
                         }
 
                         // Handle arrow keys here since Unity may have already processed them
-                        if (Input.GetKeyDown(KeyCode.UpArrow))
+                        if (KeyInput.GetKeyDown(KeyCode.UpArrow))
                         {
                             MovePrevious();
                             return;
                         }
-                        if (Input.GetKeyDown(KeyCode.DownArrow))
+                        if (KeyInput.GetKeyDown(KeyCode.DownArrow))
                         {
                             MoveNext();
                             return;
@@ -818,7 +818,7 @@ namespace AccessibleArena.Core.Services
             // F4: Open chat window (universal - works from any navigator)
             // Subclasses that handle F4 themselves (GeneralMenuNavigator → friends panel)
             // consume it in HandleCustomInput above, so it never reaches here.
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (KeyInput.GetKeyDown(KeyCode.F4))
             {
                 OpenChat();
                 return;
@@ -827,7 +827,7 @@ namespace AccessibleArena.Core.Services
             // I key: Extended card info (keyword descriptions + linked face)
             // Works in any context where a card is focused (deck builder, collection, store, draft, etc.)
             // DuelNavigator handles its own "I" key in HandleCustomInput() with browser fallback.
-            if (Input.GetKeyDown(KeyCode.I))
+            if (KeyInput.GetKeyDown(KeyCode.I))
             {
                 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -851,7 +851,7 @@ namespace AccessibleArena.Core.Services
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
                 _lastNavigationWasTab = true; // Track for input field auto-enter behavior
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shiftTab = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
                 else
@@ -860,13 +860,13 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home/End for quick jump to first/last
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveFirst();
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveLast();
                 return;
@@ -877,14 +877,9 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.RightArrow, () => HandleCarouselArrow(isNext: true))) return;
 
             // Activation (Enter or Space)
-            // Check EnterPressedWhileBlocked for when our Input.GetKeyDown patch blocked Enter on a toggle
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || InputManager.EnterPressedWhileBlocked;
-            if (InputManager.EnterPressedWhileBlocked)
-            {
-                InputManager.MarkEnterHandled(); // Mark as handled to prevent double-activation
-            }
+            bool enterPressed = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             bool spacePressed = AcceptSpaceKey && InputManager.GetKeyDownAndConsume(KeyCode.Space);
-            bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool shiftHeld = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
             if (enterPressed || spacePressed)
             {
@@ -934,7 +929,7 @@ namespace AccessibleArena.Core.Services
             {
                 for (KeyCode key = KeyCode.A; key <= KeyCode.Z; key++)
                 {
-                    if (Input.GetKeyDown(key))
+                    if (KeyInput.GetKeyDown(key))
                     {
                         HandleLetterNavigation(key);
                         return;

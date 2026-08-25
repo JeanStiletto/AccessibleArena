@@ -170,35 +170,35 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return false;
 
             // I, Backspace, or Escape closes the menu
-            if (Input.GetKeyDown(KeyCode.I) || Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.I) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 Close();
                 return true;
             }
 
             // Up arrow: previous item
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 MovePrevious();
                 return true;
             }
 
             // Down arrow: next item
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 MoveNext();
                 return true;
             }
 
             // Home: first item
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveFirst();
                 return true;
             }
 
             // End: last item
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveLast();
                 return true;

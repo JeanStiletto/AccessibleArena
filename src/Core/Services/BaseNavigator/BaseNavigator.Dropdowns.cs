@@ -32,7 +32,7 @@ namespace AccessibleArena.Core.Services
                 // Exception: if Enter is pressed, this is the user intentionally opening
                 // the dropdown. Unity's EventSystem processed the Enter before our Update
                 // ran, so the same keypress arrives here. Register as user-opened.
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
                 {
                     InputManager.ConsumeKey(KeyCode.Return);
                     InputManager.ConsumeKey(KeyCode.KeypadEnter);
@@ -66,7 +66,7 @@ namespace AccessibleArena.Core.Services
                 DropdownStateManager.SuppressReentry();
 
                 _lastNavigationWasTab = true;
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shiftTab = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
                 else
@@ -77,7 +77,7 @@ namespace AccessibleArena.Core.Services
             // Escape or Backspace: Close the dropdown explicitly
             // We must intercept these because the game handles Escape as "back" which
             // navigates to the previous screen instead of just closing the dropdown
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Escape) || KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 CloseActiveDropdown();
                 return;
@@ -87,7 +87,7 @@ namespace AccessibleArena.Core.Services
             // We block SendSubmitEventToSelectedObject (via EventSystemPatch) so Unity's
             // normal Submit path never fires. This prevents the game's onValueChanged
             // callback from triggering chain auto-advance to the next dropdown.
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);

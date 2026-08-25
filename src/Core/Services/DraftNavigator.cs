@@ -1012,7 +1012,7 @@ namespace AccessibleArena.Core.Services
             if (HandleCustomInput()) return;
 
             // I key: Extended card info (keyword descriptions + other faces)
-            if (Input.GetKeyDown(KeyCode.I))
+            if (KeyInput.GetKeyDown(KeyCode.I))
             {
                 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -1028,14 +1028,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // E: Announce remaining pick time (human draft auto-pick countdown)
-            if (Input.GetKeyDown(KeyCode.E))
+            if (KeyInput.GetKeyDown(KeyCode.E))
             {
                 AnnouncePickTimer();
                 return;
             }
 
             // F11: Dump current card details for debugging
-            if (Input.GetKeyDown(KeyCode.F11))
+            if (KeyInput.GetKeyDown(KeyCode.F11))
             {
                 if (IsValidIndex && _elements[_currentIndex].GameObject != null)
                 {
@@ -1053,22 +1053,22 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.RightArrow, () => MoveNext())) return;
 
             // Home/End for quick jump to first/last
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveFirst();
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveLast();
                 return;
             }
 
             // Tab/Shift+Tab also navigates
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shiftTab = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
                 else
@@ -1077,7 +1077,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter selects/toggles a card, or confirms if on the confirm button
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 if (IsValidIndex)
                 {
@@ -1106,14 +1106,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Space confirms the current selection (clicks confirm button)
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 ClickConfirmButton();
                 return;
             }
 
             // Backspace to go back
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 Log.Msg("{NavigatorId}", $"Backspace pressed");
                 ClickBackButton();

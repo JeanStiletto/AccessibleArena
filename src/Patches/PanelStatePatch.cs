@@ -206,7 +206,7 @@ namespace AccessibleArena.Patches
         /// </summary>
         private static bool ShouldBlockSocialUITabToggle(string whatWasBlocked, bool log = true)
         {
-            if (UnityEngine.Input.GetKey(UnityEngine.KeyCode.Tab))
+            if (KeyInput.GetKey(UnityEngine.KeyCode.Tab))
             {
                 if (log) Log.Patch("PanelStatePatch", $"Blocked {whatWasBlocked} (Tab pressed)");
                 return true;
@@ -1011,10 +1011,11 @@ namespace AccessibleArena.Patches
         /// <summary>
         /// Prefix for SocialUI.HandleKeyDown — blocks Tab from toggling the social panel.
         /// Our mod uses Tab for navigation, so we don't want it to open/close the friends panel.
+        /// The game's IKeyDownSubscriber signature takes a physical Key since the Unity 6 update.
         /// </summary>
-        public static bool SocialUIHandleKeyDownPrefix(object __instance, UnityEngine.KeyCode curr)
+        public static bool SocialUIHandleKeyDownPrefix(object __instance, UnityEngine.InputSystem.Key curr)
         {
-            if (curr == UnityEngine.KeyCode.Tab)
+            if (curr == UnityEngine.InputSystem.Key.Tab)
             {
                 Log.Patch("PanelStatePatch", $"Blocked Tab from SocialUI.HandleKeyDown");
                 return false;

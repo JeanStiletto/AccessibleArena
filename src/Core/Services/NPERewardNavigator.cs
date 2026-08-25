@@ -535,7 +535,7 @@ namespace AccessibleArena.Core.Services
             })) return;
 
             // Home/End for quick jump to first/last
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 Log.Nav(NavigatorId, $"Input: Home - MoveFirst");
                 MoveFirst();
@@ -543,7 +543,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 Log.Nav(NavigatorId, $"Input: End - MoveLast");
                 MoveLast();
@@ -552,9 +552,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab/Shift+Tab also navigates (consistent with pack opening)
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shiftTab = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 Log.Nav(NavigatorId, $"Input: Tab (shift={shiftTab})");
                 if (shiftTab)
                     MovePrevious();
@@ -565,7 +565,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter activates (take reward or view card)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 Log.Nav(NavigatorId, $"Input: Enter - ActivateCurrentElement");
                 LogCurrentState();
@@ -583,7 +583,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace dismisses (activates take reward / continue button)
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 Log.Nav(NavigatorId, $"Input: Backspace - Finding dismiss button");
                 // Find and activate the take reward / continue button

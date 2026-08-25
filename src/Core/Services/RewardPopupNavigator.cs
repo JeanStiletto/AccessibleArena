@@ -1703,22 +1703,22 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.RightArrow, () => MoveNext())) return;
 
             // Home/End
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveFirst();
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveLast();
                 return;
             }
 
             // Tab navigation
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shiftTab = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
                 else
@@ -1727,7 +1727,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter activates current element
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 if (IsValidIndex)
                 {
@@ -1757,7 +1757,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace dismisses the popup
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 DismissRewardsPopup();
                 return;
@@ -1774,8 +1774,8 @@ namespace AccessibleArena.Core.Services
             // Browse reward items if there is more than one
             if (_holdRepeater.Check(KeyCode.LeftArrow, () => MovePrevious())) return;
             if (_holdRepeater.Check(KeyCode.RightArrow, () => MoveNext())) return;
-            if (Input.GetKeyDown(KeyCode.Home)) { MoveFirst(); return; }
-            if (Input.GetKeyDown(KeyCode.End)) { MoveLast(); return; }
+            if (KeyInput.GetKeyDown(KeyCode.Home)) { MoveFirst(); return; }
+            if (KeyInput.GetKeyDown(KeyCode.End)) { MoveLast(); return; }
 
             // Enter/Space = advance. Consume so the key never double-fires into the
             // game's own reward controller (which would advance twice / skip a screen).
@@ -1800,7 +1800,7 @@ namespace AccessibleArena.Core.Services
             // Backspace re-reads the current screen. The season sequence can't be
             // dismissed mid-way (a background click just advances), so treating
             // Backspace as "dismiss" would be misleading and could skip unread info.
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 _lastSeasonAnnouncement = null; // force re-announce
                 _announcer.AnnounceInterrupt(GetActivationAnnouncement());

@@ -312,7 +312,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // I key: open extended card info (keywords, linked faces, tokens)
-            if (Input.GetKeyDown(KeyCode.I))
+            if (KeyInput.GetKeyDown(KeyCode.I))
             {
                 if (extInfoNav != null && _detailsCards.Count > 0 &&
                     _detailsCardIndex >= 0 && _detailsCardIndex < _detailsCards.Count)
@@ -345,7 +345,7 @@ namespace AccessibleArena.Core.Services
             })) return;
 
             // Home/End: jump to first/last card
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_detailsCards.Count > 0 && _detailsCardIndex != 0)
                 {
@@ -357,7 +357,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_detailsCards.Count > 0 && _detailsCardIndex != _detailsCards.Count - 1)
                 {
@@ -372,13 +372,13 @@ namespace AccessibleArena.Core.Services
             // Tab/Shift+Tab: navigate cards like Left/Right
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 MoveDetailsCard(shift ? -1 : 1);
                 return;
             }
 
             // Enter/Space: re-read current card or description
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool enterPressed = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
             if (enterPressed || spacePressed)
             {
@@ -392,7 +392,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: close details view
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 CloseDetailsView();

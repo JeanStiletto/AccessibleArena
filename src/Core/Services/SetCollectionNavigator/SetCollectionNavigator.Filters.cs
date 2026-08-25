@@ -84,7 +84,7 @@ namespace AccessibleArena.Core.Services
             {
                 // Nothing to filter with — fall straight through to the sets.
                 if (InputManager.GetEnterAndConsume()) EnterSetsLevel();
-                else if (Input.GetKeyDown(KeyCode.Backspace)) LeaveScreen();
+                else if (KeyInput.GetKeyDown(KeyCode.Backspace)) LeaveScreen();
                 return;
             }
 
@@ -120,13 +120,13 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.RightArrow, () => ChangeCurrentFilter(1))) return;
 
             // Home/End: first/last filter control
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _filterIndex = 0;
                 AnnounceCurrentFilter();
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _filterIndex = _filters.Count - 1;
                 AnnounceCurrentFilter();
@@ -151,7 +151,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: leave the screen entirely
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 LeaveScreen();

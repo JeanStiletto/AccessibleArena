@@ -5,6 +5,7 @@ using TMPro;
 using MelonLoader;
 using AccessibleArena.Core.Interfaces;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 using System;
 
 namespace AccessibleArena.Core.Services
@@ -155,7 +156,7 @@ namespace AccessibleArena.Core.Services
         public bool HandleEditing(Action<int> onTabNavigate)
         {
             // Escape: exit edit mode
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 PreserveTextOnEscape();
                 ExitEditMode();
@@ -166,21 +167,21 @@ namespace AccessibleArena.Core.Services
             // Tab: consume to prevent game interference, exit edit mode, navigate
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                int direction = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) ? -1 : 1;
+                int direction = (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift)) ? -1 : 1;
                 ExitEditMode();
                 onTabNavigate?.Invoke(direction);
                 return true;
             }
 
             // Backspace: announce deleted char, pass through for actual deletion
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 AnnounceDeletedCharacter();
                 return false;
             }
 
             // Up/Down: announce field content, reactivate field
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 AnnounceFieldContent();
                 ReactivateField();
@@ -188,7 +189,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Left/Right: announce character at cursor
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 AnnounceCharacterAtCursor();
                 return true;
@@ -387,7 +388,7 @@ namespace AccessibleArena.Core.Services
         {
             if (!info.IsValid) return;
 
-            bool isLeft = Input.GetKeyDown(KeyCode.LeftArrow);
+            bool isLeft = KeyInput.GetKeyDown(KeyCode.LeftArrow);
             string text = info.Text;
             int caretPos = info.CaretPosition;
 

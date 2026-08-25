@@ -78,13 +78,13 @@ namespace AccessibleArena.Core.Services
                 DropdownStateManager.SuppressReentry();
                 ClearState();
 
-                int direction = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) ? -1 : 1;
+                int direction = (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift)) ? -1 : 1;
                 onTabNavigate?.Invoke(direction);
                 return true;
             }
 
             // Escape: close dropdown, announce
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 BaseNavigator.CloseDropdown(_navigatorId, _announcer, silent: false);
                 ClearState();
@@ -92,7 +92,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: close dropdown, consume so popup mode doesn't dismiss the popup
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 BaseNavigator.CloseDropdown(_navigatorId, _announcer, silent: false);
@@ -101,7 +101,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter: select the focused item and close
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
@@ -125,7 +125,7 @@ namespace AccessibleArena.Core.Services
             // asynchronously, so the initial count from TryFocusFirstItem can be stale.
             if (_itemCount == 1)
                 CountItems();
-            if (_itemCount == 1 && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)))
+            if (_itemCount == 1 && (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow)))
             {
                 if (_firstItemObject != null)
                 {

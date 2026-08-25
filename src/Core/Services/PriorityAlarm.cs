@@ -82,7 +82,7 @@ namespace AccessibleArena.Core.Services
 
             // First interaction of any kind proves the user is engaged -> stop. We only observe
             // the key here; it still flows through to whatever navigator handles it this frame.
-            if (Input.anyKeyDown)
+            if (KeyInput.AnyKeyDown)
             {
                 Disarm("user acted");
                 return;

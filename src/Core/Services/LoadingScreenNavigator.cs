@@ -964,7 +964,7 @@ namespace AccessibleArena.Core.Services
         protected override bool HandleCustomInput()
         {
             // O key: open game log on match end screen
-            if (_currentMode == ScreenMode.MatchEnd && Input.GetKeyDown(KeyCode.O))
+            if (_currentMode == ScreenMode.MatchEnd && KeyInput.GetKeyDown(KeyCode.O))
             {
                 var logNav = AccessibleArenaMod.Instance?.GameLogNavigator;
                 if (logNav != null)
@@ -973,7 +973,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // TableDraftQueue: Space = ready up (primary positive action) when the table is found.
-            if (_currentMode == ScreenMode.TableDraftQueue && Input.GetKeyDown(KeyCode.Space))
+            if (_currentMode == ScreenMode.TableDraftQueue && KeyInput.GetKeyDown(KeyCode.Space))
             {
                 if (_tdqReadyButton != null && _tdqReadyButton.activeInHierarchy)
                 {
@@ -984,7 +984,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: quick action per mode
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 switch (_currentMode)
                 {

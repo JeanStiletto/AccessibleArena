@@ -136,12 +136,12 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.DownArrow, () => MoveInfo(1))) return;
 
             // Home/End: first/last set
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 SelectSet(0);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 SelectSet(_sets.Count - 1);
                 return;
@@ -155,7 +155,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: back up to the filters
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 ReturnToFiltersLevel();
@@ -165,7 +165,7 @@ namespace AccessibleArena.Core.Services
             // A-Z: jump to the next set starting with that letter
             for (KeyCode key = KeyCode.A; key <= KeyCode.Z; key++)
             {
-                if (Input.GetKeyDown(key))
+                if (KeyInput.GetKeyDown(key))
                 {
                     JumpToSetByLetter((char)('a' + (key - KeyCode.A)));
                     return;

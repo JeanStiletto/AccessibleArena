@@ -90,7 +90,7 @@ namespace AccessibleArena.Core.Services
         {
             // F4 should work even in input fields (toggle Friends panel)
             // Exit edit mode and let HandleCustomInput process it
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (KeyInput.GetKeyDown(KeyCode.F4))
             {
                 ExitInputFieldEditMode();
                 HandleCustomInput();
@@ -98,7 +98,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Escape exits edit mode by deactivating the input field
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 _inputFieldHelper.PreserveTextOnEscape();
                 ExitInputFieldEditMode();
@@ -114,7 +114,7 @@ namespace AccessibleArena.Core.Services
                 // This prevents announcing old/stale cards before the filter has applied
                 ExitInputFieldEditMode(suppressNextAnnouncement: true);
                 _lastNavigationWasTab = true; // Track for consistent behavior in UpdateEventSystemSelection
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shiftTab = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
                 else
@@ -133,7 +133,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: announce the character being deleted, then let it pass through
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 // Use scene-wide scan for Backspace since field may have been mouse-clicked
                 GameObject fallback = IsValidIndex ? _elements[_currentIndex].GameObject : null;
@@ -144,13 +144,13 @@ namespace AccessibleArena.Core.Services
             // Up or Down arrow: announce the current input field content
             // TMP_InputField deactivates on Up/Down in single-line mode (via OnUpdateSelected
             // running before our code), so we must re-activate the field afterwards.
-            else if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            else if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 _inputFieldHelper.AnnounceFieldContent();
                 _inputFieldHelper.ReactivateField();
             }
             // Left/Right arrows: announce character at cursor position
-            else if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            else if (KeyInput.GetKeyDown(KeyCode.LeftArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 _inputFieldHelper.AnnounceCharacterAtCursor();
             }

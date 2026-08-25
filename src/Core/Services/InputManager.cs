@@ -73,44 +73,6 @@ namespace AccessibleArena.Core.Services
         public static bool AllowNativeEnterOnLogin { get; set; }
 
         /// <summary>
-        /// Set by EventSystemPatch when Enter is pressed but blocked because we're on a toggle.
-        /// Our HandleInput checks this flag to know Enter was pressed and should activate the toggle.
-        /// Frame-aware to prevent double-activation from multiple GetKeyDown calls per frame.
-        /// </summary>
-        private static int _enterPressedWhileBlockedFrame = -1;
-        private static int _enterPressedHandledFrame = -1;
-
-        public static bool EnterPressedWhileBlocked
-        {
-            get
-            {
-                // Only return true if set THIS frame and not already handled this frame
-                int currentFrame = Time.frameCount;
-                return _enterPressedWhileBlockedFrame == currentFrame && _enterPressedHandledFrame != currentFrame;
-            }
-            set
-            {
-                if (value)
-                {
-                    // Only set if not already set this frame
-                    int currentFrame = Time.frameCount;
-                    if (_enterPressedWhileBlockedFrame != currentFrame)
-                    {
-                        _enterPressedWhileBlockedFrame = currentFrame;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Mark EnterPressedWhileBlocked as handled for this frame to prevent double-activation.
-        /// </summary>
-        public static void MarkEnterHandled()
-        {
-            _enterPressedHandledFrame = Time.frameCount;
-        }
-
-        /// <summary>
         /// Marks a key as consumed this frame. The game's KeyboardManager will not
         /// receive this key press (blocked by Harmony patch).
         /// </summary>
@@ -148,7 +110,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         public static bool GetKeyDownAndConsume(KeyCode key)
         {
-            if (Input.GetKeyDown(key))
+            if (KeyInput.GetKeyDown(key))
             {
                 ConsumeKey(key);
                 return true;
@@ -158,28 +120,15 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Checks if Enter key is pressed and consumes it.
-        /// Also checks EnterPressedWhileBlocked for when EventSystemPatch blocked Enter on a toggle.
         /// </summary>
         public static bool GetEnterAndConsume()
         {
-            // Check both direct key press AND the blocked flag (for when Enter was blocked on a toggle)
-            bool directPress = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-            bool blockedPress = EnterPressedWhileBlocked;
-
-            if (directPress)
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 ConsumeKey(KeyCode.Return);
                 ConsumeKey(KeyCode.KeypadEnter);
                 return true;
             }
-
-            if (blockedPress)
-            {
-                // Mark as handled so BaseNavigator.HandleInput doesn't also process it
-                MarkEnterHandled();
-                return true;
-            }
-
             return false;
         }
 
@@ -227,7 +176,7 @@ namespace AccessibleArena.Core.Services
             // Let the game handle navigation keys (arrows, tab, enter, escape)
             foreach (var key in _customKeys)
             {
-                if (Input.GetKeyDown(key))
+                if (KeyInput.GetKeyDown(key))
                 {
                     ProcessCustomKey(key);
                 }
@@ -236,9 +185,9 @@ namespace AccessibleArena.Core.Services
 
         private void ProcessCustomKey(KeyCode key)
         {
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+            bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
+            bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
+            bool alt = KeyInput.GetKey(KeyCode.LeftAlt) || KeyInput.GetKey(KeyCode.RightAlt);
 
             // Skip if any modifier conflicts with game controls
             // Alt is used by game for alt-view

@@ -319,10 +319,10 @@ namespace AccessibleArena.Core.Services
             bool showAll = IsKeywordShowAllActive();
 
             // Tab: cycle through keywords → buttons → wrap
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
                 _keywordLetterSearch.Clear();
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
                 if (shift)
                 {
@@ -423,7 +423,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Left/Right: navigate within keywords or buttons
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 _keywordLetterSearch.Clear();
                 if (_currentKeywordIndex > 0)
@@ -438,7 +438,7 @@ namespace AccessibleArena.Core.Services
                 }
                 return true;
             }
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 _keywordLetterSearch.Clear();
                 if (_currentKeywordIndex >= 0 && _currentKeywordIndex < kwCount - 1)
@@ -455,7 +455,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home/End: jump to first/last keyword
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _keywordLetterSearch.Clear();
                 if (kwCount > 0)
@@ -466,7 +466,7 @@ namespace AccessibleArena.Core.Services
                 }
                 return true;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _keywordLetterSearch.Clear();
                 if (kwCount > 0)
@@ -479,13 +479,13 @@ namespace AccessibleArena.Core.Services
             }
 
             // Up/Down: consume to prevent CardInfoNavigator from intercepting
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 return true;
             }
 
             // Enter: toggle keyword or activate button
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 if (_currentKeywordIndex >= 0 && _currentKeywordIndex < kwCount)
                 {
@@ -502,14 +502,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Space: confirm/submit
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 ClickConfirmButton();
                 return true;
             }
 
             // Backspace: cancel
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 ClickCancelButton();
                 return true;
@@ -536,7 +536,7 @@ namespace AccessibleArena.Core.Services
             KeyCode pressed = KeyCode.None;
             for (KeyCode k = KeyCode.A; k <= KeyCode.Z; k++)
             {
-                if (Input.GetKeyDown(k)) { pressed = k; break; }
+                if (KeyInput.GetKeyDown(k)) { pressed = k; break; }
             }
             if (pressed == KeyCode.None) return false;
 

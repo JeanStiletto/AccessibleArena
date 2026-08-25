@@ -76,35 +76,35 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return false;
 
             // O, Backspace, or Escape closes the menu
-            if (Input.GetKeyDown(KeyCode.O) || Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.O) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 Close();
                 return true;
             }
 
             // Down arrow: next (older) entry
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 MoveNext();
                 return true;
             }
 
             // Up arrow: previous (newer) entry
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 MovePrevious();
                 return true;
             }
 
             // Home: first (newest) entry
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveFirst();
                 return true;
             }
 
             // End: last (oldest) entry
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveLast();
                 return true;

@@ -669,19 +669,19 @@ namespace AccessibleArena.Core.Services
 
         private void DebugLogKeyPresses()
         {
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
                 Log.Focus("FocusTracker", shift ? "Shift+Tab pressed" : "Tab pressed");
                 DebugLogCurrentSelection();
             }
-            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            else if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 Log.Focus("FocusTracker", "Enter pressed");
                 DebugLogCurrentSelection();
             }
-            else if (Input.GetKeyDown(KeyCode.Space))
+            else if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 Log.Focus("FocusTracker", "Space pressed");
             }

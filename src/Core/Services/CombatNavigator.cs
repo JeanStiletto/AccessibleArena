@@ -596,7 +596,7 @@ namespace AccessibleArena.Core.Services
             // Handle Declare Attackers phase
             if (_duelAnnouncer.IsInDeclareAttackersPhase)
             {
-                if (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Space))
+                if (KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Space))
                 {
                     // Guard: if primary button has no text, the UI is in a transitional state
                     // (e.g. NPE tutorial animation in progress). Clicking buttons now can
@@ -607,7 +607,7 @@ namespace AccessibleArena.Core.Services
                         return true;
                     }
 
-                    if (Input.GetKeyDown(KeyCode.Backspace))
+                    if (KeyInput.GetKeyDown(KeyCode.Backspace))
                         return TryClickSecondaryButton();
                     return TryClickPrimaryButton();
                 }
@@ -616,7 +616,7 @@ namespace AccessibleArena.Core.Services
             // Handle Declare Blockers phase
             if (_duelAnnouncer.IsInDeclareBlockersPhase)
             {
-                if (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Space))
+                if (KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Space))
                 {
                     if (!HasPrimaryButtonText())
                     {
@@ -624,7 +624,7 @@ namespace AccessibleArena.Core.Services
                         return true;
                     }
 
-                    if (Input.GetKeyDown(KeyCode.Backspace))
+                    if (KeyInput.GetKeyDown(KeyCode.Backspace))
                         return TryClickSecondaryButton();
                     return TryClickPrimaryButton();
                 }

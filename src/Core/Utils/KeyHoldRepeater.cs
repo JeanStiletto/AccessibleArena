@@ -24,14 +24,14 @@ namespace AccessibleArena.Core.Utils
         public bool Check(KeyCode key, Func<bool> action)
         {
             // Key released — stop tracking
-            if (_isHolding && _heldKey == key && !Input.GetKey(key))
+            if (_isHolding && _heldKey == key && !KeyInput.GetKey(key))
             {
                 _isHolding = false;
                 return false;
             }
 
             // Initial key press
-            if (Input.GetKeyDown(key))
+            if (KeyInput.GetKeyDown(key))
             {
                 // Clear any previous hold (different key)
                 _isHolding = false;
@@ -46,7 +46,7 @@ namespace AccessibleArena.Core.Utils
             }
 
             // Sustained hold — only for the tracked key
-            if (_isHolding && _heldKey == key && Input.GetKey(key))
+            if (_isHolding && _heldKey == key && KeyInput.GetKey(key))
             {
                 _holdTimer += Time.unscaledDeltaTime;
                 if (_holdTimer >= InitialDelay)

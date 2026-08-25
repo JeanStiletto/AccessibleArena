@@ -223,25 +223,25 @@ namespace AccessibleArena.Core.Services
             if (_modalElements.Count == 0) return;
 
             // Up/Down navigate modal elements
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 MoveModalElement(-1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 MoveModalElement(1);
                 return;
             }
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 MoveModalElement(shift ? -1 : 1);
                 return;
             }
 
             // Enter/Space activates current element
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool enterPressed = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
             if (enterPressed || spacePressed)
             {
@@ -267,7 +267,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace/Escape dismisses modal
-            if (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 InputManager.ConsumeKey(KeyCode.Escape);

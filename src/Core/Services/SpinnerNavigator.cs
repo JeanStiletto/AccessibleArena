@@ -151,7 +151,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab always reclaims spinner focus (like BrowserNavigator pattern)
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
                 ClearEventSystemSelection();
                 _hasFocus = true;
@@ -162,7 +162,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter/Space = submit (always consumed when spinner is active)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter) || KeyInput.GetKeyDown(KeyCode.Space))
             {
                 ClearEventSystemSelection();
                 Submit();
@@ -170,11 +170,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace = cancel (always consumed when spinner is active)
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 // Let Shift+Backspace and Ctrl+Backspace pass through for phase skip controls
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
+                bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
                 if (!shift && !ctrl)
                 {
                     Cancel();
@@ -189,7 +189,7 @@ namespace AccessibleArena.Core.Services
                 return false;
 
             // Left = previous spinner
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 ClearEventSystemSelection();
                 Navigate(-1);
@@ -197,7 +197,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Right = next spinner
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 ClearEventSystemSelection();
                 Navigate(1);
@@ -205,7 +205,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Up = increment value
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 ClearEventSystemSelection();
                 AdjustValue(1);
@@ -213,7 +213,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Down = decrement value
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 ClearEventSystemSelection();
                 AdjustValue(-1);
@@ -221,7 +221,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home = jump to first spinner
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 ClearEventSystemSelection();
                 _currentIndex = 0;
@@ -230,7 +230,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // End = jump to last spinner
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 ClearEventSystemSelection();
                 _currentIndex = _spinners.Count - 1;
@@ -255,12 +255,12 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsZoneShortcut()
         {
-            return Input.GetKeyDown(KeyCode.B) || Input.GetKeyDown(KeyCode.A) ||
-                   Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.C) ||
-                   Input.GetKeyDown(KeyCode.G) || Input.GetKeyDown(KeyCode.X) ||
-                   Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.W) ||
-                   Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.L) ||
-                   Input.GetKeyDown(KeyCode.V);
+            return KeyInput.GetKeyDown(KeyCode.B) || KeyInput.GetKeyDown(KeyCode.A) ||
+                   KeyInput.GetKeyDown(KeyCode.R) || KeyInput.GetKeyDown(KeyCode.C) ||
+                   KeyInput.GetKeyDown(KeyCode.G) || KeyInput.GetKeyDown(KeyCode.X) ||
+                   KeyInput.GetKeyDown(KeyCode.S) || KeyInput.GetKeyDown(KeyCode.W) ||
+                   KeyInput.GetKeyDown(KeyCode.D) || KeyInput.GetKeyDown(KeyCode.L) ||
+                   KeyInput.GetKeyDown(KeyCode.V);
         }
 
         private List<MonoBehaviour> FindActiveSpinners()

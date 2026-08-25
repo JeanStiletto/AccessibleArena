@@ -25,11 +25,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Ensure ilspycmd can find .NET 8.0 runtime installed in user-local directory
-$userDotnet = "$env:USERPROFILE\AppData\Local\Microsoft\dotnet"
-if ((Test-Path $userDotnet) -and -not $env:DOTNET_ROOT) {
-    $env:DOTNET_ROOT = $userDotnet
-}
+# ilspycmd 11.x targets .NET 10, which lives in the system-wide dotnet install.
+# (An older revision pinned DOTNET_ROOT to the user-local .NET 8 directory for
+# ilspycmd 9.x; that pin breaks the newer tool, so the default resolution is used.)
 
 # Paths - detect game install (prefer local.props override, then WotC, then Steam)
 $localPropsPath = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "src\local.props"

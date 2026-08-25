@@ -385,8 +385,8 @@ namespace AccessibleArena.Core.Services
             if (_prizeWallItems.Count == 0) return;
 
             // Up/Shift+Tab: Previous item
-            if (Input.GetKeyDown(KeyCode.UpArrow) ||
-                (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) ||
+                (KeyInput.GetKeyDown(KeyCode.Tab) && (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift))))
             {
                 if (_prizeWallIndex > 0)
                 {
@@ -401,8 +401,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Down/Tab: Next item
-            if (Input.GetKeyDown(KeyCode.DownArrow) ||
-                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow) ||
+                (KeyInput.GetKeyDown(KeyCode.Tab) && !KeyInput.GetKey(KeyCode.LeftShift) && !KeyInput.GetKey(KeyCode.RightShift)))
             {
                 if (_prizeWallIndex < _prizeWallItems.Count - 1)
                 {
@@ -417,7 +417,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home: Jump to first
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _prizeWallIndex = 0;
                 AnnouncePrizeWallItem();
@@ -425,7 +425,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // End: Jump to last
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _prizeWallIndex = _prizeWallItems.Count - 1;
                 AnnouncePrizeWallItem();
@@ -433,7 +433,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter: Activate selected item (find its purchase button)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
@@ -442,7 +442,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: Go back (returns to mastery levels, or home if no back button)
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 if (_prizeWallBackButton != null)
@@ -458,8 +458,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // F3/Ctrl+R: Re-announce current position
-            if (Input.GetKeyDown(KeyCode.F3) ||
-                ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && Input.GetKeyDown(KeyCode.R)))
+            if (KeyInput.GetKeyDown(KeyCode.F3) ||
+                ((KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl)) && KeyInput.GetKeyDown(KeyCode.R)))
             {
                 AnnouncePrizeWallItem();
                 return;

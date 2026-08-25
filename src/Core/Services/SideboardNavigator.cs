@@ -256,99 +256,99 @@ namespace AccessibleArena.Core.Services
             }
 
             // Zone shortcuts
-            if (Input.GetKeyDown(KeyCode.C))
+            if (KeyInput.GetKeyDown(KeyCode.C))
             {
                 NavigateToZone(SideboardZone.Pool);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.D))
+            if (KeyInput.GetKeyDown(KeyCode.D))
             {
                 NavigateToZone(SideboardZone.Deck);
                 return;
             }
 
             // Timer
-            if (Input.GetKeyDown(KeyCode.T))
+            if (KeyInput.GetKeyDown(KeyCode.T))
             {
                 AnnounceTimer();
                 return;
             }
 
             // Score
-            if (Input.GetKeyDown(KeyCode.L))
+            if (KeyInput.GetKeyDown(KeyCode.L))
             {
                 AnnounceScore();
                 return;
             }
 
             // Navigation within zone
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 NavigateInZone(1);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 NavigateInZone(-1);
                 return;
             }
 
             // Home/End
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 JumpToZoneEdge(first: true);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 JumpToZoneEdge(first: false);
                 return;
             }
 
             // Page navigation for pool
-            if (Input.GetKeyDown(KeyCode.PageDown))
+            if (KeyInput.GetKeyDown(KeyCode.PageDown))
             {
                 ScrollPoolPage(next: true);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.PageUp))
+            if (KeyInput.GetKeyDown(KeyCode.PageUp))
             {
                 ScrollPoolPage(next: false);
                 return;
             }
 
             // Enter = activate card (move between pool and deck)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 ActivateCurrentCard();
                 return;
             }
 
             // Up/Down = card detail blocks
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 ActivateCardDetails();
                 return;
             }
 
             // Space = submit sideboard (click Done)
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 SubmitSideboard();
                 return;
             }
 
             // Backspace = toggle battlefield view
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 ToggleBattlefieldView();
                 return;
             }
 
             // Tab = cycle between zones (Pool -> Deck -> Info -> Pool)
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 SideboardZone nextZone;
                 if (shift)
                 {

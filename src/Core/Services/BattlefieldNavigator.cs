@@ -230,19 +230,19 @@ namespace AccessibleArena.Core.Services
             if (_stackClickQueue != null)
             {
                 PumpStackClickSequence();
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
                     return true;
-                if (Input.anyKeyDown)
+                if (KeyInput.AnyKeyDown)
                 {
                     Log.Msg("BattlefieldNavigator", "Stack click sequence cancelled by key press");
                     FinishStackClickSequence();
                 }
             }
 
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
             // Row shortcuts: A for lands (also announces floating mana for player lands)
-            if (Input.GetKeyDown(KeyCode.A))
+            if (KeyInput.GetKeyDown(KeyCode.A))
             {
                 _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
@@ -264,7 +264,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Row shortcuts: R for non-creatures (artifacts, enchantments, planeswalkers)
-            if (Input.GetKeyDown(KeyCode.R))
+            if (KeyInput.GetKeyDown(KeyCode.R))
             {
                 _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
@@ -276,7 +276,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Row shortcuts: B for creatures
-            if (Input.GetKeyDown(KeyCode.B))
+            if (KeyInput.GetKeyDown(KeyCode.B))
             {
                 _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
@@ -290,19 +290,19 @@ namespace AccessibleArena.Core.Services
             bool inBattlefield = _zoneNavigator.CurrentZone == ZoneType.Battlefield;
 
             // Row switching with Shift+Up/Down (only when already in battlefield)
-            if (inBattlefield && shift && Input.GetKeyDown(KeyCode.UpArrow))
+            if (inBattlefield && shift && KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 PreviousRow();
                 return true;
             }
 
-            if (inBattlefield && shift && Input.GetKeyDown(KeyCode.DownArrow))
+            if (inBattlefield && shift && KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 NextRow();
                 return true;
             }
 
-            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow))
+            if (!shift && inBattlefield && KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 RefreshIfDirty();
                 ClearEventSystemSelection();
@@ -310,7 +310,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.RightArrow))
+            if (!shift && inBattlefield && KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 RefreshIfDirty();
                 ClearEventSystemSelection();
@@ -320,7 +320,7 @@ namespace AccessibleArena.Core.Services
 
             // Plain Up/Down (without shift) - re-announce current card or empty row
             // This prevents fall-through to base menu navigation when in battlefield
-            if (!shift && inBattlefield && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)))
+            if (!shift && inBattlefield && (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow)))
             {
                 RefreshIfDirty();
                 var cards = _rows[_currentRow];
@@ -336,7 +336,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home/End for jumping to first/last card in row
-            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.Home))
+            if (!shift && inBattlefield && KeyInput.GetKeyDown(KeyCode.Home))
             {
                 RefreshIfDirty();
                 ClearEventSystemSelection();
@@ -344,7 +344,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (!shift && inBattlefield && Input.GetKeyDown(KeyCode.End))
+            if (!shift && inBattlefield && KeyInput.GetKeyDown(KeyCode.End))
             {
                 RefreshIfDirty();
                 ClearEventSystemSelection();
@@ -354,9 +354,9 @@ namespace AccessibleArena.Core.Services
 
             // Ctrl+Enter on a collapsed multi-card stack -> "click the count badge"
             // (select whole stack; only meaningful during Declare Attackers/Blockers).
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
             if (inBattlefield && ctrl
-                && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+                && (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 RefreshIfDirty();
                 ActivateStackOnCurrentCard();
@@ -365,7 +365,7 @@ namespace AccessibleArena.Core.Services
 
             // Enter to activate card (only when in battlefield)
             // Note: HotHighlightNavigator handles Enter for targets - this is for non-highlighted cards
-            if (inBattlefield && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            if (inBattlefield && (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 RefreshIfDirty();
                 ActivateCurrentCard();

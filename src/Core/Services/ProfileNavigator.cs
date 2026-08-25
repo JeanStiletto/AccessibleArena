@@ -986,7 +986,7 @@ namespace AccessibleArena.Core.Services
             if (_infoBlocks.Count == 0) return false;
 
             // Up/Down: navigate info blocks
-            if (UnityEngine.Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 if (_infoIndex > 0)
                 {
@@ -1000,7 +1000,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (UnityEngine.Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 if (_infoIndex < _infoBlocks.Count - 1)
                 {
@@ -1015,14 +1015,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home/End: jump to first/last
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _infoIndex = 0;
                 AnnounceCurrentBlock();
                 return true;
             }
 
-            if (UnityEngine.Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _infoIndex = _infoBlocks.Count - 1;
                 AnnounceCurrentBlock();
@@ -1030,7 +1030,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter: activate cosmetic button
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 if (_infoIndex >= 0 && _infoIndex < _infoBlocks.Count)
                 {
@@ -1051,9 +1051,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab/Shift+Tab: navigate info blocks (same as Down/Up)
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shift = UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shift)
                 {
                     if (_infoIndex > 0)
@@ -1082,7 +1082,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: navigate back to home screen
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 NavigateBackToHome();
                 return true;
@@ -1096,7 +1096,7 @@ namespace AccessibleArena.Core.Services
             if (_subPanelItems.Count == 0) return false;
 
             // Up/Down: navigate items
-            if (UnityEngine.Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 if (_subPanelIndex > 0)
                 {
@@ -1110,7 +1110,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (UnityEngine.Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 if (_subPanelIndex < _subPanelItems.Count - 1)
                 {
@@ -1125,14 +1125,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home/End
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _subPanelIndex = 0;
                 AnnounceCurrentSubItem();
                 return true;
             }
 
-            if (UnityEngine.Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _subPanelIndex = _subPanelItems.Count - 1;
                 AnnounceCurrentSubItem();
@@ -1140,9 +1140,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab/Shift+Tab: navigate items (same as Down/Up)
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shift = UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shift)
                 {
                     if (_subPanelIndex > 0)
@@ -1167,7 +1167,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter: select item
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 if (_subPanelIndex >= 0 && _subPanelIndex < _subPanelItems.Count)
                 {
@@ -1191,7 +1191,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: close sub-panel and return to main
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 CloseSubPanel();
                 return true;

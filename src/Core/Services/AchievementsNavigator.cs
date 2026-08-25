@@ -591,17 +591,17 @@ namespace AccessibleArena.Core.Services
 
         private bool HandleOverviewInput()
         {
-            if (Input.GetKeyDown(KeyCode.UpArrow)) { MoveOverview(-1); return true; }
-            if (Input.GetKeyDown(KeyCode.DownArrow)) { MoveOverview(1); return true; }
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow)) { MoveOverview(-1); return true; }
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow)) { MoveOverview(1); return true; }
 
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 MoveOverview(shift ? -1 : 1);
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_overviewEntries.Count > 0)
                 {
@@ -612,7 +612,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_overviewEntries.Count > 0)
                 {
@@ -623,7 +623,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            bool enter = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool enter = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             bool space = InputManager.GetKeyDownAndConsume(KeyCode.Space);
             if (enter || space)
             {
@@ -632,14 +632,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Left/Right: sub-action cycling for achievement entries
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 if (_overviewIndex >= 0 && _overviewIndex < _overviewEntries.Count)
                 {
                     var entry = _overviewEntries[_overviewIndex];
                     if (entry.Type == OverviewEntryType.Achievement && entry.ActionCount > 0)
                     {
-                        CycleSubAction(Input.GetKeyDown(KeyCode.RightArrow),
+                        CycleSubAction(KeyInput.GetKeyDown(KeyCode.RightArrow),
                             entry.ActionCount, entry.ClaimActionIndex, entry.TrackActionIndex,
                             entry.IsFavorite, entry.Label);
                     }
@@ -647,7 +647,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 NavigateToHome();
                 return true;
@@ -694,29 +694,29 @@ namespace AccessibleArena.Core.Services
 
         private bool HandleGroupsInput()
         {
-            if (Input.GetKeyDown(KeyCode.UpArrow)) { MoveGroup(-1); return true; }
-            if (Input.GetKeyDown(KeyCode.DownArrow)) { MoveGroup(1); return true; }
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow)) { MoveGroup(-1); return true; }
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow)) { MoveGroup(1); return true; }
 
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 MoveGroup(shift ? -1 : 1);
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_groupEntries.Count > 0) { _groupIndex = 0; AnnounceCurrentGroup(); }
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_groupEntries.Count > 0) { _groupIndex = _groupEntries.Count - 1; AnnounceCurrentGroup(); }
                 return true;
             }
 
-            bool enter = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool enter = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             bool space = InputManager.GetKeyDownAndConsume(KeyCode.Space);
             if (enter || space)
             {
@@ -725,10 +725,10 @@ namespace AccessibleArena.Core.Services
             }
 
             // Consume Left/Right (no action at group level)
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
                 return true;
 
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 ReturnToOverview();
                 return true;
@@ -753,29 +753,29 @@ namespace AccessibleArena.Core.Services
 
         private bool HandleAchievementsLevelInput()
         {
-            if (Input.GetKeyDown(KeyCode.UpArrow)) { MoveAchievement(-1); return true; }
-            if (Input.GetKeyDown(KeyCode.DownArrow)) { MoveAchievement(1); return true; }
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow)) { MoveAchievement(-1); return true; }
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow)) { MoveAchievement(1); return true; }
 
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 MoveAchievement(shift ? -1 : 1);
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_achievementItems.Count > 0) { _achievementIndex = 0; _actionSubIndex = 0; AnnounceCurrentAchievement(); }
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_achievementItems.Count > 0) { _achievementIndex = _achievementItems.Count - 1; _actionSubIndex = 0; AnnounceCurrentAchievement(); }
                 return true;
             }
 
-            bool enter = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool enter = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             bool space = InputManager.GetKeyDownAndConsume(KeyCode.Space);
             if (enter || space)
             {
@@ -789,14 +789,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Left/Right: sub-action cycling
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 if (_achievementIndex >= 0 && _achievementIndex < _achievementItems.Count)
                 {
                     var item = _achievementItems[_achievementIndex];
                     if (item.ActionCount > 0)
                     {
-                        CycleSubAction(Input.GetKeyDown(KeyCode.RightArrow),
+                        CycleSubAction(KeyInput.GetKeyDown(KeyCode.RightArrow),
                             item.ActionCount, item.ClaimActionIndex, item.TrackActionIndex,
                             item.IsFavorite, item.Label);
                     }
@@ -804,7 +804,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 ReturnToGroups();
                 return true;

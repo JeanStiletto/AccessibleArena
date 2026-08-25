@@ -958,8 +958,8 @@ namespace AccessibleArena.Core.Services
             // Must run BEFORE the grouped-Enter handler below, which calls GetEnterAndConsume()
             // and routes activation to ActivateCurrentElement (without checking Shift).
             if (_activeContentController == T.WrapperDeckBuilder
-                && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
-                && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                && (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
+                && (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift)))
             {
                 if (TryOpenCardViewerForFocusedCard())
                 {
@@ -978,8 +978,8 @@ namespace AccessibleArena.Core.Services
             // Always consume Ctrl+Enter inside the deck builder so a plain Enter
             // doesn't fire on the focused element when the user holds Ctrl.
             if (_activeContentController == T.WrapperDeckBuilder
-                && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
-                && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+                && (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
+                && (KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl)))
             {
                 if (!TryToggleStyleExpansionForFocusedCard())
                     TryAddCopyForFocusedDeckCard();
@@ -989,7 +989,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // F4: Toggle Friends panel
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (KeyInput.GetKeyDown(KeyCode.F4))
             {
                 Log.Nav(NavigatorId, $"F4 pressed - toggling Friends panel");
                 ToggleFriendsPanel();
@@ -997,14 +997,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // F12: Debug dump of current UI hierarchy (for development)
-            if (Input.GetKeyDown(KeyCode.F12))
+            if (KeyInput.GetKeyDown(KeyCode.F12))
             {
                 DumpUIHierarchy();
                 return true;
             }
 
             // F11: Dump booster pack details (when in BoosterChamber)
-            if (Input.GetKeyDown(KeyCode.F11) && _activeContentController == T.BoosterChamberController)
+            if (KeyInput.GetKeyDown(KeyCode.F11) && _activeContentController == T.BoosterChamberController)
             {
                 GameObject currentElement = null;
                 if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
@@ -1047,7 +1047,7 @@ namespace AccessibleArena.Core.Services
             // Backspace: Universal back - goes back one level in menus
             // But NOT when an input field is focused - let Backspace delete characters
             // Also skip if key was consumed by another navigator (e.g., AdvancedFiltersNavigator)
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 if (InputManager.IsKeyConsumed(KeyCode.Backspace))
                 {
@@ -1099,7 +1099,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Escape: Exit input field if one is focused (but user didn't enter via our navigation)
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 if (UIFocusTracker.IsAnyInputFieldFocused())
                 {
@@ -1111,9 +1111,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Arrow Left/Right: Handle special navigation contexts
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
-                bool isRight = Input.GetKeyDown(KeyCode.RightArrow);
+                bool isRight = KeyInput.GetKeyDown(KeyCode.RightArrow);
 
                 // DeckBuilderInfo 2D sub-navigation: Left/Right navigates entries within current row
                 if (IsDeckInfoSubNavActive())
@@ -1157,11 +1157,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Page Up/Down: Navigate collection pages (activate Previous/Next buttons)
-            if (Input.GetKeyDown(KeyCode.PageUp) || Input.GetKeyDown(KeyCode.PageDown))
+            if (KeyInput.GetKeyDown(KeyCode.PageUp) || KeyInput.GetKeyDown(KeyCode.PageDown))
             {
                 if (_activeContentController == T.WrapperDeckBuilder)
                 {
-                    bool isPageDown = Input.GetKeyDown(KeyCode.PageDown);
+                    bool isPageDown = KeyInput.GetKeyDown(KeyCode.PageDown);
                     if (ActivateCollectionPageButton(isPageDown))
                         return true;
                 }
@@ -1172,16 +1172,16 @@ namespace AccessibleArena.Core.Services
             if (_activeContentController == T.WrapperDeckBuilder && _groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 int filterIndex = -1;
-                if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) filterIndex = 0;
-                else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) filterIndex = 1;
-                else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) filterIndex = 2;
-                else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) filterIndex = 3;
-                else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5)) filterIndex = 4;
-                else if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.Keypad6)) filterIndex = 5;
-                else if (Input.GetKeyDown(KeyCode.Alpha7) || Input.GetKeyDown(KeyCode.Keypad7)) filterIndex = 6;
-                else if (Input.GetKeyDown(KeyCode.Alpha8) || Input.GetKeyDown(KeyCode.Keypad8)) filterIndex = 7;
-                else if (Input.GetKeyDown(KeyCode.Alpha9) || Input.GetKeyDown(KeyCode.Keypad9)) filterIndex = 8;
-                else if (Input.GetKeyDown(KeyCode.Alpha0) || Input.GetKeyDown(KeyCode.Keypad0)) filterIndex = 9;
+                if (KeyInput.GetKeyDown(KeyCode.Alpha1) || KeyInput.GetKeyDown(KeyCode.Keypad1)) filterIndex = 0;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha2) || KeyInput.GetKeyDown(KeyCode.Keypad2)) filterIndex = 1;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha3) || KeyInput.GetKeyDown(KeyCode.Keypad3)) filterIndex = 2;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha4) || KeyInput.GetKeyDown(KeyCode.Keypad4)) filterIndex = 3;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha5) || KeyInput.GetKeyDown(KeyCode.Keypad5)) filterIndex = 4;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha6) || KeyInput.GetKeyDown(KeyCode.Keypad6)) filterIndex = 5;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha7) || KeyInput.GetKeyDown(KeyCode.Keypad7)) filterIndex = 6;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha8) || KeyInput.GetKeyDown(KeyCode.Keypad8)) filterIndex = 7;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha9) || KeyInput.GetKeyDown(KeyCode.Keypad9)) filterIndex = 8;
+                else if (KeyInput.GetKeyDown(KeyCode.Alpha0) || KeyInput.GetKeyDown(KeyCode.Keypad0)) filterIndex = 9;
 
                 if (filterIndex >= 0)
                 {
@@ -2666,7 +2666,7 @@ namespace AccessibleArena.Core.Services
             {
                 // DeckBuilderInfo 2D navigation: Down arrow switches to next row
                 // Skip when Tab is pressed - let Tab cycling handle group switching
-                if (IsDeckInfoSubNavActive() && !Input.GetKey(KeyCode.Tab))
+                if (IsDeckInfoSubNavActive() && !KeyInput.GetKey(KeyCode.Tab))
                 {
                     bool moved = _groupedNavigator.MoveNext();
                     if (moved)
@@ -2680,7 +2680,7 @@ namespace AccessibleArena.Core.Services
 
                 // Friend section navigation: Up/Down navigates between friends
                 // Skip when Tab is pressed - let Tab handle group cycling
-                if (IsFriendSectionActive() && !Input.GetKey(KeyCode.Tab))
+                if (IsFriendSectionActive() && !KeyInput.GetKey(KeyCode.Tab))
                 {
                     bool moved = _groupedNavigator.MoveNext();
                     if (moved)
@@ -2694,7 +2694,7 @@ namespace AccessibleArena.Core.Services
 
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
-                bool isTabPressed = Input.GetKey(KeyCode.Tab);
+                bool isTabPressed = KeyInput.GetKey(KeyCode.Tab);
                 if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
                 {
                     if (_groupedNavigator.CycleToNextGroup(DeckBuilderCycleGroups))
@@ -2741,7 +2741,7 @@ namespace AccessibleArena.Core.Services
             {
                 // DeckBuilderInfo 2D navigation: Up arrow switches to previous row
                 // Skip when Tab is pressed - let Tab cycling handle group switching
-                if (IsDeckInfoSubNavActive() && !Input.GetKey(KeyCode.Tab))
+                if (IsDeckInfoSubNavActive() && !KeyInput.GetKey(KeyCode.Tab))
                 {
                     bool moved = _groupedNavigator.MovePrevious();
                     if (moved)
@@ -2754,7 +2754,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Friend section navigation: Up/Down navigates between friends
-                if (IsFriendSectionActive() && !Input.GetKey(KeyCode.Tab))
+                if (IsFriendSectionActive() && !KeyInput.GetKey(KeyCode.Tab))
                 {
                     bool moved = _groupedNavigator.MovePrevious();
                     if (moved)
@@ -2768,7 +2768,7 @@ namespace AccessibleArena.Core.Services
 
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
-                bool isTabPressed = Input.GetKey(KeyCode.Tab);
+                bool isTabPressed = KeyInput.GetKey(KeyCode.Tab);
                 if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
                 {
                     if (_groupedNavigator.CycleToPreviousGroup(DeckBuilderCycleGroups))

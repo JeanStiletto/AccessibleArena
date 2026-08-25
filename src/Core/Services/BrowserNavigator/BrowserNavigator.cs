@@ -429,11 +429,11 @@ namespace AccessibleArena.Core.Services
             }
 
             // Track Space release for browser confirm guard (double-press in selection browsers)
-            if (_browserConfirmWaitRelease && !Input.GetKey(KeyCode.Space))
+            if (_browserConfirmWaitRelease && !KeyInput.GetKey(KeyCode.Space))
                 _browserConfirmWaitRelease = false;
 
             // Track Backspace release for the "may"-trigger decline guard
-            if (_browserDeclineWaitRelease && !Input.GetKey(KeyCode.Backspace))
+            if (_browserDeclineWaitRelease && !KeyInput.GetKey(KeyCode.Backspace))
                 _browserDeclineWaitRelease = false;
 
             // AssignDamage browser: Up/Down controls spinner, Left/Right navigates blockers
@@ -454,7 +454,7 @@ namespace AccessibleArena.Core.Services
             if (_browserInfo.IsZoneBased)
             {
                 // C/D always reclaim Browser ownership (browser zone hotkeys)
-                if (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.D))
+                if (KeyInput.GetKeyDown(KeyCode.C) || KeyInput.GetKeyDown(KeyCode.D))
                 {
                     _duelZoneNavigator?.SetCurrentZone(ZoneType.Browser, "BrowserNavigator");
                 }
@@ -470,20 +470,20 @@ namespace AccessibleArena.Core.Services
             // Multi-zone browser: zone selector handles Up/Down and blocks other input
             if (_isMultiZone && _onZoneSelector && _zoneButtons.Count > 0)
             {
-                if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
+                if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.LeftArrow))
                 {
                     CycleMultiZone(next: false);
                     return true;
                 }
-                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+                if (KeyInput.GetKeyDown(KeyCode.DownArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
                 {
                     CycleMultiZone(next: true);
                     return true;
                 }
                 // Tab from zone selector → first card (or first button if no cards)
-                if (Input.GetKeyDown(KeyCode.Tab))
+                if (KeyInput.GetKeyDown(KeyCode.Tab))
                 {
-                    bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                     if (!shift)
                     {
                         _onZoneSelector = false;
@@ -520,7 +520,7 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
                 // Home/End: jump to first/last zone
-                if (Input.GetKeyDown(KeyCode.Home))
+                if (KeyInput.GetKeyDown(KeyCode.Home))
                 {
                     if (_currentZoneButtonIndex != 0)
                     {
@@ -529,7 +529,7 @@ namespace AccessibleArena.Core.Services
                     }
                     return true;
                 }
-                if (Input.GetKeyDown(KeyCode.End))
+                if (KeyInput.GetKeyDown(KeyCode.End))
                 {
                     int lastIdx = _zoneButtons.Count - 1;
                     if (_currentZoneButtonIndex != lastIdx)
@@ -540,12 +540,12 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
                 // Block other keys while on zone selector (except Space/Backspace for confirm/cancel)
-                if (Input.GetKeyDown(KeyCode.Space))
+                if (KeyInput.GetKeyDown(KeyCode.Space))
                 {
                     ClickConfirmButton();
                     return true;
                 }
-                if (Input.GetKeyDown(KeyCode.Backspace))
+                if (KeyInput.GetKeyDown(KeyCode.Backspace))
                 {
                     ClickCancelButton();
                     return true;
@@ -554,9 +554,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab / Shift+Tab - cycle through items (generic navigation)
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
                 // Reclaim Browser zone ownership (user may have navigated to graveyard/battlefield)
                 _duelZoneNavigator?.SetCurrentZone(ZoneType.Browser, "BrowserNavigator");
@@ -712,7 +712,7 @@ namespace AccessibleArena.Core.Services
                 // OrderCards: clamp navigation (no wrapping) with verbose boundary announcements
                 if (_isOrderCards && _browserCards.Count > 0)
                 {
-                    if (Input.GetKeyDown(KeyCode.LeftArrow))
+                    if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
                     {
                         ClearEventSystemSelection();
                         if (_currentCardIndex > 0)
@@ -726,7 +726,7 @@ namespace AccessibleArena.Core.Services
                         }
                         return true;
                     }
-                    if (Input.GetKeyDown(KeyCode.RightArrow))
+                    if (KeyInput.GetKeyDown(KeyCode.RightArrow))
                     {
                         ClearEventSystemSelection();
                         if (_currentCardIndex < _browserCards.Count - 1)
@@ -742,7 +742,7 @@ namespace AccessibleArena.Core.Services
                     }
                 }
 
-                if (Input.GetKeyDown(KeyCode.LeftArrow))
+                if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
                 {
                     // OptionalAction / Mutate: respect current focus type (card vs button)
                     if ((_browserInfo.IsOptionalAction || _isMutate) && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
@@ -751,7 +751,7 @@ namespace AccessibleArena.Core.Services
                     else if (_browserButtons.Count > 0) NavigateToPreviousButton();
                     return true;
                 }
-                if (Input.GetKeyDown(KeyCode.RightArrow))
+                if (KeyInput.GetKeyDown(KeyCode.RightArrow))
                 {
                     if ((_browserInfo.IsOptionalAction || _isMutate) && _currentButtonIndex >= 0 && _browserButtons.Count > 0)
                         NavigateToNextButton();
@@ -764,7 +764,7 @@ namespace AccessibleArena.Core.Services
             // Up/Down arrows - card details (delegate to CardInfoNavigator)
             // AssignDamage handles Up/Down in HandleAssignDamageInput above
             // Only when Browser zone owns focus
-            if (browserOwnsZone && !_isAssignDamage && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)))
+            if (browserOwnsZone && !_isAssignDamage && (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow)))
             {
                 if (_browserCards.Count > 0 && _currentCardIndex >= 0)
                 {
@@ -782,7 +782,7 @@ namespace AccessibleArena.Core.Services
 
             // Enter - activate current card or button
             // Only when Browser zone owns focus
-            if (browserOwnsZone && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            if (browserOwnsZone && (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 // OrderCards: pick up or place card
                 if (_isOrderCards)
@@ -818,7 +818,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Space - confirm/submit
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 // OrderCards: if a card is grabbed, place it instead of submitting
                 if (_isOrderCards && _orderGrabbedIndex >= 0)
@@ -858,7 +858,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace - cancel
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 // OrderCards: if a card is grabbed, cancel the grab
                 if (_isOrderCards && _orderGrabbedIndex >= 0)

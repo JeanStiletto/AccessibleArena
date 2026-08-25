@@ -2,7 +2,27 @@
 
 All notable changes to Accessible Arena.
 
-## v1.5.1
+## v1.6
+
+Ports the mod's entire keyboard layer to Unity's new Input System. Required by the game's August 2026 update, which moved MTGA to Unity 6 and removed the legacy input backend the mod was built on.
+
+With the old mod version, the game announced the mod's startup and then froze until killed via Task Manager. The cause: every one of the mod's key reads — about thirty per frame — threw an exception the moment it was called, because the engine no longer services the legacy input API at all. Each exception was logged with a full stack trace, sixty times a second, which is what ground the window to a halt. The same update also rewrote the game's own input handling, so several of the mod's interception points were patching methods that no longer run.
+
+- All keyboard reads now go through one mod service (`KeyInput`) backed by the Input System package. No mod code touches the legacy API anymore, and the legacy assembly reference is gone entirely, so a stray legacy call can no longer compile.
+
+- Letter shortcuts follow the keyboard layout deliberately. The new engine API identifies keys by physical position, not by what they type — mapped naively, Y and Z would have swapped on a German QWERTZ layout. The mod resolves letter keys by the character they produce on the current layout, matching how the old system behaved on Windows, and re-resolves them when Windows switches layouts mid-session.
+
+- The key blocking that keeps the game's own handlers out of the mod's way was rebuilt for the new game internals. The game's KeyboardManager was rewritten by WotC on the Input System and now publishes physical key codes — the mod's blocking patch translates them back before deciding. The Unity EventSystem now runs on the Input System UI module, so the blocks against unwanted Submit dispatch (toggles, dropdowns, browsers, the phase-skip warning) and against focus-stealing move events (editing input fields, Tab held) were moved to that module's dispatch path.
+
+- Removed two mechanisms that only existed for the legacy backend: the Harmony patch on the legacy per-key poll (nothing calls it anymore), and the "Enter pressed while blocked" recovery flag, which compensated for the mod's own reads passing through that patched poll. Mod reads are independent of the game's input path now, so the direct read is always correct.
+
+- Typed text (web store checkout, search fields in the embedded browser) now arrives through the Input System's text event, which also covers on-screen keyboards.
+
+- Arrow navigation inside an opened dropdown works again. Dropdown item navigation rides on the EventSystem's move dispatch, and the first cut of the Submit block skipped that dispatch entirely while a dropdown was open. The block now engages only on the frames where the module would actually deliver a Submit — it reads the same action state the module itself checks — so arrow frames pass through untouched.
+
+- The Tab block on the friends panel works again. The game's panel receives keys through a handler whose parameter changed from KeyCode to the physical Key type; both are plain numbers underneath, so the old comparison didn't error — it just compared Tab against the wrong number and never matched, letting Tab toggle the friends panel behind the mod's own Tab navigation.
+
+
 
 Fixes the two-songs-at-once music during pack opening, and adds audio logging so music bugs of this kind can be diagnosed from the log instead of by ear.
 

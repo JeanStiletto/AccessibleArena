@@ -151,30 +151,30 @@ namespace AccessibleArena.Core.Services
             if (!_isActive)
             {
                 // Only log occasionally to avoid spam - check if arrow pressed
-                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
+                if (KeyInput.GetKeyDown(KeyCode.DownArrow) || KeyInput.GetKeyDown(KeyCode.UpArrow))
                     Log.Msg("CardInfo", $"HandleInput: Not active, ignoring arrow key");
                 return false;
             }
             if (_currentCard == null && !_blocksLoaded)
             {
-                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
+                if (KeyInput.GetKeyDown(KeyCode.DownArrow) || KeyInput.GetKeyDown(KeyCode.UpArrow))
                     Log.Msg("CardInfo", $"HandleInput: CurrentCard is null and no blocks loaded, ignoring arrow key");
                 return false;
             }
 
             // Check for modifier keys - don't handle if any modifier is pressed
-            bool hasModifier = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt) ||
-                               Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ||
-                               Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool hasModifier = KeyInput.GetKey(KeyCode.LeftAlt) || KeyInput.GetKey(KeyCode.RightAlt) ||
+                               KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift) ||
+                               KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
 
             if (hasModifier)
             {
-                if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.UpArrow))
+                if (KeyInput.GetKeyDown(KeyCode.DownArrow) || KeyInput.GetKeyDown(KeyCode.UpArrow))
                     Log.Msg("CardInfo", $"HandleInput: Modifier key held, ignoring arrow key");
                 return false; // Let other navigators handle modified arrow keys
             }
 
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 // Lazy load blocks on first navigation
                 if (!_blocksLoaded)
@@ -186,7 +186,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 // Lazy load blocks on first navigation
                 if (!_blocksLoaded)
@@ -199,7 +199,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab lets parent handle navigation (will deactivate via focus change)
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
                 return false; // Let parent handle Tab
             }

@@ -689,7 +689,7 @@ namespace AccessibleArena.Core.Services
             if (HandleCustomInput()) return;
 
             // I key: Extended card info (keyword descriptions + other faces)
-            if (Input.GetKeyDown(KeyCode.I))
+            if (KeyInput.GetKeyDown(KeyCode.I))
             {
                 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -724,7 +724,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // F11: Dump current card details for debugging (helps identify "Unknown card" issues)
-            if (Input.GetKeyDown(KeyCode.F11))
+            if (KeyInput.GetKeyDown(KeyCode.F11))
             {
                 if (IsValidIndex && _elements[_currentIndex].GameObject != null)
                 {
@@ -742,22 +742,22 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.RightArrow, () => MoveNext())) return;
 
             // Home/End for quick jump to first/last
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveFirst();
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveLast();
                 return;
             }
 
             // Tab/Shift+Tab also navigates
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shiftTab = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shiftTab = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 if (shiftTab)
                     MovePrevious();
                 else
@@ -766,7 +766,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter activates (view card details or button)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 Log.Msg("{NavigatorId}", $"Enter pressed - index={_currentIndex}, count={_elements.Count}, valid={IsValidIndex}");
                 if (IsValidIndex)
@@ -843,7 +843,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace to go back/close
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 Log.Msg("{NavigatorId}", $"Backspace pressed - attempting close");
                 ClosePackProperly();

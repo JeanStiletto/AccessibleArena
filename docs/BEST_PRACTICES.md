@@ -4,48 +4,48 @@ Coding patterns and utilities for the accessibility mod. For game architecture a
 
 ## Input System
 
-### Two Input Systems in MTGA
+### One Input System (since the Unity 6 game update, August 2026)
 
-MTGA uses TWO different input systems simultaneously:
+The game runs with the legacy input backend **disabled** — every call to
+`UnityEngine.Input` throws `InvalidOperationException`. The mod compiles without
+a reference to `UnityEngine.InputLegacyModule.dll`, so a stray legacy call is a
+build error, not a runtime freeze.
 
-**1. Unity Legacy Input System (`UnityEngine.Input`)**
-- Used by: Our mod, simple key checks
-- API: `Input.GetKeyDown(KeyCode.X)`
-- Limitation: Cannot "consume" keys - all readers see the same input
+**Reading keys in mod code — always via `KeyInput`:**
+- `KeyInput.GetKey(KeyCode.X)` / `KeyInput.GetKeyDown(KeyCode.X)` — same shape as the old API
+- `KeyInput.AnyKeyDown` — any keyboard key went down this frame (keyboard only)
+- `KeyInput.InputString` — characters typed this frame (via `Keyboard.onTextInput`, includes on-screen keyboards)
 
-**2. Unity New InputSystem (`Unity.InputSystem`)**
-- Used by: MTGA's game logic via `MTGA.KeyboardManager.KeyboardManager`
-- API: InputActions, callbacks, event-driven
-- Features: Action maps, rebinding, proper consumption
+`KeyInput` (Core/Utils/KeyInput.cs) is a static facade over `IKeyboardBackend`.
+The game build uses `InputSystemKeyboardBackend` (Input System package); tests
+swap in `FakeKeyboardBackend` with `KeyInput.Backend = fake`.
 
-**The Problem:**
-When both systems read from the same physical keyboard:
-- Our mod reads `Input.GetKeyDown(KeyCode.Return)` → true
-- Game's KeyboardManager also reads Return → triggers game action (e.g., "Pass until response")
-- Both happen in the same frame - no way to "consume" the key in Legacy Input
+**Layout awareness — the KeyCode ↔ Key boundary:**
+The Input System's `Key` enum is *physical* (US positions); `KeyCode` in mod code
+means *the key that types this character* (legacy Windows semantics — on QWERTZ,
+KeyCode.Z is the key that types 'z'). Two utilities own the translation:
+- `InputSystemKeyboardBackend` maps KeyCode → key control, resolving letters via
+  `FindKeyOnCurrentKeyboardLayout` and re-resolving on OS layout changes.
+- `KeyMap.ToKeyCode(Key)` maps the game's physical Key values back to KeyCode
+  (used by KeyboardManagerPatch, whose target now publishes `Key`).
+Never map letters between the two enums by name — that swaps Y and Z on German layouts.
 
-**Solution - Scene-Based Key Blocking (January 2026):**
+**Blocking keys from the game — three interception layers:**
 
-Instead of complex per-context key consumption, we use a simpler approach:
-
-1. `KeyboardManagerPatch` intercepts `MTGA.KeyboardManager.KeyboardManager.PublishKeyDown`
-2. **In DuelScene: Block Enter entirely** - Our mod handles ALL Enter presses
-3. **Other scenes: Per-key consumption** via `InputManager.ConsumeKey()` if needed
-
-This solves multiple problems at once:
-- **Auto-skip prevention**: Game can't trigger "Pass until response" because it never sees Enter
-- **Player info zone**: Enter opens emote wheel instead of passing priority
-- **Card playing**: Our navigators handle Enter, game doesn't interfere
-
-**Files:**
-- `Patches/KeyboardManagerPatch.cs` - Harmony prefix patch with scene detection
-- `InputManager.cs` - `ConsumeKey()`, `IsKeyConsumed()` for other keys/scenes
-
-**Why NOT migrate to InputSystem:**
-- Current approach is simpler and works well
-- Full migration would require touching 16+ files
-- Mod-only elements (player info zone) can't benefit from InputSystem anyway
-- Risk of breaking existing working functionality
+1. `KeyboardManagerPatch` prefixes `MTGA.KeyboardManager.KeyboardManager.PublishKeyDown/Up`
+   (rewritten by WotC on the Input System; publishes physical `Key`, translated via `KeyMap`).
+   In DuelScene: Enter/Ctrl/Tab blocked entirely; other scenes per-key consumption
+   via `InputManager.ConsumeKey()`. The game type also gained
+   `IgnoreKeyUntilReleased(Key)` — unused by the mod so far, available if
+   prefix-blocking is ever insufficient.
+2. `EventSystemPatch` prefixes `InputSystemUIInputModule.ProcessNavigation` (Submit
+   dispatch: toggles, dropdowns, browsers, phase-skip warning) and `IsMoveAllowed`
+   (move events: input-field editing, Tab held, BlockSubmitForToggle). The game's
+   EventSystem module is `CustomUIInputModule : InputSystemUIInputModule`, wired to
+   the project-wide "UI" action map.
+3. `EventSystemPatch.ApplyRuntimePatches` prefixes the game's
+   `Core.Code.Input.NewInputHandler` callbacks (OnAccept/OnNext/OnPrevious/OnEscape)
+   for the Login scene — the ActionSystem path that fires independently of both above.
 
 ### Game's Built-in Keybinds (DO NOT OVERRIDE)
 - Enter / Space: Accept / Submit
@@ -1145,7 +1145,7 @@ The button text changes dynamically based on game state, but the function stays 
 ```csharp
 // Only handle Left/Right if in battlefield zone
 bool inBattlefield = _zoneNavigator.CurrentZone == ZoneType.Battlefield;
-if (inBattlefield && Input.GetKeyDown(KeyCode.LeftArrow)) { ... }
+if (inBattlefield && KeyInput.GetKeyDown(KeyCode.LeftArrow)) { ... }
 ```
 - Prevents stealing Left/Right from other zones (hand, graveyard)
 - Zone state shared via `ZoneNavigator.SetCurrentZone()`
@@ -1433,7 +1433,7 @@ protected override void HandleInput()
     }
 
     // 3. Consume keys when activating items that close the navigator
-    if (Input.GetKeyDown(KeyCode.Return))
+    if (KeyInput.GetKeyDown(KeyCode.Return))
     {
         InputManager.ConsumeKey(KeyCode.Return);
         ActivateCurrentItem();

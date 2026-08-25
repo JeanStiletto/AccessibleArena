@@ -89,13 +89,13 @@ namespace AccessibleArena.Core.Services
             // Tab/Shift+Tab
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 CycleSetFilter(shift ? -1 : 1);
                 return;
             }
 
             // Home/End: jump to first/last set
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_setFilterModels.Count > 0 && _currentSetFilterIndex != 0)
                 {
@@ -104,7 +104,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_setFilterModels.Count > 0 && _currentSetFilterIndex != _setFilterModels.Count - 1)
                 {
@@ -114,7 +114,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter/Space: enter Items level for current set
-            bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool enterPressed = KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter);
             bool spacePressed = InputManager.GetKeyDownAndConsume(KeyCode.Space);
             if (enterPressed || spacePressed)
             {
@@ -125,7 +125,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: return to Tabs
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 ReturnToTabs();

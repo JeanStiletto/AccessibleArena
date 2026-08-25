@@ -28,14 +28,14 @@ namespace AccessibleArena.Core.Services
                 return false;
             }
 
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 ClosePetMenu();
                 _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 if (_petInteractions.Count == 0) return true;
                 _currentPetIndex = (_currentPetIndex + 1) % _petInteractions.Count;
@@ -43,7 +43,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 if (_petInteractions.Count == 0) return true;
                 _currentPetIndex--;

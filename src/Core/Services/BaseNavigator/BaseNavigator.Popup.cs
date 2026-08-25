@@ -547,7 +547,7 @@ namespace AccessibleArena.Core.Services
 
             // Up/Shift+Tab: previous item
             if (_holdRepeater.Check(KeyCode.UpArrow, () => NavigatePopupItem(-1))) return;
-            if (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+            if (KeyInput.GetKeyDown(KeyCode.Tab) && (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift)))
             {
                 NavigatePopupItem(-1);
                 return;
@@ -555,7 +555,7 @@ namespace AccessibleArena.Core.Services
 
             // Down/Tab: next item
             if (_holdRepeater.Check(KeyCode.DownArrow, () => NavigatePopupItem(1))) return;
-            if (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+            if (KeyInput.GetKeyDown(KeyCode.Tab) && !KeyInput.GetKey(KeyCode.LeftShift) && !KeyInput.GetKey(KeyCode.RightShift))
             {
                 NavigatePopupItem(1);
                 return;
@@ -564,7 +564,7 @@ namespace AccessibleArena.Core.Services
             // Enter/Space: activate current item
             // Use GetEnterAndConsume which also checks EnterPressedWhileBlocked
             // (defensive: in case BlockSubmitForToggle becomes stale)
-            if (InputManager.GetEnterAndConsume() || Input.GetKeyDown(KeyCode.Space))
+            if (InputManager.GetEnterAndConsume() || KeyInput.GetKeyDown(KeyCode.Space))
             {
                 InputManager.ConsumeKey(KeyCode.Space);
                 ActivatePopupItem();
@@ -576,11 +576,11 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.RightArrow, () => HandleCarouselArrow(true))) return;
 
             // Home/End: jump to first/last item
-            if (Input.GetKeyDown(KeyCode.Home)) { NavigatePopupToIndex(0); return; }
-            if (Input.GetKeyDown(KeyCode.End)) { NavigatePopupToIndex(_elements.Count - 1); return; }
+            if (KeyInput.GetKeyDown(KeyCode.Home)) { NavigatePopupToIndex(0); return; }
+            if (KeyInput.GetKeyDown(KeyCode.End)) { NavigatePopupToIndex(_elements.Count - 1); return; }
 
             // Backspace/Escape: dismiss popup
-            if (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 InputManager.ConsumeKey(KeyCode.Escape);
@@ -593,7 +593,7 @@ namespace AccessibleArena.Core.Services
             {
                 for (KeyCode key = KeyCode.A; key <= KeyCode.Z; key++)
                 {
-                    if (Input.GetKeyDown(key))
+                    if (KeyInput.GetKeyDown(key))
                     {
                         HandleLetterNavigation(key);
                         return;
@@ -602,7 +602,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // F4: toggle Friends panel (works even during popups)
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (KeyInput.GetKeyDown(KeyCode.F4))
                 HandleCustomInput();
         }
 

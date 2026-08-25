@@ -157,14 +157,14 @@ namespace AccessibleArena.Core.Services
 
 
             // V key activates player info zone
-            if (Input.GetKeyDown(KeyCode.V))
+            if (KeyInput.GetKeyDown(KeyCode.V))
             {
                 EnterPlayerInfoZone();
                 return true;
             }
 
             // L key for quick life total access (works anytime)
-            if (Input.GetKeyDown(KeyCode.L))
+            if (KeyInput.GetKeyDown(KeyCode.L))
             {
                 AnnounceLifeTotals();
                 return true;
@@ -288,14 +288,14 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace exits zone
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 ExitPlayerInfoZone();
                 return true;
             }
 
             // Left/Right switches between players (stays on same property)
-            if (Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 if (_currentPlayerIndex == 0)
                 {
@@ -310,7 +310,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 if (_currentPlayerIndex == 1)
                 {
@@ -326,7 +326,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Up/Down cycles through properties (skipping rows where neither player has content)
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 int next = FindNextVisibleProperty(_currentPropertyIndex, forward: true);
                 if (next >= 0)
@@ -342,7 +342,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 int next = FindNextVisibleProperty(_currentPropertyIndex, forward: false);
                 if (next >= 0)
@@ -365,7 +365,7 @@ namespace AccessibleArena.Core.Services
             //   opponent + Shift+Enter → no-op (opponent pet ignores local input)
             if (InputManager.GetEnterAndConsume())
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 Log.Nav("PlayerPortrait", $"Enter pressed (shift={shift}, playerIndex={_currentPlayerIndex})");
 
                 // During targeting, the game highlights the player's portrait as a valid target.

@@ -30,6 +30,10 @@ foreach ($line in $lines) {
         # Skip header rows
         if ($shortName -eq "Short Name" -or $shortName -match "^-+$") { continue }
 
+        # Skip note-rows: a full-name column starting with "(" documents a type that
+        # is runtime-only, removed from the game, or covered by another row's file.
+        if ($fullName.StartsWith("(")) { $skipped++; continue }
+
         $total++
         Write-Host "`n[$total] Decompiling $shortName ($dll)..." -ForegroundColor White
 
@@ -48,4 +52,4 @@ foreach ($line in $lines) {
 }
 
 Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "Decompile complete: $succeeded/$total succeeded, $failed failed" -ForegroundColor Cyan
+Write-Host "Decompile complete: $succeeded/$total succeeded, $failed failed, $skipped note-rows skipped" -ForegroundColor Cyan

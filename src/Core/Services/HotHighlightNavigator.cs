@@ -218,10 +218,10 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return false;
 
             // Ctrl+Tab / Ctrl+Shift+Tab - cycle through opponent targets only
-            if (Input.GetKeyDown(KeyCode.Tab) &&
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+            if (KeyInput.GetKeyDown(KeyCode.Tab) &&
+                (KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl)))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 RefreshOrRebuildHighlights();
 
                 var opponentItems = new List<int>();
@@ -254,9 +254,9 @@ namespace AccessibleArena.Core.Services
             }
 
             // Tab - cycle through highlighted items
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (KeyInput.GetKeyDown(KeyCode.Tab))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
                 RefreshOrRebuildHighlights();
 
@@ -292,7 +292,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter - activate current item (only if we still have zone ownership)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 // The player info zone (V) owns Enter while it is open - PlayerPortraitNavigator
                 // decides between targeting that player, the emote wheel and the mute toggle.
@@ -305,7 +305,7 @@ namespace AccessibleArena.Core.Services
                 // Ctrl+Enter is the stack-selection shortcut owned by BattlefieldNavigator.
                 // Don't intercept it here, even if the primary button has a count (e.g. "3 Angreifer"
                 // during Declare Attackers makes IsSelectionModeActive return true).
-                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
 
                 // In selection mode, handle Enter even if BattlefieldNavigator has zone ownership.
                 // Tab navigates to battlefield cards which delegates to BattlefieldNavigator (Left/Right work),
@@ -362,7 +362,7 @@ namespace AccessibleArena.Core.Services
             // Phase skip warning is handled at Input.GetKeyDown level by PhaseSkipGuard via
             // EventSystemPatch.GetKeyDown_Postfix — Space returns false while warning is pending,
             // so this block simply won't execute on a blocked press.
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 if (_items.Count == 0 || IsSelectionModeActive())
                 {
@@ -382,7 +382,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace - undo/cancel during mana payment or auto-tap mode
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 // 1. Try UndoButton (undo a specific mana tap)
                 var undoButton = FindUndoButton();

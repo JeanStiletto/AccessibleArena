@@ -70,13 +70,13 @@ namespace AccessibleArena.Core.Services
             if (_holdRepeater.Check(KeyCode.UpArrow, () => MoveAction(-1))) return;
             if (_holdRepeater.Check(KeyCode.DownArrow, () => MoveAction(1))) return;
 
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _actionIndex = 0;
                 AnnounceCurrentAction();
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _actionIndex = _actions.Count - 1;
                 AnnounceCurrentAction();
@@ -89,7 +89,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 ReturnToSetsLevel();

@@ -71,7 +71,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace cancels emote menu and dismisses the visual wheel
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 CloseEmoteWheel();
                 _announcer.Announce(Strings.Cancelled, AnnouncementPriority.Normal);
@@ -79,7 +79,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Up/Down navigates emotes
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 if (_equippedEmotes.Count == 0) return true;
                 _currentEmoteIndex = (_currentEmoteIndex + 1) % _equippedEmotes.Count;
@@ -87,7 +87,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 if (_equippedEmotes.Count == 0) return true;
                 _currentEmoteIndex--;

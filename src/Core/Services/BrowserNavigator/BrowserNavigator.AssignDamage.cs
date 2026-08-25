@@ -137,7 +137,7 @@ namespace AccessibleArena.Core.Services
         {
             // Up arrow: increase damage on current blocker
             // Always consume to prevent EventSystem focus leak
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 AdjustDamageSpinner(true);
                 return true;
@@ -145,27 +145,27 @@ namespace AccessibleArena.Core.Services
 
             // Down arrow: decrease damage on current blocker
             // Always consume to prevent EventSystem focus leak
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 AdjustDamageSpinner(false);
                 return true;
             }
 
             // Enter: consume without action (cards aren't toggleable in damage assignment)
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 return true;
             }
 
             // Space: submit via DoneAction on browser
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 SubmitAssignDamage();
                 return true;
             }
 
             // Backspace: undo via UndoAction on browser
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 UndoAssignDamage();
                 return true;

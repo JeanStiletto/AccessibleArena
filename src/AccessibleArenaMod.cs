@@ -288,14 +288,14 @@ namespace AccessibleArena
         /// </summary>
         private bool HandleCopyCurrentItem()
         {
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+            bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
+            bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
+            bool alt = KeyInput.GetKey(KeyCode.LeftAlt) || KeyInput.GetKey(KeyCode.RightAlt);
 
             // Only plain Ctrl+Right — let other modifier combos fall through.
             if (!ctrl || shift || alt)
                 return false;
-            if (!Input.GetKeyDown(KeyCode.RightArrow))
+            if (!KeyInput.GetKeyDown(KeyCode.RightArrow))
                 return false;
 
             // Block the game/navigators from also seeing this RightArrow.
@@ -479,8 +479,8 @@ namespace AccessibleArena
                 // Input not handled (e.g., Tab) - continue to let other handlers process
             }
             else if (_cardInfoNavigator?.CurrentCard != null &&
-                     (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.UpArrow) ||
-                      UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.DownArrow)))
+                     (KeyInput.GetKeyDown(UnityEngine.KeyCode.UpArrow) ||
+                      KeyInput.GetKeyDown(UnityEngine.KeyCode.DownArrow)))
             {
                 Log.Focus("CardInfo",
                     $"Up/Down pressed but CardInfoNavigator.IsActive=False, CurrentCard={_cardInfoNavigator.CurrentCard.name}");

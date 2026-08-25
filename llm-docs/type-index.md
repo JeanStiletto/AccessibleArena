@@ -45,22 +45,22 @@ managed directory (with or without the `.dll` suffix).
 | StoreSetFilterDropdown | StoreSetFilterDropdown | Core |
 | StoreSetFilterDropdownItem | StoreSetFilterDropdownItem | Core |
 | StoreSetUtils | Core.Meta.MainNavigation.Store.Utils.StoreSetUtils | Core |
-| CardDataForTile | Wizards.MDN.Store.CardDataForTile | Gre |
+| CardDataForTile | Wizards.MDN.Store.CardDataForTile | Core |
 
 ## Card Data & Display Types
 
 | Short Name | Full Namespace | DLL |
 |---|---|---|
-| CardData | GreClient.CardData.CardData | Gre |
+| CardData | GreClient.CardData.CardData | Shared |
 | CardPrintingData | GreClient.CardData.CardPrintingData | Shared |
 | AbilityPrintingData | GreClient.CardData.AbilityPrintingData | Shared |
-| AbilityPrintingRecord | GreClient.CardData.AbilityPrintingRecord | Shared |
+| AbilityPrintingRecord | (removed in 2026 Unity 6 update; only AbilityPrintingRecordConverter/SqlHelper remain, see AbilityPrintingData) | Shared |
 | DynamicAbilityPrintingData | GreClient.CardData.DynamicAbilityPrintingData | Shared |
 | AbilityTextProvider | Wotc.Mtga.Cards.Database.AbilityTextProvider | Shared |
 | IAbilityTextProvider | Wotc.Mtga.Cards.Database.IAbilityTextProvider | Shared |
 | CardTitleProvider | Wotc.Mtga.Cards.Database.CardTitleProvider | Shared |
 | ICardTitleProvider | Wotc.Mtga.Cards.Database.ICardTitleProvider | Shared |
-| CardNameTextProvider | Wotc.Mtga.Cards.Database.CardNameTextProvider | Shared |
+| CardNameTextProvider | (removed in 2026 Unity 6 update; use CardTitleProvider) | Shared |
 | DynamicAbilityDataProvider | Wotc.Mtga.Cards.Database.DynamicAbilityDataProvider | Shared |
 | CardDatabase | Wotc.Mtga.Cards.Database.CardDatabase | Shared |
 | MtgCardInstance | (runtime only, not easily decompiled) | Core |
@@ -71,15 +71,15 @@ managed directory (with or without the `.dll` suffix).
 | MetaCardView | MetaCardView | Core |
 | PagesMetaCardView | PagesMetaCardView | Core |
 | BoosterMetaCardView | BoosterMetaCardView | Core |
-| DraftPackCardView | DraftPackCardView | Asm |
-| CardView | CardView | Asm |
-| DuelCardView | DuelCardView | Core |
+| DraftPackCardView | DraftPackCardView | Core |
+| CardView | (removed in 2026 Unity 6 update; CardView is now a namespace, see ICardView) | Core |
+| DuelCardView | (removed in 2026 Unity 6 update) | Core |
 | RewardDisplayCard | RewardDisplayCard | Core |
 | CardRolloverZoomHandler | CardRolloverZoomHandler | Core |
 | StaticColumnMetaCardHolder | StaticColumnMetaCardHolder | Core |
 | StaticColumnMetaCardView | StaticColumnMetaCardView | Core |
 | CDCViewMetadata | Wotc.Mtga.CardParts.CDCViewMetadata | Core |
-| CardHolderType | CardHolderType | Shared (root namespace) |
+| CardHolderType | CardHolderType | Shared |
 
 ## Card Holders & Browsers
 
@@ -88,14 +88,14 @@ managed directory (with or without the `.dll` suffix).
 | CardPoolHolder | CardPoolHolder | Core |
 | ScrollCardPoolHolder | ScrollCardPoolHolder | Core |
 | CardBrowserCardHolder | CardBrowserCardHolder | Core |
-| ListMetaCardHolder | ListMetaCardHolder | Core |
+| ListMetaCardHolder | (removed in 2026 Unity 6 update; see ListMetaCardHolder_Expanding, MetaCardHolder) | Core |
 | UniversalBattlefieldStack | UniversalBattlefieldStack | Core |
 | UniversalBattlefieldCardHolder | Wotc.Mtga.DuelScene.Universal.UniversalBattlefieldCardHolder | Core |
 | UniversalBattlefieldLayout | Wotc.Mtga.DuelScene.Universal.UniversalBattlefieldLayout | Core |
 | UniversalBattlefieldRegion | Wotc.Mtga.DuelScene.Universal.UniversalBattlefieldRegion | Core |
 | CardBrowserBase | Wotc.Mtga.DuelScene.Browsers.CardBrowserBase | Core |
 | SelectCardsBrowser | Wotc.Mtga.DuelScene.Browsers.SelectCardsBrowser | Core |
-| SelectCardsWorkflow\<T\> | Wotc.Mtga.DuelScene.Interactions.SelectN.SelectCardsWorkflow\<T\> | Core |
+| SelectCardsWorkflow\<T\> | SelectCardsWorkflow | Core |
 | PayCostWorkflow | Wotc.Mtga.DuelScene.Interactions.PayCostWorkflow | Core |
 | SelectionWorkflow | Wotc.Mtga.DuelScene.Interactions.SelectN.SelectionWorkflow | Core |
 | AdditionalCostWorkflow | Wotc.Mtga.DuelScene.Interactions.CastingTimeOption.AdditionalCostWorkflow | Core |
@@ -109,11 +109,24 @@ managed directory (with or without the `.dll` suffix).
 | CustomToggle | CustomToggle | Core |
 | AutoLandsToggle | AutoLandsToggle | Core |
 | BasicLandSuggester | BasicLandSuggester | Core |
-| SystemMessageButtonView | SystemMessageButtonView | Asm |
-| cTMP_Dropdown | cTMP_Dropdown | Asm |
-| TooltipTrigger | TooltipTrigger | Asm |
-| MainButton | MainButton | Asm |
+| SystemMessageButtonView | SystemMessageButtonView | Core |
+| cTMP_Dropdown | cTMP.cTMP_Dropdown | Core |
+| TooltipTrigger | TooltipTrigger | Core |
+| MainButton | MainButton | Core |
 | Spinner_OptionSelector | Spinner_OptionSelector | Core |
+
+## Input (game-side, Unity 6 Input System since 2026-08)
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| KeyboardManager | MTGA.KeyboardManager.KeyboardManager | Core |
+| NewInputHandler | Core.Code.Input.NewInputHandler | Core |
+| ActionSystem | Core.Code.Input.ActionSystem | Core |
+| ActionSystemFactory | Core.Code.Input.ActionSystemFactory | Core |
+| CustomInputModule | Wotc.Mtga.CustomInput.CustomInputModule | Core |
+| CustomUIInputModule | Wotc.Mtga.CustomInput.CustomUIInputModule | Core |
+| MTGAInput | Core.Code.Input.Generated.MTGAInput | Core |
+| OldInputHandler | (removed in 2026 Unity 6 update; NewInputHandler is unconditional) | Core |
 
 ## Navigation & Controllers
 
@@ -131,9 +144,9 @@ managed directory (with or without the `.dll` suffix).
 | PlayBladeController | PlayBladeController | Core |
 | PlayBladeV3 | Wizards.Mtga.PlayBlade.PlayBladeV3 | Core |
 | DeckSelectBlade | DeckSelectBlade | Core |
-| SettingsMenu | Wotc.Mtga.Wrapper.SettingsMenu | Core |
+| SettingsMenu | SettingsMenu | Core |
 | GameManager | GameManager | Core |
-| MatchManager | MatchManager (nested PlayerInfo) | Core |
+| MatchManager | MatchManager | Core |
 | MatchTimer | MatchTimer | Core |
 | LowTimeWarning | LowTimeWarning | Core |
 | PlayerTimeoutDisplay | PlayerTimeoutDisplay | Core |
@@ -214,10 +227,10 @@ See `docs/investigations/unsupported-events.md`.
 | SocialUI | SocialUI | Core |
 | FriendsWidget | FriendsWidget | Core |
 | SocialEntityListHeader | SocialEntityListHeader | Core |
-| FriendTile | FriendTile | Asm |
-| InviteOutgoingTile | InviteOutgoingTile | Asm |
-| InviteIncomingTile | InviteIncomingTile | Asm |
-| BlockTile | BlockTile | Asm |
+| FriendTile | FriendTile | Core |
+| InviteOutgoingTile | InviteOutgoingTile | Core |
+| InviteIncomingTile | InviteIncomingTile | Core |
+| BlockTile | BlockTile | Core |
 | ChatWindow | ChatWindow | Core |
 | ChatManager | MTGA.Social.ChatManager | Core |
 | SocialMessagesView | SocialMessagesView | Core |
@@ -251,16 +264,16 @@ See `docs/investigations/unsupported-events.md`.
 | ButtonPhaseLadder | ButtonPhaseLadder | Core |
 | ManaColorSelector | ManaColorSelector | Core |
 | View_ChooseXInterface | View_ChooseXInterface | Core |
-| DuelSceneBrowserType | DuelSceneBrowserType (enum) | Core |
-| NumericInputVisualState | Wotc.Mtga.DuelScene.Interactions.NumericInputVisualState (enum) | Core |
-| NumericInputType | Wotc.Mtgo.Gre.External.Messaging.NumericInputType (enum) | Gre |
+| DuelSceneBrowserType | DuelSceneBrowserType | Core |
+| NumericInputVisualState | Wotc.Mtga.DuelScene.Interactions.NumericInputVisualState | Core |
+| NumericInputType | Wotc.Mtgo.Gre.External.Messaging.NumericInputType | Gre |
 | NumericInputReq | Wotc.Mtgo.Gre.External.Messaging.NumericInputReq | Gre |
 | PresetManaWheel | Wotc.Mtga.DuelScene.UI.PresetManaWheel | Core |
 | Spinner_OptionSelector | Spinner_OptionSelector | Core |
 | RevealCardsUXEvent | Wotc.Mtga.DuelScene.UXEvents.RevealCardsUXEvent | Core |
 | UpdateRevealedCardUXEvent | Wotc.Mtga.DuelScene.UXEvents.UpdateRevealedCardUXEvent | Core |
 | CardRevealedEvent | GreClient.Rules.CardRevealedEvent | Shared |
-| RevealEventType | GreClient.Rules.RevealEventType (enum) | Shared |
+| RevealEventType | GreClient.Rules.RevealEventType | Shared |
 | MtgCardInstance | GreClient.Rules.MtgCardInstance | Shared |
 
 ## NPE Tutorial (Duel)
@@ -296,7 +309,7 @@ See `docs/investigations/unsupported-events.md`.
 | ObjectiveBubble | ObjectiveBubble | Core |
 | ContentControllerObjectives | ContentControllerObjectives | Core |
 | NotificationPopup | NotificationPopup | Core |
-| NotificationPopup.PopupData | NotificationPopup (nested class PopupData) | Core |
+| NotificationPopup.PopupData | (nested in NotificationPopup; covered by NotificationPopup.cs) | Core |
 | MTGALocalizedString | MTGALocalizedString | Core |
 | EBillboardType (enum) | EBillboardType | Core |
 | EventTimerState (enum) | EventTimerState | Core |
@@ -340,8 +353,8 @@ See `docs/investigations/unsupported-events.md`.
 
 | Short Name | Full Namespace | DLL |
 |---|---|---|
-| TableOfContentsSection | Core.MainNavigation.LearnToPlay.TableOfContentsSection | Core |
-| LearnMoreSection | Core.MainNavigation.LearnToPlay.LearnMoreSection | Core |
+| TableOfContentsSection | Assets.Core.Meta.LearnMore.TableOfContentsSection | Core |
+| LearnMoreSection | Wotc.Mtga.LearnMore.LearnMoreSection | Core |
 
 ## Mailbox
 
@@ -362,14 +375,14 @@ See `docs/investigations/unsupported-events.md`.
 | Short Name | Full Namespace | DLL |
 |---|---|---|
 | LocalizedString | Wotc.Mtga.Loc.LocalizedString | Core |
-| Languages | Wotc.Mtga.Loc.Languages | Core |
+| Languages | Wotc.Mtga.Loc.Languages | Shared |
 | MTGALocalizedString | MTGALocalizedString | Core |
 
 ## GRE Protocol Enums
 
 | Short Name | Full Namespace | DLL |
 |---|---|---|
-| EventContext | Wizards.MDN.EventContext | Gre |
+| EventContext | Wizards.MDN.EventContext | Core |
 | StopType | (check Gre) | Gre |
 | SettingStatus | (check Gre) | Gre |
 

@@ -184,8 +184,8 @@ namespace AccessibleArena.Core.Services
                 return false;
 
             // Tab / Right = next option
-            bool isTab = Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift);
-            if (isTab || Input.GetKeyDown(KeyCode.RightArrow))
+            bool isTab = KeyInput.GetKeyDown(KeyCode.Tab) && !KeyInput.GetKey(KeyCode.LeftShift) && !KeyInput.GetKey(KeyCode.RightShift);
+            if (isTab || KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 _cursorIndex = (_cursorIndex + 1) % _availableColors.Count;
                 AnnounceCurrent();
@@ -193,8 +193,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Shift+Tab / Left = previous option
-            bool isShiftTab = Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
-            if (isShiftTab || Input.GetKeyDown(KeyCode.LeftArrow))
+            bool isShiftTab = KeyInput.GetKeyDown(KeyCode.Tab) && (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift));
+            if (isShiftTab || KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 _cursorIndex = (_cursorIndex - 1 + _availableColors.Count) % _availableColors.Count;
                 AnnounceCurrent();
@@ -202,7 +202,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home = first option
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _cursorIndex = 0;
                 AnnounceCurrent();
@@ -210,7 +210,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // End = last option
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _cursorIndex = _availableColors.Count - 1;
                 AnnounceCurrent();
@@ -218,7 +218,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter = select focused color
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 SelectColor(_cursorIndex);
                 return true;
@@ -227,7 +227,7 @@ namespace AccessibleArena.Core.Services
             // Number keys 1-6 for direct color selection
             for (int i = 0; i < 6; i++)
             {
-                if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+                if (KeyInput.GetKeyDown(KeyCode.Alpha1 + i))
                 {
                     if (i < _availableColors.Count)
                     {
@@ -242,7 +242,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace to cancel
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 TryCancel();
                 return true;

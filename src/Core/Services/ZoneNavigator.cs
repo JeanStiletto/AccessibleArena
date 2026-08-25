@@ -288,10 +288,10 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return false;
 
             // Check shift state FIRST for all key handlers
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
             // C key: Hand navigation (no shift) or Opponent hand count (with shift)
-            if (Input.GetKeyDown(KeyCode.C))
+            if (KeyInput.GetKeyDown(KeyCode.C))
             {
                 if (shift)
                 {
@@ -309,7 +309,7 @@ namespace AccessibleArena.Core.Services
 
             // B shortcut handled by BattlefieldNavigator (row-based navigation)
 
-            if (Input.GetKeyDown(KeyCode.G))
+            if (KeyInput.GetKeyDown(KeyCode.G))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)
@@ -319,7 +319,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.X))
+            if (KeyInput.GetKeyDown(KeyCode.X))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)
@@ -329,14 +329,14 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.S))
+            if (KeyInput.GetKeyDown(KeyCode.S))
             {
                 _hotHighlightNavigator?.ClearState();
                 NavigateToZone(ZoneType.Stack);
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.W))
+            if (KeyInput.GetKeyDown(KeyCode.W))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)
@@ -347,7 +347,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // D key for library navigation (with revealed cards) or count-only
-            if (Input.GetKeyDown(KeyCode.D))
+            if (KeyInput.GetKeyDown(KeyCode.D))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)
@@ -361,7 +361,7 @@ namespace AccessibleArena.Core.Services
             // Skip if current zone is Battlefield or Browser - handled by their own navigators
             if (_currentZone != ZoneType.Battlefield && _currentZone != ZoneType.Browser)
             {
-                if (Input.GetKeyDown(KeyCode.LeftArrow))
+                if (KeyInput.GetKeyDown(KeyCode.LeftArrow))
                 {
                     ReclaimZoneOwnership();
                     RefreshIfDirty();
@@ -378,7 +378,7 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
 
-                if (Input.GetKeyDown(KeyCode.RightArrow))
+                if (KeyInput.GetKeyDown(KeyCode.RightArrow))
                 {
                     ReclaimZoneOwnership();
                     RefreshIfDirty();
@@ -400,7 +400,7 @@ namespace AccessibleArena.Core.Services
             // Battlefield and Browser have their own Up/Down handling
             if (_currentZone != ZoneType.Battlefield && _currentZone != ZoneType.Browser)
             {
-                if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+                if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.DownArrow))
                 {
                     RefreshIfDirty();
                     // For zones with cards, CardInfoNavigator handles Up/Down for card details
@@ -422,7 +422,7 @@ namespace AccessibleArena.Core.Services
             // Skip for Browser - handled by BrowserNavigator
             if (_currentZone != ZoneType.Browser)
             {
-                if (Input.GetKeyDown(KeyCode.Home))
+                if (KeyInput.GetKeyDown(KeyCode.Home))
                 {
                     ReclaimZoneOwnership();
                     RefreshIfDirty();
@@ -438,7 +438,7 @@ namespace AccessibleArena.Core.Services
                     return true;
                 }
 
-                if (Input.GetKeyDown(KeyCode.End))
+                if (KeyInput.GetKeyDown(KeyCode.End))
                 {
                     ReclaimZoneOwnership();
                     RefreshIfDirty();
@@ -457,7 +457,7 @@ namespace AccessibleArena.Core.Services
 
             // Enter key - play/activate current card
             // Skip for Browser - handled by BrowserNavigator
-            if (_currentZone != ZoneType.Browser && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            if (_currentZone != ZoneType.Browser && (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 RefreshIfDirty();
                 if (HasCardsInCurrentZone())

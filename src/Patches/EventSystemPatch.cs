@@ -16,10 +16,10 @@ namespace AccessibleArena.Patches
     /// <summary>
     /// Harmony patches for blocking Enter key when on toggles and arrow keys when editing input fields.
     ///
-    /// MTGA has multiple ways of detecting Enter:
-    /// 1. Unity's EventSystem Submit - blocked by SendSubmitEventToSelectedObject patch
-    /// 2. Direct Input.GetKeyDown calls - blocked by GetKeyDown patch
-    /// 3. ActionSystem via NewInputHandler.OnAccept() - blocked by runtime patch (ApplyRuntimePatches)
+    /// MTGA has multiple ways of detecting Enter (since the Unity 6 update the game runs
+    /// exclusively on the Input System package — nothing polls legacy UnityEngine.Input anymore):
+    /// 1. Unity's EventSystem Submit - blocked by the UI input module patches
+    /// 2. ActionSystem via NewInputHandler.OnAccept() - blocked by runtime patch (ApplyRuntimePatches)
     ///
     /// All patches check BlockSubmitForToggle flag set by navigators when on a toggle/login element.
     ///
@@ -544,82 +544,85 @@ namespace AccessibleArena.Patches
         }
 
         /// <summary>
-        /// Patch StandaloneInputModule.SendMoveEventToSelectedObject to block arrow key
-        /// navigation when the user is editing an input field. Without this, pressing
-        /// Up/Down in a single-line input field causes Unity to navigate to the next
-        /// selectable element, leaving the field unexpectedly.
+        /// Patch InputSystemUIInputModule.IsMoveAllowed to block EventSystem move
+        /// navigation. Since the Unity 6 update the game's EventSystem runs on
+        /// CustomUIInputModule : InputSystemUIInputModule; the module calls
+        /// IsMoveAllowed immediately before dispatching each move event, so a false
+        /// result blocks exactly one move without touching submit/cancel.
         ///
-        /// Also blocks Tab navigation from Unity's EventSystem entirely. Unity processes
-        /// Tab in EventSystem.Update() BEFORE our MelonLoader Update(), so without this
-        /// block, Unity's Tab cycling auto-opens dropdowns and moves focus to elements
-        /// in Unity's spatial navigation order (which differs from our element list order).
-        /// Our mod handles all Tab navigation via BaseNavigator.HandleInput().
-        ///
-        /// Also blocks ALL move events when on a toggle, dropdown, or Login-scene element
-        /// (BlockSubmitForToggle). Without this, Unity processes Move events independently
-        /// of the mod's navigator — e.g. after toggling a checkbox, the EventSystem can
-        /// navigate to an input field, triggering unwanted edit mode.
+        /// Blocked when:
+        /// - The user is editing an input field. Without this, pressing Up/Down in a
+        ///   single-line input field navigates to the next selectable, leaving the field.
+        /// - Tab is held. The module processes input BEFORE our MelonLoader Update(),
+        ///   so without this, module-driven focus cycling auto-opens dropdowns and moves
+        ///   focus in Unity's spatial order (which differs from our element list order).
+        ///   Our mod handles all Tab navigation via BaseNavigator.HandleInput().
+        /// - On a toggle, dropdown, or Login-scene element (BlockSubmitForToggle).
+        ///   Without this, the EventSystem processes moves independently and can land
+        ///   on an input field after a toggle flip, triggering unwanted edit mode.
         /// </summary>
-        [HarmonyPatch(typeof(StandaloneInputModule), "SendMoveEventToSelectedObject")]
+        [HarmonyPatch(typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule), "IsMoveAllowed")]
         [HarmonyPrefix]
-        public static bool SendMoveEventToSelectedObject_Prefix()
+        public static bool IsMoveAllowed_Prefix(ref bool __result)
         {
-            if (UIFocusTracker.IsEditingInputField())
+            if (UIFocusTracker.IsEditingInputField()
+                || KeyInput.GetKey(KeyCode.Tab)
+                || InputManager.BlockSubmitForToggle)
             {
-                return false;
+                __result = false;
+                return false; // Skip original — move is not allowed
             }
-
-            // Block Tab from Unity's EventSystem navigation.
-            // Our mod handles Tab exclusively - without this, Unity processes Tab first
-            // and auto-opens dropdowns or cycles through selectables in the wrong order.
-            if (Input.GetKey(KeyCode.Tab))
-            {
-                return false;
-            }
-
-            // Block move events when on a toggle, dropdown, or Login-scene element.
-            // The mod controls all navigation for these elements via its own element list.
-            // Without this, EventSystem processes Move events independently and can
-            // navigate to input fields after toggle state changes, causing FocusTracker
-            // to enter edit mode for a field the user never intended to edit.
-            if (InputManager.BlockSubmitForToggle)
-            {
-                return false;
-            }
-
             return true;
         }
 
         /// <summary>
-        /// Patch StandaloneInputModule.SendSubmitEventToSelectedObject to block Submit
-        /// when our navigator is on a toggle element, when in dropdown mode,
-        /// or when PhaseSkipGuard is warning before passing priority.
+        /// Patch InputSystemUIInputModule.ProcessNavigation to block Submit dispatch
+        /// when our navigator is on a toggle element, when in dropdown mode, when a
+        /// duel browser owns Space, or when PhaseSkipGuard is warning before passing
+        /// priority.
         ///
-        /// This is the critical interception point for phase-skip warning. MTGA's
-        /// input module may not call Input.GetButtonDown — it may use BaseInput or
-        /// a custom override — so patching Input methods alone is insufficient.
-        /// We must block here, where the actual submit dispatch happens.
+        /// This is the critical interception point for phase-skip warning: the module
+        /// reads the submit action's state directly inside ProcessNavigation
+        /// (WasPerformedThisDynamicUpdate) and executes the submit handler on the
+        /// selected object — there is no narrower submit hook, so we skip the whole
+        /// dispatch, but ONLY on frames where the submit action actually performed.
+        /// On all other frames the method runs untouched, because its move dispatch
+        /// powers arrow navigation inside expanded dropdowns (the EventSystem moves
+        /// selection between the dropdown's items; the mod announces via FocusTracker).
+        /// Losing move processing on the one frame a blocked submit fires is harmless.
         ///
         /// PhaseSkipGuard uses release-tracking to prevent oscillation: after showing
         /// the warning, it blocks every frame until Space is released. The next press
         /// after release confirms the pass.
         /// </summary>
-        [HarmonyPatch(typeof(StandaloneInputModule), "SendSubmitEventToSelectedObject")]
+        [HarmonyPatch(typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule), "ProcessNavigation")]
         [HarmonyPrefix]
-        public static bool SendSubmitEventToSelectedObject_Prefix()
+        public static bool ProcessNavigation_Prefix(UnityEngine.InputSystem.UI.InputSystemUIInputModule __instance)
         {
+            // Only intervene on frames where the module would actually dispatch a
+            // Submit (the module checks the submit action's performed state inside
+            // ProcessNavigation; we read the same signal). Skipping unconditionally
+            // would also kill the move dispatch that powers arrow navigation inside
+            // expanded dropdowns.
+            var submitRef = __instance.submit;
+            var submitAction = submitRef != null ? submitRef.action : null;
+            if (submitAction == null || !submitAction.WasPerformedThisFrame())
+            {
+                return true;
+            }
+
             // Block Submit when PhaseSkipGuard wants to warn before passing.
-            // Input.GetKey(Space) distinguishes Space-triggered submit from Enter-triggered.
+            // KeyInput.GetKey(Space) distinguishes Space-triggered submit from Enter-triggered.
             // ShouldBlock() is frame-cached and handles release-tracking internally.
-            if (Input.GetKey(KeyCode.Space) && PhaseSkipGuard.ShouldBlock())
+            if (KeyInput.GetKey(KeyCode.Space) && PhaseSkipGuard.ShouldBlock())
             {
                 return false;
             }
 
             // Block Submit when a browser is active - our mod handles Space via BrowserNavigator
-            // Without this, Unity's EventSystem clicks the focused button (e.g., settings gear)
+            // Without this, the EventSystem clicks the focused button (e.g., settings gear)
             // before our MelonLoader Update() can consume the key
-            if (Input.GetKey(KeyCode.Space) && BrowserNavigator.IsActive)
+            if (KeyInput.GetKey(KeyCode.Space) && BrowserNavigator.IsActive)
             {
                 return false;
             }
@@ -646,36 +649,6 @@ namespace AccessibleArena.Patches
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Patch Input.GetKeyDown to block Enter key when on a toggle or dropdown.
-        /// Also blocks Space in DuelScene when PhaseSkipGuard is active, to prevent
-        /// KeyboardManager and direct callers from seeing Space.
-        /// </summary>
-        [HarmonyPatch(typeof(Input), nameof(Input.GetKeyDown), typeof(KeyCode))]
-        [HarmonyPostfix]
-        public static void GetKeyDown_Postfix(KeyCode key, ref bool __result)
-        {
-            // Only intercept when we're on a toggle/dropdown and the key is Enter
-            if (InputManager.BlockSubmitForToggle && __result)
-            {
-                if (key == KeyCode.Return || key == KeyCode.KeypadEnter)
-                {
-                    Log.Msg("EventSystemPatch", $"BLOCKED Input.GetKeyDown({key}) - on toggle/dropdown, setting EnterPressedWhileBlocked");
-                    InputManager.EnterPressedWhileBlocked = true;
-                    __result = false;
-                }
-            }
-
-            // Block Space when PhaseSkipGuard is active (warning shown, waiting for release)
-            if (key == KeyCode.Space && __result)
-            {
-                if (PhaseSkipGuard.ShouldBlock())
-                {
-                    __result = false;
-                }
-            }
         }
 
     }

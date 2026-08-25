@@ -916,8 +916,8 @@ namespace AccessibleArena.Core.Services
             if (_tocItems.Count == 0) return;
 
             // Up/Shift+Tab: Previous item
-            if (Input.GetKeyDown(KeyCode.UpArrow) ||
-                (Input.GetKeyDown(KeyCode.Tab) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) ||
+                (KeyInput.GetKeyDown(KeyCode.Tab) && (KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift))))
             {
                 if (_tocIndex > 0)
                 {
@@ -932,8 +932,8 @@ namespace AccessibleArena.Core.Services
             }
 
             // Down/Tab: Next item
-            if (Input.GetKeyDown(KeyCode.DownArrow) ||
-                (Input.GetKeyDown(KeyCode.Tab) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow) ||
+                (KeyInput.GetKeyDown(KeyCode.Tab) && !KeyInput.GetKey(KeyCode.LeftShift) && !KeyInput.GetKey(KeyCode.RightShift)))
             {
                 if (_tocIndex < _tocItems.Count - 1)
                 {
@@ -948,7 +948,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home: Jump to first
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 _tocIndex = 0;
                 AnnounceTocItem();
@@ -956,7 +956,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // End: Jump to last
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 _tocIndex = _tocItems.Count - 1;
                 AnnounceTocItem();
@@ -964,7 +964,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Enter: Activate selected TOC item
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 InputManager.ConsumeKey(KeyCode.Return);
                 InputManager.ConsumeKey(KeyCode.KeypadEnter);
@@ -973,7 +973,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: Go back one level or navigate Home
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
 
@@ -1020,7 +1020,7 @@ namespace AccessibleArena.Core.Services
         private void HandleContentInput()
         {
             // Up: Previous paragraph
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 if (_contentParagraphs.Count == 0)
                 {
@@ -1041,7 +1041,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Down: Next paragraph
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 if (_contentParagraphs.Count == 0)
                 {
@@ -1062,7 +1062,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home: First paragraph
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_contentParagraphs.Count > 0)
                 {
@@ -1073,7 +1073,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // End: Last paragraph
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_contentParagraphs.Count > 0)
                 {
@@ -1084,7 +1084,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: Close content, return to TOC
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 CloseContent();
@@ -1095,7 +1095,7 @@ namespace AccessibleArena.Core.Services
         private void HandleCreditsInput()
         {
             // Up: Previous credits block
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 if (_creditsParagraphs.Count == 0) return;
 
@@ -1112,7 +1112,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Down: Next credits block
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 if (_creditsParagraphs.Count == 0) return;
 
@@ -1129,7 +1129,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Home/End
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 if (_creditsParagraphs.Count > 0)
                 {
@@ -1139,7 +1139,7 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 if (_creditsParagraphs.Count > 0)
                 {
@@ -1150,7 +1150,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Backspace: Close credits, return to TOC
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 InputManager.ConsumeKey(KeyCode.Backspace);
                 CloseCredits();

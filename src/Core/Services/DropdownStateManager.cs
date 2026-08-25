@@ -233,7 +233,7 @@ namespace AccessibleArena.Core.Services
             // BlockSubmitForToggle was set when navigating TO the dropdown (before opening) to
             // prevent SendSubmitEventToSelectedObject from auto-advancing the form. Now that
             // the dropdown is open, ShouldBlockEnterFromGame takes over. We must clear
-            // BlockSubmitForToggle so Input.GetKeyDown(Enter) works for item selection inside
+            // BlockSubmitForToggle so KeyInput.GetKeyDown(Enter) works for item selection inside
             // the dropdown (the GetKeyDown_Postfix blocks Enter when BlockSubmitForToggle is true).
             InputManager.BlockSubmitForToggle = false;
 

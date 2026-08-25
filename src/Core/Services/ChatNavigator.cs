@@ -482,13 +482,13 @@ namespace AccessibleArena.Core.Services
             // Tab/Shift+Tab: Switch conversations
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool reverse = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool reverse = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 SwitchConversation(reverse);
                 return true;
             }
 
             // Backspace: Close chat and return to friends panel
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 CloseChatAndReturnToFriends();
                 Deactivate();
@@ -504,7 +504,7 @@ namespace AccessibleArena.Core.Services
         protected override void HandleInputFieldNavigation()
         {
             // Enter while editing: send message instead of exiting edit mode
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
             {
                 SendMessage();
                 return;
@@ -513,7 +513,7 @@ namespace AccessibleArena.Core.Services
             // Tab while editing: switch conversation
             if (InputManager.GetKeyDownAndConsume(KeyCode.Tab))
             {
-                bool reverse = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool reverse = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 SwitchConversation(reverse);
                 return;
             }

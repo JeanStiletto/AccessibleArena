@@ -326,42 +326,42 @@ namespace AccessibleArena.Core.Services
             }
 
             // F2, Backspace, or Escape closes the menu
-            if (Input.GetKeyDown(KeyCode.F2) || Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Escape))
+            if (KeyInput.GetKeyDown(KeyCode.F2) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 Close();
                 return true;
             }
 
             // Enter or Space: toggle/cycle current setting or enter dropdown
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.Space))
             {
                 ActivateCurrentSetting();
                 return true;
             }
 
             // Up arrow: previous item
-            if (Input.GetKeyDown(KeyCode.UpArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
                 MovePrevious();
                 return true;
             }
 
             // Down arrow: next item
-            if (Input.GetKeyDown(KeyCode.DownArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
                 MoveNext();
                 return true;
             }
 
             // Home: first item
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 MoveFirst();
                 return true;
             }
 
             // End: last item
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 MoveLast();
                 return true;
@@ -414,42 +414,42 @@ namespace AccessibleArena.Core.Services
         private void HandleDropdownInput()
         {
             // Enter or Space: confirm selection and apply
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.Space))
             {
                 ConfirmDropdown();
                 return;
             }
 
             // Escape or Backspace: cancel, restore original
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+            if (KeyInput.GetKeyDown(KeyCode.Escape) || KeyInput.GetKeyDown(KeyCode.Backspace))
             {
                 CancelDropdown();
                 return;
             }
 
             // Down/Right arrow: next language
-            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            if (KeyInput.GetKeyDown(KeyCode.DownArrow) || KeyInput.GetKeyDown(KeyCode.RightArrow))
             {
                 CycleDropdown(1);
                 return;
             }
 
             // Up/Left arrow: previous language
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
+            if (KeyInput.GetKeyDown(KeyCode.UpArrow) || KeyInput.GetKeyDown(KeyCode.LeftArrow))
             {
                 CycleDropdown(-1);
                 return;
             }
 
             // Home: first language
-            if (Input.GetKeyDown(KeyCode.Home))
+            if (KeyInput.GetKeyDown(KeyCode.Home))
             {
                 JumpDropdown(0);
                 return;
             }
 
             // End: last language
-            if (Input.GetKeyDown(KeyCode.End))
+            if (KeyInput.GetKeyDown(KeyCode.End))
             {
                 JumpDropdown(ModSettings.LanguageCodes.Length - 1);
                 return;
