@@ -2,6 +2,20 @@
 
 All notable changes to Accessible Arena.
 
+## v1.5.1
+
+Fixes the two-songs-at-once music during pack opening, and adds audio logging so music bugs of this kind can be diagnosed from the log instead of by ear.
+
+The booster chamber's music is built from layers, each controlled by a volume knob the game turns via hover events: a base track per screen, an expansion theme per hovered pack, and a third knob tied to hovering a card in an opened pack. Every knob left up means that layer keeps playing — and the mod drives hover with simulated pointer events, which sent "mouse entered" but never "mouse left".
+
+- Revealing a card no longer starts a second music layer that never stops. Pressing Enter on a face-down card simulates a click on the card tile, and the click's enter event turned the card-hover music knob up; a real mouse eventually leaves the card and turns it back down, the simulated pointer never did. From the first reveal onward that layer played on top of the expansion theme — two songs at once until the pack was closed. The reveal now sends the matching exit event immediately after the click, as does Enter on an already-revealed card, which routes through the same tile.
+
+- Leaving the pack screen with Backspace now turns the expansion theme off. Same cause, other knob: navigating the pack carousel hovers the centered pack to get its music, and a sighted player's mouse always leaves the pack on the way to any button — the simulated pointer never did, so the expansion theme kept playing over the next screen's music.
+
+- The expansion theme surviving the opening animation no longer depends on timing. The game's animation turns the theme off at an unpredictable moment partway through, and the mod restored it once, early — if the animation's turn-off came later, the music died anyway. The restore is now re-asserted every half second for the first four seconds, and never after closing, where the game legitimately silences everything.
+
+- New: music-related audio calls are logged. Every booster music knob change, music state switch and music event lands in the MelonLoader log under "AudioLog", and a warning names the layers whenever more than one plays for longer than a quarter second. Grep the log for "AudioLog" after a pack opening to verify the music behaved.
+
 ## v1.5
 
 Events and drafts that were previously left alone are now covered, the constructed sideboard is navigable, and playable lands are back in the duel Tab cycle.

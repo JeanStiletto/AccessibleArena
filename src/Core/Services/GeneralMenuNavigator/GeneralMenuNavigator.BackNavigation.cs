@@ -71,6 +71,17 @@ namespace AccessibleArena.Core.Services
             DetectActiveContentController();
             Log.Nav(NavigatorId, $"HandleContentPanelBack: controller = {_activeContentController ?? "null"}");
 
+            // Leaving the booster chamber: un-hover the centered pack first, otherwise its
+            // set-music layer (started by our simulated PointerEnter) keeps playing over the
+            // next screen's music. A real mouse leaves the hitbox on the way to any button;
+            // our simulated pointer never does.
+            if (_activeContentController == T.BoosterChamberController &&
+                _isBoosterCarouselActive &&
+                _boosterCarouselIndex >= 0 && _boosterCarouselIndex < _boosterPackHitboxes.Count)
+            {
+                UIActivator.SimulatePointerExit(_boosterPackHitboxes[_boosterCarouselIndex]);
+            }
+
             // Special case: Color Challenge (CampaignGraph) has two levels
             // - Blade collapsed (specific color selected) → expand blade to return to color list
             // - Blade expanded (color list visible) → navigate Home

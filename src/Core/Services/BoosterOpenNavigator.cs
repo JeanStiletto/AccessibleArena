@@ -51,10 +51,14 @@ namespace AccessibleArena.Core.Services
 
         // Pack music: game's opening animation calls ConditionalHoverOff() which stops
         // the pack-specific music. We restore it by calling AudioManager.SetRTPCValue directly.
+        // The hover-off fires at an unpredictable point of the OpenOutro animation, so a
+        // single restore can be overwritten — re-assert over the first few seconds instead.
         private static MethodInfo _setRTPCMethod;
         private static MethodInfo _playAudioStringMethod; // AudioManager.PlayAudio(string, GameObject)
         private static FieldInfo _chamberSetCodeField;
-        private bool _packMusicRestored;
+        private bool _packMusicRestored; // gates the log line, not the RTPC re-assert
+        private int _musicRestoreFrames;
+        private const int MusicRestoreWindowFrames = 8 * RescanIntervalFrames; // ~4 seconds
 
         // Periodic rescan until cards are found (animation event spawns cards ~2.5s after detection)
         private int _rescanFrameCounter;
@@ -801,6 +805,11 @@ namespace AccessibleArena.Core.Services
                         {
                             Log.Msg("{NavigatorId}", $"Revealing hidden card via BoosterCardHolder");
                             UIActivator.Activate(holder);
+                            // The simulated PointerEnter fired the holder's OnMouseover,
+                            // which turns the booster_card_rollover music layer on. A real
+                            // mouse eventually leaves the card; ours never does, so the
+                            // layer would keep playing on top of the restored set music.
+                            UIActivator.SimulatePointerExit(holder);
                             _rescanDone = false;
                             _rescanFrameCounter = 0;
                             return;
@@ -821,6 +830,15 @@ namespace AccessibleArena.Core.Services
                 }
                 // Default: just activate whatever is selected (cards, buttons, etc.)
                 ActivateCurrentElement();
+                // Activating a revealed card routes the click (and its PointerEnter) to the
+                // parent BoosterCardHolder button too — un-hover it so the card music layer
+                // doesn't stay on. No-op for non-card elements (no holder in the parents).
+                if (IsValidIndex && _elements[_currentIndex].GameObject != null)
+                {
+                    var hoveredHolder = FindBoosterCardHolder(_elements[_currentIndex].GameObject);
+                    if (hoveredHolder != null)
+                        UIActivator.SimulatePointerExit(hoveredHolder);
+                }
                 return;
             }
 
@@ -905,7 +923,6 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private void RestorePackMusic()
         {
-            if (_packMusicRestored) return;
             // Sealed event opening doesn't use the BoosterChamberController/RTPC audio path.
             if (_isSealedMode || _chamberRoot == null) return;
 
@@ -945,9 +962,12 @@ namespace AccessibleArena.Core.Services
             string audioSetCode = setCode.Replace("-", "_");
             _setRTPCMethod.Invoke(null, new object[] { "booster_packrollover", 100f });
             _setRTPCMethod.Invoke(null, new object[] { "boosterpack_" + audioSetCode, 100f });
-            _packMusicRestored = true;
 
-            Log.Msg("{NavigatorId}", $"Restored pack music for set: {setCode}");
+            if (!_packMusicRestored)
+            {
+                _packMusicRestored = true;
+                Log.Msg("{NavigatorId}", $"Restored pack music for set: {setCode}");
+            }
         }
 
         /// <summary>
@@ -1499,6 +1519,18 @@ namespace AccessibleArena.Core.Services
 
         public override void Update()
         {
+            // Restore pack-specific music that the opening animation stopped. Re-asserted
+            // every ~0.5s for the first ~4s (independent of the card rescan, which can
+            // finish on its first tick) so a late ConditionalHoverOff during the OpenOutro
+            // animation can't silence the music again. Never after close: the game's
+            // DismissCards zeroes these RTPCs and they must stay at zero.
+            if (_isActive && !_closeTriggered && _musicRestoreFrames < MusicRestoreWindowFrames)
+            {
+                _musicRestoreFrames++;
+                if (_musicRestoreFrames % RescanIntervalFrames == 0)
+                    RestorePackMusic();
+            }
+
             // Periodic rescan every ~0.5s until cards are found
             // Cards are spawned by an animation event ~2.5s after pack opening
             if (_isActive && !_rescanDone)
@@ -1509,11 +1541,6 @@ namespace AccessibleArena.Core.Services
                     _rescanFrameCounter = 0;
                     _rescanAttempt++;
                     int oldCount = _totalCards;
-
-                    // Restore pack-specific music that the opening animation stopped.
-                    // Called on early rescan ticks to handle ConditionalHoverOff timing.
-                    if (_rescanAttempt <= 3)
-                        RestorePackMusic();
 
                     // No animation skip — let the game's animation play naturally.
                     // Skipping corrupted the _openingBoosterPackAnimator state, breaking
@@ -1569,6 +1596,7 @@ namespace AccessibleArena.Core.Services
             _closeTriggered = false;
             _closeRescanCounter = 0;
             _packMusicRestored = false;
+            _musicRestoreFrames = 0;
             _cardDataIndices.Clear();
             _elementDataIndex.Clear();
             _suppressAnnounceDataIndex = -1;

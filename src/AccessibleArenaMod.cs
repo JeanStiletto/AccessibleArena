@@ -96,6 +96,10 @@ namespace AccessibleArena
             // TimerPatch for intercepting timeout notifications (timeout used events)
             TimerPatch.Initialize();
 
+            // AudioLogPatch logs music state/RTPC changes and warns when two music
+            // layers play at once (diagnoses simulated-hover music leaks)
+            AudioLogPatch.Initialize();
+
             LoggerInstance.Msg("Harmony patches initialized");
         }
 
