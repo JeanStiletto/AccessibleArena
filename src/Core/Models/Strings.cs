@@ -1003,6 +1003,88 @@ namespace AccessibleArena.Core.Models
         public static string SettingOpeningBrowser(string name) => L.Format("SettingOpeningBrowser_Format", name);
 
         // ===========================================
+        // MOD KEYBINDS MENU
+        // ===========================================
+        public static string SettingModKeybinds => L.Get("SettingModKeybinds");
+        public static string SettingModKeybindsDesc => L.Get("SettingModKeybindsDesc");
+        public static string KeybindMenuTitle => L.Get("KeybindMenuTitle");
+        public static string KeybindResetAllItem => L.Get("KeybindResetAllItem");
+        public static string KeybindResetAllDone => L.Get("KeybindResetAllDone");
+        public static string KeybindUnbound => L.Get("KeybindUnbound");
+        public static string KeybindCustomizedTag => L.Get("KeybindCustomizedTag");
+        public static string KeybindItem(string name, string keyLabel) => L.Format("KeybindItem_Format", name, keyLabel);
+        public static string KeybindVariantOpponent(string keyLabel) => L.Format("KeybindVariantOpponent_Format", keyLabel);
+        public static string KeybindVariantLock(string keyLabel) => L.Format("KeybindVariantLock_Format", keyLabel);
+        public static string KeybindCapturePrompt(string name, string current) => L.Format("KeybindCapturePrompt_Format", name, current);
+        public static string KeybindReservedNavigation(string keyLabel) => L.Format("KeybindReservedNavigation_Format", keyLabel);
+        public static string KeybindReservedGameKey(string keyLabel) => L.Format("KeybindReservedGameKey_Format", keyLabel);
+        public static string KeybindGlobalNeedsCtrl => L.Get("KeybindGlobalNeedsCtrl");
+        public static string KeybindTwoModifiers => L.Get("KeybindTwoModifiers");
+        public static string KeybindShiftReserved => L.Get("KeybindShiftReserved");
+        public static string KeybindAltNotAllowed => L.Get("KeybindAltNotAllowed");
+        public static string KeybindConflict(string keyLabel, string otherName) => L.Format("KeybindConflict_Format", keyLabel, otherName);
+        public static string KeybindApplied(string name, string keyLabel) => L.Format("KeybindApplied_Format", name, keyLabel);
+        public static string KeybindUnboundOther(string otherName) => L.Format("KeybindUnboundOther_Format", otherName);
+        public static string KeybindSame(string name, string keyLabel) => L.Format("KeybindSame_Format", name, keyLabel);
+        public static string KeybindResetDone(string name, string keyLabel) => L.Format("KeybindResetDone_Format", name, keyLabel);
+        public static string KeybindCaptureCancelled => L.Get("KeybindCaptureCancelled");
+        public static string KeybindsCustomizedNotice => L.Get("KeybindsCustomizedNotice");
+
+        /// <summary>Localized display name of a rebindable action ("Graveyard",
+        /// "Repeat last announcement"). Keys follow the pattern KeybindAction_&lt;enum&gt;.</summary>
+        public static string KeybindActionName(KeybindAction action) => L.Get($"KeybindAction_{action}");
+
+        /// <summary>Localized keybind category name. Keys: KeybindCategory_&lt;enum&gt;.</summary>
+        public static string KeybindCategoryName(KeybindCategory category) => L.Get($"KeybindCategory_{category}");
+
+        /// <summary>
+        /// Spoken name of a single key. Letters, digits and F-keys speak as
+        /// themselves; numpad and navigation keys have localized names
+        /// (KeyName_&lt;enum&gt; keys); anything else falls back to the enum name.
+        /// </summary>
+        public static string KeyName(UnityEngine.KeyCode key)
+        {
+            if (key >= UnityEngine.KeyCode.A && key <= UnityEngine.KeyCode.Z) return key.ToString();
+            if (key >= UnityEngine.KeyCode.Alpha0 && key <= UnityEngine.KeyCode.Alpha9)
+                return ((int)(key - UnityEngine.KeyCode.Alpha0)).ToString();
+            if (key >= UnityEngine.KeyCode.F1 && key <= UnityEngine.KeyCode.F15) return key.ToString();
+            if (key >= UnityEngine.KeyCode.Keypad0 && key <= UnityEngine.KeyCode.Keypad9)
+                return L.Format("KeyName_Numpad_Format", (int)(key - UnityEngine.KeyCode.Keypad0));
+
+            switch (key)
+            {
+                case UnityEngine.KeyCode.UpArrow: return L.Get("KeyName_UpArrow");
+                case UnityEngine.KeyCode.DownArrow: return L.Get("KeyName_DownArrow");
+                case UnityEngine.KeyCode.LeftArrow: return L.Get("KeyName_LeftArrow");
+                case UnityEngine.KeyCode.RightArrow: return L.Get("KeyName_RightArrow");
+                case UnityEngine.KeyCode.Return: return L.Get("KeyName_Enter");
+                case UnityEngine.KeyCode.KeypadEnter: return L.Get("KeyName_NumpadEnter");
+                case UnityEngine.KeyCode.Space: return L.Get("KeyName_Space");
+                case UnityEngine.KeyCode.Escape: return L.Get("KeyName_Escape");
+                case UnityEngine.KeyCode.Backspace: return L.Get("KeyName_Backspace");
+                case UnityEngine.KeyCode.Tab: return L.Get("KeyName_Tab");
+                case UnityEngine.KeyCode.Home: return L.Get("KeyName_Home");
+                case UnityEngine.KeyCode.End: return L.Get("KeyName_End");
+                case UnityEngine.KeyCode.PageUp: return L.Get("KeyName_PageUp");
+                case UnityEngine.KeyCode.PageDown: return L.Get("KeyName_PageDown");
+                case UnityEngine.KeyCode.Insert: return L.Get("KeyName_Insert");
+                case UnityEngine.KeyCode.Delete: return L.Get("KeyName_Delete");
+                default: return key.ToString();
+            }
+        }
+
+        /// <summary>Spoken form of a chord: "G", "Ctrl+G", "Shift+F4", or the
+        /// localized "not bound" for an unbound action.</summary>
+        public static string KeyChordLabel(KeyChord chord)
+        {
+            if (!chord.IsBound) return KeybindUnbound;
+            string name = KeyName(chord.Key);
+            if (chord.Ctrl) return $"{L.Get("KeyName_Ctrl")}+{name}";
+            if (chord.Shift) return $"{L.Get("KeyName_Shift")}+{name}";
+            return name;
+        }
+
+        // ===========================================
         // HELP MENU
         // ===========================================
         public static string HelpMenuTitle => L.Get("HelpMenuTitle");

@@ -120,6 +120,11 @@ namespace AccessibleArena
             LocaleManager.EnsureDefaultLocaleFiles();
             LocaleManager.Initialize(_settings.Language);
 
+            // Keybind overrides live in their own file (UserData/AccessibleArenaKeybinds.json)
+            // and must be loaded before RegisterGlobalShortcuts and before any navigator input.
+            Keybinds.Load();
+            Keybinds.Changed += RegisterGlobalShortcuts;
+
             _helpNavigator = new HelpNavigator(_announcer);
             _settingsNavigator = new ModSettingsNavigator(_announcer, _settings);
             _extendedInfoNavigator = new ExtendedInfoNavigator(_announcer);
@@ -231,15 +236,36 @@ namespace AccessibleArena
             }
         }
 
+        /// <summary>
+        /// (Re)registers the global shortcuts from the current keybinds. Also runs
+        /// on Keybinds.Changed so rebinding takes effect immediately. F2 (settings)
+        /// and Shift+F12 (debug log) are deliberately fixed: F2 is the recovery
+        /// hatch that always reaches the settings and keybinds menus.
+        /// </summary>
         private void RegisterGlobalShortcuts()
         {
-            _shortcuts.RegisterShortcut(KeyCode.F1, ToggleHelpMenu, "Help menu");
+            _shortcuts.Clear();
+
+            RegisterBoundShortcut(KeybindAction.Help, ToggleHelpMenu, "Help menu");
             _shortcuts.RegisterShortcut(KeyCode.F2, ToggleSettingsMenu, "Settings menu");
-            _shortcuts.RegisterShortcut(KeyCode.R, KeyCode.LeftControl, RepeatLastAnnouncement, "Repeat last announcement");
-            _shortcuts.RegisterShortcut(KeyCode.F1, KeyCode.LeftControl, AnnounceTutorialHint, "Repeat tutorial hint");
-            _shortcuts.RegisterShortcut(KeyCode.F3, AnnounceCurrentScreen, "Announce current screen");
+            RegisterBoundShortcut(KeybindAction.RepeatAnnouncement, RepeatLastAnnouncement, "Repeat last announcement");
+            RegisterBoundShortcut(KeybindAction.TutorialHint, AnnounceTutorialHint, "Repeat tutorial hint");
+            RegisterBoundShortcut(KeybindAction.CurrentScreen, AnnounceCurrentScreen, "Announce current screen");
             _shortcuts.RegisterShortcut(KeyCode.F12, KeyCode.LeftShift, SpeakDebugLog, "Speak recent debug log entries");
-            _shortcuts.RegisterShortcut(KeyCode.F5, HandleUpdateShortcut, "Check for update / start update");
+            RegisterBoundShortcut(KeybindAction.Update, HandleUpdateShortcut, "Check for update / start update");
+        }
+
+        private void RegisterBoundShortcut(KeybindAction action, System.Action handler, string description)
+        {
+            var chord = Keybinds.GetChord(action);
+            if (!chord.IsBound)
+                return;
+            if (chord.Ctrl)
+                _shortcuts.RegisterShortcut(chord.Key, KeyCode.LeftControl, handler, description);
+            else if (chord.Shift)
+                _shortcuts.RegisterShortcut(chord.Key, KeyCode.LeftShift, handler, description);
+            else
+                _shortcuts.RegisterShortcut(chord.Key, handler, description);
         }
 
         private void ToggleHelpMenu()
@@ -288,18 +314,12 @@ namespace AccessibleArena
         /// </summary>
         private bool HandleCopyCurrentItem()
         {
-            bool ctrl = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
-            bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
-            bool alt = KeyInput.GetKey(KeyCode.LeftAlt) || KeyInput.GetKey(KeyCode.RightAlt);
-
-            // Only plain Ctrl+Right — let other modifier combos fall through.
-            if (!ctrl || shift || alt)
-                return false;
-            if (!KeyInput.GetKeyDown(KeyCode.RightArrow))
+            // Exact chord match (default Ctrl+Right) — other modifier combos fall through.
+            if (!Keybinds.Down(KeybindAction.CopyAnnouncement))
                 return false;
 
-            // Block the game/navigators from also seeing this RightArrow.
-            InputManager.ConsumeKey(KeyCode.RightArrow);
+            // Block the game/navigators from also seeing this key press.
+            InputManager.ConsumeKey(Keybinds.GetChord(KeybindAction.CopyAnnouncement).Key);
 
             string text = _announcer?.LastAnnouncement;
             if (string.IsNullOrEmpty(text))

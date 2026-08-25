@@ -510,10 +510,10 @@ namespace AccessibleArena.Core.Services
             if (_browserNavigator.HandleInput())
                 return true;
 
-            // F4: Open chat (checked after modals so chat can't open during
-            // mana picking, browser, spinner, or X-cost interactions).
-            // When DuelChatNavigator is already active, HandleEarlyInput consumes F4 above.
-            if (KeyInput.GetKeyDown(KeyCode.F4))
+            // Friends/chat key: Open chat (checked after modals so chat can't open
+            // during mana picking, browser, spinner, or X-cost interactions).
+            // When DuelChatNavigator is already active, HandleEarlyInput consumes it above.
+            if (Keybinds.Down(KeybindAction.FriendsChat))
             {
                 OpenDuelChat();
                 return true;
@@ -557,11 +557,11 @@ namespace AccessibleArena.Core.Services
             if (_portraitNavigator.HandleInput())
                 return true;
 
-            // P key: Full control toggle
-            if (KeyInput.GetKeyDown(KeyCode.P))
+            // Full control key (default P; Shift variant locks it)
+            if (Keybinds.DownAny(KeybindAction.FullControl))
             {
                 bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
-                Log.Msg("{NavigatorId}", $"P key pressed (shift={shift})");
+                Log.Msg("{NavigatorId}", $"Full control key pressed (shift={shift})");
                 if (shift)
                 {
                     var result = _priorityController.ToggleLockFullControl();
@@ -587,8 +587,8 @@ namespace AccessibleArena.Core.Services
             if (HandlePhaseStopKeys())
                 return true;
 
-            // T key: Announce browser name if active, otherwise turn and phase info
-            if (KeyInput.GetKeyDown(KeyCode.T))
+            // Turn info key: Announce browser name if active, otherwise turn and phase info
+            if (Keybinds.Down(KeybindAction.TurnInfo))
             {
                 if (BrowserNavigator.IsActive)
                 {
@@ -609,8 +609,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // I key: Extended card info (navigable menu with keyword descriptions + linked face)
-            if (KeyInput.GetKeyDown(KeyCode.I))
+            // Extended info key: navigable menu with keyword descriptions + linked face
+            if (Keybinds.Down(KeybindAction.ExtendedInfo))
             {
                 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -634,8 +634,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // O key: Game log (review all duel announcements)
-            if (KeyInput.GetKeyDown(KeyCode.O))
+            // Game log key: review all duel announcements
+            if (Keybinds.Down(KeybindAction.GameLog))
             {
                 var logNav = AccessibleArenaMod.Instance?.GameLogNavigator;
                 if (logNav != null)
@@ -646,14 +646,14 @@ namespace AccessibleArena.Core.Services
             // N key: announce what's currently resolving (top of stack). Useful during long
             // combos where workflow prompts ("Submit 0", target select, "you may discard...")
             // don't say which trigger or spell they belong to.
-            if (KeyInput.GetKeyDown(KeyCode.N))
+            if (Keybinds.Down(KeybindAction.StackTop))
             {
                 _announcer.AnnounceInterrupt(_duelAnnouncer.DescribeStackTop());
                 return true;
             }
 
-            // K key: Counter info on focused card
-            if (KeyInput.GetKeyDown(KeyCode.K))
+            // Counter info key: counters on the focused card
+            if (Keybinds.Down(KeybindAction.CounterInfo))
             {
                 GameObject card = null;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;
@@ -686,24 +686,24 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // J key: Jump focus to attachment parent / attachments / targets / targeted-by.
+            // Jump key: Jump focus to attachment parent / attachments / targets / targeted-by.
             // Cycles through the related-card list; resets when the source card changes.
-            if (KeyInput.GetKeyDown(KeyCode.J))
+            if (Keybinds.Down(KeybindAction.JumpRelated))
             {
                 JumpToRelatedCard();
                 return true;
             }
 
-            // E key: Timer and timeouts (E = your timer, Shift+E = opponent timer)
-            if (KeyInput.GetKeyDown(KeyCode.E))
+            // Timer key: timer and timeouts (Shift variant = opponent timer)
+            if (Keybinds.DownAny(KeybindAction.Timer))
             {
                 bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 _portraitNavigator.AnnounceTimer(opponent: shift);
                 return true;
             }
 
-            // M key: Land summary (M = your lands, Shift+M = opponent lands)
-            if (KeyInput.GetKeyDown(KeyCode.M))
+            // Land summary key (Shift variant = opponent lands)
+            if (Keybinds.DownAny(KeybindAction.LandSummary))
             {
                 bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
                 var landRow = shift ? BattlefieldRow.EnemyLands : BattlefieldRow.PlayerLands;

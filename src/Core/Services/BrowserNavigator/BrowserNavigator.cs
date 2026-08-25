@@ -453,8 +453,8 @@ namespace AccessibleArena.Core.Services
             // Zone-based browsers: delegate C/D/arrows/Enter to zone navigator
             if (_browserInfo.IsZoneBased)
             {
-                // C/D always reclaim Browser ownership (browser zone hotkeys)
-                if (KeyInput.GetKeyDown(KeyCode.C) || KeyInput.GetKeyDown(KeyCode.D))
+                // Hand/library keys always reclaim Browser ownership (browser zone hotkeys)
+                if (Keybinds.DownAny(KeybindAction.Hand) || Keybinds.DownAny(KeybindAction.Library))
                 {
                     _duelZoneNavigator?.SetCurrentZone(ZoneType.Browser, "BrowserNavigator");
                 }

@@ -88,9 +88,10 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         protected virtual void HandleInputFieldNavigation()
         {
-            // F4 should work even in input fields (toggle Friends panel)
-            // Exit edit mode and let HandleCustomInput process it
-            if (KeyInput.GetKeyDown(KeyCode.F4))
+            // The friends key should work even in input fields (toggle Friends panel).
+            // Exit edit mode and let HandleCustomInput process it. Text-input-safe
+            // check: a letter/numpad binding must keep typing normally here.
+            if (Keybinds.DownInTextInput(KeybindAction.FriendsChat))
             {
                 ExitInputFieldEditMode();
                 HandleCustomInput();

@@ -963,8 +963,8 @@ namespace AccessibleArena.Core.Services
 
         protected override bool HandleCustomInput()
         {
-            // O key: open game log on match end screen
-            if (_currentMode == ScreenMode.MatchEnd && KeyInput.GetKeyDown(KeyCode.O))
+            // Game log key: open game log on match end screen
+            if (_currentMode == ScreenMode.MatchEnd && Keybinds.Down(KeybindAction.GameLog))
             {
                 var logNav = AccessibleArenaMod.Instance?.GameLogNavigator;
                 if (logNav != null)

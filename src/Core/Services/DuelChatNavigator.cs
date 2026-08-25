@@ -353,8 +353,8 @@ namespace AccessibleArena.Core.Services
 
             if (!_isActive) return false;
 
-            // F4: close chat (toggle off)
-            if (KeyInput.GetKeyDown(KeyCode.F4))
+            // Friends key: close chat (toggle off)
+            if (Keybinds.Down(KeybindAction.FriendsChat))
             {
                 Close();
                 return true;
@@ -438,8 +438,9 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // F4 while editing: exit edit mode and close chat
-            if (KeyInput.GetKeyDown(KeyCode.F4))
+            // Friends key while editing: exit edit mode and close chat.
+            // Text-input-safe check so a letter binding keeps typing normally.
+            if (Keybinds.DownInTextInput(KeybindAction.FriendsChat))
             {
                 _inputFieldHelper.ExitEditMode();
                 Close();

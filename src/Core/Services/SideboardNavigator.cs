@@ -255,27 +255,27 @@ namespace AccessibleArena.Core.Services
                 if (cardNav.HandleInput()) return;
             }
 
-            // Zone shortcuts
-            if (KeyInput.GetKeyDown(KeyCode.C))
+            // Zone shortcuts: the hand key = pool pile, the library key = deck pile
+            if (Keybinds.DownAny(KeybindAction.Hand))
             {
                 NavigateToZone(SideboardZone.Pool);
                 return;
             }
-            if (KeyInput.GetKeyDown(KeyCode.D))
+            if (Keybinds.DownAny(KeybindAction.Library))
             {
                 NavigateToZone(SideboardZone.Deck);
                 return;
             }
 
-            // Timer
-            if (KeyInput.GetKeyDown(KeyCode.T))
+            // Timer (turn info key)
+            if (Keybinds.Down(KeybindAction.TurnInfo))
             {
                 AnnounceTimer();
                 return;
             }
 
-            // Score
-            if (KeyInput.GetKeyDown(KeyCode.L))
+            // Score (life totals key)
+            if (Keybinds.Down(KeybindAction.LifeTotals))
             {
                 AnnounceScore();
                 return;

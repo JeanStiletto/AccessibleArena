@@ -601,8 +601,8 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // F4: toggle Friends panel (works even during popups)
-            if (KeyInput.GetKeyDown(KeyCode.F4))
+            // Friends key: toggle Friends panel (works even during popups)
+            if (Keybinds.Down(KeybindAction.FriendsChat))
                 HandleCustomInput();
         }
 

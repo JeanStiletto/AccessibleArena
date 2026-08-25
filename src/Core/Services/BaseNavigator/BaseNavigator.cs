@@ -815,19 +815,19 @@ namespace AccessibleArena.Core.Services
             // Custom input first (subclass-specific keys)
             if (HandleCustomInput()) return;
 
-            // F4: Open chat window (universal - works from any navigator)
-            // Subclasses that handle F4 themselves (GeneralMenuNavigator → friends panel)
-            // consume it in HandleCustomInput above, so it never reaches here.
-            if (KeyInput.GetKeyDown(KeyCode.F4))
+            // Friends key: Open chat window (universal - works from any navigator)
+            // Subclasses that handle the key themselves (GeneralMenuNavigator → friends
+            // panel) consume it in HandleCustomInput above, so it never reaches here.
+            if (Keybinds.Down(KeybindAction.FriendsChat))
             {
                 OpenChat();
                 return;
             }
 
-            // I key: Extended card info (keyword descriptions + linked face)
+            // Extended info key: keyword descriptions + linked face
             // Works in any context where a card is focused (deck builder, collection, store, draft, etc.)
-            // DuelNavigator handles its own "I" key in HandleCustomInput() with browser fallback.
-            if (KeyInput.GetKeyDown(KeyCode.I))
+            // DuelNavigator handles its own extended-info key in HandleCustomInput() with browser fallback.
+            if (Keybinds.Down(KeybindAction.ExtendedInfo))
             {
                 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;

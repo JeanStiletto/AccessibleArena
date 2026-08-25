@@ -75,8 +75,8 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return false;
 
-            // O, Backspace, or Escape closes the menu
-            if (KeyInput.GetKeyDown(KeyCode.O) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
+            // The game-log key, Backspace, or Escape closes the menu
+            if (Keybinds.Down(KeybindAction.GameLog) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 Close();
                 return true;

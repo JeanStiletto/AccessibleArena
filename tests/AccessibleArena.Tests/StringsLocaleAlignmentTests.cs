@@ -52,6 +52,8 @@ namespace AccessibleArena.Tests
             "Objective",         // EventAccessor objective-type to key
             "Designation_",      // DuelAnnouncer designation icons
             "RegistrationError_",// EventSystemPatch builds key from AccountError.ErrorTypes (Email, Password, DisplayName, Token, Age)
+            "KeybindAction_",    // Strings.KeybindActionName: "KeybindAction_" + enum name
+            "KeybindCategory_",  // Strings.KeybindCategoryName: "KeybindCategory_" + enum name
         };
 
         /// <summary>

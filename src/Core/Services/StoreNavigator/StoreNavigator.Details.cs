@@ -311,8 +311,8 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // I key: open extended card info (keywords, linked faces, tokens)
-            if (KeyInput.GetKeyDown(KeyCode.I))
+            // Extended info key: keywords, linked faces, tokens
+            if (Keybinds.Down(KeybindAction.ExtendedInfo))
             {
                 if (extInfoNav != null && _detailsCards.Count > 0 &&
                     _detailsCardIndex >= 0 && _detailsCardIndex < _detailsCards.Count)

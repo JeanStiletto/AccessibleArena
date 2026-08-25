@@ -688,8 +688,8 @@ namespace AccessibleArena.Core.Services
             // Handle custom input first (F1 help, etc.)
             if (HandleCustomInput()) return;
 
-            // I key: Extended card info (keyword descriptions + other faces)
-            if (KeyInput.GetKeyDown(KeyCode.I))
+            // Extended info key: keyword descriptions + other faces
+            if (Keybinds.Down(KeybindAction.ExtendedInfo))
             {
                 var extInfoNav = AccessibleArenaMod.Instance?.ExtendedInfoNavigator;
                 var cardNav = AccessibleArenaMod.Instance?.CardNavigator;

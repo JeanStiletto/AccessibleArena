@@ -4,6 +4,8 @@ All notable changes to Accessible Arena.
 
 ## v1.6
 
+Everything since v1.5 in one release: the mod runs again on the game's Unity 6 update (a complete port of the keyboard layer), every mod shortcut is now rebindable through a new keybinds menu, and pack opening no longer plays two songs at once.
+
 Ports the mod's entire keyboard layer to Unity's new Input System. Required by the game's August 2026 update, which moved MTGA to Unity 6 and removed the legacy input backend the mod was built on.
 
 With the old mod version, the game announced the mod's startup and then froze until killed via Task Manager. The cause: every one of the mod's key reads — about thirty per frame — threw an exception the moment it was called, because the engine no longer services the legacy input API at all. Each exception was logged with a full stack trace, sixty times a second, which is what ground the window to a halt. The same update also rewrote the game's own input handling, so several of the mod's interception points were patching methods that no longer run.
@@ -21,6 +23,20 @@ With the old mod version, the game announced the mod's startup and then froze un
 - Arrow navigation inside an opened dropdown works again. Dropdown item navigation rides on the EventSystem's move dispatch, and the first cut of the Submit block skipped that dispatch entirely while a dropdown was open. The block now engages only on the frames where the module would actually deliver a Submit — it reads the same action state the module itself checks — so arrow frames pass through untouched.
 
 - The Tab block on the friends panel works again. The game's panel receives keys through a handler whose parameter changed from KeyCode to the physical Key type; both are plain numbers underneath, so the old comparison didn't error — it just compared Tab against the wrong number and never matched, letting Tab toggle the friends panel behind the mod's own Tab navigation.
+
+
+
+Custom keybinds. A new "Mod keybinds" submenu in the mod settings (F2) lets every letter- and function-key shortcut be reassigned; the input-system port above is what made this possible.
+
+- The submenu mirrors the F1 help structure: four categories (Global shortcuts, Duel zones, Battlefield rows, Duel information) plus a "Restore all default keybinds" action. Up/Down navigate, Enter opens, Backspace goes back.
+- Each entry reads its action and current key, the automatic Shift variant where one exists (opponent zones, locked full control), and whether it has been customized. Enter starts key capture: press the new key, optionally holding Ctrl or Shift. Delete restores the single default, Escape cancels.
+- Assigning a key that another shortcut already uses speaks a warning first; pressing the same key again moves it and the other shortcut becomes unbound (announced). Unbound shortcuts can be restored per-entry with Delete or all at once.
+- Shift-paired shortcuts move as a pair: rebinding Graveyard from G to H makes Shift+H the opponent graveyard automatically. Shift itself can therefore not be part of such a binding.
+- Lockout protection: the navigation primitives — arrows, Enter, Space, Backspace, Escape, Tab, Home/End, Page keys, Insert/Delete, the digit keys (phase stops, filters, mana picker) — plus F2, F11/F12 and the game's own Y (undo) and Q (float mana) can neither be rebound nor assigned. F2 always stays the way back into the settings.
+- Global shortcuts (help, current screen, friends, update, repeat, tutorial hint, copy) additionally refuse plain or shifted letters and numpad keys, because menus jump by first letter and text fields would type them; they need Ctrl or a function key.
+- Bindings live in their own file, `UserData/AccessibleArenaKeybinds.json`, separate from the settings, storing only what differs from the defaults. It is written after every change, survives a settings reset, and can be backed up or shared as a profile; deleting it restores all defaults. Hand-edited files are validated on load — entries that would shadow a navigation key or collide fall back safely and are logged.
+- The F1 help still lists the default keys; when any binding is customized, a notice at the top of the help says so and points at the keybinds menu, which always speaks the current keys.
+- The Bo3 sideboard pile keys, browser top/bottom zone keys and London mulligan pile keys follow the Hand and Library bindings, so a rebound hand key keeps meaning "your/top pile" everywhere.
 
 
 

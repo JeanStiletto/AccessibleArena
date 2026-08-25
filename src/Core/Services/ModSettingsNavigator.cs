@@ -19,6 +19,7 @@ namespace AccessibleArena.Core.Services
     {
         private readonly IAnnouncementService _announcer;
         private readonly ModSettings _settings;
+        private readonly KeybindMenuNavigator _keybindMenu;
         private readonly List<SettingItem> _items;
         private int _currentIndex;
         private bool _isActive;
@@ -34,6 +35,7 @@ namespace AccessibleArena.Core.Services
         {
             _announcer = announcer;
             _settings = settings;
+            _keybindMenu = new KeybindMenuNavigator(announcer);
             _items = BuildSettingItems();
 
             // Rebuild menu labels when language changes (so labels show in new language)
@@ -70,6 +72,14 @@ namespace AccessibleArena.Core.Services
                     GetValue = () => _settings.GetLanguageDisplayName(),
                     Toggle = null, // Handled by dropdown mode
                     IsDropdown = true
+                },
+                new SettingItem
+                {
+                    Name = Strings.SettingModKeybinds,
+                    GetValue = () => Strings.SettingActionOpen,
+                    Toggle = () => _keybindMenu.Open(),
+                    IsAction = true,
+                    Description = Strings.SettingModKeybindsDesc
                 },
                 new SettingItem
                 {
@@ -301,6 +311,8 @@ namespace AccessibleArena.Core.Services
             if (_isInDropdownMode)
                 CancelDropdown();
 
+            _keybindMenu.Close();
+
             _isActive = false;
             _currentIndex = 0;
 
@@ -317,6 +329,24 @@ namespace AccessibleArena.Core.Services
         public bool HandleInput()
         {
             if (!_isActive) return false;
+
+            // Mod keybinds submenu is modal while open
+            if (_keybindMenu.IsActive)
+            {
+                // F2 still closes the whole settings overlay — except during key
+                // capture, where F2 must reach the capture prompt as feedback.
+                if (!_keybindMenu.IsCapturing && KeyInput.GetKeyDown(KeyCode.F2))
+                {
+                    _keybindMenu.Close();
+                    Close();
+                    return true;
+                }
+
+                _keybindMenu.HandleInput();
+                if (!_keybindMenu.IsActive)
+                    AnnounceCurrentItem(); // backed out to the settings list
+                return true;
+            }
 
             // Dropdown mode has its own input handling
             if (_isInDropdownMode)

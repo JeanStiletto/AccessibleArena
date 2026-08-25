@@ -290,8 +290,8 @@ namespace AccessibleArena.Core.Services
             // Check shift state FIRST for all key handlers
             bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
-            // C key: Hand navigation (no shift) or Opponent hand count (with shift)
-            if (KeyInput.GetKeyDown(KeyCode.C))
+            // Hand key: Hand navigation (no shift) or Opponent hand count (with shift)
+            if (Keybinds.DownAny(KeybindAction.Hand))
             {
                 if (shift)
                 {
@@ -307,9 +307,9 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // B shortcut handled by BattlefieldNavigator (row-based navigation)
+            // Creatures/battlefield key handled by BattlefieldNavigator (row-based navigation)
 
-            if (KeyInput.GetKeyDown(KeyCode.G))
+            if (Keybinds.DownAny(KeybindAction.Graveyard))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)
@@ -319,7 +319,7 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (KeyInput.GetKeyDown(KeyCode.X))
+            if (Keybinds.DownAny(KeybindAction.Exile))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)
@@ -329,14 +329,14 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            if (KeyInput.GetKeyDown(KeyCode.S))
+            if (Keybinds.Down(KeybindAction.StackZone))
             {
                 _hotHighlightNavigator?.ClearState();
                 NavigateToZone(ZoneType.Stack);
                 return true;
             }
 
-            if (KeyInput.GetKeyDown(KeyCode.W))
+            if (Keybinds.DownAny(KeybindAction.CommandZone))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)
@@ -346,8 +346,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // D key for library navigation (with revealed cards) or count-only
-            if (KeyInput.GetKeyDown(KeyCode.D))
+            // Library key for library navigation (with revealed cards) or count-only
+            if (Keybinds.DownAny(KeybindAction.Library))
             {
                 _hotHighlightNavigator?.ClearState();
                 if (shift)

@@ -988,10 +988,10 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // F4: Toggle Friends panel
-            if (KeyInput.GetKeyDown(KeyCode.F4))
+            // Friends key: Toggle Friends panel
+            if (Keybinds.Down(KeybindAction.FriendsChat))
             {
-                Log.Nav(NavigatorId, $"F4 pressed - toggling Friends panel");
+                Log.Nav(NavigatorId, $"Friends key pressed - toggling Friends panel");
                 ToggleFriendsPanel();
                 return true;
             }

@@ -139,6 +139,8 @@ When enabled, dumps comprehensive info: UI structure, clickable components, work
 
 ### Safe Custom Shortcuts
 
+The letter/function-key shortcuts below show the DEFAULT keys. Since v1.6 they are user-rebindable via F2 → Mod keybinds (`KeybindAction` enum, `Keybinds`/`KeybindMap` services; overrides in `UserData/AccessibleArenaKeybinds.json`). Never read a rebindable shortcut with a hardcoded `KeyInput.GetKeyDown(KeyCode.X)` — use `Keybinds.Down(action)` (exact chord) or `Keybinds.DownAny(action)` (Shift-paired actions; call site branches on Shift). Navigation primitives (arrows, Enter, Space, Backspace, Escape, Tab, Home/End, Page keys, digits), F2, F11/F12 and the game's Y/Q stay fixed and cannot be assigned.
+
 **Menu Navigation:**
 Arrow Up/Down: Navigate menu items
 Tab/Shift+Tab: Navigate menu items (same as Arrow Up/Down)

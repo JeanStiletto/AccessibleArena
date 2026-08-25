@@ -156,15 +156,15 @@ namespace AccessibleArena.Core.Services
             if (!_isActive) return false;
 
 
-            // V key activates player info zone
-            if (KeyInput.GetKeyDown(KeyCode.V))
+            // Player info key activates the player info zone
+            if (Keybinds.Down(KeybindAction.PlayerInfo))
             {
                 EnterPlayerInfoZone();
                 return true;
             }
 
-            // L key for quick life total access (works anytime)
-            if (KeyInput.GetKeyDown(KeyCode.L))
+            // Life totals key for quick life total access (works anytime)
+            if (Keybinds.Down(KeybindAction.LifeTotals))
             {
                 AnnounceLifeTotals();
                 return true;

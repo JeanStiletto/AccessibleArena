@@ -11,6 +11,13 @@ namespace UnityEngine
         Return = 13,
         Escape = 27,
         Space = 32,
+        Delete = 127,
+        // Numpad
+        Keypad0 = 256, Keypad1 = 257, Keypad2 = 258, Keypad3 = 259, Keypad4 = 260,
+        Keypad5 = 261, Keypad6 = 262, Keypad7 = 263, Keypad8 = 264, Keypad9 = 265,
+        KeypadEnter = 271,
+        // Navigation block
+        Insert = 277, Home = 278, End = 279, PageUp = 280, PageDown = 281,
         // Digits
         Alpha0 = 48, Alpha1 = 49, Alpha2 = 50, Alpha3 = 51, Alpha4 = 52,
         Alpha5 = 53, Alpha6 = 54, Alpha7 = 55, Alpha8 = 56, Alpha9 = 57,

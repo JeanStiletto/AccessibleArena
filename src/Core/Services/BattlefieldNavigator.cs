@@ -241,8 +241,8 @@ namespace AccessibleArena.Core.Services
 
             bool shift = KeyInput.GetKey(KeyCode.LeftShift) || KeyInput.GetKey(KeyCode.RightShift);
 
-            // Row shortcuts: A for lands (also announces floating mana for player lands)
-            if (KeyInput.GetKeyDown(KeyCode.A))
+            // Row shortcuts: lands key (also announces floating mana for player lands)
+            if (Keybinds.DownAny(KeybindAction.Lands))
             {
                 _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
@@ -263,8 +263,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Row shortcuts: R for non-creatures (artifacts, enchantments, planeswalkers)
-            if (KeyInput.GetKeyDown(KeyCode.R))
+            // Row shortcuts: non-creatures key (artifacts, enchantments, planeswalkers)
+            if (Keybinds.DownAny(KeybindAction.NonCreatures))
             {
                 _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)
@@ -275,8 +275,8 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
-            // Row shortcuts: B for creatures
-            if (KeyInput.GetKeyDown(KeyCode.B))
+            // Row shortcuts: creatures key
+            if (Keybinds.DownAny(KeybindAction.Creatures))
             {
                 _zoneNavigator.SetCurrentZone(ZoneType.Battlefield, "BattlefieldNavigator");
                 if (shift)

@@ -167,15 +167,15 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return false;
 
-            // C key - Enter top/keep zone
-            if (KeyInput.GetKeyDown(KeyCode.C))
+            // Hand key - Enter top/keep zone
+            if (Keybinds.DownAny(KeybindAction.Hand))
             {
                 EnterZone(BrowserZoneType.Top);
                 return true;
             }
 
-            // D key - Enter bottom zone
-            if (KeyInput.GetKeyDown(KeyCode.D))
+            // Library key - Enter bottom zone
+            if (Keybinds.DownAny(KeybindAction.Library))
             {
                 EnterZone(BrowserZoneType.Bottom);
                 return true;

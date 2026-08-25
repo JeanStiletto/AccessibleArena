@@ -169,8 +169,8 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return false;
 
-            // I, Backspace, or Escape closes the menu
-            if (KeyInput.GetKeyDown(KeyCode.I) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
+            // The extended-info key, Backspace, or Escape closes the menu
+            if (Keybinds.Down(KeybindAction.ExtendedInfo) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 Close();
                 return true;

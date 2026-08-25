@@ -43,7 +43,14 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private List<string> BuildHelpItems()
         {
-            return new List<string>
+            var items = new List<string>();
+
+            // The static help lists the default keys. When the user has customized
+            // keybinds, say so up front and point at the authoritative list.
+            if (Keybinds.Map.AnyCustomized)
+                items.Add(Strings.KeybindsCustomizedNotice);
+
+            items.AddRange(new List<string>
             {
                 // Global shortcuts
                 Strings.HelpCategoryGlobal,
@@ -154,7 +161,9 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpTipExtendedInfo,
                 Strings.HelpTipManaColorPicker,
                 Strings.HelpTipFullControlPhases
-            };
+            });
+
+            return items;
         }
 
         /// <summary>
@@ -178,6 +187,9 @@ namespace AccessibleArena.Core.Services
         public void Open()
         {
             if (_isActive) return;
+
+            // Rebuild so the customized-keybinds notice reflects the current state
+            RebuildItems();
 
             _isActive = true;
             _currentIndex = 0;
@@ -211,8 +223,8 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return false;
 
-            // F1, Backspace, or Escape closes the menu
-            if (KeyInput.GetKeyDown(KeyCode.F1) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
+            // The help key, Backspace, or Escape closes the menu
+            if (Keybinds.Down(KeybindAction.Help) || KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Escape))
             {
                 Close();
                 return true;

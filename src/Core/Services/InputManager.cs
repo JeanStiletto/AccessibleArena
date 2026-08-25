@@ -135,35 +135,6 @@ namespace AccessibleArena.Core.Services
         private readonly IShortcutRegistry _shortcuts;
         private readonly IAnnouncementService _announcer;
 
-        // Only monitor keys we use for custom shortcuts (not game navigation)
-        private readonly HashSet<KeyCode> _customKeys = new HashSet<KeyCode>
-        {
-            // Zone shortcuts
-            KeyCode.C,  // Hand (Cards)
-            KeyCode.B,  // Battlefield
-            KeyCode.G,  // Graveyard
-            KeyCode.X,  // Exile
-            KeyCode.S,  // Stack (only when not in text input)
-
-            // Info shortcuts
-            KeyCode.T,  // Turn info
-            KeyCode.L,  // Life totals
-            KeyCode.A,  // Mana pool (Shift+A for opponent)
-            KeyCode.P,  // Full control toggle (P / Shift+P for lock)
-            KeyCode.M,  // Land summary (M / Shift+M for opponent)
-            KeyCode.K,  // Counter info
-
-            // Number keys for phase stops (duel) and filters (collection)
-            KeyCode.Alpha1, KeyCode.Alpha2, KeyCode.Alpha3, KeyCode.Alpha4, KeyCode.Alpha5,
-            KeyCode.Alpha6, KeyCode.Alpha7, KeyCode.Alpha8, KeyCode.Alpha9, KeyCode.Alpha0,
-
-            // Function keys (safe)
-            KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4, KeyCode.F5, KeyCode.F12,
-
-            // With modifiers
-            KeyCode.R,  // Ctrl+R for repeat
-        };
-
         public InputManager(IShortcutRegistry shortcuts, IAnnouncementService announcer)
         {
             _shortcuts = shortcuts;
@@ -172,9 +143,10 @@ namespace AccessibleArena.Core.Services
 
         public void OnUpdate()
         {
-            // Only check our custom shortcut keys
-            // Let the game handle navigation keys (arrows, tab, enter, escape)
-            foreach (var key in _customKeys)
+            // Only poll the base keys of registered shortcuts, so the set follows
+            // keybind changes automatically. Navigation keys (arrows, tab, enter,
+            // escape) are never registered and stay with the game/navigators.
+            foreach (var key in _shortcuts.MonitoredKeys)
             {
                 if (KeyInput.GetKeyDown(key))
                 {

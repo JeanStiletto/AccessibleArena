@@ -255,12 +255,7 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private bool IsZoneShortcut()
         {
-            return KeyInput.GetKeyDown(KeyCode.B) || KeyInput.GetKeyDown(KeyCode.A) ||
-                   KeyInput.GetKeyDown(KeyCode.R) || KeyInput.GetKeyDown(KeyCode.C) ||
-                   KeyInput.GetKeyDown(KeyCode.G) || KeyInput.GetKeyDown(KeyCode.X) ||
-                   KeyInput.GetKeyDown(KeyCode.S) || KeyInput.GetKeyDown(KeyCode.W) ||
-                   KeyInput.GetKeyDown(KeyCode.D) || KeyInput.GetKeyDown(KeyCode.L) ||
-                   KeyInput.GetKeyDown(KeyCode.V);
+            return Keybinds.AnyZoneFocusReleaseKeyDown();
         }
 
         private List<MonoBehaviour> FindActiveSpinners()
