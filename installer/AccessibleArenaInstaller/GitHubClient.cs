@@ -44,8 +44,10 @@ namespace AccessibleArenaInstaller
                 // The final URL will contain the version tag
                 string finalUrl = response.RequestMessage.RequestUri.ToString();
 
-                // Extract version from URL like: https://github.com/LavaGang/MelonLoader/releases/tag/v0.6.6
-                var match = Regex.Match(finalUrl, @"/tag/(v[\d.]+)");
+                // Extract version from URL like: https://github.com/LavaGang/MelonLoader/releases/tag/v0.7.3
+                // Take the whole tag segment, not just its leading digits: a tag such as
+                // v0.7.4-rc1 would otherwise be truncated to v0.7.4 and the download 404.
+                var match = Regex.Match(finalUrl, @"/tag/([^/?#]+)");
                 if (match.Success)
                 {
                     string version = match.Groups[1].Value;

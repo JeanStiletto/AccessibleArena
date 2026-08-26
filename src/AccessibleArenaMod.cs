@@ -52,6 +52,7 @@ namespace AccessibleArena
         {
             Instance = this;
             LoggerInstance.Msg("Accessible Arena initializing...");
+            LogEnvironment();
 
             // Settings pick the speech backend and the urgent-channel volume, so they have to
             // be on disk-loaded before Prism comes up.
@@ -81,6 +82,51 @@ namespace AccessibleArena
 
             if (SteamOverlayBlocker.IsSteam && !SteamOverlayBlocker.OverlayDisabled)
                 _announcer.Announce(Strings.SteamOverlayWarning, AnnouncementPriority.Critical);
+        }
+
+        /// <summary>
+        /// Log the host environment on one line, before anything else can fail.
+        ///
+        /// Until now every field here was only recoverable from MelonLoader's own log
+        /// header, which is not always right: a Wine/Proton session reported Unity
+        /// 2022.3.62f2 for what was demonstrably a Unity 6 client.
+        /// <see cref="Application.unityVersion"/> comes from the running engine, so it
+        /// is authoritative. The loader version matters because nightly builds
+        /// (0.7.2-ci.2388 and the like) are not a configuration we can reproduce, and
+        /// "which loader" has been the first question asked of every bug report.
+        /// </summary>
+        private void LogEnvironment()
+        {
+            LoggerInstance.Msg($"Host: MelonLoader {GetMelonLoaderVersion()}, " +
+                               $"Unity {Application.unityVersion}, MTGA {Application.version}");
+        }
+
+        /// <summary>
+        /// Read MelonLoader's version reflectively rather than referencing
+        /// MelonLoader.Properties.BuildInfo directly. That type only exists from 0.7
+        /// onwards, and a hard reference would fail when this method is JIT-compiled
+        /// rather than when it is called — taking the whole of OnInitializeMelon with it
+        /// on an older loader. Falls back to the assembly version, which carries the
+        /// same numbers minus the "-ci.NNNN" nightly suffix.
+        /// </summary>
+        private static string GetMelonLoaderVersion()
+        {
+            try
+            {
+                var buildInfo = typeof(MelonMod).Assembly.GetType("MelonLoader.Properties.BuildInfo");
+                var version = buildInfo?.GetProperty("Version",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    ?.GetValue(null, null) as string;
+
+                if (!string.IsNullOrEmpty(version))
+                    return version;
+
+                return typeof(MelonMod).Assembly.GetName().Version.ToString();
+            }
+            catch (System.Exception ex)
+            {
+                return $"unknown ({ex.GetType().Name})";
+            }
         }
 
         private void InitializeHarmonyPatches()
