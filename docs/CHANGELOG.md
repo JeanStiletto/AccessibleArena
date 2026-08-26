@@ -2,6 +2,14 @@
 
 All notable changes to Accessible Arena.
 
+## v1.6.1
+
+Wine/Proton compatibility. On Linux and Steam Deck installs the mod loaded and spoke normally, but its entire key-blocking layer was silently inactive — so keys the mod owns also reached the game's own duel handlers.
+
+- Fixed the turn ending by itself right after playing a shockland and paying 2 life (reported from a Wine/Proton setup, but possible on any install where MelonLoader's automatic patching fails). The mod's key-blocking layer — the Harmony patches that keep Enter, Ctrl and Tab away from the game's own duel handlers — was applied through MelonLoader's automatic attribute-patching pass, and in the reported session (MelonLoader 0.7.2-ci under Wine/Proton) that pass silently never ran. Every manually-applied patch worked, so the mod appeared healthy, but each Enter key-up reached the game's native duel binding: `GameManager.HandleKeyUp` calls `AutoResponseManager.ToggleAutoPass()`, which arms "pass priority until opponent action" for the current turn. In the shockland flow the Enter that answers the pay-2-life prompt lands after the prompt interaction completes, so its key-up fell through to that binding — the client then auto-passed every remaining priority stop and the turn ended on the spot. The auto-pass is scoped to the turn, which is why the next turn always behaved normally and the problem looked shockland-specific. The two attribute-based patch classes (KeyboardManagerPatch, EventSystemPatch) are now applied explicitly at startup, one class at a time, with a log line per class; MelonLoader's automatic pass is opted out via `[assembly: HarmonyDontPatchAll]` so the patches apply exactly once on every loader version. If a class fails to apply, the mod announces a warning ("mod component X failed to install...") instead of failing silently — translated for all 12 locales.
+
+- The same root cause also let Ctrl and Tab through to the game on affected installs: Ctrl toggled the game's native full control (it is blocked in duels precisely because blind players press it to silence the screen reader), and Tab toggled the friends panel underneath the mod's own Tab navigation, which stole input-field focus. Both are fixed by the same change.
+
 ## v1.6
 
 Everything since v1.5 in one release: the mod runs again on the game's Unity 6 update (a complete port of the keyboard layer), every mod shortcut is now rebindable through a new keybinds menu, and pack opening no longer plays two songs at once.

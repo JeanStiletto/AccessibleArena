@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} gestartet",
+  "PatchInitFailed_Format": "Warnung: Mod-Komponente {0} konnte nicht installiert werden. Die Tastensperre ist inaktiv, Tasten können Spielaktionen direkt auslösen. Bitte melde das Problem und füge die Logdatei bei.",
   "Back": "Zurück",
   "NoSelection": "Keine Auswahl",
   "NoAlternateAction": "Keine alternative Aktion verfügbar",

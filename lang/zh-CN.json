@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} 已启动",
+  "PatchInitFailed_Format": "警告：模组组件 {0} 安装失败。按键拦截未生效，按键可能直接触发游戏操作。请报告此问题并附上日志文件。",
   "Back": "返回",
   "NoSelection": "未选择",
   "NoAlternateAction": "没有可用的替代操作",

@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} lancé",
+  "PatchInitFailed_Format": "Avertissement : le composant du mod {0} n'a pas pu être installé. Le blocage des touches est inactif, les touches peuvent donc déclencher directement des actions du jeu. Merci de signaler ce problème en joignant votre fichier journal.",
   "Back": "Retour",
   "NoSelection": "Aucune sélection",
   "NoAlternateAction": "Aucune action alternative disponible",

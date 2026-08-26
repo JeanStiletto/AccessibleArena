@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} 시작되었습니다",
+  "PatchInitFailed_Format": "경고: 모드 구성 요소 {0}을(를) 설치하지 못했습니다. 키 차단이 비활성 상태이므로 키 입력이 게임 동작을 직접 실행할 수 있습니다. 로그 파일과 함께 신고해 주세요.",
   "Back": "뒤로",
   "NoSelection": "선택 없음",
   "NoAlternateAction": "대체 동작을 사용할 수 없습니다",

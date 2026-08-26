@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} uruchomiony",
+  "PatchInitFailed_Format": "Ostrzeżenie: nie udało się zainstalować komponentu moda {0}. Blokowanie klawiszy jest nieaktywne, więc klawisze mogą bezpośrednio wywoływać akcje gry. Zgłoś to i dołącz plik dziennika.",
   "Back": "Wstecz",
   "NoSelection": "Brak wyboru",
   "NoAlternateAction": "Brak alternatywnej akcji",

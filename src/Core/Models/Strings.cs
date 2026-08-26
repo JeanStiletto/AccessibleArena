@@ -46,6 +46,7 @@ namespace AccessibleArena.Core.Models
         // GENERAL / SYSTEM
         // ===========================================
         public static string ModLoaded(string version) => L.Format("ModLoaded_Format", version);
+        public static string PatchInitFailed(string patchName) => L.Format("PatchInitFailed_Format", patchName);
         public static string SteamOverlayWarning => L.Get("SteamOverlayWarning");
         public static string SteamPaymentNotAvailable => L.Get("SteamPaymentNotAvailable");
         public static string SteamPurchaseWarning => L.Get("SteamPurchaseWarning");

@@ -11,6 +11,12 @@ using static AccessibleArena.Core.Constants.SceneNames;
 
 [assembly: MelonInfo(typeof(AccessibleArena.AccessibleArenaMod), "Accessible Arena", VersionInfo.Value, "Accessible Arena Team")]
 [assembly: MelonGame("Wizards Of The Coast", "MTGA")]
+// Attribute-based Harmony patches are applied explicitly in InitializeHarmonyPatches
+// (with per-class logging), never by MelonLoader's automatic pass. A player log from
+// MelonLoader 0.7.2-ci under Wine/Proton showed the automatic pass silently not running:
+// every manually-applied patch worked, but KeyboardManagerPatch and EventSystemPatch
+// were absent, so Enter/Ctrl/Tab reached the game in duels (see InitializeHarmonyPatches).
+[assembly: HarmonyDontPatchAll]
 
 namespace AccessibleArena
 {
@@ -88,10 +94,22 @@ namespace AccessibleArena
             PanelStatePatch.Initialize();
 
             // EventSystemPatch runtime patches (NewInputHandler.OnAccept)
-            // Attribute-based patches are auto-applied by MelonLoader, but game types
-            // in Core.dll need runtime patching via FindType + harmony.Patch.
+            // Game types in Core.dll need runtime patching via FindType + harmony.Patch.
             var harmony = new HarmonyLib.Harmony("com.accessibility.mtga.eventsystempatch");
             EventSystemPatch.ApplyRuntimePatches(harmony);
+
+            // Attribute-based patch classes are applied explicitly, one class at a time,
+            // instead of relying on MelonLoader's automatic PatchAll (which is disabled
+            // via [assembly: HarmonyDontPatchAll]). In a player session on MelonLoader
+            // 0.7.2-ci under Wine/Proton the automatic pass silently never ran: all
+            // manually-applied patches worked, but these two classes were inactive, so
+            // Enter/Ctrl/Tab reached the game in duels. The game's native Enter-keyup
+            // binding (GameManager.HandleKeyUp -> AutoResponseManager.ToggleAutoPass)
+            // then armed "pass priority until opponent action" right after shockland
+            // pay-2-life prompts, instantly ending the player's turn. Explicit
+            // application makes a failure per-class, logged, and announced.
+            ApplyAttributePatchClass(typeof(KeyboardManagerPatch));
+            ApplyAttributePatchClass(typeof(EventSystemPatch));
 
             // TimerPatch for intercepting timeout notifications (timeout used events)
             TimerPatch.Initialize();
@@ -101,6 +119,27 @@ namespace AccessibleArena
             AudioLogPatch.Initialize();
 
             LoggerInstance.Msg("Harmony patches initialized");
+        }
+
+        /// <summary>
+        /// Apply one attribute-based Harmony patch class and log the outcome, so a
+        /// missing input-protection layer is visible in the log instead of silent.
+        /// A failure is announced: without KeyboardManagerPatch, keys the mod owns
+        /// reach the game's own handlers (Enter toggles auto-pass in duels, Ctrl
+        /// toggles full control, Tab toggles the friends panel).
+        /// </summary>
+        private void ApplyAttributePatchClass(System.Type patchClass)
+        {
+            try
+            {
+                var patched = HarmonyInstance.CreateClassProcessor(patchClass).Patch();
+                LoggerInstance.Msg($"Applied {patched?.Count ?? 0} attribute patches from {patchClass.Name}");
+            }
+            catch (System.Exception ex)
+            {
+                LoggerInstance.Error($"Failed to apply {patchClass.Name}: {ex}");
+                _announcer?.Announce(Strings.PatchInitFailed(patchClass.Name), AnnouncementPriority.Critical);
+            }
         }
 
         private void InitializeServices()

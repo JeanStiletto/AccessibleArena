@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} launched",
+  "PatchInitFailed_Format": "Warning: mod component {0} failed to install. Key blocking is inactive, so key presses may trigger game actions directly. Please report this and include your log file.",
   "Back": "Back",
   "NoSelection": "No selection",
   "NoAlternateAction": "No alternate action available",

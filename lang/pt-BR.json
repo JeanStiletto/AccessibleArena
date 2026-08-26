@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} iniciado",
+  "PatchInitFailed_Format": "Aviso: o componente do mod {0} não pôde ser instalado. O bloqueio de teclas está inativo, então as teclas podem acionar ações do jogo diretamente. Relate isso e inclua seu arquivo de log.",
   "Back": "Voltar",
   "NoSelection": "Nenhuma seleção",
   "NoAlternateAction": "Nenhuma ação alternativa disponível",

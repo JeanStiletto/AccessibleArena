@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} 起動しました",
+  "PatchInitFailed_Format": "警告: モッドのコンポーネント {0} をインストールできませんでした。キーのブロックが無効のため、キー入力がゲームの操作を直接実行する可能性があります。ログファイルを添えて報告してください。",
   "Back": "戻る",
   "NoSelection": "選択なし",
   "NoAlternateAction": "代替アクションがありません",

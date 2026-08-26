@@ -1,5 +1,6 @@
 {
   "ModLoaded_Format": "Accessible Arena v{0} avviato",
+  "PatchInitFailed_Format": "Avviso: il componente della mod {0} non è stato installato. Il blocco dei tasti è inattivo, quindi i tasti possono attivare direttamente azioni di gioco. Segnala il problema allegando il file di log.",
   "Back": "Indietro",
   "NoSelection": "Nessuna selezione",
   "NoAlternateAction": "Nessuna azione alternativa disponibile",
