@@ -2585,12 +2585,7 @@ namespace AccessibleArena.Core.Services
         private GameObject GetFocusedGameObject()
         {
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
-            {
-                return ConfirmationInputPolicy.ResolveGroupedFocus(
-                    _groupedNavigator.CurrentElement?.GameObject,
-                    _groupedNavigator.IsCurrentGroupStandalone,
-                    _groupedNavigator.GetStandaloneElement());
-            }
+                return _groupedNavigator.CurrentObject;
 
             return IsValidIndex ? _elements[_currentIndex].GameObject : null;
         }

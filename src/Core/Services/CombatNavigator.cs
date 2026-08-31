@@ -629,9 +629,10 @@ namespace AccessibleArena.Core.Services
                     if (backspaceDown)
                         return TryClickSecondaryButton();
 
-                    bool spaceBlocked = PhaseSkipGuard.ShouldBlock();
-                    if (!ConfirmationInputPolicy.ShouldActivateCombatPrimary(
-                        backspaceDown, spaceDown, spaceBlocked))
+                    // The guard announces its own warning; consume the press so our click
+                    // can't pass the phase underneath it. Frame-cached, so this stays
+                    // consistent with the KeyboardManager/EventSystem hooks.
+                    if (PhaseSkipGuard.ShouldBlock())
                         return true;
 
                     return TryClickPrimaryButton();

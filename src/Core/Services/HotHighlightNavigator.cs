@@ -359,13 +359,16 @@ namespace AccessibleArena.Core.Services
 
             // Space - click primary button when no highlights are available,
             // or when in selection mode (to submit the selection/discard).
-            // Phase skip warning is handled at Input.GetKeyDown level by PhaseSkipGuard via
-            // EventSystemPatch.GetKeyDown_Postfix — Space returns false while warning is pending,
-            // so this block simply won't execute on a blocked press.
             if (KeyInput.GetKeyDown(KeyCode.Space))
             {
                 if (_items.Count == 0 || IsSelectionModeActive())
                 {
+                    // Ask the guard directly: SimulatePointerClick bypasses the
+                    // KeyboardManager/EventSystem hooks, and the GetKeyDown-level hook
+                    // this path once relied on was removed in the v1.6 input port.
+                    if (PhaseSkipGuard.ShouldBlock())
+                        return true;
+
                     var primaryButton = FindPrimaryButton();
                     if (primaryButton != null)
                     {

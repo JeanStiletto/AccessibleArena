@@ -356,6 +356,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// The GameObject the cursor is on: the current element inside a group, or —
+        /// at GroupList level, where CurrentElement is null — the standalone group's
+        /// element, since standalone groups are activated at group level.
+        /// </summary>
+        public GameObject CurrentObject =>
+            CurrentElement?.GameObject ?? GetStandaloneElement();
+
+        /// <summary>
         /// Total number of groups.
         /// </summary>
         public int GroupCount => _groups.Count;
