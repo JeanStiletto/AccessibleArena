@@ -631,6 +631,7 @@
   "GroupCollection": "收藏",
   "GroupDeckList": "牌組列表",
   "DeckBuilderCannotAddCopy": "無法再新增一張",
+  "DeckListEmpty": "此套牌中還沒有牌。在收藏中選擇一張牌，然後按 Enter 鍵新增。",
   "DeckBuilderSideboardCount_One": "備牌，1張",
   "DeckBuilderSideboardCount_Format": "備牌，{0}張",
   "GroupSideboard": "備牌",

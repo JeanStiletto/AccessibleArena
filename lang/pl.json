@@ -631,6 +631,7 @@
   "GroupCollection": "Kolekcja",
   "GroupDeckList": "Lista talii",
   "DeckBuilderCannotAddCopy": "Nie można dodać kolejnej kopii",
+  "DeckListEmpty": "W tej talii nie ma jeszcze kart. Wybierz kartę w kolekcji i naciśnij Enter, aby ją dodać.",
   "DeckBuilderSideboardCount_One": "Sideboard, 1 karta",
   "DeckBuilderSideboardCount_Format": "Sideboard, {0} kart",
   "GroupSideboard": "Sideboard",

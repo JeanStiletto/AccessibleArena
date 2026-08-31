@@ -34,6 +34,23 @@ namespace AccessibleArena.Core.Services
             public bool IsValid => GrpId != 0;
         }
 
+        /// <summary>
+        /// Why the last GetDeckListCards call returned what it did. Lets callers tell a
+        /// genuinely empty deck (show it as empty) apart from a failed holder lookup
+        /// (a game rename/regression that must not masquerade as an empty deck).
+        /// </summary>
+        public enum DeckListLookup
+        {
+            NotSearched,
+            HolderNotFound,
+            Sideboarding,
+            ComponentMissing,
+            Empty,
+            HasCards
+        }
+
+        public static DeckListLookup LastDeckListLookup { get; private set; } = DeckListLookup.NotSearched;
+
         // Cache for deck list cards to avoid repeated reflection
         private static List<DeckListCardInfo> _cachedDeckListCards = new List<DeckListCardInfo>();
         private static GameObject _cachedDeckHolder = null;
@@ -57,6 +74,7 @@ namespace AccessibleArena.Core.Services
             _cachedDeckListCards.Clear();
             _cachedDeckHolder = null;
             _cachedDeckListFrame = -1;
+            LastDeckListLookup = DeckListLookup.NotSearched;
             _cachedSideboardCards.Clear();
             _cachedSideboardFrame = -1;
             _cachedSideboardHolder = null;
@@ -74,6 +92,7 @@ namespace AccessibleArena.Core.Services
                 return _cachedDeckListCards;
 
             _cachedDeckListCards.Clear();
+            _cachedDeckHolder = null;
             _cachedDeckListFrame = Time.frameCount;
 
             try
@@ -98,6 +117,7 @@ namespace AccessibleArena.Core.Services
 
                     if (deckHolder == null)
                     {
+                        LastDeckListLookup = DeckListLookup.HolderNotFound;
                         return _cachedDeckListCards;
                     }
 
@@ -107,7 +127,10 @@ namespace AccessibleArena.Core.Services
                     // group - and reactivating it would visually un-hide the main deck on top of
                     // the sideboard. Only force it active for the popup-less entry case.
                     if (IsListViewSideboarding())
+                    {
+                        LastDeckListLookup = DeckListLookup.Sideboarding;
                         return _cachedDeckListCards;
+                    }
 
                     // Activate the holder so we can access its components
                     deckHolder.SetActive(true);
@@ -128,6 +151,7 @@ namespace AccessibleArena.Core.Services
 
                 if (holderComponent == null)
                 {
+                    LastDeckListLookup = DeckListLookup.ComponentMissing;
                     return _cachedDeckListCards;
                 }
 
@@ -136,16 +160,21 @@ namespace AccessibleArena.Core.Services
                 var cardViewsProp = holderType.GetProperty("CardViews");
                 if (cardViewsProp == null)
                 {
+                    LastDeckListLookup = DeckListLookup.ComponentMissing;
                     return _cachedDeckListCards;
                 }
 
                 var cardViews = cardViewsProp.GetValue(holderComponent) as System.Collections.IEnumerable;
                 if (cardViews == null)
                 {
+                    LastDeckListLookup = DeckListLookup.ComponentMissing;
                     return _cachedDeckListCards;
                 }
 
                 ExtractCardViewsInto(cardViews, _cachedDeckListCards);
+                LastDeckListLookup = _cachedDeckListCards.Count > 0
+                    ? DeckListLookup.HasCards
+                    : DeckListLookup.Empty;
             }
             catch (Exception ex)
             {

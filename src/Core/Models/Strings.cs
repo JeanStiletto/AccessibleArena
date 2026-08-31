@@ -1600,6 +1600,11 @@ namespace AccessibleArena.Core.Models
         /// </summary>
         public static string DeckBuilderCannotAddCopy => L.Get("DeckBuilderCannotAddCopy");
 
+        /// <summary>
+        /// Sole entry of the Deck List placeholder group shown while the deck is empty.
+        /// </summary>
+        public static string DeckListEmpty => L.Get("DeckListEmpty");
+
         // SIDEBOARD (Bo3)
         // ===========================================
         public static string Sideboard_Activated(string playerName, int playerWins, string opponentName, int opponentWins, int poolCount, int deckCount) =>

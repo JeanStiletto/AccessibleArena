@@ -631,6 +631,7 @@
   "GroupCollection": "Colección",
   "GroupDeckList": "Lista del mazo",
   "DeckBuilderCannotAddCopy": "No se puede añadir otra copia",
+  "DeckListEmpty": "Este mazo aún no tiene cartas. Selecciona una carta en la colección y pulsa Intro para añadirla.",
   "DeckBuilderSideboardCount_One": "Sideboard, 1 carta",
   "DeckBuilderSideboardCount_Format": "Sideboard, {0} cartas",
   "GroupSideboard": "Sideboard",

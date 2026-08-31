@@ -24,6 +24,10 @@ namespace AccessibleArena.Core.Services
         // ReadOnly deck builder mode (starter/precon decks)
         private bool _isDeckBuilderReadOnly;
 
+        // Set by FindDeckListCards when the main-deck holder was found and genuinely
+        // holds zero tiles; drives the empty Deck List placeholder group (#120)
+        private bool _deckListConfirmedEmpty;
+
         // Rename edit mode tracking: set when user activates the Rename action
         private bool _isInRenameMode;
 
@@ -863,6 +867,8 @@ namespace AccessibleArena.Core.Services
 
         private void FindDeckListCards(HashSet<GameObject> addedObjects)
         {
+            _deckListConfirmedEmpty = false;
+
             // Only active in deck builder
             if (_activeContentController != T.WrapperDeckBuilder)
                 return;
@@ -873,7 +879,26 @@ namespace AccessibleArena.Core.Services
             var deckCards = DeckCardProvider.GetDeckListCards();
             if (deckCards.Count == 0)
             {
-                Log.Nav(NavigatorId, $"No deck list cards found");
+                var lookup = DeckCardProvider.LastDeckListLookup;
+                switch (lookup)
+                {
+                    case DeckCardProvider.DeckListLookup.Empty:
+                        // Deck exists but has no cards - show it as empty instead of
+                        // letting the group vanish (read-only decks fall through to
+                        // FindReadOnlyDeckCards and clear this via _isDeckBuilderReadOnly)
+                        _deckListConfirmedEmpty = true;
+                        Log.Nav(NavigatorId, $"Deck list holder found but empty (0 tiles)");
+                        break;
+                    case DeckCardProvider.DeckListLookup.Sideboarding:
+                        Log.Nav(NavigatorId, $"Deck list hidden (sideboard blade active)");
+                        break;
+                    default:
+                        // HolderNotFound/ComponentMissing may still be a legitimate
+                        // read-only deck (column view without a main-deck holder);
+                        // FindReadOnlyDeckCards escalates to a warning if that also fails
+                        Log.Nav(NavigatorId, $"No deck list cards found (lookup: {lookup})");
+                        break;
+                }
                 return;
             }
 
@@ -1016,7 +1041,16 @@ namespace AccessibleArena.Core.Services
             var readOnlyCards = DeckCardProvider.GetReadOnlyDeckCards();
             if (readOnlyCards.Count == 0)
             {
-                Log.Nav(NavigatorId, $"No read-only deck cards found");
+                // Neither an editable deck list nor read-only columns. Harmless for an
+                // empty editable deck (the placeholder group covers it), but a failed
+                // holder lookup on top of this means the game renamed or reworked the
+                // deck list - keep that loud so it never reads as an empty deck (#120)
+                var lookup = DeckCardProvider.LastDeckListLookup;
+                if (lookup == DeckCardProvider.DeckListLookup.HolderNotFound
+                    || lookup == DeckCardProvider.DeckListLookup.ComponentMissing)
+                    Log.Warn(NavigatorId, $"Deck list unavailable: {lookup} and no read-only columns - possible game rename");
+                else
+                    Log.Nav(NavigatorId, $"No read-only deck cards found");
                 return;
             }
 
@@ -1080,6 +1114,37 @@ namespace AccessibleArena.Core.Services
                 ElementGroup.DeckBuilderInfo,
                 virtualElements,
                 insertAfter: ElementGroup.DeckBuilderDeckList
+            );
+        }
+
+        /// <summary>
+        /// Keeps the Deck List group present while the deck has no cards. Empty groups
+        /// are dropped during organization, which made a freshly created deck feel
+        /// broken - its most important group silently vanished (#120). Injects a single
+        /// virtual element that announces the deck is empty; Enter re-announces it.
+        /// Only fires when the main-deck holder was found and genuinely empty, so a
+        /// failed holder lookup keeps surfacing as a warning instead of a fake empty deck.
+        /// </summary>
+        private void InjectEmptyDeckListPlaceholder()
+        {
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return;
+
+            if (!_deckListConfirmedEmpty || _isDeckBuilderReadOnly)
+                return;
+
+            _groupedNavigator.AddVirtualGroup(
+                ElementGroup.DeckBuilderDeckList,
+                new List<GroupedElement>
+                {
+                    new GroupedElement
+                    {
+                        GameObject = null,
+                        Label = Strings.DeckListEmpty,
+                        Group = ElementGroup.DeckBuilderDeckList
+                    }
+                },
+                insertAfter: ElementGroup.DeckBuilderCollection
             );
         }
 

@@ -631,6 +631,7 @@
   "GroupCollection": "コレクション",
   "GroupDeckList": "デッキリスト",
   "DeckBuilderCannotAddCopy": "これ以上追加できません",
+  "DeckListEmpty": "このデッキにはまだカードがありません。コレクションでカードを選択し、Enterキーを押して追加してください。",
   "DeckBuilderSideboardCount_One": "サイドボード、1枚",
   "DeckBuilderSideboardCount_Format": "サイドボード、{0}枚",
   "GroupSideboard": "サイドボード",

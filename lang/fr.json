@@ -631,6 +631,7 @@
   "GroupCollection": "Collection",
   "GroupDeckList": "Liste du deck",
   "DeckBuilderCannotAddCopy": "Impossible d'ajouter un autre exemplaire",
+  "DeckListEmpty": "Ce deck ne contient pas encore de cartes. Sélectionnez une carte dans la collection et appuyez sur Entrée pour l'ajouter.",
   "DeckBuilderSideboardCount_One": "Réserve, 1 carte",
   "DeckBuilderSideboardCount_Format": "Réserve, {0} cartes",
   "GroupSideboard": "Réserve",

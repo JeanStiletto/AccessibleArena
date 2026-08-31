@@ -256,6 +256,7 @@ For testing the betas, feedback and ideas I want to thank:
 - [patricus3](https://github.com/patricus3)
 - [LordLuceus](https://github.com/LordLuceus)
 - [lilmike](https://github.com/lilmike)
+- [Daggershade](https://github.com/Daggershade)
 
 For sighted testing to understand visual workflows and confirming some things I want to thank:
 - [mauriceKA](https://github.com/mauriceKA)

@@ -733,6 +733,8 @@ namespace AccessibleArena.Core.Services
             // Inject virtual groups/elements based on context
             if (_activeContentController == T.WrapperDeckBuilder)
             {
+                // Placeholder first so InjectDeckInfoGroup's insertAfter(DeckList) lands behind it
+                InjectEmptyDeckListPlaceholder();
                 InjectDeckInfoGroup();
             }
             else if (IsEventPageController(_activeContentController))
@@ -1780,6 +1782,8 @@ namespace AccessibleArena.Core.Services
             // Inject virtual groups/elements based on context
             if (_activeContentController == T.WrapperDeckBuilder)
             {
+                // Placeholder first so InjectDeckInfoGroup's insertAfter(DeckList) lands behind it
+                InjectEmptyDeckListPlaceholder();
                 InjectDeckInfoGroup();
             }
             else if (IsEventPageController(_activeContentController))

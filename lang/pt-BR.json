@@ -631,6 +631,7 @@
   "GroupCollection": "Coleção",
   "GroupDeckList": "Lista do deck",
   "DeckBuilderCannotAddCopy": "Não é possível adicionar outra cópia",
+  "DeckListEmpty": "Este deck ainda não tem cards. Selecione um card na coleção e pressione Enter para adicioná-lo.",
   "DeckBuilderSideboardCount_One": "Sideboard, 1 carta",
   "DeckBuilderSideboardCount_Format": "Sideboard, {0} cartas",
   "GroupSideboard": "Sideboard",

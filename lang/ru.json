@@ -631,6 +631,7 @@
   "GroupCollection": "Коллекция",
   "GroupDeckList": "Список колоды",
   "DeckBuilderCannotAddCopy": "Нельзя добавить ещё одну копию",
+  "DeckListEmpty": "В этой колоде пока нет карт. Выберите карту в коллекции и нажмите Enter, чтобы добавить её.",
   "DeckBuilderSideboardCount_One": "Сайдборд, 1 карта",
   "DeckBuilderSideboardCount_Format": "Сайдборд, {0} карт",
   "GroupSideboard": "Сайдборд",
