@@ -616,7 +616,9 @@ namespace AccessibleArena.Core.Services
             // Handle Declare Blockers phase
             if (_duelAnnouncer.IsInDeclareBlockersPhase)
             {
-                if (KeyInput.GetKeyDown(KeyCode.Backspace) || KeyInput.GetKeyDown(KeyCode.Space))
+                bool backspaceDown = KeyInput.GetKeyDown(KeyCode.Backspace);
+                bool spaceDown = KeyInput.GetKeyDown(KeyCode.Space);
+                if (backspaceDown || spaceDown)
                 {
                     if (!HasPrimaryButtonText())
                     {
@@ -624,8 +626,14 @@ namespace AccessibleArena.Core.Services
                         return true;
                     }
 
-                    if (KeyInput.GetKeyDown(KeyCode.Backspace))
+                    if (backspaceDown)
                         return TryClickSecondaryButton();
+
+                    bool spaceBlocked = PhaseSkipGuard.ShouldBlock();
+                    if (!ConfirmationInputPolicy.ShouldActivateCombatPrimary(
+                        backspaceDown, spaceDown, spaceBlocked))
+                        return true;
+
                     return TryClickPrimaryButton();
                 }
             }
