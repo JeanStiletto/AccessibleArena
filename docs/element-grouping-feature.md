@@ -68,7 +68,7 @@ Break long menu lists into smaller, contextual groups for better blind user navi
    - Toggle activated through normal element path (triggers rescan)
    - Pending folder entry set
    - After rescan: auto-enters folder with discovered decks
-   - "1 of 10. Deck Name, deck."
+   - "1 of 10. Deck Name." (no type suffix inside deck folders - every entry is a deck; in mixed contexts like the challenge screen or Recent tab, deck labels carry a localized "deck" suffix)
 4. Navigate within folder: Left/Right arrows
 5. Press Backspace:
    - Folder toggle deactivated

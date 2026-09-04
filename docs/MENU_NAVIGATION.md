@@ -479,7 +479,14 @@ Deck names are stored in `TMP_InputField.text` but the visual placeholder shows
 1. Walks up hierarchy to find `DeckView_Base` or `Blade_ListItem`
 2. Gets `TMP_InputField` children
 3. Reads `.text` property (not placeholder)
-4. Returns actual deck name with ", deck" suffix
+4. Returns the deck name. Inside a deck folder (`DeckFolder_Base` ancestor) the
+   name is returned bare - every entry there is a deck. In mixed contexts
+   (challenge screen's selected deck, Recent tab) a localized "deck" suffix
+   (`DeckTileSuffix`) is appended so the button type is clear.
+
+Deck detection in code is purely structural (`DeckView_Base` parent walk) - the
+label suffix is spoken text only and must never be used as a marker (it is
+localized and folder-dependent).
 
 ---
 

@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "마나 커브",
   "DeckInfoTypeBreakdown": "유형",
   "DeckSelected": "선택됨",
+  "DeckFavorite": "즐겨찾기",
+  "DeckTileSuffix": "덱",
   "DeckStatus_Unavailable": "사용 불가",
   "DeckStatus_Invalid": "유효하지 않은 덱",
   "DeckStatus_InvalidCards_Format": "유효하지 않은 카드 {0}장",

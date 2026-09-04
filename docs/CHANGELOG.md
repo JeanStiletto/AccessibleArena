@@ -2,6 +2,14 @@
 
 All notable changes to Accessible Arena.
 
+## v1.6.2
+
+Deck tiles in the Decks screen and deck-selection blades now speak the identity information sighted players get at a glance: the deck's colors and its favorite star. At the same time the redundant "deck" suffix inside deck folders is gone, and where it remains it is finally localized.
+
+- Deck entries inside deck folders no longer say the word "deck" after every name. In a folder everything is a deck, so the suffix was noise on each of up to a hundred entries. It is still spoken - now localized for all 12 languages instead of hardcoded English - in mixed contexts where the type actually disambiguates: the challenge screen's selected-deck button and the Recent tab's tiles. Internally the suffix doubled as the marker by which the mod recognized deck buttons; detection is now structural (the tile's own UI hierarchy), so renaming a deck to something containing ", deck" can no longer confuse navigation either.
+
+- Deck tiles now announce the deck's colors and favorite state. Sighted players see mana symbols and a favorite star on every deck box in the Decks screen and deck-selection blades; the tile announcement now carries the same information ("Angels, deck, White Blue, favorite, selected, ..."). Colors are read from the game's own tile model in the game's WUBRG display order and use the existing localized color names; "favorite" is translated for all 12 locales. Favorited decks sort to the top of every deck list, so hearing the star also explains the ordering.
+
 ## v1.6.1
 
 Wine/Proton compatibility. On Linux and Steam Deck installs the mod loaded and spoke normally, but its entire key-blocking layer was silently inactive — so keys the mod owns also reached the game's own duel handlers.

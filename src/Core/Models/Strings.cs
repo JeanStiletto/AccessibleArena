@@ -621,6 +621,10 @@ namespace AccessibleArena.Core.Models
 
         // Deck status (displayed on deck tiles)
         public static string DeckSelected => L.Get("DeckSelected");
+        public static string DeckFavorite => L.Get("DeckFavorite");
+        // Type suffix spoken after a deck name in mixed contexts (challenge screen,
+        // Recent tab). Not spoken inside deck folders, where every entry is a deck.
+        public static string DeckTileSuffix => L.Get("DeckTileSuffix");
         public static string DeckStatusUnavailable => L.Get("DeckStatus_Unavailable");
         public static string DeckStatusInvalid => L.Get("DeckStatus_Invalid");
         public static string DeckStatusInvalidCards(int count) => L.Format("DeckStatus_InvalidCards_Format", count);

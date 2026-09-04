@@ -744,7 +744,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 }
 
                 // Check if this is a deck element
-                if (ElementGroupAssigner.IsDeckElement(obj, label))
+                if (ElementGroupAssigner.IsDeckElement(obj))
                 {
                     string folderName = ElementGroupAssigner.GetFolderNameForDeck(obj);
                     if (!string.IsNullOrEmpty(folderName))

@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "Courbe de mana",
   "DeckInfoTypeBreakdown": "Types",
   "DeckSelected": "sélectionné",
+  "DeckFavorite": "favori",
+  "DeckTileSuffix": "deck",
   "DeckStatus_Unavailable": "indisponible",
   "DeckStatus_Invalid": "deck invalide",
   "DeckStatus_InvalidCards_Format": "{0} cartes invalides",

@@ -775,15 +775,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
-        /// Check if an element is a deck entry (has ", deck" in its label or is a DeckView).
+        /// Check if an element is a deck entry (sits under a DeckView_Base parent).
+        /// Purely structural - deck labels no longer carry a ", deck" marker
+        /// (the spoken suffix is localized and folder-dependent, so it cannot be
+        /// used for detection).
         /// </summary>
-        public static bool IsDeckElement(GameObject element, string label)
+        public static bool IsDeckElement(GameObject element)
         {
             if (element == null) return false;
-
-            // Check label pattern
-            if (!string.IsNullOrEmpty(label) && label.Contains(", deck"))
-                return true;
 
             // Check parent hierarchy for DeckView
             Transform current = element.transform;

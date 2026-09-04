@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "マナカーブ",
   "DeckInfoTypeBreakdown": "タイプ",
   "DeckSelected": "選択中",
+  "DeckFavorite": "お気に入り",
+  "DeckTileSuffix": "デッキ",
   "DeckStatus_Unavailable": "使用不可",
   "DeckStatus_Invalid": "無効なデッキ",
   "DeckStatus_InvalidCards_Format": "{0}枚の無効なカード",

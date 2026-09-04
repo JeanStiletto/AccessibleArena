@@ -382,6 +382,76 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Returns the deck's mana colors as localized names in WUBRG order
+        /// (e.g. "White Blue"), matching the mana symbols shown on the deck tile.
+        /// Read from DeckView._deckViewInfo.manaColors. Null when unavailable or colorless.
+        /// </summary>
+        public static string GetDeckColorsText(GameObject deckElement)
+        {
+            var deckViewInfo = GetDeckViewInfo(deckElement);
+            if (deckViewInfo == null) return null;
+
+            var manaColorsField = deckViewInfo.GetType().GetField("manaColors", PublicInstance);
+            if (manaColorsField?.GetValue(deckViewInfo) is not System.Collections.IEnumerable manaColors)
+                return null;
+
+            // ManaColor enum: 1=White, 2=Blue, 3=Black, 4=Red, 5=Green. The game sorts
+            // ascending by enum value (WUBRG) when placing symbols on the tile.
+            var values = new System.Collections.Generic.List<int>();
+            foreach (var color in manaColors)
+            {
+                try { values.Add(System.Convert.ToInt32(color)); }
+                catch { /* Unexpected enum backing type */ }
+            }
+            values.Sort();
+
+            var names = new System.Collections.Generic.List<string>();
+            foreach (int value in values)
+            {
+                switch (value)
+                {
+                    case 1: names.Add(Models.Strings.ManaWhite); break;
+                    case 2: names.Add(Models.Strings.ManaBlue); break;
+                    case 3: names.Add(Models.Strings.ManaBlack); break;
+                    case 4: names.Add(Models.Strings.ManaRed); break;
+                    case 5: names.Add(Models.Strings.ManaGreen); break;
+                }
+            }
+
+            return names.Count > 0 ? string.Join(" ", names) : null;
+        }
+
+        /// <summary>
+        /// Returns true when the deck is marked as favorite (star shown on the tile).
+        /// Read from DeckView._deckViewInfo.isFavorite.
+        /// </summary>
+        public static bool IsDeckFavorite(GameObject deckElement)
+        {
+            var deckViewInfo = GetDeckViewInfo(deckElement);
+            if (deckViewInfo == null) return false;
+
+            var field = deckViewInfo.GetType().GetField("isFavorite", PublicInstance);
+            if (field == null) return false;
+            try { return field.GetValue(deckViewInfo) is true; }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Reads the DeckViewInfo model behind a deck tile element
+        /// (DeckView._deckViewInfo on the DeckView_Base parent).
+        /// </summary>
+        private static object GetDeckViewInfo(GameObject deckElement)
+        {
+            if (deckElement == null) return null;
+
+            var deckView = FindDeckViewInParents(deckElement);
+            if (deckView == null) return null;
+
+            var field = deckView.GetType().GetField("_deckViewInfo", PrivateInstance);
+            return field?.GetValue(deckView);
+        }
+
+        /// <summary>
         /// Returns the detailed tooltip text for an invalid deck.
         /// Returns null for valid decks or when no detail is available.
         /// </summary>

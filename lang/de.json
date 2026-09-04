@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "Manakurve",
   "DeckInfoTypeBreakdown": "Typen",
   "DeckSelected": "ausgewählt",
+  "DeckFavorite": "Favorit",
+  "DeckTileSuffix": "Deck",
   "DeckStatus_Unavailable": "nicht verfügbar",
   "DeckStatus_Invalid": "ungültiges Deck",
   "DeckStatus_InvalidCards_Format": "{0} ungültige Karten",

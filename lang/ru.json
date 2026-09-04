@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "Кривая маны",
   "DeckInfoTypeBreakdown": "Типы",
   "DeckSelected": "выбрана",
+  "DeckFavorite": "избранная",
+  "DeckTileSuffix": "колода",
   "DeckStatus_Unavailable": "недоступна",
   "DeckStatus_Invalid": "недопустимая колода",
   "DeckStatus_InvalidCards_Format": "{0} недопустимых карт",

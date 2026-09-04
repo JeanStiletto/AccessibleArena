@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "法术力曲线",
   "DeckInfoTypeBreakdown": "类型",
   "DeckSelected": "已选择",
+  "DeckFavorite": "收藏",
+  "DeckTileSuffix": "套牌",
   "DeckStatus_Unavailable": "不可用",
   "DeckStatus_Invalid": "无效套牌",
   "DeckStatus_InvalidCards_Format": "{0} 张无效卡牌",

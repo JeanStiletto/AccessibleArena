@@ -194,7 +194,14 @@ namespace AccessibleArena.Core.Services
                             deckText = deckText.Replace("\u200B", "").Trim();
                             if (!string.IsNullOrWhiteSpace(deckText) && deckText.Length > 1)
                             {
-                                return $"{deckText}, deck";
+                                // Inside a deck folder (Decks screen, play blade) every entry
+                                // is a deck, so a type suffix is noise. In mixed contexts
+                                // (challenge screen's selected deck, Recent tab tiles) it tells
+                                // the user what kind of button this is. Deck detection itself
+                                // is structural (DeckView_Base parent), never label-based.
+                                return HasDeckFolderAncestor(current)
+                                    ? deckText
+                                    : $"{deckText}, {Models.Strings.DeckTileSuffix}";
                             }
                         }
                     }
@@ -208,6 +215,23 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns true when the element sits inside a deck folder (DeckFolder_Base),
+        /// i.e. the Decks screen's My Decks/precon folders or the play blade's deck
+        /// folders - contexts where every entry is a deck.
+        /// </summary>
+        private static bool HasDeckFolderAncestor(Transform element)
+        {
+            Transform current = element;
+            while (current != null)
+            {
+                if (current.name.Contains("DeckFolder_Base"))
+                    return true;
+                current = current.parent;
+            }
+            return false;
         }
 
         /// <summary>

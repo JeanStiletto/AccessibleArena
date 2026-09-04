@@ -2216,7 +2216,8 @@ namespace AccessibleArena.Core.Services
 
             // Process deck entries: pair main buttons with their TextBox edit buttons
             // Each deck entry has UI (CustomButton for selection) and TextBox (for editing name)
-            // Multiple elements per deck may have ", deck" label - we only keep the "UI" one
+            // Detection is structural: the element named "UI" under a DeckView_Base parent
+            // is the deck's main button (labels no longer carry a ", deck" marker)
             var deckPairs = new Dictionary<Transform, (GameObject mainButton, GameObject editButton)>();
             var allDeckElements = new HashSet<GameObject>(); // Track ALL elements inside deck entries
 
@@ -2238,7 +2239,7 @@ namespace AccessibleArena.Core.Services
 
                 // UI element (CustomButton) is the main selection button - this is what we keep
                 // TextBox element is for editing the deck name (has TMP_InputField)
-                if (obj.name == "UI" && classification.Label.Contains(", deck"))
+                if (obj.name == "UI")
                 {
                     deckPairs[deckViewParent] = (obj, pair.editButton);
                 }
@@ -2389,6 +2390,19 @@ namespace AccessibleArena.Core.Services
                 List<AttachedAction> attachedActions = null;
                 if (deckMainButtons.Contains(obj))
                 {
+                    // Deck colors as shown by the tile's mana symbols (e.g. "White Blue")
+                    string deckColors = CardTileActivator.GetDeckColorsText(obj);
+                    if (!string.IsNullOrEmpty(deckColors))
+                    {
+                        announcement += $", {deckColors}";
+                    }
+
+                    // Favorite star on the tile
+                    if (CardTileActivator.IsDeckFavorite(obj))
+                    {
+                        announcement += $", {Models.Strings.DeckFavorite}";
+                    }
+
                     // Check if deck is selected and add to announcement
                     if (CardTileActivator.IsDeckSelected(obj))
                     {

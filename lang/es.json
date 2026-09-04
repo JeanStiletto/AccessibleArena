@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "Curva de maná",
   "DeckInfoTypeBreakdown": "Tipos",
   "DeckSelected": "seleccionado",
+  "DeckFavorite": "favorito",
+  "DeckTileSuffix": "mazo",
   "DeckStatus_Unavailable": "no disponible",
   "DeckStatus_Invalid": "mazo inválido",
   "DeckStatus_InvalidCards_Format": "{0} cartas inválidas",

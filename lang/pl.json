@@ -39,6 +39,8 @@
   "DeckInfoManaCurve": "Krzywa many",
   "DeckInfoTypeBreakdown": "Typy",
   "DeckSelected": "wybrana",
+  "DeckFavorite": "ulubiona",
+  "DeckTileSuffix": "talia",
   "DeckStatus_Unavailable": "niedostępna",
   "DeckStatus_Invalid": "nieprawidłowa talia",
   "DeckStatus_InvalidCards_Format": "{0} nieprawidłowych kart",
