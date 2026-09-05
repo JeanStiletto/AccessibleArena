@@ -62,6 +62,9 @@ namespace AccessibleArena.Tests
         private static readonly HashSet<string> KnownIndirectKeys = new HashSet<string>(StringComparer.Ordinal)
         {
             "NumberWords",             // LocaleManager.NumberWordsToInt — bare Get() from inside LocaleManager itself
+            "BrowserHint",             // BrowserNavigator.GetBrowserHintKey returns it as a bare string
+                                       // (fallback hint for simple button browsers); the "BrowserHint_"
+                                       // prefix rule does not cover the suffix-less key
             "NPERewardCardHint",       // NPERewardNavigator — ternary with NPERewardDeckHint
             "NPERewardDeckHint",       // NPERewardNavigator — ternary with NPERewardCardHint
             "Dungeon_Format",          // DuelAnnouncer/PortraitNavigator dynamic lookup

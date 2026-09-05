@@ -605,6 +605,8 @@
   "PackDetailsDumped": "Pack details dumped to log.",
   "WaitingForPlayable": "Waiting for playable cards...",
   "NoSearchResults": "No search results",
+  "SearchInvalid": "Invalid search, results not updated.",
+  "BrowserHint": "Tab to navigate. Enter or Space to select",
   "BrowserHint_Scry": "C for top, D for bottom. Left Right to navigate. Enter to move card. Space to confirm",
   "BrowserHint_Surveil": "C for library, D for graveyard. Left Right to navigate. Enter to move card. Space to confirm",
   "BrowserHint_ReadAhead": "C for top, D for bottom. Left Right to navigate. Enter to move card. Space to confirm",

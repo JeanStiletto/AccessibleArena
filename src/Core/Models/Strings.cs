@@ -1475,6 +1475,7 @@ namespace AccessibleArena.Core.Models
         public static string PackDetailsDumped => L.Get("PackDetailsDumped");
         public static string WaitingForPlayable => L.Get("WaitingForPlayable");
         public static string NoSearchResults => L.Get("NoSearchResults");
+        public static string SearchInvalid => L.Get("SearchInvalid");
         public static string EnterToSelect => L.Get("EnterToSelect");
         public static string LetterSearchNoMatch(string prefix) => L.Format("LetterSearch_NoMatch_Format", prefix);
 

@@ -34,6 +34,18 @@ Deck builder and Decks screen upgrades: the Deck Info group now speaks everythin
 
 - All of this is computed live from the game's deck model — the identical list the game feeds its own stats widgets — instead of scraping the popup's text fields. The old scrape only refreshed when the popup was (re)opened, which is why subtype and type-split details were usually stale or missing entirely. The same rows appear as text blocks when the deck details popup itself is open.
 
+**Search field:**
+
+**Duel:**
+
+- Ctrl+F1 in simple button browsers (yes/no prompts, dungeon rooms, optional actions, large scroll lists) speaks its hint again instead of the literal word "BrowserHint". The locale key had been removed as dead by an April audit — its only reference is built dynamically, which the audit's text scan cannot see — and a missing key falls back to speaking the key name. Restored in all 12 locales (reusing the established "Tab to navigate. Enter or Space to select" wording) and allow-listed in the audit so it cannot be removed again.
+
+**Search field:**
+
+- An invalid advanced-search query is announced instead of failing silently. The game validates the query when the search field is left (its CardMatcher grammar: `t:creature cmc>3 o:"draw a card"` and so on) — on a parse failure it only turns the field text red and quietly keeps the previous results, so a blind player heard nothing at all: no result change, no error, no hint the filter was never applied. The mod now reads that red validation state after leaving the field and says "Invalid search, results not updated." (translated for all 12 locales), also when tabbing straight into the collection, where it is prefixed to the position announcement. The "No search results" announcement is now localized too instead of hardcoded English.
+
+- A search that matches nothing is announced on every exit path. Most nonsense input is not an invalid query — a bare word is a valid name search that simply filters the pool to zero. Leaving the field with Tab or Enter announced only the landing position, and with zero cards the Collection group ceases to exist, so there was no position and therefore total silence; "No search results" was only ever spoken when leaving with Escape, and only when the count actually changed. The search outcome (invalid query, no results, or the new result count) is now spoken on the Tab/Enter path too, in front of the landing position, and an already-empty pool that stays empty after refining the query repeats "No search results" instead of saying nothing.
+
 **Decks screen:**
 
 Deck tiles in the Decks screen and deck-selection blades now speak the identity information sighted players get at a glance: the deck's colors and its favorite star. At the same time the redundant "deck" suffix inside deck folders is gone, and where it remains it is finally localized.

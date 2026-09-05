@@ -776,6 +776,10 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
+            // The game rejected the query (red field text) and silently kept the old
+            // results - without this the rescan sees an unchanged count and says nothing.
+            bool searchRejected = WasSearchQueryRejected();
+
             // After rescan, announce the results
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
@@ -783,36 +787,60 @@ namespace AccessibleArena.Core.Services
                                + _groupedNavigator.GetGroupElementCount(ElementGrouping.ElementGroup.DeckBuilderSideboard);
                 Log.Msg("{NavigatorId}", $"Search rescan pool: {oldPoolCount} -> {newPoolCount} cards");
 
+                // Search status, independent of the exit key: rejected query (red field
+                // text, results silently kept), an emptied pool, or a changed count.
+                // Announced on BOTH exit paths - the Tab path used to speak only the
+                // landing position, which is empty when the pool has no cards (the
+                // Collection group ceases to exist), so zero results were silent.
+                string searchStatus = null;
+                if (searchRejected)
+                {
+                    searchStatus = Models.Strings.SearchInvalid;
+                }
+                else if (newPoolCount == 0 && (oldPoolCount > 0 || ExitedDeckBuilderSearchField))
+                {
+                    // The pool-was-already-empty case (0 -> 0, e.g. refining a query that
+                    // still matches nothing) is only meaningful for the deck builder's own
+                    // search field; on other grouped screens these counts are always 0.
+                    searchStatus = Models.Strings.NoSearchResults;
+                }
+                else if (newPoolCount != oldPoolCount)
+                {
+                    searchStatus = Models.Strings.SearchResults(newPoolCount);
+                }
+
                 // If we suppressed the navigation announcement, now announce current position
                 if (needsPositionAnnouncement)
                 {
                     // Announce the current element in the group we navigated to
                     string currentAnnouncement = _groupedNavigator.GetCurrentAnnouncement();
+                    if (searchStatus != null)
+                    {
+                        currentAnnouncement = string.IsNullOrEmpty(currentAnnouncement)
+                            ? searchStatus
+                            : searchStatus + " " + currentAnnouncement;
+                    }
                     if (!string.IsNullOrEmpty(currentAnnouncement))
                     {
                         _announcer.AnnounceInterrupt(currentAnnouncement);
                     }
                 }
-                else if (newPoolCount != oldPoolCount)
+                else if (searchStatus != null)
                 {
-                    // Normal case (Escape from search) - just announce count change
-                    if (newPoolCount == 0)
-                    {
-                        _announcer.AnnounceInterrupt("No search results");
-                    }
-                    else
-                    {
-                        _announcer.AnnounceInterrupt(Models.Strings.SearchResults(newPoolCount));
-                    }
+                    _announcer.AnnounceInterrupt(searchStatus);
                 }
             }
             else
             {
                 // Fallback for non-grouped contexts: use total element count
                 Log.Msg("{NavigatorId}", $"Search rescan (non-grouped): {_elements.Count} elements");
-                if (_elements.Count == 0)
+                if (searchRejected)
                 {
-                    _announcer.AnnounceInterrupt("No search results");
+                    _announcer.AnnounceInterrupt(Models.Strings.SearchInvalid);
+                }
+                else if (_elements.Count == 0)
+                {
+                    _announcer.AnnounceInterrupt(Models.Strings.NoSearchResults);
                 }
             }
         }

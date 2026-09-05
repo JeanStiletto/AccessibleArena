@@ -20,6 +20,13 @@ namespace AccessibleArena.Core.Services
         // Counter for pending search rescan (decrements each frame, rescans when reaches 0)
         private int _pendingSearchRescanFrames = 0;
 
+        // Deck builder search input whose edit mode was just exited. The game's
+        // SearchAndFilterBar validates the query on onEndEdit (which our field
+        // deactivation fires): an invalid query turns the field text red and is
+        // silently NOT applied. The delayed rescan reads this to announce that
+        // instead of staying quiet.
+        private TMP_InputField _exitedDeckBuilderSearchInput;
+
         /// <summary>
         /// Track current input field state for next frame's Backspace detection.
         /// Called each frame to maintain previous state.
@@ -49,6 +56,17 @@ namespace AccessibleArena.Core.Services
             bool wasSearchField = _inputFieldHelper.EditingField != null &&
                 _inputFieldHelper.EditingField.name.IndexOf("Search", StringComparison.OrdinalIgnoreCase) >= 0;
 
+            // Only the deck builder's DeckbuilderSearchInput (a TMP_InputField subclass)
+            // gets the red invalid-query treatment; remember it before ExitEditMode clears
+            // the editing-field reference.
+            _exitedDeckBuilderSearchInput = null;
+            if (wasSearchField)
+            {
+                var input = _inputFieldHelper.EditingField.GetComponent<TMP_InputField>();
+                if (input != null && input.GetType().Name == "DeckbuilderSearchInput")
+                    _exitedDeckBuilderSearchInput = input;
+            }
+
             _inputFieldHelper.ExitEditMode();
 
             // If this was a search field, schedule delayed rescan
@@ -66,6 +84,29 @@ namespace AccessibleArena.Core.Services
             }
 
             return wasSearchField;
+        }
+
+        /// <summary>
+        /// True when the search field we just exited was the deck builder's pool
+        /// search (DeckbuilderSearchInput) - as opposed to some other screen's
+        /// search box that merely has "Search" in its name.
+        /// </summary>
+        protected bool ExitedDeckBuilderSearchField => _exitedDeckBuilderSearchInput != null;
+
+        /// <summary>
+        /// True when the deck builder search field we just exited shows the game's
+        /// invalid-query state. SearchAndFilterBar.ValidateSearchText colors the field
+        /// text pure red on a CardMatcher parse failure (pure white when valid) and
+        /// silently keeps the previous results, so red text at rescan time means the
+        /// query was rejected and the card pool did not change.
+        /// </summary>
+        protected bool WasSearchQueryRejected()
+        {
+            var input = _exitedDeckBuilderSearchInput;
+            if (input == null || input.textComponent == null)
+                return false;
+            var c = input.textComponent.color;
+            return c.r > 0.9f && c.g < 0.1f && c.b < 0.1f;
         }
 
         /// <summary>
