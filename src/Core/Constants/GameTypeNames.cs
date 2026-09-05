@@ -78,8 +78,6 @@ namespace AccessibleArena.Core.Constants
         public const string SocialUI = "SocialUI";
         public const string NavBarController = "NavBarController";
         public const string DeckMainTitlePanel = "DeckMainTitlePanel";
-        public const string DeckCostsDetails = "DeckCostsDetails";
-        public const string DeckTypesDetails = "DeckTypesDetails";
 
         // --- Sideboard Types ---
         public const string SideboardInterface = "SideboardInterface";

@@ -134,6 +134,25 @@ Below is every key in `en.json` with context about where it appears and what the
 | `DeckInfoCardCount` | "Card Count" | Deck statistics section label |
 | `DeckInfoManaCurve` | "Mana Curve" | Deck statistics section label |
 | `DeckInfoTypeBreakdown` | "Types" | Deck statistics section label |
+| `DeckInfoColors` | "Colors" | Deck statistics color-distribution row label |
+| `DeckInfoCurveOneOrLess` | "1 or less" | Mana curve bucket label |
+| `DeckInfoCurveSixOrMore` | "6 or more" | Mana curve bucket label |
+| `DeckInfoAverage` | "Average" | Mana curve average label |
+| `DeckInfoBasicLands_One` | "{0} basic land" | Basic-land count on the Lands entry (singular) |
+| `DeckInfoBasicLands_Few` | "{0} basic lands" | Basic-land count (Slavic few form) |
+| `DeckInfoBasicLands_Format` | "{0} basic lands" | Basic-land count (plural) |
+| `DeckLegalityLegal_Format` | "Deck is legal in {0}." | Deck Info status row; {0} = format name |
+| `DeckLegalityIllegal_Format` | "Not legal in {0}: {1}" | Status row; {1} = game's localized reasons |
+| `DeckLegalityNowLegal` | "Deck is now legal." | Announced when an edit fixes the deck |
+| `DeckLegalityNowIllegal_Format` | "Deck no longer legal: {0}" | Announced when an edit breaks legality |
+| `CardLegalityBanned` | "banned" | Deck-list tile suffix |
+| `CardLegalityNotInFormat` | "not legal in format" | Deck-list tile suffix |
+| `CardLegalityRestricted_Format` | "restricted, maximum {0}" | Deck-list tile suffix; {0} = copy cap |
+| `CardLegalityCommanderColor` | "not in commander color identity" | Deck-list tile suffix (Brawl) |
+| `SuggestLandsAdded_Format` | "Added: {0}." | Land-suggester diff; {0} = "9 Mountain, 8 Forest" |
+| `SuggestLandsRemoved_Format` | "Removed: {0}." | Land-suggester diff |
+| `SuggestLandsNoChange` | "Lands unchanged." | Suggest Lands pressed, nothing changed |
+| `SuggestLandsAutoOff` | "Suggest lands switched itself off: basic lands were changed manually." | Game auto-disabled the suggester |
 
 ### Login and Account Fields
 

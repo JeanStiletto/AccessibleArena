@@ -83,6 +83,9 @@ namespace AccessibleArena.Tests
             "WildcardInPacks_One",     // UITextExtractor wildcard-track countdown (via Plural)
             "WildcardInPacks_Few",
             "WildcardInPacks_Format",
+            "DeckInfoBasicLands_One",  // Strings.DeckInfoBasicLands (via Plural)
+            "DeckInfoBasicLands_Few",
+            "DeckInfoBasicLands_Format",
         };
 
         private static string FindRepoRoot()

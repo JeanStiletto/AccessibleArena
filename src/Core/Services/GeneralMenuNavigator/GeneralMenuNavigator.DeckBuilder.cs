@@ -24,6 +24,20 @@ namespace AccessibleArena.Core.Services
         // ReadOnly deck builder mode (starter/precon decks)
         private bool _isDeckBuilderReadOnly;
 
+        // Deck legality at the last check; null = no baseline yet. Set silently when
+        // entering the builder, compared after every add/remove so only TRANSITIONS
+        // are announced ("Deck is now legal" / "Deck no longer legal: <reasons>")
+        private bool? _deckWasLegal;
+
+        // Suggest-lands feedback state. The game's land suggester rewrites the mana base
+        // silently: when the toggle is turned on, and again after every deck edit while
+        // it stays on; it also switches ITSELF off the moment the user edits a basic land
+        // manually. Basic-land counts are snapshotted per rescan so the game-made changes
+        // can be spoken as a diff.
+        private Dictionary<string, uint> _lastBasicLandCounts;
+        private bool? _autoLandsWasOn;
+        private bool _autoLandsToggleJustPressed;
+
         // Set by FindDeckListCards when the main-deck holder was found and genuinely
         // holds zero tiles; drives the empty Deck List placeholder group (#120)
         private bool _deckListConfirmedEmpty;
@@ -904,6 +918,11 @@ namespace AccessibleArena.Core.Services
 
             Log.Nav(NavigatorId, $"Found {deckCards.Count} deck list card(s)");
 
+            // The game marks illegal deck cards only by a tint (identical to the unowned
+            // tint) — say WHY the card does not fit instead (banned, not format-legal,
+            // restricted, outside commander color identity)
+            var legalityChecker = DeckLegalityProvider.CreateCardChecker();
+
             int cardNum = 1;
             foreach (var deckCard in deckCards)
             {
@@ -926,6 +945,10 @@ namespace AccessibleArena.Core.Services
                 string style = DeckCosmeticsReader.GetTileStyleName(deckCard.ViewGameObject);
                 if (!string.IsNullOrEmpty(style))
                     label += $", {style}";
+
+                string legality = legalityChecker?.GetReason(deckCard.GrpId);
+                if (!string.IsNullOrEmpty(legality))
+                    label += $", {legality}";
 
                 Log.Nav(NavigatorId, $"Adding deck list card {cardNum}: {label}");
 
@@ -958,6 +981,9 @@ namespace AccessibleArena.Core.Services
 
             Log.Nav(NavigatorId, $"Found {sideboardCards.Count} sideboard card(s)");
 
+            // Same per-card legality reasons as the main deck list
+            var legalityChecker = DeckLegalityProvider.CreateCardChecker();
+
             int cardNum = 1;
             foreach (var sideCard in sideboardCards)
             {
@@ -976,6 +1002,10 @@ namespace AccessibleArena.Core.Services
                 string style = DeckCosmeticsReader.GetTileStyleName(sideCard.ViewGameObject);
                 if (!string.IsNullOrEmpty(style))
                     label += $", {style}";
+
+                string legality = legalityChecker?.GetReason(sideCard.GrpId);
+                if (!string.IsNullOrEmpty(legality))
+                    label += $", {legality}";
 
                 Log.Nav(NavigatorId, $"Adding sideboard card {cardNum}: {label}");
 
@@ -1105,7 +1135,9 @@ namespace AccessibleArena.Core.Services
                 virtualElements.Add(new GroupedElement
                 {
                     GameObject = null,
-                    Label = $"{label}: {text}",
+                    // An empty label marks a self-describing row (the card count already
+                    // says "Cards"/"Karten") — no prefix, it would just repeat the word
+                    Label = string.IsNullOrEmpty(label) ? text : $"{label}: {text}",
                     Group = ElementGroup.DeckBuilderInfo
                 });
             }
@@ -1160,7 +1192,8 @@ namespace AccessibleArena.Core.Services
             for (int i = 0; i < infoItems.Count; i++)
             {
                 var (label, text) = infoItems[i];
-                _groupedNavigator.UpdateElementLabel(ElementGroup.DeckBuilderInfo, i, $"{label}: {text}");
+                _groupedNavigator.UpdateElementLabel(ElementGroup.DeckBuilderInfo, i,
+                    string.IsNullOrEmpty(label) ? text : $"{label}: {text}");
             }
 
             Log.Nav(NavigatorId, $"Refreshed {infoItems.Count} deck info labels");
@@ -1243,8 +1276,10 @@ namespace AccessibleArena.Core.Services
             int entryIdx = Math.Min(_deckInfoEntryIndex, entries.Count - 1);
             string entryText = entries[entryIdx];
 
+            // Rows with an empty label are self-describing (card count row) and are
+            // announced without a prefix even when the row name is requested
             string announcement;
-            if (includeRowName)
+            if (includeRowName && !string.IsNullOrEmpty(label))
                 announcement = $"{label}. {entryText}";
             else
                 announcement = entryText;
@@ -1783,6 +1818,127 @@ namespace AccessibleArena.Core.Services
                 t = t.parent;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Announce a legality transition after a deck edit. Runs the game's own deck
+        /// validator (via DeckLegalityProvider); speaks only when the legal/illegal state
+        /// actually flipped, so building up a new deck stays quiet and the full status
+        /// remains available on demand in the Deck Info group. The first call after
+        /// entering the builder just records the baseline.
+        /// </summary>
+        private void AnnounceDeckLegalityTransition()
+        {
+            var status = DeckLegalityProvider.GetDeckStatus();
+            if (status == null) return;
+
+            bool? previous = _deckWasLegal;
+            _deckWasLegal = status.IsValid;
+            if (previous == null || previous == status.IsValid) return;
+
+            if (status.IsValid)
+                _announcer.Announce(Strings.DeckLegalityNowLegal, AnnouncementPriority.Normal);
+            else
+                _announcer.Announce(Strings.DeckLegalityNowIllegal(status.Reasons ?? string.Empty),
+                    AnnouncementPriority.Normal);
+        }
+
+        /// <summary>
+        /// Speak what the game's land suggester did, and when it turned itself off.
+        /// Runs on every deck-builder rescan:
+        /// - Toggle ON after the rescan: any basic-land difference since the last snapshot
+        ///   was made by the game (a manual basic edit would have switched the toggle off
+        ///   first), so it is announced as "Added: ... Removed: ... N basic lands." A
+        ///   toggle press that changed nothing says "Lands unchanged."
+        /// - Toggle flipped ON→OFF without the user pressing it: the game auto-disabled
+        ///   the suggester because a basic land was edited manually — announced, because
+        ///   sighted players at least see the checkbox clear itself.
+        /// The first call after entering the builder only records the baseline.
+        /// </summary>
+        private void AnnounceSuggestLandsChanges()
+        {
+            if (_activeContentController != T.WrapperDeckBuilder) return;
+
+            bool? isOnNow = DeckInfoProvider.IsAutoSuggestLandsOn();
+            var newCounts = DeckInfoProvider.GetBasicLandCounts();
+            var oldCounts = _lastBasicLandCounts;
+            bool? wasOn = _autoLandsWasOn;
+            bool justPressed = _autoLandsToggleJustPressed;
+
+            _autoLandsToggleJustPressed = false;
+            if (isOnNow != null) _autoLandsWasOn = isOnNow;
+            if (newCounts != null) _lastBasicLandCounts = newCounts;
+
+            if (isOnNow == null) return;
+
+            if (wasOn == true && isOnNow == false && !justPressed)
+            {
+                _announcer.Announce(Strings.SuggestLandsAutoOff, AnnouncementPriority.Normal);
+                return;
+            }
+
+            if (isOnNow == true && oldCounts != null && newCounts != null)
+            {
+                string diff = BuildBasicLandDiff(oldCounts, newCounts);
+                if (diff != null)
+                    _announcer.Announce(diff, AnnouncementPriority.Normal);
+                else if (justPressed)
+                    _announcer.Announce(Strings.SuggestLandsNoChange, AnnouncementPriority.Normal);
+            }
+        }
+
+        /// <summary>
+        /// Human-readable basic-land diff ("Added: 9 Mountain, 8 Forest. Removed: 4 Island.")
+        /// or null when nothing changed. No running total — the change itself is the
+        /// information; totals stay available in the Deck Info group's Lands entry.
+        /// </summary>
+        private static string BuildBasicLandDiff(
+            Dictionary<string, uint> before, Dictionary<string, uint> after)
+        {
+            var added = new List<string>();
+            var removed = new List<string>();
+
+            foreach (var kvp in after)
+            {
+                before.TryGetValue(kvp.Key, out uint old);
+                if (kvp.Value > old)
+                    added.Add($"{kvp.Value - old} {kvp.Key}");
+            }
+            foreach (var kvp in before)
+            {
+                after.TryGetValue(kvp.Key, out uint now);
+                if (kvp.Value > now)
+                    removed.Add($"{kvp.Value - now} {kvp.Key}");
+            }
+
+            if (added.Count == 0 && removed.Count == 0)
+                return null;
+
+            var parts = new List<string>();
+            if (added.Count > 0)
+                parts.Add(Strings.SuggestLandsAdded(string.Join(", ", added)));
+            if (removed.Count > 0)
+                parts.Add(Strings.SuggestLandsRemoved(string.Join(", ", removed)));
+
+            return string.Join(" ", parts);
+        }
+
+        /// <summary>
+        /// True when the activated element belongs to the game's Suggest Lands
+        /// CustomToggle. The component class is AutoLandsToggle but the prefab
+        /// instance is named "AutoLandToggle(Clone)" — match the shorter "AutoLand"
+        /// so both spellings hit. The navigable element may be a child of the
+        /// prefab root, so ancestors are checked too.
+        /// </summary>
+        private static bool IsAutoLandsToggleElement(GameObject element)
+        {
+            var t = element != null ? element.transform : null;
+            for (int i = 0; t != null && i < 6; i++, t = t.parent)
+            {
+                if (t.name.IndexOf("AutoLand", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>

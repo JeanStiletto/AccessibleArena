@@ -2,7 +2,37 @@
 
 All notable changes to Accessible Arena.
 
-## v1.6.2
+## Unreleased
+
+Two deck-builder upgrades: the Deck Info group now speaks everything the game's own "What's in your deck?" popup shows a sighted player, without the old redundancy and always up to date — and the mod now announces deck legality live, with the game's own reasons, instead of leaving it to the save-time popup.
+
+**Deck legality:**
+
+- The mod runs the game's own deck validator after every add or remove, and announces transitions: "Deck no longer legal:" followed by the game's localized reasons (below minimum size, contains banned cards, more than 4 copies, cards not legal in the format, commander problems, restricted-list quota), and "Deck is now legal." when the problem is fixed. Only transitions are spoken — building up a fresh deck stays quiet. Sighted players get this signal as a color-coded card count (yellow/red) plus modal popups when pressing Done; neither channel reached a screen reader before the deck was already rejected.
+
+- The Deck Info group gained a status row: "Deck is legal in Standard." or "Not legal in Standard:" plus the reasons — also the first time the active format is announced anywhere in the builder.
+
+- Deck-list and sideboard cards that do not fit the format now say why, right in the tile label: "gebannt" (banned, including emergency bans), "nicht legal im Format" (rotated out or never legal), "eingeschränkt, maximal N" (restricted list), or "nicht in der Farbidentität des Commanders" (Brawl). The checks are the same ones the game's own tile-tint code runs. This matters because the game renders an illegal deck card with exactly the same tint as an unowned one — even sighted players cannot tell those apart — and because the pool deliberately keeps banned cards visible (red-tinted) and lets them be clicked into the deck without any error.
+
+**Suggest Lands feedback:**
+
+- The "Suggest Lands" toggle finally says what it did. The game's land suggester rewrites the mana base silently — when the toggle is turned on, and again after every deck edit while it stays on (where the deck total often doesn't change at all, so even the card-count announcement stayed quiet). The mod now snapshots the basic lands around every deck-builder refresh and speaks the game-made difference: "Hinzugefügt: 9 Gebirge, 8 Wald. Entfernt: 4 Insel." A toggle press that changes nothing says "Länder unverändert." (Totals stay available in the Deck Info group's Lands entry.)
+
+- The suggester's silent self-disable is announced too. The game switches the toggle off by itself the moment a basic land is edited manually — sighted players at least see the checkbox clear; everyone else kept believing the mana base was still being managed. The mod now says "Länder vorschlagen hat sich selbst deaktiviert: Standardländer wurden manuell geändert." The user's own off-press is recognized and does not trigger this message.
+
+**Deck Info group:**
+
+- The card count line lost its double label. It used to say "Cards. 100/100 Karten" — a hardcoded English prefix glued onto the game's own localized count. Now only the game's text is spoken ("100/100 Karten").
+
+- The type breakdown is a real breakdown now. Instead of the three coarse lines (Creatures, a single opaque "Others" block, Lands), the Cards row has one entry per card type in the game's own display order — Creature, Instant, Sorcery, Artifact, Enchantment, Planeswalker, Battle, Land — each with the game-localized type name. Every entry lists its subtype counts (creature tribes, Auras and Equipment under their types, land types), sorted by quantity so the biggest groups come first. No percentages on type entries — with per-type counts they added noise, not information.
+
+- The Lands entry answers "how many basics": it appends the basic-land count ("40 Länder, 32 Standardländer, 20 Gebirge, ..."), translated for all 12 locales.
+
+- New Colors row, mirroring the game's color-distribution widget the mod never read before: non-land card counts and percentages per color, plus Multicolor and Colorless, using the existing localized color names. Zero colors are skipped, like the game hides their rows.
+
+- The mana curve's bucket labels ("1 or less", "6 or more", "Average") are localized now instead of hardcoded English.
+
+- All of this is computed live from the game's deck model — the identical list the game feeds its own stats widgets — instead of scraping the popup's text fields. The old scrape only refreshed when the popup was (re)opened, which is why subtype and type-split details were usually stale or missing entirely. The same rows appear as text blocks when the deck details popup itself is open.
 
 Deck tiles in the Decks screen and deck-selection blades now speak the identity information sighted players get at a glance: the deck's colors and its favorite star. At the same time the redundant "deck" suffix inside deck folders is gone, and where it remains it is finally localized.
 

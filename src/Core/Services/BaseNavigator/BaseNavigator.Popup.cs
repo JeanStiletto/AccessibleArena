@@ -874,7 +874,8 @@ namespace AccessibleArena.Core.Services
                 {
                     foreach (var (label, text) in deckInfo)
                     {
-                        string combined = $"{label}: {text}";
+                        // Empty label = self-describing row (card count text already says "Cards")
+                        string combined = string.IsNullOrEmpty(label) ? text : $"{label}: {text}";
                         AddTextBlock(combined);
                         Log.Msg("{NavigatorId}", $"Popup: deck info: {combined}");
                     }

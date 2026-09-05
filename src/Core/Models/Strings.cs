@@ -102,6 +102,23 @@ namespace AccessibleArena.Core.Models
         public static string DeckInfoCardCount => L.Get("DeckInfoCardCount");
         public static string DeckInfoManaCurve => L.Get("DeckInfoManaCurve");
         public static string DeckInfoTypeBreakdown => L.Get("DeckInfoTypeBreakdown");
+        public static string DeckInfoColors => L.Get("DeckInfoColors");
+        public static string DeckInfoCurveOneOrLess => L.Get("DeckInfoCurveOneOrLess");
+        public static string DeckInfoCurveSixOrMore => L.Get("DeckInfoCurveSixOrMore");
+        public static string DeckInfoAverage => L.Get("DeckInfoAverage");
+        public static string DeckInfoBasicLands(int count) => L.Plural(count, "DeckInfoBasicLands");
+        public static string DeckLegalityLegal(string format) => L.Format("DeckLegalityLegal_Format", format);
+        public static string DeckLegalityIllegal(string format, string reasons) => L.Format("DeckLegalityIllegal_Format", format, reasons);
+        public static string DeckLegalityNowLegal => L.Get("DeckLegalityNowLegal");
+        public static string DeckLegalityNowIllegal(string reasons) => L.Format("DeckLegalityNowIllegal_Format", reasons);
+        public static string CardLegalityBanned => L.Get("CardLegalityBanned");
+        public static string CardLegalityNotInFormat => L.Get("CardLegalityNotInFormat");
+        public static string CardLegalityRestricted(int max) => L.Format("CardLegalityRestricted_Format", max);
+        public static string CardLegalityCommanderColor => L.Get("CardLegalityCommanderColor");
+        public static string SuggestLandsAdded(string list) => L.Format("SuggestLandsAdded_Format", list);
+        public static string SuggestLandsRemoved(string list) => L.Format("SuggestLandsRemoved_Format", list);
+        public static string SuggestLandsNoChange => L.Get("SuggestLandsNoChange");
+        public static string SuggestLandsAutoOff => L.Get("SuggestLandsAutoOff");
 
         // ===========================================
         // LOGIN / ACCOUNT

@@ -1756,6 +1756,27 @@ namespace AccessibleArena.Core.Services
             {
                 _lastEventRefreshAnnouncement = null;
                 _announceAfterEventRefresh = false;
+
+                // Capture the deck-legality baseline silently on entering the deck
+                // builder (clear it on leaving) so the very first edit can already
+                // announce a legal/illegal transition
+                _deckWasLegal = _activeContentController == T.WrapperDeckBuilder
+                    ? DeckLegalityProvider.GetDeckStatus()?.IsValid
+                    : null;
+
+                // Same for the suggest-lands state: baseline silently, so the first
+                // change after entering can already speak a land diff / auto-off
+                _autoLandsToggleJustPressed = false;
+                if (_activeContentController == T.WrapperDeckBuilder)
+                {
+                    _autoLandsWasOn = DeckInfoProvider.IsAutoSuggestLandsOn();
+                    _lastBasicLandCounts = DeckInfoProvider.GetBasicLandCounts();
+                }
+                else
+                {
+                    _autoLandsWasOn = null;
+                    _lastBasicLandCounts = null;
+                }
             }
 
             // Remember the navigator's current selection before clearing
@@ -1818,6 +1839,12 @@ namespace AccessibleArena.Core.Services
                 {
                     _announcer.AnnounceInterrupt(cardCount);
                 }
+                // Queued after the count so a flip to legal/illegal is spoken right
+                // when the edit that caused it happens, with the game's own reasons
+                AnnounceDeckLegalityTransition();
+                // While Suggest Lands is on, every edit can silently shift the mana
+                // base (the deck total may not even change) — speak the land diff
+                AnnounceSuggestLandsChanges();
                 // Re-prepare card navigation after rescan so card detail
                 // navigation works immediately (e.g., after popup close)
                 UpdateCardNavigationForGroupedElement();
@@ -1827,6 +1854,9 @@ namespace AccessibleArena.Core.Services
             // Skip full screen announcement if position was restored (same screen, same context)
             if (_groupedNavigationEnabled && _groupedNavigator.PositionWasRestored)
             {
+                // Toggle-driven rescans (Suggest Lands press) land here rather than in
+                // the count-announce block above; the method gates on the deck builder
+                AnnounceSuggestLandsChanges();
                 AnnounceEventPageRefreshIfChanged();
                 return;
             }
@@ -1838,6 +1868,11 @@ namespace AccessibleArena.Core.Services
                 _suppressRescanAnnouncement = false;
                 return;
             }
+
+            // Deck-builder rescans that fall through to a full screen announcement
+            // (position restore failed) must still report suggest-lands changes —
+            // otherwise the diff surfaces late, on some unrelated later rescan
+            AnnounceSuggestLandsChanges();
 
             // Announce the change
             string announcement = GetActivationAnnouncement();
@@ -3509,6 +3544,18 @@ namespace AccessibleArena.Core.Services
             // Use force=true to bypass debounce since user explicitly toggled a filter
             // Skip rescan for Login panels (e.g., UpdatePolicies) - game hides panel briefly during server call
             // which would cause our foreground detection to think it closed
+            // Suggest Lands is a CustomToggle with no Unity Toggle component, so it never
+            // reaches the isToggle branch below. Handle its press here: mark it (an OFF
+            // press must not read as the game's silent auto-disable) and force a rescan so
+            // the land diff is announced immediately — the game applies the suggestion
+            // synchronously inside the toggle setter (AutoLandsToggle
+            // .OnAutoSuggestLandFilterToggleSet → BasicLandSuggester.SuggestLand()).
+            if (_activeContentController == T.WrapperDeckBuilder && IsAutoLandsToggleElement(element))
+            {
+                _autoLandsToggleJustPressed = true;
+                TriggerRescan();
+            }
+
             if (isToggle)
             {
                 bool isLoginPanel = _foregroundPanel != null && _foregroundPanel.name.StartsWith("Panel -");
