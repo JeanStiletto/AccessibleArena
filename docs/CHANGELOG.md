@@ -2,9 +2,9 @@
 
 All notable changes to Accessible Arena.
 
-## Unreleased
+## v1.6.2
 
-Two deck-builder upgrades: the Deck Info group now speaks everything the game's own "What's in your deck?" popup shows a sighted player, without the old redundancy and always up to date — and the mod now announces deck legality live, with the game's own reasons, instead of leaving it to the save-time popup.
+Deck builder and Decks screen upgrades: the Deck Info group now speaks everything the game's own "What's in your deck?" popup shows a sighted player, deck legality is announced live with the game's own reasons instead of a save-time popup, the "Suggest Lands" toggle reports what it changed, and deck tiles announce their colors and favorite star.
 
 **Deck legality:**
 
@@ -33,6 +33,8 @@ Two deck-builder upgrades: the Deck Info group now speaks everything the game's 
 - The mana curve's bucket labels ("1 or less", "6 or more", "Average") are localized now instead of hardcoded English.
 
 - All of this is computed live from the game's deck model — the identical list the game feeds its own stats widgets — instead of scraping the popup's text fields. The old scrape only refreshed when the popup was (re)opened, which is why subtype and type-split details were usually stale or missing entirely. The same rows appear as text blocks when the deck details popup itself is open.
+
+**Decks screen:**
 
 Deck tiles in the Decks screen and deck-selection blades now speak the identity information sighted players get at a glance: the deck's colors and its favorite star. At the same time the redundant "deck" suffix inside deck folders is gone, and where it remains it is finally localized.
 
