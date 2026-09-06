@@ -206,7 +206,9 @@ namespace AccessibleArena.Patches
         /// </summary>
         private static bool ShouldBlockSocialUITabToggle(string whatWasBlocked, bool log = true)
         {
-            if (KeyInput.GetKey(UnityEngine.KeyCode.Tab))
+            // GetKeyDown included for taps released within the same frame (issue #120 class):
+            // if the game defers the toggle past the release event, isPressed alone misses it.
+            if (KeyInput.GetKey(UnityEngine.KeyCode.Tab) || KeyInput.GetKeyDown(UnityEngine.KeyCode.Tab))
             {
                 if (log) Log.Patch("PanelStatePatch", $"Blocked {whatWasBlocked} (Tab pressed)");
                 return true;

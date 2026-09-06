@@ -613,9 +613,13 @@ namespace AccessibleArena.Patches
             }
 
             // Block Submit when PhaseSkipGuard wants to warn before passing.
-            // KeyInput.GetKey(Space) distinguishes Space-triggered submit from Enter-triggered.
+            // Space (held or same-frame tapped) distinguishes Space-triggered submit from
+            // Enter-triggered. GetKeyDown must be included: a quick tap on a low-FPS machine
+            // is pressed and released within one input update, so isPressed is already false
+            // by the time this module runs (same trap as issue #120).
             // ShouldBlock() is frame-cached and handles release-tracking internally.
-            if (KeyInput.GetKey(KeyCode.Space) && PhaseSkipGuard.ShouldBlock())
+            bool spaceTriggered = KeyInput.GetKey(KeyCode.Space) || KeyInput.GetKeyDown(KeyCode.Space);
+            if (spaceTriggered && PhaseSkipGuard.ShouldBlock())
             {
                 return false;
             }
@@ -623,7 +627,7 @@ namespace AccessibleArena.Patches
             // Block Submit when a browser is active - our mod handles Space via BrowserNavigator
             // Without this, the EventSystem clicks the focused button (e.g., settings gear)
             // before our MelonLoader Update() can consume the key
-            if (KeyInput.GetKey(KeyCode.Space) && BrowserNavigator.IsActive)
+            if (spaceTriggered && BrowserNavigator.IsActive)
             {
                 return false;
             }

@@ -23,11 +23,12 @@ namespace AccessibleArena.Core.Utils
         /// </summary>
         public bool Check(KeyCode key, Func<bool> action)
         {
-            // Key released — stop tracking
+            // Key released — stop tracking. No early return: a release and re-press can
+            // land in the same frame at low frame rates, and the new press must still
+            // fire via the GetKeyDown branch below (issue #120 class).
             if (_isHolding && _heldKey == key && !KeyInput.GetKey(key))
             {
                 _isHolding = false;
-                return false;
             }
 
             // Initial key press
