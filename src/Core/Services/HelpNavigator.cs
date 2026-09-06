@@ -86,6 +86,7 @@ namespace AccessibleArena.Core.Services
                 Strings.HelpCategoryDeckBuilder,
                 Strings.HelpShiftEnterCardViewer,
                 Strings.HelpCtrlEnterCardStyles,
+                Strings.HelpCtrlPageSections,
 
                 // Zones in duel (yours and opponent)
                 Strings.HelpCategoryDuelZones,

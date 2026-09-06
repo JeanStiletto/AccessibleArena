@@ -467,6 +467,7 @@ namespace AccessibleArena
             CardDetector.ClearCache();
             CardPlayVerifier.ClearCache();
             DeckInfoProvider.ClearCache();
+            DeckSectionProvider.ClearCache();
             DeckLegalityProvider.ClearCache();
             RecentPlayAccessor.ClearCache();
             EventAccessor.ClearCache();

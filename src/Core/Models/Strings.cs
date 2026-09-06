@@ -119,6 +119,9 @@ namespace AccessibleArena.Core.Models
         public static string SuggestLandsRemoved(string list) => L.Format("SuggestLandsRemoved_Format", list);
         public static string SuggestLandsNoChange => L.Get("SuggestLandsNoChange");
         public static string SuggestLandsAutoOff => L.Get("SuggestLandsAutoOff");
+        public static string DeckSectionBasicLands => L.Get("DeckSectionBasicLands");
+        public static string DeckSectionLands => L.Get("DeckSectionLands");
+        public static string DeckSectionManaValue(object value) => L.Format("DeckSectionManaValue_Format", value);
 
         // ===========================================
         // LOGIN / ACCOUNT
@@ -1125,6 +1128,7 @@ namespace AccessibleArena.Core.Models
         public static string HelpCategoryDeckBuilder => L.Get("HelpCategoryDeckBuilder");
         public static string HelpShiftEnterCardViewer => L.Get("HelpShiftEnterCardViewer");
         public static string HelpCtrlEnterCardStyles => L.Get("HelpCtrlEnterCardStyles");
+        public static string HelpCtrlPageSections => L.Get("HelpCtrlPageSections");
         public static string HelpCategoryDuelInfo => L.Get("HelpCategoryDuelInfo");
         public static string HelpCategoryCardNavigation => L.Get("HelpCategoryCardNavigation");
         public static string HelpCategoryCardDetails => L.Get("HelpCategoryCardDetails");

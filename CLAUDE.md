@@ -159,6 +159,9 @@ Ctrl+Enter on a focused deck-list or sideboard card: Add one more copy, without 
 
 **Deck Builder - Sideboard:**
 The Sideboard toggle does not open a second list — it swaps the deck blade over, so the Deck List group is replaced by a Sideboard group in the Tab cycle. Within it: Left/Right navigate, Up/Down read card details, Enter removes a copy, Ctrl+Enter adds one, Shift+Enter opens the card viewer. Enter on a Collection card adds to the sideboard while the toggle is on. The Sideboard header announces the count, so an empty sideboard still speaks.
+
+**Deck Builder - Section Jumps:**
+Ctrl+Page Down / Ctrl+Page Up: Jump to the next / current-then-previous section start in the focused card group (fixed chords, like the plain page keys). Collection: the game's own sort buckets — basic lands, White, Blue, Black, Red, Green, multicolor, colorless last; artifacts and nonbasic lands sit in their color-identity section. Deck List/Sideboard: one section per mana value, X spells after them, lands last. Announces "Section: card"; cross-page jumps use the game's ScrollToPage and announce after the rescan restores focus (`DeckSectionProvider`, `SectionJump`, `HandleSectionJump` in GeneralMenuNavigator.Collection.cs).
 **Profile - Set Collection:**
 Enter on the profile's collection line: Open the full Set Collection screen.
 Filters level (entry): Up/Down walk the controls (Sort, Format, Standard/Historic/Alchemy quick filters), Left/Right change the focused control (announces how many sets remain), Space activates a toggle, Enter goes to the set list, Backspace leaves the screen.

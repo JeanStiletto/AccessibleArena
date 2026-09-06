@@ -1186,12 +1186,20 @@ namespace AccessibleArena.Core.Services
                 }
             }
 
-            // Page Up/Down: Navigate collection pages (activate Previous/Next buttons)
+            // Page Up/Down: Navigate collection pages (activate Previous/Next buttons).
+            // With Ctrl held: jump to section starts instead — the game's color-sort
+            // buckets in the collection, mana-value runs in the deck list/sideboard.
             if (KeyInput.GetKeyDown(KeyCode.PageUp) || KeyInput.GetKeyDown(KeyCode.PageDown))
             {
                 if (_activeContentController == T.WrapperDeckBuilder)
                 {
                     bool isPageDown = KeyInput.GetKeyDown(KeyCode.PageDown);
+                    bool ctrlHeld = KeyInput.GetKey(KeyCode.LeftControl) || KeyInput.GetKey(KeyCode.RightControl);
+                    if (ctrlHeld)
+                    {
+                        HandleSectionJump(isPageDown);
+                        return true; // always consume Ctrl+Page in the deck builder
+                    }
                     if (ActivateCollectionPageButton(isPageDown))
                         return true;
                 }
@@ -1886,8 +1894,12 @@ namespace AccessibleArena.Core.Services
                 // the count-announce block above; the method gates on the deck builder
                 AnnounceSuggestLandsChanges();
                 AnnounceEventPageRefreshIfChanged();
+                // Ctrl+Page section jump across pages: speak "<section>: <card>" now
+                // that focus has been restored onto the target tile
+                AnnouncePendingSectionJump();
                 return;
             }
+            _pendingSectionAnnouncement = null; // restore failed — drop the stale section prefix
             _announceAfterEventRefresh = false;
 
             // Skip announcement when HandleGroupedBackspace already announced (e.g., folder exit)

@@ -60,6 +60,9 @@ Never map letters between the two enums by name — that swaps Y and Z on German
 - Arrow Left/Right (or A/D): Carousel/stepper controls
 - Home: Jump to first item
 - End: Jump to last item
+- Page Up/Down: Previous/next collection page (deck builder)
+- Ctrl+Page Up/Down: Previous/next section start in deck builder card groups
+  (collection: game color-sort buckets; deck list/sideboard: mana values, lands last)
 
 **Input Field Navigation:**
 - Tab: Exit input field and move to next element

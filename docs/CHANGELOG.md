@@ -34,6 +34,18 @@ Deck builder and Decks screen upgrades: the Deck Info group now speaks everythin
 
 - All of this is computed live from the game's deck model — the identical list the game feeds its own stats widgets — instead of scraping the popup's text fields. The old scrape only refreshed when the popup was (re)opened, which is why subtype and type-split details were usually stale or missing entirely. The same rows appear as text blocks when the deck details popup itself is open.
 
+**Section jumps (Ctrl+Page Up/Down):**
+
+- New deck-builder shortcut: Ctrl+Page Down jumps to the start of the next section in the focused card group, Ctrl+Page Up back to the start of the current section (press again for the previous one). Plain Page Up/Down keeps turning collection pages one at a time.
+
+- In the Collection group the sections are the game's own sort buckets, read from the game's full sorted pool rather than recomputed by the mod: basic lands first, then White, Blue, Black, Red, Green, multicolor, and colorless last. Artifacts and nonbasic lands live in the section of their color identity, exactly as the game sorts them — colorless artifacts are the colorless section at the end. A jump may turn several pages at once (using the game's own page-jump call) and announces the section followed by the card it landed on, e.g. "Mehrfarbig: Karte 1 von 8: ...".
+
+- In the Deck List and Sideboard groups the sections follow the blade's own sort: one section per mana value, X spells after them, lands as the final section. Announced as "Manabetrag 2: ..." or "Länder: ...".
+
+- At the outer edges the familiar end-of-list / beginning-of-list messages are spoken. A new help entry in F1 documents the shortcut, and the deck builder's Ctrl+F1 hint now covers page turning (Page Up/Down), section jumps (Ctrl+Page Up/Down) and copying the current entry to the clipboard (Ctrl+Right Arrow).
+
+- Verified against the live game: the jumps follow exactly the visible, filtered pool. One game quirk to know: the header color filters match on color identity, not cast color, so a White+Red filter can leave a handful of blue or black cards visible (cards with white or red in their color identity) — the jump announces those few-card runs as their own sections because that is genuinely what is on screen, for sighted players too.
+
 **Search field:**
 
 **Duel:**

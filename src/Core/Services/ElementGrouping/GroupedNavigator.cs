@@ -684,6 +684,17 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         }
 
         /// <summary>
+        /// Set the element index to restore to after the next rescan (clamped to the
+        /// restored group's size). Call after SaveCurrentGroupForRestore() when the
+        /// target position is known in advance (e.g. a Ctrl+Page section jump that
+        /// lands on a different collection page).
+        /// </summary>
+        public void SetPendingElementIndex(int index)
+        {
+            _pendingElementIndexRestore = Math.Max(0, index);
+        }
+
+        /// <summary>
         /// Clear the pending group restore (use when you don't want to restore after rescan).
         /// </summary>
         public void ClearPendingGroupRestore()
@@ -1972,6 +1983,16 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private void AnnounceCurrentElement()
         {
             _announcer.AnnounceInterrupt(GetElementAnnouncement());
+        }
+
+        /// <summary>
+        /// Announce the current element with a leading context label (e.g. the section
+        /// name a Ctrl+Page jump landed in). A null/empty prefix announces plainly.
+        /// </summary>
+        public void AnnounceCurrentElementWithPrefix(string prefix)
+        {
+            string element = GetElementAnnouncement();
+            _announcer.AnnounceInterrupt(string.IsNullOrEmpty(prefix) ? element : $"{prefix}: {element}");
         }
 
         /// <summary>

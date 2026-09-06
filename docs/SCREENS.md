@@ -299,6 +299,12 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - Enter: Add one copy of the card to deck (invokes OnAddClicked action)
 - Home/End: Jump to first/last card
 - Page Up/Down: Navigate collection pages via CardPoolAccessor (announces "Page X of Y")
+- Ctrl+Page Up/Down: Jump between color sections in the game's own pool sort order
+  (basic lands, White, Blue, Black, Red, Green, multicolor, colorless — artifacts and
+  nonbasic lands sit in their color-identity section, colorless at the end). Boundaries
+  are computed from `CardPoolHolder._cardDisplayInfos` (the full sorted pool), the jump
+  scrolls via the game's `ScrollToPage`, and the landing announces "Section: card".
+  See `DeckSectionProvider` + `SectionJump`.
 
 **Deck List Navigation (DeckBuilderDeckList):**
 - Left/Right arrows: Navigate between cards in deck list
@@ -306,6 +312,8 @@ The Deck Builder screen allows editing deck contents with access to the card col
 - Enter: Remove one copy of the card from deck (fires the tile's TILE button → `OnRemoveClicked`)
 - Ctrl+Enter: Add one more copy (fires the tile's TAG button → `OnAddClicked`), without going back to the collection
 - Home/End: Jump to first/last card
+- Ctrl+Page Up/Down: Jump between mana-value sections (the blade's own sort: mana values
+  ascending, X spells after them, lands as the last section)
 
 **Sideboard Navigation (DeckBuilderSideboard):**
 The Sideboard toggle in the header does not open a second list — it swaps the whole deck blade
@@ -320,6 +328,7 @@ over to the sideboard (`DeckListView.ShowMainDeckOrSideboard`), deactivating
 - Ctrl+Enter: Add one more copy to the sideboard
 - Shift+Enter: Open the card viewer popup, same as on any other deck builder card
 - Home/End: Jump to first/last card
+- Ctrl+Page Up/Down: Jump between mana-value sections, same as in the deck list
 - Adding from the Collection group while the toggle is on adds to the sideboard, not the main deck
 
 **Deck Info Navigation (DeckBuilderInfo):**

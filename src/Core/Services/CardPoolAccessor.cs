@@ -28,7 +28,10 @@ namespace AccessibleArena.Core.Services
             public FieldInfo IsScrolling;      // _isScrolling (bool)
             public MethodInfo ScrollNext;      // ScrollNext() (private)
             public MethodInfo ScrollPrevious;  // ScrollPrevious() (private)
+            public MethodInfo ScrollToPage;    // ScrollToPage(int) (private)
             public PropertyInfo PageCount;     // PageCount (private)
+            public PropertyInfo PageSize;      // PageSize (private, Rows * Columns)
+            public FieldInfo CardDisplayInfos; // _cardDisplayInfos (full sorted pool, all pages)
             // Nested Page class member (derived from Pages field type's nested Page type)
             public FieldInfo PageCardViews;    // Page.CardViews (public)
         }
@@ -43,7 +46,10 @@ namespace AccessibleArena.Core.Services
                     IsScrolling = t.GetField("_isScrolling", PrivateInstance),
                     ScrollNext = t.GetMethod("ScrollNext", PrivateInstance),
                     ScrollPrevious = t.GetMethod("ScrollPrevious", PrivateInstance),
+                    ScrollToPage = t.GetMethod("ScrollToPage", PrivateInstance),
                     PageCount = t.GetProperty("PageCount", PrivateInstance),
+                    PageSize = t.GetProperty("PageSize", PrivateInstance),
+                    CardDisplayInfos = t.GetField("_cardDisplayInfos", PrivateInstance),
                 };
                 var pageType = t.GetNestedType("Page", BindingFlags.NonPublic);
                 if (pageType != null)
@@ -52,8 +58,9 @@ namespace AccessibleArena.Core.Services
             },
             validator: h =>
                 h.Pages != null && h.CurrentPage != null && h.IsScrolling != null
-                && h.ScrollNext != null && h.ScrollPrevious != null
-                && h.PageCount != null && h.PageCardViews != null,
+                && h.ScrollNext != null && h.ScrollPrevious != null && h.ScrollToPage != null
+                && h.PageCount != null && h.PageSize != null && h.CardDisplayInfos != null
+                && h.PageCardViews != null,
             logTag: "CardPoolAccessor",
             logSubject: "CardPoolHolder");
 
@@ -252,6 +259,78 @@ namespace AccessibleArena.Core.Services
             catch
             {
                 return 1;
+            }
+        }
+
+        /// <summary>
+        /// Jump directly to a page (0-based) via the game's own ScrollToPage.
+        /// Returns false when out of bounds, already there, or mid-scroll.
+        /// </summary>
+        public static bool ScrollToPage(int page)
+        {
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
+                return false;
+
+            try
+            {
+                if (page < 0 || page >= GetPageCount() || page == GetCurrentPageIndex())
+                    return false;
+
+                if (IsScrolling())
+                    return false;
+
+                _cache.Handles.ScrollToPage.Invoke(_cachedPoolHolder, new object[] { page });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("CardPoolAccessor", $"ScrollToPage failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Number of card slots per page (rows x columns). 0 when unavailable.
+        /// </summary>
+        public static int GetPageSize()
+        {
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
+                return 0;
+
+            try
+            {
+                return (int)_cache.Handles.PageSize.GetValue(_cachedPoolHolder);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// The full sorted pool across ALL pages (_cardDisplayInfos entries, in the
+        /// game's own sort order). Index / GetPageSize() gives the page an entry is on.
+        /// Returns null when unavailable.
+        /// </summary>
+        public static List<object> GetPoolDisplayInfos()
+        {
+            if (_cachedPoolHolder == null || !_cache.IsInitialized)
+                return null;
+
+            try
+            {
+                if (!(_cache.Handles.CardDisplayInfos.GetValue(_cachedPoolHolder) is IEnumerable infos))
+                    return null;
+
+                var result = new List<object>();
+                foreach (var info in infos)
+                    result.Add(info);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("CardPoolAccessor", $"GetPoolDisplayInfos failed: {ex.Message}");
+                return null;
             }
         }
 

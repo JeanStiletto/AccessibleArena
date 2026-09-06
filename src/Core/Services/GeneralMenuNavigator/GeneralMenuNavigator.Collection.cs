@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using AccessibleArena.Core.Models;
 using AccessibleArena.Core.Services.ElementGrouping;
@@ -79,6 +80,174 @@ namespace AccessibleArena.Core.Services
             // In practice, the IsScrolling() short-circuit in Update() fires after ~250ms
             // when the scroll animation completes, so the actual delay is usually shorter
             _pendingPageRescanFrames = 8;
+        }
+
+        // Section label to speak once the cross-page rescan has restored focus onto
+        // the jump target (Ctrl+Page section jumps that land on another pool page)
+        private string _pendingSectionAnnouncement;
+
+        /// <summary>
+        /// Ctrl+PageUp/PageDown: jump to section starts inside the deck builder's card
+        /// groups. Collection: the game's own color-sort buckets (basic lands, mono
+        /// colors, multicolor, colorless). Deck list / sideboard: mana-value runs with
+        /// lands as the final section. Forward jumps to the next section start;
+        /// backward first to the current section's start, then to the previous one.
+        /// </summary>
+        private bool HandleSectionJump(bool forward)
+        {
+            if (!_groupedNavigationEnabled || !_groupedNavigator.IsActive)
+                return false;
+
+            var groupInfo = _groupedNavigator.CurrentGroup;
+            bool insideCardGroup = groupInfo?.Group.IsDeckBuilderCardGroup() == true
+                && _groupedNavigator.CurrentElement != null
+                && _groupedNavigator.CurrentElementIndex >= 0;
+
+            if (!insideCardGroup)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            if (groupInfo.Value.Group == ElementGroup.DeckBuilderCollection)
+                return HandlePoolSectionJump(forward);
+
+            return HandleListSectionJump(forward, groupInfo.Value.Group == ElementGroup.DeckBuilderSideboard);
+        }
+
+        /// <summary>
+        /// Section jump within the collection pool. Works on the game's full sorted
+        /// card list (all pages), so a jump may scroll to another page; focus is then
+        /// restored onto the section's first card after the page rescan.
+        /// </summary>
+        private bool HandlePoolSectionJump(bool forward)
+        {
+            var poolHolder = CardPoolAccessor.FindCardPoolHolder();
+            int pageSize = CardPoolAccessor.GetPageSize();
+            var keys = DeckSectionProvider.GetPoolSectionKeys();
+
+            if (poolHolder == null || pageSize <= 0 || keys.Count == 0)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            if (CardPoolAccessor.IsScrolling())
+                return true; // consume, same as plain page turns mid-animation
+
+            int page = CardPoolAccessor.GetCurrentPageIndex();
+            int current = Math.Min(page * pageSize + Math.Max(_groupedNavigator.CurrentElementIndex, 0), keys.Count - 1);
+
+            int target = forward ? SectionJump.Next(keys, current) : SectionJump.Previous(keys, current);
+            if (target < 0)
+            {
+                _announcer.AnnounceVerbose(forward ? Strings.EndOfList : Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            string label = DeckSectionProvider.PoolSectionLabel(keys[target]);
+            int targetPage = target / pageSize;
+            int targetIndexInPage = target % pageSize;
+            Log.Nav(NavigatorId, $"Pool section jump {(forward ? "forward" : "back")}: index {current} -> {target} (page {targetPage}, slot {targetIndexInPage}, '{label}')");
+
+            if (targetPage == page)
+            {
+                int count = _groupedNavigator.CurrentGroup?.Count ?? 0;
+                _groupedNavigator.JumpToElementByIndex(Math.Min(targetIndexInPage, Math.Max(count - 1, 0)));
+                UpdateEventSystemSelectionForGroupedElement();
+                UpdateCardNavigationForGroupedElement();
+                _groupedNavigator.AnnounceCurrentElementWithPrefix(label);
+                return true;
+            }
+
+            if (!CardPoolAccessor.ScrollToPage(targetPage))
+                return true;
+
+            _groupedNavigator.SaveCurrentGroupForRestore();
+            _groupedNavigator.SetPendingElementIndex(targetIndexInPage);
+            _pendingSectionAnnouncement = label;
+            SchedulePageRescan();
+            return true;
+        }
+
+        /// <summary>
+        /// Section jump within the deck list or sideboard blade: one section per
+        /// mana value, X spells after them, lands last (the blade's own sort order).
+        /// </summary>
+        private bool HandleListSectionJump(bool forward, bool sideboard)
+        {
+            var groupInfo = _groupedNavigator.CurrentGroup;
+            var elements = groupInfo?.Elements;
+            if (elements == null || elements.Count == 0)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            // Map tile buttons (the group's element objects) to their GrpIds in one pass
+            var cards = sideboard ? DeckCardProvider.GetSideboardCards() : DeckCardProvider.GetDeckListCards();
+            var grpIdByTile = new Dictionary<GameObject, uint>();
+            foreach (var card in cards)
+            {
+                if (card.IsValid && card.TileButton != null)
+                    grpIdByTile[card.TileButton] = card.GrpId;
+            }
+
+            // One key per element; elements without card data (e.g. the empty-deck
+            // placeholder) inherit their neighbor's key so they never fabricate a boundary
+            var keys = new List<long>(elements.Count);
+            long previous = long.MinValue;
+            bool anyKey = false;
+            foreach (var element in elements)
+            {
+                long key = previous;
+                if (element.GameObject != null
+                    && grpIdByTile.TryGetValue(element.GameObject, out uint grpId)
+                    && DeckSectionProvider.TryGetDeckCardKey(grpId, out long cardKey))
+                {
+                    key = cardKey;
+                    anyKey = true;
+                }
+                keys.Add(key);
+                previous = key;
+            }
+
+            if (!anyKey)
+            {
+                _announcer.Announce(Strings.NoAlternateAction, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            int current = Math.Max(_groupedNavigator.CurrentElementIndex, 0);
+            int target = forward ? SectionJump.Next(keys, current) : SectionJump.Previous(keys, current);
+            if (target < 0)
+            {
+                _announcer.AnnounceVerbose(forward ? Strings.EndOfList : Strings.BeginningOfList, AnnouncementPriority.Normal);
+                return true;
+            }
+
+            Log.Nav(NavigatorId, $"{(sideboard ? "Sideboard" : "Deck list")} section jump {(forward ? "forward" : "back")}: index {current} -> {target}");
+            _groupedNavigator.JumpToElementByIndex(target);
+            UpdateEventSystemSelectionForGroupedElement();
+            UpdateCardNavigationForGroupedElement();
+            string label = keys[target] == long.MinValue ? null : DeckSectionProvider.DeckSectionLabel(keys[target]);
+            _groupedNavigator.AnnounceCurrentElementWithPrefix(label);
+            return true;
+        }
+
+        /// <summary>
+        /// Speak the pending "section: card" announcement after a cross-page section
+        /// jump's rescan has restored focus. No-op when no jump is pending.
+        /// </summary>
+        private void AnnouncePendingSectionJump()
+        {
+            if (_pendingSectionAnnouncement == null) return;
+            string label = _pendingSectionAnnouncement;
+            _pendingSectionAnnouncement = null;
+
+            UpdateEventSystemSelectionForGroupedElement();
+            UpdateCardNavigationForGroupedElement();
+            _groupedNavigator.AnnounceCurrentElementWithPrefix(label);
         }
 
         /// <summary>
