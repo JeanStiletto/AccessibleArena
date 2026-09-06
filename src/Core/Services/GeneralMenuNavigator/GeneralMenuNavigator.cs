@@ -2749,6 +2749,16 @@ namespace AccessibleArena.Core.Services
         #region Grouped Navigation Overrides
 
         /// <summary>
+        /// True when the current MoveNext/MovePrevious was triggered by Tab. Must check
+        /// GetKeyDown as well as GetKey: the Input System's isPressed has no one-frame
+        /// minimum (unlike legacy Input), so a quick Tab tap on a low-framerate machine
+        /// is already released by the time the navigator runs — GetKey alone then misses
+        /// it and Tab falls through to per-item navigation (issue #120).
+        /// </summary>
+        private static bool TabNavigationActive() =>
+            KeyInput.GetKey(KeyCode.Tab) || KeyInput.GetKeyDown(KeyCode.Tab);
+
+        /// <summary>
         /// Override MoveNext to use GroupedNavigator when grouped navigation is enabled.
         /// In deck builder with Tab, cycles between Collection, Filters, and Deck groups only.
         /// In DeckBuilderInfo group, Down arrow switches to next row with custom announcement.
@@ -2759,7 +2769,7 @@ namespace AccessibleArena.Core.Services
             {
                 // DeckBuilderInfo 2D navigation: Down arrow switches to next row
                 // Skip when Tab is pressed - let Tab cycling handle group switching
-                if (IsDeckInfoSubNavActive() && !KeyInput.GetKey(KeyCode.Tab))
+                if (IsDeckInfoSubNavActive() && !TabNavigationActive())
                 {
                     bool moved = _groupedNavigator.MoveNext();
                     if (moved)
@@ -2773,7 +2783,7 @@ namespace AccessibleArena.Core.Services
 
                 // Friend section navigation: Up/Down navigates between friends
                 // Skip when Tab is pressed - let Tab handle group cycling
-                if (IsFriendSectionActive() && !KeyInput.GetKey(KeyCode.Tab))
+                if (IsFriendSectionActive() && !TabNavigationActive())
                 {
                     bool moved = _groupedNavigator.MoveNext();
                     if (moved)
@@ -2787,7 +2797,7 @@ namespace AccessibleArena.Core.Services
 
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
-                bool isTabPressed = KeyInput.GetKey(KeyCode.Tab);
+                bool isTabPressed = TabNavigationActive();
                 if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
                 {
                     if (_groupedNavigator.CycleToNextGroup(DeckBuilderCycleGroups))
@@ -2834,7 +2844,7 @@ namespace AccessibleArena.Core.Services
             {
                 // DeckBuilderInfo 2D navigation: Up arrow switches to previous row
                 // Skip when Tab is pressed - let Tab cycling handle group switching
-                if (IsDeckInfoSubNavActive() && !KeyInput.GetKey(KeyCode.Tab))
+                if (IsDeckInfoSubNavActive() && !TabNavigationActive())
                 {
                     bool moved = _groupedNavigator.MovePrevious();
                     if (moved)
@@ -2847,7 +2857,7 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Friend section navigation: Up/Down navigates between friends
-                if (IsFriendSectionActive() && !KeyInput.GetKey(KeyCode.Tab))
+                if (IsFriendSectionActive() && !TabNavigationActive())
                 {
                     bool moved = _groupedNavigator.MovePrevious();
                     if (moved)
@@ -2861,7 +2871,7 @@ namespace AccessibleArena.Core.Services
 
                 // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
                 // Only apply to Tab, not to arrow keys
-                bool isTabPressed = KeyInput.GetKey(KeyCode.Tab);
+                bool isTabPressed = TabNavigationActive();
                 if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
                 {
                     if (_groupedNavigator.CycleToPreviousGroup(DeckBuilderCycleGroups))

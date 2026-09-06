@@ -6,6 +6,10 @@ All notable changes to Accessible Arena.
 
 Deck builder and Decks screen upgrades: the Deck Info group now speaks everything the game's own "What's in your deck?" popup shows a sighted player, deck legality is announced live with the game's own reasons instead of a save-time popup, the "Suggest Lands" toggle reports what it changed, and deck tiles announce their colors and favorite star.
 
+**Deck builder Tab cycling fix (issue #120, found and reported by [Daggershade](https://github.com/Daggershade)):**
+
+- Tab/Shift+Tab group cycling in the deck builder no longer breaks on quick key taps at low frame rates. The Unity 6 input port (v1.6) changed the "is Tab held" check semantics: the new Input System reports a key that was pressed and released within a single frame as *not* pressed (legacy input guaranteed at least one frame of "held"). On slower machines a brisk Tab tap therefore fell through to per-item navigation — Tab walked the deck list one card at a time and dead-ended at "End of list" instead of cycling Filters / Collection / Deck List / Deck Info. The Tab checks in the menu navigator and the EventSystem move-blocking patch now also accept a same-frame press.
+
 **Deck legality:**
 
 - The mod runs the game's own deck validator after every add or remove, and announces transitions: "Deck no longer legal:" followed by the game's localized reasons (below minimum size, contains banned cards, more than 4 copies, cards not legal in the format, commander problems, restricted-list quota), and "Deck is now legal." when the problem is fixed. Only transitions are spoken — building up a fresh deck stays quiet. Sighted players get this signal as a color-coded card count (yellow/red) plus modal popups when pressing Done; neither channel reached a screen reader before the deck was already rejected.

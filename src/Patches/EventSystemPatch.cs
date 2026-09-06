@@ -567,6 +567,7 @@ namespace AccessibleArena.Patches
         {
             if (UIFocusTracker.IsEditingInputField()
                 || KeyInput.GetKey(KeyCode.Tab)
+                || KeyInput.GetKeyDown(KeyCode.Tab) // fast tap: released within the same frame
                 || InputManager.BlockSubmitForToggle)
             {
                 __result = false;
