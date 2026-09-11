@@ -1077,6 +1077,8 @@
   "CurrencyGold": "Ouro",
   "CurrencyGems": "Gemas",
   "CurrencyWildcards": "Curingas",
+  "OpenVault": "Abrir cofre",
+  "OpenVault_Format": "Abrir cofre ({0})",
   "WildcardInPacks_One": "{1} em 1 booster",
   "WildcardInPacks_Few": "{1} em {0} boosters",
   "WildcardInPacks_Format": "{1} em {0} boosters",

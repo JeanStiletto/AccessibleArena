@@ -1077,6 +1077,8 @@
   "CurrencyGold": "Oro",
   "CurrencyGems": "Gemas",
   "CurrencyWildcards": "Comodines",
+  "OpenVault": "Abrir bóveda",
+  "OpenVault_Format": "Abrir bóveda ({0})",
   "WildcardInPacks_One": "{1} en 1 sobre",
   "WildcardInPacks_Few": "{1} en {0} sobres",
   "WildcardInPacks_Format": "{1} en {0} sobres",

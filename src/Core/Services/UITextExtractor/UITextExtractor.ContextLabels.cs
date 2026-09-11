@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using AccessibleArena.Core.Models;
+using AccessibleArena.Core.Utils;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 
 namespace AccessibleArena.Core.Services
@@ -15,6 +16,10 @@ namespace AccessibleArena.Core.Services
         private static string TryGetCurrencyLabel(GameObject gameObject)
         {
             string name = gameObject.name;
+
+            string vaultLabel = TryGetNavbarVaultLabel(gameObject);
+            if (!string.IsNullOrEmpty(vaultLabel))
+                return vaultLabel;
 
             if (name == "Nav_Coins" || name == "Nav_Gems")
             {
@@ -56,6 +61,24 @@ namespace AccessibleArena.Core.Services
             }
 
             return null;
+        }
+
+        private static string TryGetNavbarVaultLabel(GameObject gameObject)
+        {
+            var parent = gameObject.transform.parent;
+            if (gameObject.name != "Vault" || parent == null || parent.name != "Nav_Vault" ||
+                parent.parent == null || parent.parent.name != "Vault" ||
+                parent.parent.parent == null || parent.parent.parent.name != "RightSideContainer")
+                return null;
+
+            var wildcardButton = GameObject.Find("Nav_WildCard");
+            string progress = wildcardButton != null
+                ? VaultLabelFormatter.ExtractVaultProgress(GetWildcardTooltipText(wildcardButton))
+                : null;
+
+            return string.IsNullOrEmpty(progress)
+                ? Models.Strings.OpenVault
+                : LocaleManager.Instance.Format("OpenVault_Format", progress);
         }
 
         /// <summary>

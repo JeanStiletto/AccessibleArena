@@ -1077,6 +1077,8 @@
   "CurrencyGold": "골드",
   "CurrencyGems": "젬",
   "CurrencyWildcards": "와일드카드",
+  "OpenVault": "보관함 열기",
+  "OpenVault_Format": "보관함 열기 ({0})",
   "WildcardInPacks_One": "{1}까지 1팩 남음",
   "WildcardInPacks_Few": "{1}까지 {0}팩 남음",
   "WildcardInPacks_Format": "{1}까지 {0}팩 남음",

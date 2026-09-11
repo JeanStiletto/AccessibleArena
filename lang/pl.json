@@ -1077,6 +1077,8 @@
   "CurrencyGold": "Złoto",
   "CurrencyGems": "Klejnoty",
   "CurrencyWildcards": "Dżokery",
+  "OpenVault": "Otwórz skarbiec",
+  "OpenVault_Format": "Otwórz skarbiec ({0})",
   "WildcardInPacks_One": "{1} za 1 booster",
   "WildcardInPacks_Few": "{1} za {0} boostery",
   "WildcardInPacks_Format": "{1} za {0} boosterów",

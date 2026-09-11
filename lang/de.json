@@ -1077,6 +1077,8 @@
   "CurrencyGold": "Gold",
   "CurrencyGems": "Edelsteine",
   "CurrencyWildcards": "Wildcards",
+  "OpenVault": "Tresor öffnen",
+  "OpenVault_Format": "Tresor öffnen ({0})",
   "WildcardInPacks_One": "{1} in 1 Booster",
   "WildcardInPacks_Few": "{1} in {0} Boostern",
   "WildcardInPacks_Format": "{1} in {0} Boostern",

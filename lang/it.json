@@ -1077,6 +1077,8 @@
   "CurrencyGold": "Oro",
   "CurrencyGems": "Gemme",
   "CurrencyWildcards": "Jolly",
+  "OpenVault": "Apri il caveau",
+  "OpenVault_Format": "Apri il caveau ({0})",
   "WildcardInPacks_One": "{1} tra 1 bustina",
   "WildcardInPacks_Few": "{1} tra {0} bustine",
   "WildcardInPacks_Format": "{1} tra {0} bustine",
