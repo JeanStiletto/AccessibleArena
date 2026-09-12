@@ -1108,6 +1108,8 @@
   "CurrencyGold": "Gold",
   "CurrencyGems": "Gems",
   "CurrencyWildcards": "Wildcards",
+  "OpenVault": "Open vault",
+  "OpenVault_Format": "Open vault ({0})",
   "WildcardInPacks_One": "{1} in 1 pack",
   "WildcardInPacks_Few": "{1} in {0} packs",
   "WildcardInPacks_Format": "{1} in {0} packs",

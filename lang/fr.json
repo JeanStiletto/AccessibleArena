@@ -1106,6 +1106,8 @@
   "CurrencyGold": "Or",
   "CurrencyGems": "Gemmes",
   "CurrencyWildcards": "Jokers",
+  "OpenVault": "Ouvrir le coffre",
+  "OpenVault_Format": "Ouvrir le coffre ({0})",
   "WildcardInPacks_One": "{1} dans 1 booster",
   "WildcardInPacks_Few": "{1} dans {0} boosters",
   "WildcardInPacks_Format": "{1} dans {0} boosters",

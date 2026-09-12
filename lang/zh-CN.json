@@ -1106,6 +1106,8 @@
   "CurrencyGold": "金币",
   "CurrencyGems": "宝石",
   "CurrencyWildcards": "万用牌",
+  "OpenVault": "打开宝库",
+  "OpenVault_Format": "打开宝库 ({0})",
   "WildcardInPacks_One": "{1}还需1个补充包",
   "WildcardInPacks_Few": "{1}还需{0}个补充包",
   "WildcardInPacks_Format": "{1}还需{0}个补充包",

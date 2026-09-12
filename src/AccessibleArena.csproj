@@ -107,7 +107,7 @@
   </ItemGroup>
 
   <!-- Auto-deploy: copy built DLL to game Mods folder after each build -->
-  <Target Name="CopyToMods" AfterTargets="Build" Condition="Exists('$(MtgaPath)\Mods')">
+  <Target Name="CopyToMods" AfterTargets="Build" Condition="'$(DeployToMtga)' != 'false' AND Exists('$(MtgaPath)\Mods')">
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll"
           DestinationFolder="$(MtgaPath)\Mods\"
           SkipUnchangedFiles="true" />

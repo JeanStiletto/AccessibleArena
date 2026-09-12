@@ -886,6 +886,7 @@ namespace AccessibleArena.Core.Models
         public static string CurrencyGold => L.Get("CurrencyGold");
         public static string CurrencyGems => L.Get("CurrencyGems");
         public static string CurrencyWildcards => L.Get("CurrencyWildcards");
+        public static string OpenVault => L.Get("OpenVault");
         public static string NavMail => L.Get("GroupMail");
 
         // ===========================================

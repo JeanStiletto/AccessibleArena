@@ -1106,6 +1106,8 @@
   "CurrencyGold": "ゴールド",
   "CurrencyGems": "ジェム",
   "CurrencyWildcards": "ワイルドカード",
+  "OpenVault": "保管庫を開く",
+  "OpenVault_Format": "保管庫を開く ({0})",
   "WildcardInPacks_One": "あと1パックで{1}",
   "WildcardInPacks_Few": "あと{0}パックで{1}",
   "WildcardInPacks_Format": "あと{0}パックで{1}",

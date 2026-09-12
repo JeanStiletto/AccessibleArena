@@ -1106,6 +1106,8 @@
   "CurrencyGold": "Золото",
   "CurrencyGems": "Самоцветы",
   "CurrencyWildcards": "Универсальные карты",
+  "OpenVault": "Открыть хранилище",
+  "OpenVault_Format": "Открыть хранилище ({0})",
   "WildcardInPacks_One": "{1} через 1 бустер",
   "WildcardInPacks_Few": "{1} через {0} бустера",
   "WildcardInPacks_Format": "{1} через {0} бустеров",
