@@ -107,6 +107,30 @@ powershell -NoProfile -File installer/release.ps1
 ```
 Before running: update `ModVersion` in `src/Directory.Build.props` and add a `## vX.Y` section to `docs/CHANGELOG.md`, then commit.
 
+### Changelog Format
+Every `## vX.Y` section in `docs/CHANGELOG.md` has two parts, each introduced by an HTML heading tag (not a markdown `###`), so screen reader users can jump between them with heading navigation on GitHub and in the release notes:
+
+```markdown
+## v1.7
+
+<h3>Overview</h3>
+
+- New hotkey Ctrl+X does Y in the deck builder.
+- Deck tiles now announce Z.
+- Fixed W no longer happening after V.
+
+<h3>Details</h3>
+
+**Area:**
+
+- The full entry, as before: background, cause, what changed, edge cases, credits.
+```
+
+- **Overview:** one entry per change in the Details part, one line, one sentence. State only the user-facing improvement or change: a new hotkey, something the mod now announces, something that no longer goes wrong. No examples, no reasons, no implementation notes, no sub-bullets. Same order as Details. Several Details bullets that describe one feature collapse into one Overview line; a Details bullet that is only a verification note gets none.
+- **Details:** the existing style, unchanged: bold area labels, full prose bullets.
+- No lead paragraph between the version heading and the Overview; the Overview is the summary.
+- Only `## vX.Y` and `---` lines end a version section in `installer/release.ps1`, so the `<h3>` lines pass through into the GitHub release body unchanged.
+
 ### MelonLoader Logs
 - Latest: `<MtgaPath>\MelonLoader\Latest.log`
 - All logs: `<MtgaPath>\MelonLoader\Logs\`

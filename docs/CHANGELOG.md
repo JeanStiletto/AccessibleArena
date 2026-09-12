@@ -4,7 +4,33 @@ All notable changes to Accessible Arena.
 
 ## v1.6.2
 
-Deck builder and Decks screen upgrades: the Deck Info group now speaks everything the game's own "What's in your deck?" popup shows a sighted player, deck legality is announced live with the game's own reasons instead of a save-time popup, the "Suggest Lands" toggle reports what it changed, and deck tiles announce their colors and favorite star.
+<h3>Overview</h3>
+
+- Deck builder Tab/Shift+Tab group cycling no longer breaks on quick key taps at low frame rates (issues #120, #122).
+- Fixed the same quick-tap trap for Space in duels, the friends-panel Tab block and arrow-key hold-repeat before anyone hit it.
+- The deck builder announces when a deck stops or starts being legal, with the game's own reasons.
+- The Deck Info group has a new legality status row that also names the active format.
+- Deck-list and sideboard cards that do not fit the format now say why in their tile label.
+- The "Suggest Lands" toggle now announces which basic lands the game added and removed.
+- The mod announces when the game silently switches "Suggest Lands" off after a manual land edit.
+- The Deck Info card count line no longer speaks a duplicate "Cards" prefix.
+- The Deck Info Cards row now has one entry per card type, each with its subtype counts.
+- The Deck Info Lands entry now includes the basic-land count.
+- New Colors row in the Deck Info group with non-land card counts and percentages per color.
+- Mana curve bucket labels are localized.
+- Deck Info rows are always current after an edit instead of stale or missing.
+- New deck-builder hotkey: Ctrl+Page Down / Ctrl+Page Up jump between sections of the focused card group.
+- The F1 help and the deck builder's Ctrl+F1 hint now cover page turning, section jumps and clipboard copy.
+- The event page's win-reward ladder is now spoken as a "Rewards" group with one entry per tier.
+- Event page description paragraphs now live in an "Event Info" group, and Tab/Shift+Tab cycle entry button, Event Info and Rewards.
+- A greyed-out event pay button now says "not available", and Enter on any disabled tooltip button says "Item is disabled" instead of "Activated".
+- Ctrl+F1 in simple button browsers speaks its hint again instead of the word "BrowserHint".
+- An invalid advanced-search query now announces "Invalid search, results not updated." when leaving the field.
+- A search with no results is announced on every exit path, and "No search results" is localized.
+- Deck entries inside deck folders no longer repeat the word "deck" after every name.
+- Deck tiles now announce the deck's colors and favorite state.
+
+<h3>Details</h3>
 
 **Deck builder Tab cycling fix (issue #120, found and reported by [Daggershade](https://github.com/Daggershade)):**
 
