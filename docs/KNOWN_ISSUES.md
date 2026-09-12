@@ -59,11 +59,15 @@ Combining set filters (Advanced Filters) with a text search in the deck builder 
 
 ---
 
-## Under Investigation
+### Codex of the Multiverse Has Only Ten Articles
 
-### Codex "How to Play" Category Completeness
+The Codex looks sparse (most subcategories hold a single article) but the mod's table of contents is complete. The game's own hierarchy dump in `Player.log` (lines starting with `LTP:`) lists every node of the `LearnMoreStructure` asset with a `Show:` verdict, and on a fully unlocked account (September 2026) the whole structure is:
 
-The "How to Play" category in the Codex of the Multiverse may be missing entries or have sections that don't read fully. Needs a pass to verify all subsections are reachable and read correctly.
+- MTG Arena → Home (Direct Challenge), Profile (Seasons and Ranks), Decks (Building a Collection)
+- How to Play → Quick Start (Beginning and Ending a Game, Game Actions)
+- Ways to Play → Formats (Constructed, Limited, Precons, Jump In), Renewal & Rotation (Renewal & Rotation)
+
+That is ten articles, matching the ten `LTP_IsRead_<guid>` player preferences. Eight of the ten are gated by New Player Experience milestones (`SparkRankTier1..3`, `OpenSparkQueue`, `NPE_Completed`, `OpenSparkyDeckDuel`, `OpenJumpInEvent`). The game hides locked articles entirely, and a category with no visible children is never built. A brand-new account therefore sees only "How to Play → Quick Start" with two articles; the "MTG Arena" and "Ways to Play" bubbles do not exist yet. The mod reports exactly what the game builds. To re-verify after a game update, open the Codex once and grep `Player.log` for `LTP:`.
 
 ---
 

@@ -1863,6 +1863,10 @@ namespace AccessibleArena.Core.Models
         public static string CodexCollapsed(string topicName) => L.Format("CodexCollapsed_Format", topicName);
         public static string CodexSection => L.Get("CodexSection");
         public static string CodexNoContent => L.Get("CodexNoContent");
+        public static string CodexUnread => L.Get("CodexUnread");
+        public static string CodexExampleCard(string cardName) => L.Format("CodexExampleCard_Format", cardName);
+        public static string CodexLink(string label) => L.Format("CodexLink_Format", label);
+        public static string CodexCreditsJumpHint(string buttonLabel) => L.Format("CodexCreditsJumpHint_Format", buttonLabel);
 
         // ===========================================
         // PROFILE SCREEN

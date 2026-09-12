@@ -1147,6 +1147,10 @@
   "CodexCollapsed_Format": "{0}, collapsed",
   "CodexSection": "section",
   "CodexNoContent": "No content available",
+  "CodexUnread": "unread",
+  "CodexExampleCard_Format": "Example card: {0}",
+  "CodexLink_Format": "Link: {0}",
+  "CodexCreditsJumpHint_Format": "Enter jumps to {0}",
   "Duel_NoCounters": "No counters",
   "Duel_NothingResolving": "Nothing on the stack",
   "Duel_CounterEntry_Format": "{0} {1} counter",
@@ -1473,3 +1477,4 @@
   "KeyName_Ctrl": "Ctrl",
   "KeyName_Shift": "Shift"
 }
+

@@ -1032,36 +1032,53 @@ The Codex of the Multiverse screen provides a hierarchical table of contents for
 - **Credits** - Credits text navigable sequentially
 
 **Navigation - Table of Contents:**
-- Up/Down arrows (or W/S, Tab/Shift+Tab): Navigate between TOC items
+- Up/Down arrows (or Tab/Shift+Tab): Navigate between TOC items
 - Home/End: Jump to first/last item
 - Enter: Drill into a category (shows children) or open an article
 - Backspace: Go back one level in drill-down hierarchy
 - Backspace at top level: Navigate Home
 
 **Navigation - Content / Credits:**
-- Up/Down arrows (or W/S): Navigate between paragraphs
-- Home/End: Jump to first/last paragraph
+- Up/Down arrows: Navigate between blocks
+- Home/End: Jump to first/last block
+- Enter (content): Press the link button of a "Link:" block (opens the web browser); says "No alternate action available" on any other block
+- Enter (credits): Jump to the Universes Beyond section, mirroring the game's own button in the credits roll
 - Backspace: Close content and return to TOC
 
 **Announcements:**
-- Activation: "Codex of the Multiverse. N items. Arrow keys to navigate."
+- Activation: "Codex of the Multiverse. N topics."
 - Category items: "CategoryName, section, X of Y"
 - Article items: "ArticleName, X of Y"
+- Either gets ", unread" appended while the game shows its unread badge on it (a category counts as unread until every child has been read; opening an article clears it)
 - Drill-down: "CategoryName. FirstChild, 1 of N"
-- Content: "Paragraph text, block X of Y"
+- Content: "Block text, paragraph X of Y"; an embedded example card is its own block in reading order, "Example card: Name, cost, type line, P/T. Rules text"; a web-link button is "Link: label, opens a web browser"
+- Credits: "Credits. Enter jumps to <button label>. Paragraph 1 of N: text"
+
+**Article anatomy (from the `[CodexDump]` of all ten articles, September 2026):**
+- `LearnToPlay_Contents_Base(Clone)` → `Container` → `BackArrow` (with the breadcrumb `IndexText`, e.g. "How to Play / Quick Start / Game Actions") and a `Scroll View` whose `Content` holds one `Codex Content - <Article>_Base(Clone)` prefab
+- Inside: `Codex/<Path>/<Key>` `TextMeshProUGUI` paragraphs and headers (rich text: color, bold, `<indent>`, `<br>` between bullet items, `<sprite>` mana icons), plus `CodexComponent_*` pieces: `Spacer`, `Image`, `Header_N`, `Paragraphs`, `Splay_Cards_05` (a fan of five real `CDC` cards at the end of most articles), `Card_Display` / `ManaCostExplained` (single cards via `DisplayCardHolder`), `Tapping` (animated 3D mock Plains with world-space `TextMeshPro` title), `RotationStandard` / `RotationAlchemy` (booster meshes), and `Button` (two `CustomButton`+`OpenUrlBehaviour` web links, only in Game Actions)
+- Previously opened articles stay instantiated but inactive under the content view; the walk skips inactive nodes
+
+**What the game offers (verified September 2026):**
+- The whole Codex is ten articles under six subcategories; see KNOWN_ISSUES "Codex of the Multiverse Has Only Ten Articles" for the tree and how to re-verify from `Player.log`
+- Locked articles (New Player Experience milestones not yet reached) are hidden by the game entirely; there is no locked marker for sighted players either, so the mod has nothing to announce for them
+- The unread badge is the only per-entry state the game exposes
 
 **Technical Notes:**
 - Detected via `LearnToPlayControllerV2` MonoBehaviour with `IsOpen` property
-- TOC items discovered from `TableOfContentsSection` components in `tableOfContents` (depth 0) and `tableOfContentsTopics` (depth 2) containers
-- Drill-down uses a navigation stack to preserve position at each level
-- Category detection via `childAnchor` field or `_childSections` list on `LearnMoreSection`
-- Content paragraphs extracted from `TMP_Text` elements in `contentView`, filtering out embedded card displays
-- Standalone buttons (Replay Tutorial, Credits) appear at the end of the TOC
-- Delayed drill-down (0.4s) allows the game to expand children after clicking a category
+- TOC items discovered from `TableOfContentsSection` (`Assets.Core.Meta.LearnMore`) components in `tableOfContents` (depth 0), a bubble's `childAnchor` (depth 1) and `tableOfContentsTopics` (depth 2)
+- Drill-down uses a navigation stack to preserve position at each level; it runs on the frame after the click, because the game builds and activates the children synchronously inside the button's click handler
+- Category detection via `childAnchor` field or `_childSections` list on `LearnMoreSection` (`Wotc.Mtga.LearnMore`)
+- Unread state read live from the public `ShowNewFlag` property of `TableOfContentsSection`
+- Article blocks come from a hierarchy-order walk of `contentView`: every `TMP_Text` is split by `CodexTextSplitter` (blank line ends a block, a long line stands alone, runs of short lines are grouped with speech pauses); a card display root (name or component containing CardAnchor/MetaCardView/CardView/CDC) becomes one "Example card" block via `CardDetector.ExtractCardInfo` and is not walked further
+- The credits roll is a single `TextMeshProUGUI` on `CreditsDisplay`; the same splitter turns it into navigable blocks. `_universesBeyondButton` and `_ubSearchText` give the jump target: Enter clicks the button (so the visual scroll follows) and moves the cursor to the first block containing the search text
+- Standalone buttons (Replay Tutorial, Credits) appear at the end of the TOC; Replay Tutorial only while the game shows it
 - Credits mode detected when `learnToPlayRoot` is inactive but `CreditsDisplay` is active
+- Diagnostic: `DumpArticlesOnActivate` (const, off in release) opens every visible article once via the game's own `OpenContent`, logs the article hierarchy and the blocks the mod would announce under the `[CodexDump]` tag, then closes it. Flip it on after a game update to re-check the article prefabs without touching the keyboard
 
 **Files:**
 - `src/Core/Services/CodexNavigator.cs` - Main navigator implementation
+- `src/Core/Utils/CodexTextSplitter.cs` - Line-based block splitting (pure logic, tested in `CodexTextSplitterTests`)
 
 ---
 

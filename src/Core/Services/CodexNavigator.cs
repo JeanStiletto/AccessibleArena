@@ -55,19 +55,27 @@ namespace AccessibleArena.Core.Services
         // Drill-down stack: each entry stores a parent level's items + position
         private readonly List<TocLevel> _navStack = new List<TocLevel>();
 
-        // Content paragraphs
-        private readonly List<string> _contentParagraphs = new List<string>();
+        // Article blocks in reading order (paragraphs, example cards, link buttons)
+        private readonly List<ContentBlock> _contentBlocks = new List<ContentBlock>();
         private int _contentIndex;
 
         // Credits paragraphs
         private readonly List<string> _creditsParagraphs = new List<string>();
         private int _creditsIndex;
 
-        // Delayed drill-down after clicking a category (game needs time to expand children)
+        // Drill-down runs on the frame after the click. The game builds and activates the
+        // children synchronously inside the button's click handler, so one frame is enough
+        // for the new TOC sections to be active in the hierarchy.
         private bool _pendingDrillDown;
-        private float _drillDownTimer;
         private MonoBehaviour _drillDownSection; // the section component we clicked
         private string _drillDownLabel;
+
+        // Credits: the game's "Universes Beyond" button scrolls to that section of the roll.
+        // We mirror it as Enter, jumping our block cursor to the first block that contains the
+        // search text the game itself uses.
+        private GameObject _creditsJumpButton;
+        private string _creditsJumpLabel;
+        private string _creditsJumpSearchText;
 
         #endregion
 
@@ -87,6 +95,13 @@ namespace AccessibleArena.Core.Services
             public string Label; // parent category label
             public int SelectedIndex; // cursor position at that level
             public List<TocItem> Items; // items at that level
+        }
+
+        /// <summary>One announceable unit of an article. Link buttons carry the GameObject Enter activates.</summary>
+        private struct ContentBlock
+        {
+            public string Text;
+            public GameObject Link; // OpenUrlBehaviour button, null for plain text and cards
         }
 
 
@@ -115,12 +130,17 @@ namespace AccessibleArena.Core.Services
             public FieldInfo TocIntent;
             public FieldInfo TocChildAnchor;
             public FieldInfo TocSection;
+            public PropertyInfo TocShowNewFlag; // drives the game's unread badge
 
             // LearnMoreSection
             public Type LearnMoreSectionType;
             public FieldInfo SectionTitle;
             public FieldInfo SectionId;
             public FieldInfo ChildSections;
+
+            // CreditsDisplay
+            public FieldInfo CreditsUbButton;
+            public FieldInfo CreditsUbSearchText;
         }
 
         private static readonly ReflectionCache<CodexHandles> _codexCache = new ReflectionCache<CodexHandles>(
@@ -138,28 +158,43 @@ namespace AccessibleArena.Core.Services
                     CreditsDisplay = t.GetField("_creditsDisplay", AllInstanceFlags),
                 };
 
-                h.TocSectionType = FindType("Core.MainNavigation.LearnToPlay.TableOfContentsSection");
+                h.TocSectionType = FindType("Assets.Core.Meta.LearnMore.TableOfContentsSection");
                 if (h.TocSectionType != null)
+                    CacheTocSectionFields(h, h.TocSectionType);
+
+                if (h.CreditsDisplay != null)
                 {
-                    h.TocButton = h.TocSectionType.GetField("button", AllInstanceFlags);
-                    h.TocIntent = h.TocSectionType.GetField("buttonClickIntent", AllInstanceFlags);
-                    h.TocChildAnchor = h.TocSectionType.GetField("childAnchor", AllInstanceFlags);
-                    h.TocSection = h.TocSectionType.GetField("section", AllInstanceFlags);
+                    h.CreditsUbButton = h.CreditsDisplay.FieldType.GetField("_universesBeyondButton", AllInstanceFlags);
+                    h.CreditsUbSearchText = h.CreditsDisplay.FieldType.GetField("_ubSearchText", AllInstanceFlags);
                 }
 
-                h.LearnMoreSectionType = FindType("Core.MainNavigation.LearnToPlay.LearnMoreSection");
+                h.LearnMoreSectionType = FindType("Wotc.Mtga.LearnMore.LearnMoreSection");
                 if (h.LearnMoreSectionType != null)
-                {
-                    h.SectionTitle = h.LearnMoreSectionType.GetField("_title", AllInstanceFlags);
-                    h.SectionId = h.LearnMoreSectionType.GetField("Id", PublicInstance);
-                    h.ChildSections = ReflectionWalk.FindField(h.LearnMoreSectionType, "_childSections", AllInstanceFlags);
-                }
+                    CacheLearnMoreSectionFields(h, h.LearnMoreSectionType);
 
                 return h;
             },
             validator: h => h.LearnToPlayRoot != null && h.TableOfContents != null,
             logTag: "Codex",
             logSubject: "LearnToPlayControllerV2");
+
+        private static void CacheTocSectionFields(CodexHandles h, Type type)
+        {
+            h.TocSectionType = type;
+            h.TocButton = type.GetField("button", AllInstanceFlags);
+            h.TocIntent = type.GetField("buttonClickIntent", AllInstanceFlags);
+            h.TocChildAnchor = type.GetField("childAnchor", AllInstanceFlags);
+            h.TocSection = type.GetField("section", AllInstanceFlags);
+            h.TocShowNewFlag = type.GetProperty("ShowNewFlag", PublicInstance);
+        }
+
+        private static void CacheLearnMoreSectionFields(CodexHandles h, Type type)
+        {
+            h.LearnMoreSectionType = type;
+            h.SectionTitle = type.GetField("_title", AllInstanceFlags);
+            h.SectionId = type.GetField("Id", PublicInstance);
+            h.ChildSections = ReflectionWalk.FindField(type, "_childSections", AllInstanceFlags);
+        }
 
         #endregion
 
@@ -328,25 +363,46 @@ namespace AccessibleArena.Core.Services
 
         private void CacheTocSectionType(Type type)
         {
-            _codexCache.Handles.TocSectionType = type;
-            var flags = AllInstanceFlags;
-            _codexCache.Handles.TocButton = type.GetField("button", flags);
-            _codexCache.Handles.TocIntent = type.GetField("buttonClickIntent", flags);
-            _codexCache.Handles.TocChildAnchor = type.GetField("childAnchor", flags);
-            _codexCache.Handles.TocSection = type.GetField("section", flags);
+            var h = _codexCache.Handles;
+            CacheTocSectionFields(h, type);
 
             Log.Msg("Codex", $"Cached TOC section type from fallback: " +
-                $"Button={_codexCache.Handles.TocButton != null}, Intent={_codexCache.Handles.TocIntent != null}, " +
-                $"ChildAnchor={_codexCache.Handles.TocChildAnchor != null}, Section={_codexCache.Handles.TocSection != null}");
+                $"Button={h.TocButton != null}, Intent={h.TocIntent != null}, " +
+                $"ChildAnchor={h.TocChildAnchor != null}, Section={h.TocSection != null}, NewFlag={h.TocShowNewFlag != null}");
 
             // Also cache LearnMoreSection type from the section field
-            if (_codexCache.Handles.TocSection != null && _codexCache.Handles.LearnMoreSectionType == null)
+            if (h.TocSection != null && h.LearnMoreSectionType == null)
             {
-                _codexCache.Handles.LearnMoreSectionType = _codexCache.Handles.TocSection.FieldType;
-                _codexCache.Handles.SectionTitle = _codexCache.Handles.LearnMoreSectionType.GetField("_title", flags);
-                _codexCache.Handles.SectionId = _codexCache.Handles.LearnMoreSectionType.GetField("Id", PublicInstance);
-                Log.Msg("Codex", $"Cached LearnMoreSection type: Title={_codexCache.Handles.SectionTitle != null}, Id={_codexCache.Handles.SectionId != null}");
+                CacheLearnMoreSectionFields(h, h.TocSection.FieldType);
+                Log.Msg("Codex", $"Cached LearnMoreSection type: Title={h.SectionTitle != null}, Id={h.SectionId != null}");
             }
+        }
+
+        /// <summary>
+        /// Whether the game shows its unread badge on this TOC entry. Read live at announce time:
+        /// opening an article clears the flag, and a category's flag turns off once every child
+        /// has been read. Locked articles never get here: the game hides them entirely and
+        /// shows no locked marker to sighted players either.
+        /// </summary>
+        private bool IsUnread(TocItem item)
+        {
+            if (item.SectionComponent == null || _codexCache.Handles.TocShowNewFlag == null) return false;
+            try
+            {
+                return (bool)_codexCache.Handles.TocShowNewFlag.GetValue(item.SectionComponent, null);
+            }
+            catch { return false; }
+        }
+
+        /// <summary>Label plus the "section" and "unread" markers, as spoken in the TOC.</summary>
+        private string DescribeTocItem(TocItem item)
+        {
+            string text = item.Label;
+            if (item.IsCategory && !item.IsStandalone)
+                text += $", {Strings.CodexSection}";
+            if (IsUnread(item))
+                text += $", {Strings.CodexUnread}";
+            return text;
         }
 
         private GameObject GetCustomButtonGameObject(MonoBehaviour tocSection)
@@ -493,75 +549,167 @@ namespace AccessibleArena.Core.Services
 
         private void ExtractContentParagraphs()
         {
-            _contentParagraphs.Clear();
+            _contentBlocks.Clear();
             _contentIndex = 0;
 
             var contentViewGo = GetFieldGameObject(_codexCache.Handles.ContentView);
             if (contentViewGo == null || !contentViewGo.activeInHierarchy) return;
 
-            int skippedCards = 0;
-            var contentTransform = contentViewGo.transform;
-            var texts = contentViewGo.GetComponentsInChildren<TMPro.TMP_Text>(false);
-            foreach (var tmp in texts)
+            var stats = new ContentStats();
+            CollectContentBlocks(contentViewGo.transform, _contentBlocks, ref stats);
+
+            Log.Msg("Codex", $"Extracted {_contentBlocks.Count} content blocks ({stats.Cards} example cards, {stats.Links} links)");
+        }
+
+        private struct ContentStats { public int Cards; public int Links; }
+
+        /// <summary>
+        /// Walks the article view in hierarchy order (which is the reading order) and collects
+        /// one block per paragraph. Three things interrupt the plain-text walk, each becoming a
+        /// single block in the place where a sighted reader sees it, and none is walked further:
+        /// - a link button (OpenUrlBehaviour): "Link: label", activatable with Enter
+        /// - an embedded example card: name, cost, type, P/T and rules text
+        /// Only UI text (TextMeshProUGUI) counts as prose. World-space TextMeshPro belongs to the
+        /// 3D mock cards of the animated demos (the "tapping" illustration shows a Plains) and
+        /// would leak a stray card title into the article.
+        /// </summary>
+        private static void CollectContentBlocks(Transform node, List<ContentBlock> blocks, ref ContentStats stats)
+        {
+            if (!node.gameObject.activeSelf) return;
+
+            if (IsUrlButton(node.gameObject))
             {
-                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
-
-                // Skip text inside embedded card displays
-                if (IsInsideCardDisplay(tmp.transform, contentTransform))
+                stats.Links++;
+                string label = CleanLabel(UITextExtractor.GetText(node.gameObject));
+                if (string.IsNullOrEmpty(label)) label = node.gameObject.name;
+                blocks.Add(new ContentBlock
                 {
-                    skippedCards++;
-                    continue;
-                }
-
-                string text = tmp.text;
-                if (string.IsNullOrEmpty(text)) continue;
-
-                text = CleanLabel(text);
-                if (string.IsNullOrEmpty(text) || text.Length < 3) continue;
-
-                _contentParagraphs.Add(text);
+                    Text = $"{Strings.CodexLink(label)}, {Strings.PhysicalPrizeOpensBrowser}",
+                    Link = node.gameObject
+                });
+                return;
             }
 
-            Log.Msg("Codex", $"Extracted {_contentParagraphs.Count} content paragraphs (skipped {skippedCards} card texts)");
+            if (IsCardDisplayRoot(node.gameObject))
+            {
+                stats.Cards++;
+                blocks.Add(new ContentBlock { Text = Strings.CodexExampleCard(DescribeExampleCard(node.gameObject)) });
+                return;
+            }
+
+            var tmp = node.GetComponent<TMPro.TextMeshProUGUI>();
+            if (tmp != null)
+            {
+                foreach (var text in SplitTextBlocks(tmp.text))
+                    blocks.Add(new ContentBlock { Text = text });
+            }
+
+            for (int i = 0; i < node.childCount; i++)
+                CollectContentBlocks(node.GetChild(i), blocks, ref stats);
+        }
+
+        private static bool IsUrlButton(GameObject go)
+        {
+            bool hasUrl = false, hasButton = false;
+            foreach (var mb in go.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName == "OpenUrlBehaviour") hasUrl = true;
+                else if (typeName == "CustomButton") hasButton = true;
+            }
+            return hasUrl && hasButton;
         }
 
         /// <summary>
-        /// Check if a TMP_Text element is inside an embedded card display.
-        /// Walks up the parent hierarchy looking for card-related components or names.
+        /// Turns one text component into announcement blocks: line-break tags become lines
+        /// before the rich text goes (the splitter needs them for bullet lists), mana sprites
+        /// become words, then the splitter groups lines. Blocks under three characters (stray
+        /// glyphs such as the "=" of the mana demo) are dropped.
         /// </summary>
-        private static bool IsInsideCardDisplay(Transform textTransform, Transform stopAt)
+        private static List<string> SplitTextBlocks(string rawText)
         {
-            var current = textTransform.parent;
-            while (current != null && current != stopAt)
+            var result = new List<string>();
+            if (string.IsNullOrEmpty(rawText)) return result;
+
+            string text = LineBreakTag.Replace(rawText, "\n");
+            text = CardDetector.ReplaceSpriteTagsWithText(text);
+            foreach (var block in CodexTextSplitter.Split(text))
             {
-                // Check GO name for card display patterns
-                string goName = current.gameObject.name;
-                if (goName.Contains("CardAnchor") ||
-                    goName.Contains("MetaCardView") ||
-                    goName.Contains("DuelCardView") ||
-                    goName.Contains("CardRenderer"))
+                if (block.Length >= 3)
+                    result.Add(block);
+            }
+            return result;
+        }
+
+        private static readonly Regex LineBreakTag = new Regex(@"<br\s*/?>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>Is this GameObject the root of an embedded card display?</summary>
+        private static bool IsCardDisplayRoot(GameObject go)
+        {
+            string goName = go.name;
+            if (goName.Contains("CardAnchor") ||
+                goName.Contains("MetaCardView") ||
+                goName.Contains("DuelCardView") ||
+                goName.Contains("CardRenderer"))
+                return true;
+
+            foreach (var mb in go.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                string typeName = mb.GetType().Name;
+                if (typeName.Contains("CardView") ||
+                    typeName.Contains("CardRenderer") ||
+                    typeName.Contains("CDC"))
                     return true;
-
-                // Check component types for card-related MonoBehaviours
-                foreach (var mb in current.GetComponents<MonoBehaviour>())
-                {
-                    if (mb == null) continue;
-                    string typeName = mb.GetType().Name;
-                    if (typeName.Contains("CardView") ||
-                        typeName.Contains("CardRenderer") ||
-                        typeName.Contains("CDC"))
-                        return true;
-                }
-
-                current = current.parent;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Describes an example card the way the article shows it: name, mana cost, type line,
+        /// power/toughness and rules text. The display root may wrap the actual card view, so
+        /// the first descendant the card detector recognises is what gets read; falls back to
+        /// the display's own text when no model is reachable.
+        /// </summary>
+        private static string DescribeExampleCard(GameObject displayRoot)
+        {
+            GameObject cardGo = CardDetector.IsCard(displayRoot) ? displayRoot : null;
+            if (cardGo == null)
+            {
+                foreach (var t in displayRoot.GetComponentsInChildren<Transform>(false))
+                {
+                    if (CardDetector.IsCard(t.gameObject)) { cardGo = t.gameObject; break; }
+                }
+            }
+
+            if (cardGo != null)
+            {
+                var info = CardDetector.ExtractCardInfo(cardGo);
+                if (info.IsValid && !string.IsNullOrEmpty(info.Name))
+                {
+                    var head = new List<string> { info.Name };
+                    if (!string.IsNullOrEmpty(info.ManaCost)) head.Add(info.ManaCost);
+                    if (!string.IsNullOrEmpty(info.TypeLine)) head.Add(info.TypeLine);
+                    if (!string.IsNullOrEmpty(info.PowerToughness)) head.Add(info.PowerToughness);
+                    string description = string.Join(", ", head);
+                    if (!string.IsNullOrEmpty(info.RulesText))
+                        description += ". " + CleanLabel(info.RulesText);
+                    return description;
+                }
+            }
+
+            string text = CleanLabel(UITextExtractor.GetText(displayRoot));
+            return string.IsNullOrEmpty(text) ? Strings.NPE_UnknownCard : text;
         }
 
         private void ExtractCreditsParagraphs()
         {
             _creditsParagraphs.Clear();
             _creditsIndex = 0;
+            _creditsJumpButton = null;
+            _creditsJumpLabel = null;
+            _creditsJumpSearchText = null;
 
             if (_codexCache.Handles.CreditsDisplay == null || _controller == null) return;
 
@@ -570,17 +718,14 @@ namespace AccessibleArena.Core.Services
                 var creditsDisplay = _codexCache.Handles.CreditsDisplay.GetValue(_controller) as MonoBehaviour;
                 if (creditsDisplay == null || !creditsDisplay.gameObject.activeInHierarchy) return;
 
-                var texts = creditsDisplay.GetComponentsInChildren<TMPro.TMP_Text>(false);
-                foreach (var tmp in texts)
+                CacheCreditsJumpButton(creditsDisplay);
+
+                // The whole roll is one TMP_Text; the jump button's own label is not part of it.
+                foreach (var tmp in creditsDisplay.GetComponentsInChildren<TMPro.TMP_Text>(false))
                 {
                     if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
-                    string text = tmp.text;
-                    if (string.IsNullOrEmpty(text)) continue;
-
-                    text = CleanLabel(text);
-                    if (string.IsNullOrEmpty(text) || text.Length < 3) continue;
-
-                    _creditsParagraphs.Add(text);
+                    if (_creditsJumpButton != null && tmp.transform.IsChildOf(_creditsJumpButton.transform)) continue;
+                    _creditsParagraphs.AddRange(SplitTextBlocks(tmp.text));
                 }
             }
             catch (Exception ex)
@@ -588,7 +733,21 @@ namespace AccessibleArena.Core.Services
                 Log.Msg("Codex", $"Error extracting credits: {ex.Message}");
             }
 
-            Log.Msg("Codex", $"Extracted {_creditsParagraphs.Count} credits paragraphs");
+            Log.Msg("Codex", $"Extracted {_creditsParagraphs.Count} credits blocks (jump button: {_creditsJumpLabel ?? "none"})");
+        }
+
+        private void CacheCreditsJumpButton(MonoBehaviour creditsDisplay)
+        {
+            var h = _codexCache.Handles;
+            if (h.CreditsUbButton == null) return;
+
+            var btn = h.CreditsUbButton.GetValue(creditsDisplay) as MonoBehaviour;
+            if (btn == null || btn.gameObject == null || !btn.gameObject.activeInHierarchy) return;
+
+            _creditsJumpButton = btn.gameObject;
+            _creditsJumpLabel = CleanLabel(UITextExtractor.GetText(btn.gameObject));
+            if (string.IsNullOrEmpty(_creditsJumpLabel)) _creditsJumpLabel = btn.gameObject.name;
+            _creditsJumpSearchText = h.CreditsUbSearchText?.GetValue(creditsDisplay) as string;
         }
 
         #endregion
@@ -634,13 +793,14 @@ namespace AccessibleArena.Core.Services
             _tocIndex = 0;
             _navStack.Clear();
             _pendingDrillDown = false;
+            StartArticleDump();
         }
 
         protected override void OnDeactivating()
         {
             _tocItems.Clear();
             _navStack.Clear();
-            _contentParagraphs.Clear();
+            _contentBlocks.Clear();
             _creditsParagraphs.Clear();
             _pendingDrillDown = false;
         }
@@ -670,19 +830,7 @@ namespace AccessibleArena.Core.Services
         {
             if (_tocIndex < 0 || _tocIndex >= _tocItems.Count) return;
 
-            var item = _tocItems[_tocIndex];
-            string announcement;
-
-            if (item.IsCategory && !item.IsStandalone)
-            {
-                // Category that opens a sub-list on Enter
-                announcement = $"{item.Label}, {Strings.CodexSection}";
-            }
-            else
-            {
-                announcement = item.Label;
-            }
-
+            string announcement = DescribeTocItem(_tocItems[_tocIndex]);
             string pos = Strings.PositionOf(_tocIndex + 1, _tocItems.Count);
             if (pos != "") announcement += $", {pos}";
             _announcer.AnnounceInterrupt(announcement);
@@ -690,10 +838,10 @@ namespace AccessibleArena.Core.Services
 
         private void AnnounceContentBlock()
         {
-            if (_contentIndex < 0 || _contentIndex >= _contentParagraphs.Count) return;
+            if (_contentIndex < 0 || _contentIndex >= _contentBlocks.Count) return;
 
-            string position = Strings.CodexContentBlock(_contentIndex + 1, _contentParagraphs.Count);
-            _announcer.AnnounceInterrupt($"{_contentParagraphs[_contentIndex]}, {position}");
+            string position = Strings.CodexContentBlock(_contentIndex + 1, _contentBlocks.Count);
+            _announcer.AnnounceInterrupt($"{_contentBlocks[_contentIndex].Text}, {position}");
         }
 
         private void AnnounceCreditsBlock()
@@ -728,6 +876,10 @@ namespace AccessibleArena.Core.Services
                 Deactivate();
                 return;
             }
+
+            // Diagnostic article dump owns the screen while it runs
+            if (StepArticleDump())
+                return;
 
             // Detect mode transitions
             if (_mode == CodexMode.TableOfContents)
@@ -777,9 +929,9 @@ namespace AccessibleArena.Core.Services
             _mode = CodexMode.Content;
             ExtractContentParagraphs();
 
-            if (_contentParagraphs.Count > 0)
+            if (_contentBlocks.Count > 0)
             {
-                _announcer.AnnounceInterrupt(Strings.CodexContentOpened(_contentParagraphs.Count));
+                _announcer.AnnounceInterrupt(Strings.CodexContentOpened(_contentBlocks.Count));
             }
             else
             {
@@ -792,15 +944,49 @@ namespace AccessibleArena.Core.Services
             _mode = CodexMode.Credits;
             ExtractCreditsParagraphs();
 
+            string opened = Strings.CodexCreditsOpened;
+            if (_creditsJumpButton != null)
+                opened += $". {Strings.CodexCreditsJumpHint(_creditsJumpLabel)}";
+
             if (_creditsParagraphs.Count > 0)
             {
                 _announcer.AnnounceInterrupt(
-                    $"{Strings.CodexCreditsOpened}. {Strings.CodexContentBlock(1, _creditsParagraphs.Count)}: {_creditsParagraphs[0]}");
+                    $"{opened}. {Strings.CodexContentBlock(1, _creditsParagraphs.Count)}: {_creditsParagraphs[0]}");
             }
             else
             {
-                _announcer.AnnounceInterrupt(Strings.CodexCreditsOpened);
+                _announcer.AnnounceInterrupt(opened);
             }
+        }
+
+        /// <summary>
+        /// Enter in credits: the game's jump button scrolls the roll to the Universes Beyond
+        /// section. Click it so the view follows, and move our cursor to the first block that
+        /// contains the game's own search text.
+        /// </summary>
+        private void JumpToCreditsSection()
+        {
+            if (_creditsJumpButton == null)
+            {
+                _announcer.AnnounceInterrupt(Strings.NoAlternateAction);
+                return;
+            }
+
+            UIActivator.Activate(_creditsJumpButton);
+
+            int target = -1;
+            if (!string.IsNullOrEmpty(_creditsJumpSearchText))
+                target = _creditsParagraphs.FindIndex(b => b.IndexOf(_creditsJumpSearchText, StringComparison.OrdinalIgnoreCase) >= 0);
+
+            if (target < 0)
+            {
+                Log.Msg("Codex", $"Credits jump: search text '{_creditsJumpSearchText}' not found in {_creditsParagraphs.Count} blocks");
+                _announcer.AnnounceInterrupt(_creditsJumpLabel);
+                return;
+            }
+
+            _creditsIndex = target;
+            AnnounceCreditsBlock();
         }
 
         /// <summary>
@@ -809,7 +995,7 @@ namespace AccessibleArena.Core.Services
         private void ReturnToToc()
         {
             _mode = CodexMode.TableOfContents;
-            _contentParagraphs.Clear();
+            _contentBlocks.Clear();
             _creditsParagraphs.Clear();
 
             // _tocItems and _tocIndex are preserved from before content was opened
@@ -869,10 +1055,7 @@ namespace AccessibleArena.Core.Services
             if (_tocItems.Count > 0)
             {
                 // Announce: "CategoryName. FirstChild, 1 of N"
-                var first = _tocItems[0];
-                string firstLabel = first.IsCategory && !first.IsStandalone
-                    ? $"{first.Label}, {Strings.CodexSection}"
-                    : first.Label;
+                string firstLabel = DescribeTocItem(_tocItems[0]);
                 string pos = Strings.PositionOf(1, _tocItems.Count);
                 _announcer.AnnounceInterrupt($"{parentLabel}. {firstLabel}" + (pos != "" ? $", {pos}" : ""));
             }
@@ -1007,10 +1190,9 @@ namespace AccessibleArena.Core.Services
 
             if (item.IsCategory && item.SectionComponent != null)
             {
-                // Category: schedule drill-down after game expands children
-                _announcer.AnnounceInterrupt(Strings.Activating(item.Label));
+                // Category: drill down next frame, once the game's click handler has built
+                // and activated the children (no announcement in between - DrillDown speaks)
                 _pendingDrillDown = true;
-                _drillDownTimer = 0.4f;
                 _drillDownSection = item.SectionComponent;
                 _drillDownLabel = item.Label;
             }
@@ -1019,10 +1201,10 @@ namespace AccessibleArena.Core.Services
 
         private void HandleContentInput()
         {
-            // Up: Previous paragraph
+            // Up: Previous block
             if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
-                if (_contentParagraphs.Count == 0)
+                if (_contentBlocks.Count == 0)
                 {
                     _announcer.AnnounceInterrupt(Strings.CodexNoContent);
                     return;
@@ -1040,16 +1222,16 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Down: Next paragraph
+            // Down: Next block
             if (KeyInput.GetKeyDown(KeyCode.DownArrow))
             {
-                if (_contentParagraphs.Count == 0)
+                if (_contentBlocks.Count == 0)
                 {
                     _announcer.AnnounceInterrupt(Strings.CodexNoContent);
                     return;
                 }
 
-                if (_contentIndex < _contentParagraphs.Count - 1)
+                if (_contentIndex < _contentBlocks.Count - 1)
                 {
                     _contentIndex++;
                     AnnounceContentBlock();
@@ -1061,10 +1243,10 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // Home: First paragraph
+            // Home: First block
             if (KeyInput.GetKeyDown(KeyCode.Home))
             {
-                if (_contentParagraphs.Count > 0)
+                if (_contentBlocks.Count > 0)
                 {
                     _contentIndex = 0;
                     AnnounceContentBlock();
@@ -1072,13 +1254,30 @@ namespace AccessibleArena.Core.Services
                 return;
             }
 
-            // End: Last paragraph
+            // End: Last block
             if (KeyInput.GetKeyDown(KeyCode.End))
             {
-                if (_contentParagraphs.Count > 0)
+                if (_contentBlocks.Count > 0)
                 {
-                    _contentIndex = _contentParagraphs.Count - 1;
+                    _contentIndex = _contentBlocks.Count - 1;
                     AnnounceContentBlock();
+                }
+                return;
+            }
+
+            // Enter: follow a link block (the game's own button opens the web browser)
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                if (_contentIndex >= 0 && _contentIndex < _contentBlocks.Count && _contentBlocks[_contentIndex].Link != null)
+                {
+                    _announcer.AnnounceInterrupt(Strings.Activating(_contentBlocks[_contentIndex].Text));
+                    UIActivator.Activate(_contentBlocks[_contentIndex].Link);
+                }
+                else
+                {
+                    _announcer.AnnounceInterrupt(Strings.NoAlternateAction);
                 }
                 return;
             }
@@ -1146,6 +1345,15 @@ namespace AccessibleArena.Core.Services
                     _creditsIndex = _creditsParagraphs.Count - 1;
                     AnnounceCreditsBlock();
                 }
+                return;
+            }
+
+            // Enter: jump to the Universes Beyond section (the game's only control in the roll)
+            if (KeyInput.GetKeyDown(KeyCode.Return) || KeyInput.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                InputManager.ConsumeKey(KeyCode.Return);
+                InputManager.ConsumeKey(KeyCode.KeypadEnter);
+                JumpToCreditsSection();
                 return;
             }
 
@@ -1238,20 +1446,191 @@ namespace AccessibleArena.Core.Services
 
         #endregion
 
+        #region Article Dump (diagnostic)
+
+        // Diagnostic: on activation, open every visible article once through the game's own
+        // OpenContent, log the article view's hierarchy plus the blocks we would announce, then
+        // close it again. Runs once per session and suspends input while it works.
+        // Off in release; flip on to re-check the article prefabs after a game update.
+        private const bool DumpArticlesOnActivate = false;
+        private const string DumpTag = "CodexDump";
+        private const int DumpSettleFrames = 3;
+
+        private static bool _dumpDone;
+        private readonly List<object> _dumpQueue = new List<object>();
+        private int _dumpIndex = -1;
+        private int _dumpWaitFrames;
+        private MethodInfo _dumpOpenContent, _dumpHideActiveContents, _dumpShowTocSection, _dumpHideTocSection;
+
+        private void StartArticleDump()
+        {
+            if (!DumpArticlesOnActivate || _dumpDone || _controller == null) return;
+            _dumpDone = true;
+
+            try
+            {
+                var ct = _controller.GetType();
+                _dumpOpenContent = ct.GetMethod("OpenContent", AllInstanceFlags);
+                _dumpHideActiveContents = ct.GetMethod("HideActiveContents", AllInstanceFlags);
+                _dumpShowTocSection = ct.GetMethod("ShowTableOfContentsSection", AllInstanceFlags);
+                _dumpHideTocSection = ct.GetMethod("HideTableOfContentsSection", AllInstanceFlags);
+                var hierarchy = ct.GetField("_hierarchy", AllInstanceFlags)?.GetValue(_controller);
+                var getAll = hierarchy?.GetType().GetMethod("Get", PublicInstance);
+
+                if (_dumpOpenContent == null || _dumpHideActiveContents == null || _dumpShowTocSection == null ||
+                    _dumpHideTocSection == null || getAll == null)
+                {
+                    Log.Msg(DumpTag, $"Aborted: OpenContent={_dumpOpenContent != null} Hide={_dumpHideActiveContents != null} " +
+                        $"ShowToc={_dumpShowTocSection != null} HideToc={_dumpHideTocSection != null} hierarchy={hierarchy != null} Get={getAll != null}");
+                    return;
+                }
+
+                _dumpQueue.Clear();
+                foreach (var refs in (System.Collections.IEnumerable)getAll.Invoke(hierarchy, null))
+                {
+                    var rt = refs.GetType();
+                    string path = rt.GetProperty("Path", PublicInstance)?.GetValue(refs, null) as string;
+                    int depth = (rt.GetField("Ancestors", PublicInstance)?.GetValue(refs) as Array)?.Length ?? -1;
+                    bool show = rt.GetField("Show", PublicInstance)?.GetValue(refs) is bool s && s;
+                    bool accessible = rt.GetField("IsSelfAccessible", PublicInstance)?.GetValue(refs) is bool a && a;
+                    bool hasChildren = rt.GetProperty("HasChildren", PublicInstance)?.GetValue(refs, null) is bool hc && hc;
+                    bool isNew = rt.GetProperty("ShowNewFlag", PublicInstance)?.GetValue(refs, null) is bool n && n;
+                    Log.Msg(DumpTag, $"Section '{path}' depth={depth} show={show} accessible={accessible} hasChildren={hasChildren} new={isNew}");
+                    if (show && !hasChildren) _dumpQueue.Add(refs);
+                }
+
+                Log.Msg(DumpTag, $"Queued {_dumpQueue.Count} articles");
+                _dumpIndex = 0;
+                _dumpWaitFrames = 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Msg(DumpTag, $"Start failed: {ex}");
+                _dumpQueue.Clear();
+                _dumpIndex = -1;
+            }
+        }
+
+        /// <summary>Advances the dump one frame. True while the dump owns the screen.</summary>
+        private bool StepArticleDump()
+        {
+            if (_dumpIndex < 0) return false;
+            if (_dumpIndex >= _dumpQueue.Count)
+            {
+                Log.Msg(DumpTag, "Complete");
+                _dumpQueue.Clear();
+                _dumpIndex = -1;
+                return false;
+            }
+
+            var refs = _dumpQueue[_dumpIndex];
+            if (_dumpWaitFrames == 0)
+            {
+                try
+                {
+                    // OpenContent dereferences the section's TOC entry; depth-2 entries are only
+                    // built on demand, so make sure it exists first (as the game does on click).
+                    _dumpShowTocSection.Invoke(_controller, new[] { refs });
+                    _dumpOpenContent.Invoke(_controller, new[] { refs });
+                }
+                catch (Exception ex)
+                {
+                    Log.Msg(DumpTag, $"Open failed for article {_dumpIndex}: {ex.InnerException?.Message ?? ex.Message}");
+                    _dumpIndex++;
+                    return true;
+                }
+                _dumpWaitFrames = 1;
+                return true;
+            }
+
+            if (_dumpWaitFrames <= DumpSettleFrames)
+            {
+                _dumpWaitFrames++;
+                return true;
+            }
+
+            DumpArticle(refs);
+
+            try
+            {
+                _dumpHideActiveContents.Invoke(_controller, null);
+                _dumpHideTocSection.Invoke(_controller, new[] { refs });
+            }
+            catch (Exception ex)
+            {
+                Log.Msg(DumpTag, $"Close failed for article {_dumpIndex}: {ex.InnerException?.Message ?? ex.Message}");
+            }
+
+            _dumpIndex++;
+            _dumpWaitFrames = 0;
+            return true;
+        }
+
+        private void DumpArticle(object refs)
+        {
+            string path = refs.GetType().GetProperty("Path", PublicInstance)?.GetValue(refs, null) as string;
+            Log.Msg(DumpTag, $"=== Article '{path}' ===");
+
+            var contentViewGo = GetFieldGameObject(_codexCache.Handles.ContentView);
+            if (contentViewGo == null)
+            {
+                Log.Msg(DumpTag, "contentView is null");
+                return;
+            }
+
+            DumpTree(contentViewGo.transform, 0);
+
+            var blocks = new List<ContentBlock>();
+            var stats = new ContentStats();
+            CollectContentBlocks(contentViewGo.transform, blocks, ref stats);
+            Log.Msg(DumpTag, $"--- {blocks.Count} blocks, {stats.Cards} example cards, {stats.Links} links ---");
+            for (int i = 0; i < blocks.Count; i++)
+                Log.Msg(DumpTag, $"block {i + 1}/{blocks.Count}: {blocks[i].Text}");
+        }
+
+        private static void DumpTree(Transform t, int depth)
+        {
+            string indent = new string(' ', depth * 2);
+            if (!t.gameObject.activeSelf)
+            {
+                if (depth <= 2) Log.Msg(DumpTag, $"{indent}{t.name} [inactive]");
+                return;
+            }
+
+            var comps = new List<string>();
+            foreach (var c in t.GetComponents<Component>())
+            {
+                if (c == null || c is Transform || c is CanvasRenderer) continue;
+                comps.Add(c.GetType().Name);
+            }
+
+            string text = "";
+            var tmp = t.GetComponent<TMPro.TMP_Text>();
+            if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+            {
+                text = tmp.text.Replace("\r", "").Replace("\n", "\\n");
+                if (text.Length > 160) text = text.Substring(0, 160) + "…";
+                text = $" text='{text}'";
+            }
+
+            Log.Msg(DumpTag, $"{indent}{t.name} [{string.Join(", ", comps)}]{text}");
+
+            for (int i = 0; i < t.childCount; i++)
+                DumpTree(t.GetChild(i), depth + 1);
+        }
+
+        #endregion
+
         #region Main Input Dispatch
 
         private void HandleCodexInput()
         {
-            // Handle pending drill-down after clicking a category
+            // Drill-down scheduled by last frame's category click
             if (_pendingDrillDown)
             {
-                _drillDownTimer -= Time.deltaTime;
-                if (_drillDownTimer <= 0)
-                {
-                    _pendingDrillDown = false;
-                    DrillDown(_drillDownSection, _drillDownLabel);
-                    return;
-                }
+                _pendingDrillDown = false;
+                DrillDown(_drillDownSection, _drillDownLabel);
+                return;
             }
 
             switch (_mode)

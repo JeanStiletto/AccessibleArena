@@ -29,6 +29,12 @@ All notable changes to Accessible Arena.
 - A search with no results is announced on every exit path, and "No search results" is localized.
 - Deck entries inside deck folders no longer repeat the word "deck" after every name.
 - Deck tiles now announce the deck's colors and favorite state.
+- Codex table-of-contents entries say "unread" while the game shows its unread badge on them.
+- Codex articles are read in the order they are laid out, with example cards described in place and bullet lists split at their line breaks.
+- Mana symbols inside Codex article text are spoken as words instead of vanishing.
+- Codex article link buttons are announced as links and open with Enter.
+- The Codex credits roll is split into navigable blocks, and Enter jumps to the Universes Beyond section like the game's own button.
+- Opening a Codex category responds immediately instead of after a fixed delay.
 
 <h3>Details</h3>
 
@@ -105,6 +111,24 @@ Deck tiles in the Decks screen and deck-selection blades now speak the identity 
 - Deck tiles now announce the deck's colors and favorite state. Sighted players see mana symbols and a favorite star on every deck box in the Decks screen and deck-selection blades; the tile announcement now carries the same information ("Angels, deck, White Blue, favorite, selected, ..."). Colors are read from the game's own tile model in the game's WUBRG display order and use the existing localized color names; "favorite" is translated for all 12 locales. Favorited decks sort to the top of every deck list, so hearing the star also explains the ordering.
 
 - The navbar's open-vault button now says "Open vault (100.0%)" instead of a bare number (PR #123 by Michael Taboada, @lilmike — thanks!). The game only shows this button once vault progress reaches 100%, and its label was just the percentage, so a screen reader heard something like "98.9" with no hint of what it was or that pressing it opens the vault. The percentage is read from the vault's own progress tooltip, falling back to the vault line of the wildcard tooltip; "Open vault" is translated for all 12 locales. The build also gained a `-p:DeployToMtga=false` switch that skips the copy into the game's Mods folder, so the mod can be compiled while the game is running.
+
+**Codex of the Multiverse:**
+
+The Codex navigator dated from March and had not been revisited since. A suspicion that its category drill-down was silently dropping articles turned out to be unfounded: the game's own hierarchy dump in `Player.log` shows the whole Codex is ten articles under six subcategories, and eight of them are hidden until New Player Experience milestones are reached (the game shows sighted players no locked marker either, so there is nothing to announce for them; details in KNOWN_ISSUES). What the pass did find was information the game shows that the mod never spoke:
+
+- Table-of-contents entries now say "unread" while the game shows its unread badge on them. The flag is read live from the game's own entry component, so it clears the moment an article is opened, and a category reports unread until every child has been read.
+
+- Articles are now read in layout order by walking the article view, instead of collecting text components in scan order. Embedded example cards, which the old code skipped entirely, become one block each in the place where a sighted reader sees them: name, mana cost, type line, power/toughness and rules text, via the same card extraction the rest of the mod uses. Bullet lists that the game writes with line-break tags are split at those breaks instead of running together into one sentence, and long paragraphs stand alone while runs of short lines are grouped with speech pauses. World-space text inside the animated demos (the tapping illustration is a 3D mock Plains) is no longer picked up, which removes a stray "Plains" from the Game Actions article.
+
+- Mana symbols inside article text ("the cost is {2}{U}{R}") were sprite tags and vanished when the rich text was stripped. They are now converted to the mod's localized mana words first.
+
+- The Game Actions article ends in two web-link buttons ("How to play", "The full course"). They read as bare text before; they are now announced as "Link: label, opens a web browser" and Enter on the block presses the game's button.
+
+- The credits roll is a single text component holding the entire credits; the old code announced it as one block, which made Up/Down useless. It now goes through the same line splitter, and Enter mirrors the game's only control in the roll, the Universes Beyond button: it clicks the button so the visual scroll follows, and moves the cursor to the first block containing the game's own search text. The opening announcement names the button.
+
+- Opening a category responds on the next frame instead of after a fixed 0.4 second delay. The game builds and activates the children synchronously inside the button's click handler, so the wait was never needed.
+
+- A diagnostic switch in the navigator (`DumpArticlesOnActivate`, off in release) opens every visible article once through the game's own code path and logs the article hierarchy and the blocks the mod would announce. This is how the pass was verified without anyone reading the screen, and it is the tool to re-check the article prefabs after a game update.
 
 ## v1.6.1
 
