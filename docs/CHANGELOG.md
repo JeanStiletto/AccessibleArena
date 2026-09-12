@@ -78,6 +78,8 @@ Deck tiles in the Decks screen and deck-selection blades now speak the identity 
 
 - Deck tiles now announce the deck's colors and favorite state. Sighted players see mana symbols and a favorite star on every deck box in the Decks screen and deck-selection blades; the tile announcement now carries the same information ("Angels, deck, White Blue, favorite, selected, ..."). Colors are read from the game's own tile model in the game's WUBRG display order and use the existing localized color names; "favorite" is translated for all 12 locales. Favorited decks sort to the top of every deck list, so hearing the star also explains the ordering.
 
+- The navbar's open-vault button now says "Open vault (100.0%)" instead of a bare number (PR #123 by Michael Taboada, @lilmike — thanks!). The game only shows this button once vault progress reaches 100%, and its label was just the percentage, so a screen reader heard something like "98.9" with no hint of what it was or that pressing it opens the vault. The percentage is read from the vault's own progress tooltip, falling back to the vault line of the wildcard tooltip; "Open vault" is translated for all 12 locales. The build also gained a `-p:DeployToMtga=false` switch that skips the copy into the game's Mods folder, so the mod can be compiled while the game is running.
+
 ## v1.6.1
 
 Wine/Proton compatibility. On Linux and Steam Deck installs the mod loaded and spoke normally, but its entire key-blocking layer was silently inactive — so keys the mod owns also reached the game's own duel handlers.

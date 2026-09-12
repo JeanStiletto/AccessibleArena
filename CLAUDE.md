@@ -88,6 +88,9 @@ If you use the Steam version, create `src/local.props` (gitignored) to override 
 ```bash
 # Build and auto-deploy to Mods folder (game must be closed)
 dotnet build src/AccessibleArena.csproj
+
+# Build only, skip the copy (e.g. while the game is running)
+dotnet build src/AccessibleArena.csproj -p:DeployToMtga=false
 ```
 The build auto-copies the DLL to `$(MtgaPath)\Mods\`. Default is the WotC path; override with `src/local.props` (see above).
 
