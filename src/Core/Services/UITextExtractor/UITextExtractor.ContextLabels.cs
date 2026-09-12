@@ -53,7 +53,7 @@ namespace AccessibleArena.Core.Services
                 // Read TooltipData.Text from TooltipTrigger component (same pattern as UIActivator)
                 // The game's NavBarController.UpdateWildcardTooltip() populates this with
                 // localized wildcard counts + vault progress
-                string tooltipText = GetWildcardTooltipText(gameObject);
+                string tooltipText = GetTooltipTriggerText(gameObject);
                 if (!string.IsNullOrEmpty(tooltipText))
                     return Models.Strings.CurrencyWildcards + ": " + tooltipText;
 
@@ -63,6 +63,14 @@ namespace AccessibleArena.Core.Services
             return null;
         }
 
+        /// <summary>
+        /// Labels the navbar's open-vault button. The game only activates this container once
+        /// vault progress reaches 100% (NavBarController.RefreshVaultProgress), and the button's
+        /// own text is the bare percentage, which is all a screen reader used to hear. The
+        /// progress is read from the vault's own tooltip (VaultProgress_Tooltip, written by
+        /// NavBarController.UpdateVaultDisplay onto the button, its Nav_Vault parent or the
+        /// container), falling back to the vault line of the wildcard button's tooltip.
+        /// </summary>
         private static string TryGetNavbarVaultLabel(GameObject gameObject)
         {
             var parent = gameObject.transform.parent;
@@ -71,10 +79,17 @@ namespace AccessibleArena.Core.Services
                 parent.parent.parent == null || parent.parent.parent.name != "RightSideContainer")
                 return null;
 
-            var wildcardButton = GameObject.Find("Nav_WildCard");
-            string progress = wildcardButton != null
-                ? VaultLabelFormatter.ExtractVaultProgress(GetWildcardTooltipText(wildcardButton))
-                : null;
+            string progress = null;
+            var stop = parent.parent.parent;
+            for (var t = gameObject.transform; t != null && t != stop && progress == null; t = t.parent)
+                progress = VaultLabelFormatter.ExtractVaultProgress(GetTooltipTriggerText(t.gameObject));
+
+            if (progress == null)
+            {
+                var wildcardButton = GameObject.Find("Nav_WildCard");
+                if (wildcardButton != null)
+                    progress = VaultLabelFormatter.ExtractVaultProgress(GetTooltipTriggerText(wildcardButton));
+            }
 
             return string.IsNullOrEmpty(progress)
                 ? Models.Strings.OpenVault
@@ -82,10 +97,10 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Reads the wildcard tooltip text from a TooltipTrigger component.
-        /// Strips rich text style tags and joins lines with ", " for screen reader flow.
+        /// Reads the text of a TooltipTrigger component on the given object (wildcards, vault,
+        /// nav tokens). Strips rich text style tags and joins lines with ", " for screen reader flow.
         /// </summary>
-        private static string GetWildcardTooltipText(GameObject gameObject)
+        private static string GetTooltipTriggerText(GameObject gameObject)
         {
             var pubFlags = PublicInstance;
 
@@ -131,9 +146,9 @@ namespace AccessibleArena.Core.Services
         private static string TryGetNavTokenLabel(GameObject gameObject)
         {
             // The tooltip text is built by NavBarTokenView.TooltipForTokens and contains
-            // the count and description. GetWildcardTooltipText reads TooltipTrigger.TooltipData.Text
+            // the count and description. GetTooltipTriggerText reads TooltipTrigger.TooltipData.Text
             // and strips rich-text tags and joins lines with ", ".
-            string tooltipText = GetWildcardTooltipText(gameObject);
+            string tooltipText = GetTooltipTriggerText(gameObject);
             if (!string.IsNullOrEmpty(tooltipText))
                 return tooltipText;
 
