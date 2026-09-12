@@ -59,45 +59,7 @@ Combining set filters (Advanced Filters) with a text search in the deck builder 
 
 ---
 
-### Codex of the Multiverse Has Only Ten Articles
-
-The Codex looks sparse (most subcategories hold a single article) but the mod's table of contents is complete. The game's own hierarchy dump in `Player.log` (lines starting with `LTP:`) lists every node of the `LearnMoreStructure` asset with a `Show:` verdict, and on a fully unlocked account (September 2026) the whole structure is:
-
-- MTG Arena → Home (Direct Challenge), Profile (Seasons and Ranks), Decks (Building a Collection)
-- How to Play → Quick Start (Beginning and Ending a Game, Game Actions)
-- Ways to Play → Formats (Constructed, Limited, Precons, Jump In), Renewal & Rotation (Renewal & Rotation)
-
-That is ten articles, matching the ten `LTP_IsRead_<guid>` player preferences. Eight of the ten are gated by New Player Experience milestones (`SparkRankTier1..3`, `OpenSparkQueue`, `NPE_Completed`, `OpenSparkyDeckDuel`, `OpenJumpInEvent`). The game hides locked articles entirely, and a category with no visible children is never built. A brand-new account therefore sees only "How to Play → Quick Start" with two articles; the "MTG Arena" and "Ways to Play" bubbles do not exist yet. The mod reports exactly what the game builds. To re-verify after a game update, open the Codex once and grep `Player.log` for `LTP:`.
-
----
-
 ## Monitoring
-
-### Monitor How Stacks and Entries Shift With Change of Selection or Tapped State
-
-When HotHighlightNavigator delegates to BattlefieldNavigator for battlefield cards (via `NavigateToSpecificCard`), the position announced ("X von Y") reflects the card's position within its BattlefieldNavigator row (e.g., PlayerLands), not its position in the HotHighlightNavigator's Tab order. This can cause confusing announcements — e.g., two consecutive Tab presses both announce "2 von 3" for different cards if one card was selected and the row re-scanned.
-
-**Root cause:** Two navigation systems with different indices. HotHighlightNavigator owns the Tab order (sorted by ownership group), but BattlefieldNavigator announces the row position when focus delegates to it. After a card changes state (selected/deselected), the BattlefieldNavigator row may recount, shifting positions.
-
-**Observed in:** Hastige Suche (Frantic Search) untap phase — selecting 3 lands from a mixed battlefield. Own cards correctly grouped before opponent cards, selection worked, but row position announcements were inconsistent.
-
-**Partly addressed:** `BattlefieldNavigator` now anchors focus by card InstanceId (`_anchorId` / `RestoreAnchor`) instead of trusting the raw index across rebuilds, so a row rebuild no longer silently moves the user onto a different card. Rows are still rebuilt and re-sorted by `transform.position.x` on every refresh, so the *position number* a card is announced with can still change between presses — the anchor keeps you on the right card, it does not freeze the numbering.
-
-**Monitor for:**
-- Whether the remaining position-number churn is confusing on its own now that focus itself is stable
-- Whether the index mismatch causes actual navigation confusion (wrong card activated) vs. just confusing announcements
-- Effects with large numbers of selectable targets (5+) where the discrepancy becomes more noticeable
-- Whether a unified position announcement (from HotHighlightNavigator's own index) would be clearer
-
-**Also addressed:** `TryAdvanceToSameNameSibling` used to pick the first same-name entry that wasn't the just-clicked card, with no state check — so it could land the user back on a creature they had already declared as an attacker, where the next Enter un-declared it. (The v1.1 changelog described it as advancing to the next *unselected* copy; the code never had that filter.) It now compares state snapshots: pass 1 takes a copy still in the clicked card's pre-click state, pass 2 takes any copy not already in the post-click state, and if every copy is done focus stays put. Still gated behind the "Battlefield stacking" setting.
-
-**Also addressed:** the per-card fallback behind Ctrl+Enter fired its clicks on a fixed 60 ms timer. Target selection is a GRE round trip — `SelectTargetsWorkflow.UpdateTarget` sets `_submitted`, `IsWaitingForRoundTrip` reports it, and `CanClick` returns false for as long as it is set — so clicks 2..N were refused and dropped. Observed with Caetus, Sea Tyrant of Segovia ("untap up to four creatures") on a stack of four Tentacles: all four clicks went out, the prompt then read "Confirm 1", and one Tentacle untapped. The sequence now waits for `IsWaitingForRoundTrip` to clear and asks the workflow's own `CanClick` before every dispatch, walks the stack oldest-first to match the game's `TryRerouteClick` → `OldestCard` reroute, and skips copies that already carry the picked indicator so it cannot un-pick a manual choice. Per-card wait 3 s, whole sequence 15 s.
-
-**Untested in a real duel** — all of the above needs a longer play session before it can be called good.
-
-**Files:** `HotHighlightNavigator.cs` (AnnounceCurrentItem — delegates to BattlefieldNavigator), `BattlefieldNavigator.cs` (RestoreAnchor, NavigateToSpecificCard, TryAdvanceToSameNameSibling, FindSibling, PumpStackClickSequence), `StackInteractionBridge.cs` (IsWaitingForRoundTrip, WorkflowAcceptsClick)
-
----
 
 ### SelectGroup Browser Pile Selection (Fact or Fiction)
 
@@ -106,36 +68,6 @@ In the SelectGroup browser (e.g. Curator of Destinies / Fact or Fiction pile sel
 **Fix applied:** Unified direct-choice early return in `ClickConfirmButton` handles SelectGroup, ChoiceList, and OptionalAction browsers identically — Space activates the focused button/card (same as Enter), or announces "No button selected" if nothing is focused. PromptButton fallbacks are excluded for all three browser types.
 
 **Files:** `BrowserNavigator.cs` (ClickConfirmButton, ClickCancelButton, GetBrowserHintKey)
-
----
-
-### Season Rewards Popup (Monthly Reset)
-
-Reworked after a July 2026 user log showed the middle "rewards" phase reading as silent/unlabeled "Button" elements and the user getting stuck. Root cause: `_endOfSeasonDisplayState` read as `OldRankDisplay` for the entire sequence, so the rewards-reveal phase was routed through the rank-display path (which only reads a title) and never enumerated what was earned; the game also absorbs clicks during reveal animations (a "stuck counter"), so repeated presses appeared to do nothing.
-
-Current behavior:
-- Phase is derived from active display objects (`SeasonEndRankDisplay` active → rank phase; inactive within a season context → rewards reveal), NOT from `_endOfSeasonDisplayState`. See `DetermineSeasonPhase`.
-- Rewards-reveal phase enumerates rewards via the standard path (`DiscoverRewardElements` → `DiscoverRewardsFromControllerData` fallback), with a guaranteed non-empty element so the screen always announces.
-- Season input is a dedicated single-action flow (`HandleSeasonInput`): Enter/Space = advance (via `ClickBackgroundBlocker`, announced "Continuing"); Enter during an active reveal announces "Revealing, please wait" (`IsSeasonRevealBusy`); Backspace re-reads the current screen; Left/Right browse items. The junk coin-hitbox buttons are no longer added on season screens.
-- Duplicate announcements suppressed by text (`_lastSeasonAnnouncement`), not element count.
-
-Still to confirm at the next reset (monitor the log):
-- Old rank, rewards, and new-placement phases each announce once with correct content.
-- The rewards phase lists actual packs/cards earned (not just "Season Rewards").
-- Advancing closes the final screen cleanly (no accidental matchmaking via "Play").
-- The "Revealing, please wait" feedback fires instead of silent no-ops during animations.
-
-**Testable:** next monthly season reset
-
-**Files:** `RewardPopupNavigator.cs` (DetermineSeasonPhase, IsAnyRankDisplayActive, DiscoverSeasonRewardElements, HandleSeasonInput, AdvanceSeason, ClickBackgroundBlocker, IsSeasonRevealBusy, ForceRescan override)
-
----
-
-## Needs Testing
-
-### Other Windows Versions and Screen Readers
-
-Tested on Windows 10 and Windows 11 with NVDA and JAWS. Speech goes through Prism, which also reaches Narrator/OneCore, UIA, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText and SAPI — those backends come from Prism and are untested here, so reports are welcome. Prism itself requires Windows 10 or later; older Windows versions are out of scope.
 
 ---
 
@@ -153,7 +85,6 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 
 ---
 
-
 ## Planned Features
 
 ### Upcoming
@@ -166,7 +97,7 @@ Intermittent issue during game asset loading. Exact symptoms and reproduction st
 1. Battlefield row categorization for land creatures — effects that turn lands into creatures (e.g. Nissa animating lands) cause them to appear in the Lands row (A/Shift+A) instead of the Creatures row (B/Shift+B). Conversely, effects that turn non-land permanents into lands (e.g. certain commander abilities) may miscategorize them. The categorization logic needs to handle cards with multiple types (Creature Land) more intelligently, potentially prioritizing the creature type for combat relevance.
 2. Cube, Pick Two, Midweek Magic and paid events — implemented in v1.5; see `docs/investigations/unsupported-events.md` for the decompilation and `docs/EVENTS.md` for the resulting behaviour. Cube needed no separate code (it is an ordinary bot or human draft with a different pool). What remains untested by the maintainer, because it cannot be exercised without entering a paid event: the two-press entry-fee confirmation on gold and token entries, and the Arena Direct physical-prize popup guard. Both are built to fail safe — they only ever withhold a click — but a report from someone who has run an Arena Direct or Arena Open would turn "should work" into "known working".
 3. Ctrl+key shortcuts for navigating opponent's cards — additional Ctrl-modified zone shortcuts for quick opponent board access. Highly speculative; unlikely to be implemented unless requested by users.
-4. Confirm the Prism backends nobody here can test — the Tolk-to-Prism switch is done (v1.4.6), so ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText, Narrator/OneCore and UIA are now reachable, but only NVDA and JAWS are tested by the maintainer. Reports from users of the other readers are what would turn "reachable" into "known working". The old .NET blocker is gone: the mod P/Invokes Prism's C ABI directly instead of using the official binding, which targets .NET 10. macOS remains out of reach, but the speech library is no longer the obstacle — the mod loader and the game client are, and confirming it would still need a contributor with a Mac.
+4. macOS and Linux support — the mod is Windows-only. Speech is no longer the obstacle (Prism is reachable from the mod); the mod loader and the game client are. Confirming anything on either platform needs a contributor with a Mac or a Linux box.
 5. Endure option dialogue must be improved — the Endure prompt (choose +1/+1 counters vs. token) needs clearer announcements and better keyboard flow so blind players can reliably pick the option they intend.
 6. Confirmation guard for "cancel all blocks" — pressing Backspace during declare blockers to cancel all assigned blocks is easy to trigger accidentally and wipes the entire block assignment with no undo. Add a confirmation step (e.g. press twice, or announce a warning on first press) to prevent accidental skipping.
 
