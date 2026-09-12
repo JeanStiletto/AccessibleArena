@@ -139,7 +139,17 @@ namespace AccessibleArena.Core.Services
         /// Returns null if the key can't be resolved or resolves to itself.
         /// </summary>
         public static string ResolveLocKey(string locKey)
+            => ResolveLocKey(locKey, Array.Empty<ValueTuple<string, string>>());
+
+        /// <summary>
+        /// Resolves a localization key with named parameters (the game's
+        /// <c>MTGALocalizedString.Parameters</c> equivalent), e.g.
+        /// <c>ResolveLocKey("MainNav/EventsPage/WinsStringPlural", ("quantity", "3"))</c>.
+        /// Returns null if the key can't be resolved or resolves to itself.
+        /// </summary>
+        public static string ResolveLocKey(string locKey, params ValueTuple<string, string>[] args)
         {
+            if (string.IsNullOrEmpty(locKey)) return null;
             if (!_languagesTypeSearched)
             {
                 _languagesTypeSearched = true;
@@ -155,7 +165,7 @@ namespace AccessibleArena.Core.Services
                 if (locProvider == null) return null;
 
                 string result = h.GetLocalizedText.Invoke(locProvider,
-                    new object[] { locKey, Array.Empty<ValueTuple<string, string>>() }) as string;
+                    new object[] { locKey, args ?? Array.Empty<ValueTuple<string, string>>() }) as string;
 
                 // Localization returns the key itself if not found
                 if (string.IsNullOrEmpty(result) || result == locKey)

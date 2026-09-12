@@ -255,10 +255,13 @@ namespace AccessibleArena.Core.Services
                 }
 
                 // Check if the CustomButton is interactable before sending pointer events.
-                // When not interactable (e.g. registration form validation fails),
-                // CustomButton.OnPointerUp returns early and _onClick won't fire,
-                // but SimulatePointerClick would still return success, misleading the user.
-                var customButtonComp = FindComponentByName(element, CustomButtonTypeName);
+                // When not interactable (e.g. registration form validation fails, or an event
+                // pay button before the event opens), CustomButton.OnPointerUp returns early
+                // and _onClick won't fire, but SimulatePointerClick would still return success,
+                // misleading the user. Must match CustomButtonWithTooltip too — the event page's
+                // Play/Pay buttons are that subclass, and an exact "CustomButton" name check let
+                // them through as "Activated" while nothing happened.
+                var customButtonComp = UIElementClassifier.GetCustomButton(element);
                 if (customButtonComp != null)
                 {
                     var interactableProp = customButtonComp.GetType().GetProperty("Interactable", PublicInstance);

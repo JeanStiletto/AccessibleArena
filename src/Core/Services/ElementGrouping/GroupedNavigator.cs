@@ -167,6 +167,13 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         private bool _isPlayBladeContext = false;
 
         /// <summary>
+        /// True while the navigator sits inside a group only because OrganizeIntoGroups found a
+        /// single group and auto-entered it. AddVirtualGroup uses it to step back to the group
+        /// list when a second group appears (event page: lone pay button + Info/Rewards).
+        /// </summary>
+        private bool _autoEnteredSingleGroup = false;
+
+        /// <summary>
         /// Whether we're currently in a Challenge context (Direct/Friend Challenge screen).
         /// Set by ChallengeNavigationHelper when challenge opens/closes.
         /// Used to determine whether to create PlayBladeFolders wrapper group for deck selection.
@@ -1028,6 +1035,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             PostProcessPlayBladeTabs();
 
             // Set initial position
+            _autoEnteredSingleGroup = false;
             if (_groups.Count > 0)
             {
                 _currentGroupIndex = 0;
@@ -1036,6 +1044,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
                 {
                     _navigationLevel = NavigationLevel.InsideGroup;
                     _currentElementIndex = 0;
+                    _autoEnteredSingleGroup = true;
                 }
             }
 
@@ -1568,6 +1577,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             if (elements == null || elements.Count == 0)
                 return;
 
+            // OrganizeIntoGroups auto-entered the page's only group (typically a lone pay or
+            // play button). A second group makes that premise false: staying inside the first
+            // one leaves Up/Down bouncing on the single button while the new groups are
+            // unreachable until something else resets the level. Step back to the group list.
+            if (_autoEnteredSingleGroup && _groups.Count == 1)
+            {
+                _navigationLevel = NavigationLevel.GroupList;
+                _currentElementIndex = -1;
+                _autoEnteredSingleGroup = false;
+                Log.Msg("GroupedNavigator", "Virtual group added after single-group auto-entry - back to group list");
+            }
+
             var groupInfo = new ElementGroupInfo
             {
                 Group = group,
@@ -2088,33 +2109,41 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// <summary>
         /// Returns indices of groups whose type is in <paramref name="allowedGroups"/> and that
         /// are eligible for Tab cycling: not a standalone element, and either multi-element or
-        /// a deck-builder card group (collection / sideboard / deck list — those are always
-        /// cyclable so Tab can reach e.g. a single filtered collection card).
+        /// an always-cyclable group (deck-builder card groups, event Info / Rewards — see
+        /// <see cref="ElementGroupExtensions.IsAlwaysTabCyclable"/>). Additionally, a standalone
+        /// group whose element satisfies <paramref name="standaloneStop"/> is a Tab stop
+        /// regardless of <paramref name="allowedGroups"/> (the event page's pay/play button).
         /// </summary>
-        private List<int> ComputeCyclableGroupIndices(ElementGroup[] allowedGroups)
+        private List<int> ComputeCyclableGroupIndices(ElementGroup[] allowedGroups, System.Func<GameObject, bool> standaloneStop)
         {
             var indices = new List<int>();
             for (int i = 0; i < _groups.Count; i++)
             {
-                if (System.Array.IndexOf(allowedGroups, _groups[i].Group) >= 0 &&
-                    !_groups[i].IsStandaloneElement &&
-                    (_groups[i].Count > 1 || _groups[i].Group.IsDeckBuilderCardGroup()))
+                var g = _groups[i];
+                if (g.IsStandaloneElement)
+                {
+                    if (standaloneStop != null && g.Elements.Count > 0 && standaloneStop(g.Elements[0].GameObject))
+                        indices.Add(i);
+                }
+                else if (System.Array.IndexOf(allowedGroups, g.Group) >= 0 &&
+                         (g.Count > 1 || g.Group.IsAlwaysTabCyclable()))
                     indices.Add(i);
             }
             return indices;
         }
 
         /// <summary>
-        /// Moves <see cref="_currentGroupIndex"/> to the next/previous cyclable group from
-        /// <paramref name="allowedGroups"/>, wraps around, and auto-enters. Returns false when
-        /// no cyclable groups match.
+        /// Moves <see cref="_currentGroupIndex"/> to the next/previous cyclable group, wraps
+        /// around, and auto-enters it — or, for a standalone stop, lands on it at group level
+        /// (standalone elements are activated from the group list, never entered). Returns
+        /// false when no cyclable groups match.
         /// </summary>
-        private bool CycleGroup(ElementGroup[] allowedGroups, int step, string direction)
+        private bool CycleGroup(ElementGroup[] allowedGroups, System.Func<GameObject, bool> standaloneStop, int step, string direction)
         {
             if (allowedGroups == null || allowedGroups.Length == 0)
                 return false;
 
-            var allowedIndices = ComputeCyclableGroupIndices(allowedGroups);
+            var allowedIndices = ComputeCyclableGroupIndices(allowedGroups, standaloneStop);
             if (allowedIndices.Count == 0)
                 return false;
 
@@ -2122,10 +2151,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             int nextAllowedIndex = ((currentAllowedIndex + step) % allowedIndices.Count + allowedIndices.Count) % allowedIndices.Count;
             _currentGroupIndex = allowedIndices[nextAllowedIndex];
 
-            _navigationLevel = NavigationLevel.InsideGroup;
-            _currentElementIndex = 0;
-
-            Log.Msg("GroupedNavigator", $"Cycled to {direction} group and entered: {_groups[_currentGroupIndex].DisplayName}");
+            if (_groups[_currentGroupIndex].IsStandaloneElement)
+            {
+                _navigationLevel = NavigationLevel.GroupList;
+                _currentElementIndex = -1;
+                Log.Msg("GroupedNavigator", $"Cycled to {direction} standalone stop: {_groups[_currentGroupIndex].DisplayName}");
+            }
+            else
+            {
+                _navigationLevel = NavigationLevel.InsideGroup;
+                _currentElementIndex = 0;
+                Log.Msg("GroupedNavigator", $"Cycled to {direction} group and entered: {_groups[_currentGroupIndex].DisplayName}");
+            }
             return true;
         }
 
@@ -2135,7 +2172,7 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Auto-enters the group after cycling.
         /// </summary>
         public bool CycleToNextGroup(params ElementGroup[] allowedGroups)
-            => CycleGroup(allowedGroups, +1, "next");
+            => CycleGroup(allowedGroups, null, +1, "next");
 
         /// <summary>
         /// Cycle to the previous group from a list of allowed group types.
@@ -2143,6 +2180,18 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         /// Auto-enters the group after cycling.
         /// </summary>
         public bool CycleToPreviousGroup(params ElementGroup[] allowedGroups)
-            => CycleGroup(allowedGroups, -1, "previous");
+            => CycleGroup(allowedGroups, null, -1, "previous");
+
+        /// <summary>
+        /// Like <see cref="CycleToNextGroup(ElementGroup[])"/>, but standalone groups whose
+        /// element satisfies <paramref name="standaloneStop"/> are Tab stops too (landed on at
+        /// group level, ready for Enter).
+        /// </summary>
+        public bool CycleToNextGroup(ElementGroup[] allowedGroups, System.Func<GameObject, bool> standaloneStop)
+            => CycleGroup(allowedGroups, standaloneStop, +1, "next");
+
+        /// <summary>Previous-direction counterpart of the standalone-aware cycle.</summary>
+        public bool CycleToPreviousGroup(ElementGroup[] allowedGroups, System.Func<GameObject, bool> standaloneStop)
+            => CycleGroup(allowedGroups, standaloneStop, -1, "previous");
     }
 }

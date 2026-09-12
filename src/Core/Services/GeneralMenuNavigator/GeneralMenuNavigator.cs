@@ -2721,9 +2721,16 @@ namespace AccessibleArena.Core.Services
         protected string GetGameObjectPath(GameObject obj) => MenuDebugHelper.GetGameObjectPath(obj);
 
         public override string GetTutorialHint() =>
-            _activeContentController == T.WrapperDeckBuilder
-                ? LocaleManager.Instance.Get("DeckBuilderHint")
-                : LocaleManager.Instance.Get("NavigateHint");
+            LocaleManager.Instance.Get(ScreenHintKey ?? "NavigateHint");
+
+        /// <summary>
+        /// Locale key of the screen-specific key hint (appended to the activation announcement
+        /// when hints are on, and repeated by Ctrl+F1), or null for screens without one.
+        /// </summary>
+        private string ScreenHintKey =>
+            _activeContentController == T.WrapperDeckBuilder ? "DeckBuilderHint"
+            : IsEventPageController(_activeContentController) ? "EventPageHint"
+            : null;
 
         protected override string GetActivationAnnouncement()
         {
@@ -2737,9 +2744,10 @@ namespace AccessibleArena.Core.Services
             if (_groupedNavigationEnabled && _groupedNavigator.IsActive)
             {
                 string groupAnnouncement = _groupedNavigator.GetActivationAnnouncement(menuName);
-                if (_activeContentController == T.WrapperDeckBuilder)
-                    return Models.Strings.WithHint(groupAnnouncement, "DeckBuilderHint");
-                return groupAnnouncement;
+                string hintKey = ScreenHintKey;
+                return hintKey != null
+                    ? Models.Strings.WithHint(groupAnnouncement, hintKey)
+                    : groupAnnouncement;
             }
 
             Log.Msg("MenuNavigator", $"Screen '{menuName}': {Models.Strings.ItemCount(_elements.Count)}");
@@ -2757,6 +2765,32 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static bool TabNavigationActive() =>
             KeyInput.GetKey(KeyCode.Tab) || KeyInput.GetKeyDown(KeyCode.Tab);
+
+        /// <summary>Tab/Shift+Tab stops on the event page: the Info and Rewards groups.</summary>
+        private static readonly ElementGroup[] EventPageCycleGroups =
+        {
+            ElementGroup.EventInfo,
+            ElementGroup.EventRewards,
+        };
+
+        /// <summary>
+        /// The group list Tab cycles through on the active screen, or null where Tab is plain
+        /// item navigation. Deck builder: Collection / Sideboard / Deck List / Deck Info /
+        /// Filters (Done, Wildcards and the other lone buttons are not Tab stops). Event page:
+        /// the main button (Play / Pay) as a standalone stop, then Event Info / Rewards — the
+        /// button is the reason the page exists, so it stays one Tab away.
+        /// </summary>
+        private ElementGroup[] GetTabCycleGroups(out System.Func<GameObject, bool> standaloneStop)
+        {
+            standaloneStop = null;
+            if (_activeContentController == T.WrapperDeckBuilder) return DeckBuilderCycleGroups;
+            if (IsEventPageController(_activeContentController))
+            {
+                standaloneStop = EventAccessor.IsEventMainButton;
+                return EventPageCycleGroups;
+            }
+            return null;
+        }
 
         /// <summary>
         /// Override MoveNext to use GroupedNavigator when grouped navigation is enabled.
@@ -2795,12 +2829,15 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
-                // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
-                // Only apply to Tab, not to arrow keys
-                bool isTabPressed = TabNavigationActive();
-                if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
+                // Tab key on screens with a group cycle (deck builder, event page): jump to the
+                // next main group. Only applies to Tab, not to arrow keys.
+                ElementGroup[] cycleGroups = null;
+                System.Func<GameObject, bool> standaloneStop = null;
+                if (TabNavigationActive())
+                    cycleGroups = GetTabCycleGroups(out standaloneStop);
+                if (cycleGroups != null)
                 {
-                    if (_groupedNavigator.CycleToNextGroup(DeckBuilderCycleGroups))
+                    if (_groupedNavigator.CycleToNextGroup(cycleGroups, standaloneStop))
                     {
                         // Initialize 2D sub-nav if we cycled into DeckBuilderInfo
                         var cycledGroup = _groupedNavigator.CurrentGroup;
@@ -2869,12 +2906,15 @@ namespace AccessibleArena.Core.Services
                     return;
                 }
 
-                // In deck builder with Tab key: cycle between main groups (Collection, Filters, Deck)
-                // Only apply to Tab, not to arrow keys
-                bool isTabPressed = TabNavigationActive();
-                if (_activeContentController == T.WrapperDeckBuilder && isTabPressed)
+                // Shift+Tab on screens with a group cycle (deck builder, event page): jump to
+                // the previous main group. Only applies to Tab, not to arrow keys.
+                ElementGroup[] cycleGroups = null;
+                System.Func<GameObject, bool> standaloneStop = null;
+                if (TabNavigationActive())
+                    cycleGroups = GetTabCycleGroups(out standaloneStop);
+                if (cycleGroups != null)
                 {
-                    if (_groupedNavigator.CycleToPreviousGroup(DeckBuilderCycleGroups))
+                    if (_groupedNavigator.CycleToPreviousGroup(cycleGroups, standaloneStop))
                     {
                         // Initialize 2D sub-nav if we cycled into DeckBuilderInfo
                         var cycledGroup = _groupedNavigator.CurrentGroup;
@@ -3718,9 +3758,13 @@ namespace AccessibleArena.Core.Services
             _challengeHelper.SetElementIndices(opponentIdx, mainButtonIdx, statusIdx);
         }
 
-        /// Injects event info blocks as standalone virtual elements into the grouped navigator.
-        /// Each block becomes its own standalone group, directly navigable with Up/Down
-        /// without needing to enter a subgroup.
+        /// Injects the event page's two virtual groups: "Event Info" (description text
+        /// blocks) and "Rewards" (the win-reward ladder, one element per tier). Both are
+        /// ordinary enterable groups — Enter opens, Up/Down walk the entries, Backspace
+        /// returns to the group list — and Tab/Shift+Tab cycle between them
+        /// (<see cref="EventPageCycleGroups"/>). They used to be standalone blocks, one
+        /// top-level entry each; with the reward ladder that would have made a plain Bo3
+        /// event page a 20-entry list.
         /// </summary>
         private void InjectEventInfoGroup()
         {
@@ -3729,42 +3773,46 @@ namespace AccessibleArena.Core.Services
 
             var blocks = EventAccessor.GetEventPageInfoBlocks();
             if (blocks == null || blocks.Count == 0)
-            {
                 Log.Msg("{NavigatorId}", $"EventAccessor returned no info blocks");
-                return;
-            }
-            Log.Msg("{NavigatorId}", $"Injecting {blocks.Count} event info elements");
-
-            // Insert each block as a standalone virtual element after the previous one.
-            // First block appends at end, subsequent blocks insert after the last EventInfo.
-            ElementGroup? insertAfter = null;
-            foreach (var block in blocks)
+            else
             {
-                string label = string.IsNullOrEmpty(block.Label)
-                    ? block.Content
-                    : $"{block.Label}: {block.Content}";
-
-                var elements = new List<ElementGrouping.GroupedElement>
-                {
-                    new ElementGrouping.GroupedElement
-                    {
-                        GameObject = null,
-                        Label = label,
-                        Group = ElementGrouping.ElementGroup.EventInfo
-                    }
-                };
-
+                Log.Msg("{NavigatorId}", $"Injecting {blocks.Count} event info elements");
                 _groupedNavigator.AddVirtualGroup(
                     ElementGrouping.ElementGroup.EventInfo,
-                    elements,
-                    insertAfter: insertAfter,
-                    isStandalone: true,
-                    displayName: label
-                );
-
-                // Subsequent blocks insert after the last EventInfo
-                insertAfter = ElementGrouping.ElementGroup.EventInfo;
+                    ToVirtualElements(blocks, ElementGrouping.ElementGroup.EventInfo, Strings.EventInfoLabel));
             }
+
+            var tiers = EventAccessor.GetEventRewardLadderBlocks();
+            if (tiers != null && tiers.Count > 0)
+            {
+                _groupedNavigator.AddVirtualGroup(
+                    ElementGrouping.ElementGroup.EventRewards,
+                    ToVirtualElements(tiers, ElementGrouping.ElementGroup.EventRewards, null),
+                    insertAfter: ElementGrouping.ElementGroup.EventInfo);
+            }
+        }
+
+        /// <summary>
+        /// Turns info blocks into virtual (GameObject-less) group elements. A block whose
+        /// label merely repeats the group's generic label (e.g. "Info") is spoken as bare
+        /// content — the group name already gives that context, and repeating it on every
+        /// entry is noise. Distinct labels (a faction name, a wins count) stay as prefix.
+        /// </summary>
+        private static List<ElementGrouping.GroupedElement> ToVirtualElements(
+            List<CardInfoBlock> blocks, ElementGroup group, string redundantLabel)
+        {
+            var elements = new List<ElementGrouping.GroupedElement>(blocks.Count);
+            foreach (var block in blocks)
+            {
+                bool bare = string.IsNullOrEmpty(block.Label) || block.Label == redundantLabel;
+                elements.Add(new ElementGrouping.GroupedElement
+                {
+                    GameObject = null,
+                    Label = bare ? block.Content : $"{block.Label}: {block.Content}",
+                    Group = group
+                });
+            }
+            return elements;
         }
 
         /// <summary>

@@ -58,6 +58,31 @@ namespace AccessibleArena.Core.Services
         {
             public PropertyInfo EventInfo;        // optional
             public PropertyInfo EventUxInfo;      // optional
+            public PropertyInfo CurrentWins;      // IPlayerEvent.CurrentWins (int), optional
+        }
+
+        /// <summary>
+        /// EventPage.Components.ObjectiveTrackComponent — the per-win prize ladder shown on
+        /// the event page (one ObjectiveBubble per tier). Two prefab variants: the by-course
+        /// track ("finish with exactly N wins") and the cumulative track ("reach N wins").
+        /// </summary>
+        private sealed class ObjectiveTrackHandles
+        {
+            public FieldInfo RewardData;          // _rewardData (RewardDisplayData[])
+            public FieldInfo CumulativeTrack;     // _cumulativeTrack (bool, serialized on the prefab)
+        }
+
+        private sealed class RewardDisplayHandles
+        {
+            public FieldInfo WinsNeeded;          // WinsNeeded (uint)
+            public FieldInfo MainText;            // MainText (MTGALocalizedString) — reward headline, e.g. "{quantity} Gold"
+            public FieldInfo SecondaryText;       // SecondaryText (MTGALocalizedString) — optional detail line
+        }
+
+        private sealed class LocStringHandles
+        {
+            public FieldInfo Key;                 // MTGALocalizedString.Key (string)
+            public FieldInfo Parameters;          // MTGALocalizedString.Parameters (Dictionary<string,string>)
         }
 
         private sealed class EventInfoHandles
@@ -175,10 +200,42 @@ namespace AccessibleArena.Core.Services
             {
                 EventInfo = t.GetProperty("EventInfo", PublicInstance),
                 EventUxInfo = t.GetProperty("EventUXInfo", PublicInstance),
+                CurrentWins = t.GetProperty("CurrentWins", PublicInstance),
             },
             validator: _ => true,
             logTag: "EventAccessor",
             logSubject: "IPlayerEvent");
+
+        private static readonly ReflectionCache<ObjectiveTrackHandles> _objectiveTrackCache = new ReflectionCache<ObjectiveTrackHandles>(
+            builder: t => new ObjectiveTrackHandles
+            {
+                RewardData = ReflectionWalk.FindField(t, "_rewardData", AllInstanceFlags),
+                CumulativeTrack = ReflectionWalk.FindField(t, "_cumulativeTrack", AllInstanceFlags),
+            },
+            validator: h => h.RewardData != null,
+            logTag: "EventAccessor",
+            logSubject: "ObjectiveTrackComponent");
+
+        private static readonly ReflectionCache<RewardDisplayHandles> _rewardDisplayCache = new ReflectionCache<RewardDisplayHandles>(
+            builder: t => new RewardDisplayHandles
+            {
+                WinsNeeded = t.GetField("WinsNeeded", PublicInstance),
+                MainText = t.GetField("MainText", PublicInstance),
+                SecondaryText = t.GetField("SecondaryText", PublicInstance),
+            },
+            validator: h => h.WinsNeeded != null && h.MainText != null,
+            logTag: "EventAccessor",
+            logSubject: "RewardDisplayData");
+
+        private static readonly ReflectionCache<LocStringHandles> _locStringCache = new ReflectionCache<LocStringHandles>(
+            builder: t => new LocStringHandles
+            {
+                Key = t.GetField("Key", PublicInstance),
+                Parameters = t.GetField("Parameters", PublicInstance),
+            },
+            validator: h => h.Key != null,
+            logTag: "EventAccessor",
+            logSubject: "MTGALocalizedString");
 
         private static readonly ReflectionCache<EventInfoHandles> _eventInfoCache = new ReflectionCache<EventInfoHandles>(
             builder: t => new EventInfoHandles
@@ -660,6 +717,132 @@ namespace AccessibleArena.Core.Services
             }
 
             return blocks;
+        }
+
+        /// <summary>
+        /// One block per prize tier of the event's win-reward ladder
+        /// (<c>ObjectiveTrackComponent</c>: a row of ObjectiveBubbles, "0 wins: 25 gold,
+        /// 1 win: 50 gold, ..."). Label is the game-localized "N wins", content the reward
+        /// text. Sighted players read it off the bubbles and their hover popups; neither
+        /// reached the screen reader before — the bubble buttons are filed under the home-page
+        /// Objectives subgroup, which the event page never shows, and the event-info text sweep
+        /// skips everything under an "Objective" parent on purpose.
+        /// Reads the track's reward data directly instead of scraping bubble text, so it is
+        /// independent of which bubble the game currently highlights or dims.
+        /// Mirrors the sighted state markers: by-course tracks highlight the tier matching the
+        /// current win count ("current"), cumulative tracks tick off reached tiers ("earned").
+        /// Only active tracks are read — the game hides the ladder once the event leaves the
+        /// join/pay state, and so do we. Empty list when the page has no ladder.
+        /// </summary>
+        public static System.Collections.Generic.List<CardInfoBlock> GetEventRewardLadderBlocks()
+        {
+            var blocks = new System.Collections.Generic.List<CardInfoBlock>();
+            try
+            {
+                var controller = FindActiveEventController();
+                if (controller == null) return blocks;
+
+                int currentWins = GetCurrentWins(controller);
+                int added = 0;
+
+                foreach (var component in controller.GetComponentsInChildren<MonoBehaviour>(false))
+                {
+                    if (component == null || component.GetType().Name != T.ObjectiveTrackComponent)
+                        continue;
+                    if (!_objectiveTrackCache.EnsureInitialized(component.GetType()))
+                        continue;
+
+                    var th = _objectiveTrackCache.Handles;
+                    var rewards = th.RewardData.GetValue(component) as Array;
+                    if (rewards == null || rewards.Length == 0) continue;
+
+                    bool cumulative = th.CumulativeTrack != null && (th.CumulativeTrack.GetValue(component) as bool? ?? false);
+
+                    foreach (var reward in rewards)
+                    {
+                        if (reward == null) continue;
+                        if (!_rewardDisplayCache.EnsureInitialized(reward.GetType())) break;
+                        var rh = _rewardDisplayCache.Handles;
+
+                        int winsNeeded = Convert.ToInt32(rh.WinsNeeded.GetValue(reward));
+                        string main = ResolveLocString(rh.MainText.GetValue(reward));
+                        if (string.IsNullOrEmpty(main)) continue;
+
+                        string secondary = rh.SecondaryText != null ? ResolveLocString(rh.SecondaryText.GetValue(reward)) : null;
+                        string content = !string.IsNullOrEmpty(secondary) && secondary != main
+                            ? $"{main}, {secondary}"
+                            : main;
+
+                        // currentWins is -1 when unknown, which matches no tier on either track.
+                        bool marked = cumulative ? currentWins >= winsNeeded : currentWins == winsNeeded;
+                        if (marked)
+                            content += $", {(cumulative ? Strings.EventRewardEarned : Strings.EventRewardCurrent)}";
+
+                        blocks.Add(new CardInfoBlock(FormatWins(winsNeeded), content, isVerbose: false));
+                        added++;
+                    }
+                }
+
+                if (added > 0)
+                    Log.Msg("EventAccessor", $"GetEventRewardLadderBlocks: {added} tiers (current wins {currentWins})");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAccessor", $"GetEventRewardLadderBlocks failed: {ex.Message}");
+            }
+            return blocks;
+        }
+
+        /// <summary>IPlayerEvent.CurrentWins for the active event page, or -1 when unavailable.</summary>
+        private static int GetCurrentWins(MonoBehaviour controller)
+        {
+            try
+            {
+                var playerEvent = GetPlayerEvent(controller);
+                var prop = _playerEventCache.Handles?.CurrentWins;
+                if (playerEvent == null || prop == null) return -1;
+                return Convert.ToInt32(prop.GetValue(playerEvent));
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        /// <summary>
+        /// "1 win" / "3 wins" via the game's own event-page plural strings (the same keys the
+        /// bubbles use), so the wording matches the client language. Falls back to the mod's
+        /// locale when the keys are missing.
+        /// </summary>
+        private static string FormatWins(int wins)
+        {
+            string key = wins == 1 ? "MainNav/EventsPage/WinsStringSingular" : "MainNav/EventsPage/WinsStringPlural";
+            return UITextExtractor.ResolveLocKey(key, ("quantity", wins.ToString()))
+                ?? $"{wins} {LocaleManager.Instance?.Get("ObjectiveWins") ?? "wins"}";
+        }
+
+        /// <summary>
+        /// Resolve an <c>MTGALocalizedString</c> (Key + optional Parameters dictionary) through
+        /// the active loc provider. Returns null for null, empty, or the game's explicit
+        /// "MainNav/General/Empty_String" placeholder.
+        /// </summary>
+        private static string ResolveLocString(object locString)
+        {
+            if (locString == null) return null;
+            if (!_locStringCache.EnsureInitialized(locString.GetType())) return null;
+            var lh = _locStringCache.Handles;
+
+            string key = lh.Key.GetValue(locString) as string;
+            if (string.IsNullOrEmpty(key) || key == "MainNav/General/Empty_String") return null;
+
+            var args = new System.Collections.Generic.List<ValueTuple<string, string>>();
+            if (lh.Parameters?.GetValue(locString) is System.Collections.IDictionary parameters)
+            {
+                foreach (System.Collections.DictionaryEntry entry in parameters)
+                    args.Add((entry.Key?.ToString(), entry.Value?.ToString() ?? string.Empty));
+            }
+
+            return UITextExtractor.ResolveLocKey(key, args.ToArray());
         }
 
         /// <summary>
@@ -1462,6 +1645,14 @@ namespace AccessibleArena.Core.Services
         /// the price with the localized currency name.
         /// Returns null if not a payment button (Play / Start states already have proper labels).
         /// </summary>
+        /// <summary>
+        /// True when the element is one of the event page's main-button alternatives
+        /// (Play / Start / Pay with gems, gold or token) — i.e. it lives under the page's
+        /// <c>MainButtonComponent</c>. Used to give that button a Tab stop on the event page.
+        /// </summary>
+        public static bool IsEventMainButton(GameObject element)
+            => element != null && FindParentComponent(element, T.MainButtonComponent) != null;
+
         public static string GetEventPaymentButtonLabel(GameObject element)
         {
             if (element == null) return null;
@@ -1487,7 +1678,15 @@ namespace AccessibleArena.Core.Services
 
                     var tmp = element.GetComponentInChildren<TMPro.TMP_Text>(true);
                     string priceText = tmp != null ? tmp.text?.Trim() : null;
-                    return CurrencyLabels.FormatPrice(priceText, currencyName);
+                    string label = CurrencyLabels.FormatPrice(priceText, currencyName);
+
+                    // MainButtonComponentController enables a pay button only while the event
+                    // is active and the entry still has uses; a pre-start page (countdown
+                    // running) shows the price on a dead button. Sighted players see it greyed
+                    // out — say so, instead of letting Enter run into a silent no-op.
+                    if (!UIElementClassifier.IsCustomButtonInteractable(element))
+                        label = $"{label}, {Strings.EventEntryUnavailable}";
+                    return label;
                 }
 
                 return null;

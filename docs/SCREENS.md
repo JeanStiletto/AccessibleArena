@@ -1118,6 +1118,22 @@ one page. The widget set is data-driven from `EventComponentData`; there is no p
   event lists several entry fees.
 - Gold and token entries are charged on click with no dialog from the game, so
   `GeneralMenuNavigator.ConfirmEventEntryFee` withholds the first Enter and announces the price.
+- Two virtual groups, both injected by `GeneralMenuNavigator.InjectEventInfoGroup`: "Event Info"
+  (description paragraphs from `EventAccessor.GetEventPageInfoBlocks`, spoken without the
+  generic "Info:" prefix) and "Rewards" (the win-reward ladder). Tab/Shift+Tab cycle main button →
+  Info → Rewards (`EventPageCycleGroups` plus the `EventAccessor.IsEventMainButton` standalone
+  stop, through the same `CycleGroup` path as `DeckBuilderCycleGroups`); `IsAlwaysTabCyclable`
+  lets a one-paragraph Info group stay a Tab stop. Hint key `EventPageHint`.
+- A page with a lone pay button is organized as a single group, which the navigator auto-enters;
+  `AddVirtualGroup` steps back to the group list when it then adds Info/Rewards, otherwise Up/Down
+  stay stuck on the button and the new groups are unreachable until Tab.
+- The ladder (`ObjectiveTrackComponent`, one `ObjectiveBubble` per tier) is read from the
+  component's `_rewardData` (`RewardDisplayData[]`: `WinsNeeded`, `MainText`, `SecondaryText`)
+  by `EventAccessor.GetEventRewardLadderBlocks`. The bubbles' own `ObjectiveGraphics` buttons are
+  not clickable and land in the Objectives subgroup, which only the home page's Progress group
+  exposes — do not try to navigate them. `_cumulativeTrack` picks the state marker: cumulative =
+  "earned" at `CurrentWins >= WinsNeeded`, by-course = "current" at `CurrentWins == WinsNeeded`
+  (what the game highlights).
 
 **Files:**
 - `src/Core/Services/EventAccessor.cs`, `src/Patches/PanelStatePatch.cs`

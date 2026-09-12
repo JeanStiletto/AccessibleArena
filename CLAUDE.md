@@ -183,6 +183,13 @@ Pick Two and other multi-pick drafts additionally announce "take 2 cards" in the
 room. Ordinary one-card drafts stay quiet about counts — "1 of 1" every pick is dead information.
 Pressing Space before enough cards are selected says how many more to pick, rather than nothing.
 
+**Events - Event Page:**
+Description paragraphs sit in an "Event Info" group and the win-reward ladder (one entry per
+tier, "3 wins: 1,000 Gold, 2 Booster Packs", with "earned"/"current" markers) in a "Rewards"
+group, both behind the page's buttons. Enter opens a group, Up/Down walk it, Backspace returns.
+Tab/Shift+Tab cycle entry button → Info → Rewards from anywhere on the page (same mechanism as
+the deck builder, where the lone buttons are deliberately not Tab stops).
+
 **Events - Paid Entry:**
 The game only asks for confirmation on gem entries. Gold and event/draft/sealed tokens are
 charged the instant the button is pressed, so the mod requires two presses: the first Enter

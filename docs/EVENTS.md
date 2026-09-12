@@ -77,13 +77,33 @@ Event page description text is navigable via Up/Down arrows as virtual info item
 - Skip blocks that are redundant with the event title (fuzzy match: max 4 words, at least 1/3 of words shared with title, splitting on spaces/colons/hyphens/underscores)
 - Long texts split on `\n` into separate blocks for screen reader readability
 
-**Navigation state** in `GeneralMenuNavigator`:
-- `_eventInfoBlocks` / `_eventInfoIndex` track current position
-- Index `-1` = on the button (default), `0..N-1` = info blocks
-- Down from button -> first info block; Down at end -> "End of list"
-- Up from first info block -> back to button (re-announces current element); Up from button -> "Beginning of list"
-- Tab bypasses info navigation, uses normal element navigation
-- Blocks lazy-loaded on first Down press, cleared when controller changes in `PerformRescan()`
+**Win-reward ladder:** `EventAccessor.GetEventRewardLadderBlocks()` returns one block per prize
+tier (label "3 wins", content "1,000 Gold, 2 Booster Packs"). Source is the active
+`ObjectiveTrackComponent`'s `_rewardData` (`RewardDisplayData[]`), not the bubble text — bubble
+labels change with dim/highlight state and the by-course variant prints only the bare number.
+- `WinsNeeded` → "N wins" via the game's `MainNav/EventsPage/WinsStringSingular|Plural` keys
+  (`UITextExtractor.ResolveLocKey` with a `quantity` parameter)
+- `MainText` / `SecondaryText` are `MTGALocalizedString`s (Key + Parameters) resolved through the
+  active loc provider — the same popup wording sighted players hover to read
+- `_cumulativeTrack` selects the marker: cumulative → "earned" when `IPlayerEvent.CurrentWins >=
+  WinsNeeded`; by-course → "current" when equal. This mirrors the bubble the game highlights.
+- Inactive tracks are skipped: the game hides the ladder outside the Join/PayEntry modules.
+
+**Navigation** (`GeneralMenuNavigator.InjectEventInfoGroup`, run on every event-page scan):
+- The text blocks become the elements of one virtual "Event Info" group (`ElementGroup.EventInfo`);
+  the ladder tiers become the "Rewards" group (`ElementGroup.EventRewards`), inserted right after it.
+  Both sit at the end of the top-level group list, behind the page's buttons.
+- Group level: Up/Down over buttons and the two groups, Enter opens a group, Backspace returns.
+- Tab/Shift+Tab from anywhere on the page cycle main button → Info → Rewards (`EventPageCycleGroups`
+  through the same `CycleGroup` path the deck builder uses, plus a standalone-stop predicate,
+  `EventAccessor.IsEventMainButton`, that admits the page's `MainButtonComponent` button; landing on
+  it puts the navigator at group level so Enter activates it). `ElementGroup.IsAlwaysTabCyclable`
+  keeps a single-paragraph Info group reachable; other single-element groups are skipped by Tab.
+- `GroupedNavigator.AddVirtualGroup` drops back to the group list when the scan produced a single
+  auto-entered group (a lone pay button) — otherwise the injected groups were unreachable by arrows.
+- `ToVirtualElements` drops a block label that merely repeats the group's generic label ("Info"),
+  so entries are spoken as bare content. Distinct labels (wins count) stay as "label: content".
+- Key hint: `EventPageHint` (appended to the screen announcement when hints are on; Ctrl+F1).
 
 ---
 

@@ -67,6 +67,8 @@ namespace AccessibleArena.Tests
                                        // prefix rule does not cover the suffix-less key
             "NPERewardCardHint",       // NPERewardNavigator — ternary with NPERewardDeckHint
             "NPERewardDeckHint",       // NPERewardNavigator — ternary with NPERewardCardHint
+            "DeckBuilderHint",         // GeneralMenuNavigator.ScreenHintKey — per-screen key hint,
+            "EventPageHint",           // returned as a bare string (deck builder / event page)
             "Dungeon_Format",          // DuelAnnouncer/PortraitNavigator dynamic lookup
             "DungeonsCompleted_Format",
             "DungeonsCompleted_One",

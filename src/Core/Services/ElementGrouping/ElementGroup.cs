@@ -149,6 +149,14 @@ namespace AccessibleArena.Core.Services.ElementGrouping
         EventInfo,
 
         /// <summary>
+        /// Event page win-reward ladder: one virtual element per prize tier
+        /// ("3 wins: 1,000 Gold, 2 Booster Packs"). A single enterable group so an
+        /// eight-tier ladder costs one entry in the top-level list, not eight.
+        /// Tab cycles between this and EventInfo, like the deck builder's group cycle.
+        /// </summary>
+        EventRewards,
+
+        /// <summary>
         /// Mailbox mail list (left pane). Shown when browsing mails.
         /// </summary>
         MailboxList,
@@ -292,6 +300,19 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             return group == ElementGroup.DeckBuilderCollection
                 || group == ElementGroup.DeckBuilderSideboard
                 || group == ElementGroup.DeckBuilderDeckList;
+        }
+
+        /// <summary>
+        /// Groups that Tab cycling may land on even when they hold a single element:
+        /// deck-builder card groups (a filtered collection may show one card) and the
+        /// event page's Info / Rewards groups (a short event may have one info block).
+        /// Other groups need more than one element to be worth a Tab stop.
+        /// </summary>
+        public static bool IsAlwaysTabCyclable(this ElementGroup group)
+        {
+            return group.IsDeckBuilderCardGroup()
+                || group == ElementGroup.EventInfo
+                || group == ElementGroup.EventRewards;
         }
 
         /// <summary>

@@ -48,6 +48,7 @@ namespace AccessibleArena.Core.Constants
         public const string EventPageContentController = "EventPageContentController";
         public const string FactionalizedEventTemplate = "FactionalizedEventTemplate";
         public const string MainButtonComponent = "MainButtonComponent";
+        public const string ObjectiveTrackComponent = "ObjectiveTrackComponent";
         public const string PacketSelectContentController = "PacketSelectContentController";
         public const string CampaignGraphContentController = "CampaignGraphContentController";
         public const string LearnToPlayControllerV2 = "LearnToPlayControllerV2";

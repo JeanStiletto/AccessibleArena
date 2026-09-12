@@ -1686,6 +1686,7 @@ namespace AccessibleArena.Core.Models
                 case Services.ElementGrouping.ElementGroup.DeckBuilderSideboard: return L.Get("GroupSideboard");
                 case Services.ElementGrouping.ElementGroup.DeckBuilderInfo: return L.Get("GroupDeckInfo");
                 case Services.ElementGrouping.ElementGroup.EventInfo: return L.Get("GroupEventInfo");
+                case Services.ElementGrouping.ElementGroup.EventRewards: return L.Get("GroupRewards");
                 case Services.ElementGrouping.ElementGroup.MailboxList: return L.Get("GroupMailList");
                 case Services.ElementGrouping.ElementGroup.MailboxContent: return L.Get("GroupMail");
                 case Services.ElementGrouping.ElementGroup.RewardsPopup: return L.Get("GroupRewards");
@@ -1735,10 +1736,16 @@ namespace AccessibleArena.Core.Models
         public static string EventScreenTitle(string eventName) => L.Format("EventScreenTitle_Format", eventName);
         public static string PacketOf(int current, int total) => L.Format("PacketOf_Format", current, total);
         public static string EventInfoLabel => L.Get("EventInfoLabel");
+        // Win-reward ladder on the event page (one element per tier inside the Rewards
+        // group). The markers mirror the bubble the game highlights.
+        public static string EventRewardCurrent => L.Get("EventRewardCurrent");
+        public static string EventRewardEarned => L.Get("EventRewardEarned");
         // Paid event entry. Gold and token entries are charged the moment the button is
         // clicked — the game only opens a confirmation dialog for gem entries.
         public static string EventEntryFeeConfirm(string price) => L.Format("EventEntryFeeConfirm_Format", price);
         public static string EventEntryFeeConfirmUnknown => L.Get("EventEntryFeeConfirmUnknown");
+        // Pay button shown but not interactable (event not started yet, entry already used).
+        public static string EventEntryUnavailable => L.Get("EventEntryUnavailable");
         // Arena Direct physical-prize confirmation popup.
         public static string PhysicalPrizeNoDismiss => L.Get("PhysicalPrizeNoDismiss");
         public static string PhysicalPrizeOpensBrowser => L.Get("PhysicalPrizeOpensBrowser");
