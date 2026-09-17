@@ -2,6 +2,18 @@
 
 All notable changes to Accessible Arena.
 
+## v1.6.3
+
+<h3>Overview</h3>
+
+- The draw screen shown when matchmaking times out without an opponent is now navigable instead of leaving only the queue tip and timer (issue #124).
+
+<h3>Details</h3>
+
+**Matchmaking timeout draw (issue #124, found and reported by [Daggershade](https://github.com/Daggershade)):**
+
+- When the game gives up looking for an opponent (seen in a draft event queue and in Standard Best-of-One ranked), it ends the match as a draw and shows the regular end-of-match screen with the result message and a continue button. The mod kept presenting the waiting screen instead: only the loading tip and the timer were navigable, and getting out needed sighted help. Cause: the game's MatchEnd sub-scene leaves the waiting screen's PreGameScene loaded (in a normal match it is already unloaded once the duel starts), and the loading-screen navigator only re-checked whether the waiting screen was still there, never whether the end-of-match screen had appeared on top. MatchEnd now takes over from the waiting screen as soon as its scene loads, both on the scene-change event and in the per-frame validation, so the draw result, the continue button and the game log entry are available as after any other match.
+
 ## v1.6.2
 
 <h3>Overview</h3>

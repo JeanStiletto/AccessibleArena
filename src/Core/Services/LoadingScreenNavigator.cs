@@ -1490,7 +1490,9 @@ namespace AccessibleArena.Core.Services
                     break;
 
                 case ScreenMode.PreGame:
-                    if (!DetectPreGame())
+                    // MatchEnd outranks PreGame: a match that ends before the duel starts
+                    // (queue timeout draw) loads MatchEndScene with PreGameScene still loaded.
+                    if (!DetectPreGame() || DetectMatchEnd())
                         return false;
                     break;
 
@@ -1527,7 +1529,9 @@ namespace AccessibleArena.Core.Services
                 switch (_currentMode)
                 {
                     case ScreenMode.PreGame:
-                        modeStillValid = DetectPreGame();
+                        // The game's MatchEnd sub-scene leaves PreGameScene loaded ("Irrelevant"),
+                        // so a pre-duel draw must hand over to MatchEnd, not keep the waiting screen.
+                        modeStillValid = DetectPreGame() && !DetectMatchEnd();
                         break;
                     case ScreenMode.MatchEnd:
                         modeStillValid = DetectMatchEnd();
