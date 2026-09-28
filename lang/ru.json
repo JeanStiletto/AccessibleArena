@@ -189,7 +189,7 @@
   "Timer_Opponent_LowTime": "Мало времени у оппонента",
   "Timer_Announce_Format": "Ваш таймер: {0}, {1}",
   "Timer_Opponent_Announce_Format": "Таймер оппонента: {0}, {1}",
-  "Timer_NoMatchClock": "Нет таймера матча",
+  "Timer_NoMatchClock": "Таймер не запущен",
   "Timer_Rope_Format": "Таймер хода: {0}, {1}",
   "Timer_Opponent_Rope_Format": "Таймер хода оппонента: {0}, {1}",
   "GamesWon_One": "1 игра выиграна",

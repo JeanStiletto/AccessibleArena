@@ -199,9 +199,10 @@ namespace AccessibleArena.Core.Services
             DiscoverTimerElements();
 
             // Store current focus to restore on exit.
-            // Unity's fake-null: a destroyed GameObject is != null in C# but throws from .name.
+            // Unity's fake-null: a destroyed GameObject is non-null to C#'s ?. but throws from .name.
+            // Unity's overloaded != already treats it as null, so only the bool check catches it.
             _previousFocus = EventSystem.current?.currentSelectedGameObject;
-            if (_previousFocus != null && !_previousFocus) _previousFocus = null;
+            if (!_previousFocus) _previousFocus = null;
             Log.Nav("PlayerPortrait", $"Storing previous focus: {_previousFocus?.name ?? "null"}");
 
             // Find and focus on the player zone element (local timer's HoverArea)

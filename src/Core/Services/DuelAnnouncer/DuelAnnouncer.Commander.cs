@@ -159,6 +159,27 @@ namespace AccessibleArena.Core.Services
         /// OwnerId, so when the zone-derived ID is still 0 this is the only way to tell whose card
         /// is being shown. Returns 0 when the game state is not up yet.
         /// </summary>
+        /// <summary>
+        /// Makes sure _localPlayerId is known before comparing a numeric seat ID against it,
+        /// resolving from the live game state if the zone strings have not set it yet.
+        /// Returns false (and logs under the caller's context) when it is still unknown;
+        /// staying silent beats announcing your own action as the opponent's.
+        /// </summary>
+        private bool TryEnsureLocalPlayerId(string context)
+        {
+            if (_localPlayerId != 0) return true;
+
+            uint resolved = TryResolveLocalPlayerIdFromGameState();
+            if (resolved == 0)
+            {
+                Log.Announce("DuelAnnouncer", $"{context}: skipped, local player ID not yet known");
+                return false;
+            }
+            Log.Announce("DuelAnnouncer", $"Local player ID resolved from game state: {resolved}");
+            _localPlayerId = resolved;
+            return true;
+        }
+
         private uint TryResolveLocalPlayerIdFromGameState()
         {
             try

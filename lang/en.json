@@ -189,7 +189,7 @@
   "Timer_Opponent_LowTime": "Opponent low time",
   "Timer_Announce_Format": "Your timer: {0}, {1}",
   "Timer_Opponent_Announce_Format": "Opponent timer: {0}, {1}",
-  "Timer_NoMatchClock": "No match clock",
+  "Timer_NoMatchClock": "No timer running",
   "Timer_Rope_Format": "Turn timer: {0}, {1}",
   "Timer_Opponent_Rope_Format": "Opponent turn timer: {0}, {1}",
   "GamesWon_One": "1 game won",

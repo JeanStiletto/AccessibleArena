@@ -7,12 +7,29 @@ All notable changes to Accessible Arena.
 <h3>Overview</h3>
 
 - The draw screen shown when matchmaking times out without an opponent is now navigable instead of leaving only the queue tip and timer (issue #124).
+- E and Shift+E now say "No timer running" instead of "No match clock" when no timer is counting down.
+- Opening the player info zone with V no longer silently fails on the first press.
+- Timeouts used by you or your opponent are announced again after the MTG Arena 2026.63 update.
+- Opening and closing a letter in the mailbox works again after the 2026.63 update.
 
 <h3>Details</h3>
 
 **Matchmaking timeout draw (issue #124, found and reported by [Daggershade](https://github.com/Daggershade)):**
 
 - When the game gives up looking for an opponent (seen in a draft event queue and in Standard Best-of-One ranked), it ends the match as a draw and shows the regular end-of-match screen with the result message and a continue button. The mod kept presenting the waiting screen instead: only the loading tip and the timer were navigable, and getting out needed sighted help. Cause: the game's MatchEnd sub-scene leaves the waiting screen's PreGameScene loaded (in a normal match it is already unloaded once the duel starts), and the loading-screen navigator only re-checked whether the waiting screen was still there, never whether the end-of-match screen had appeared on top. MatchEnd now takes over from the waiting screen as soon as its scene loads, both on the scene-change event and in the per-frame validation, so the draw result, the continue button and the game log entry are available as after any other match.
+
+**Duel timer and player info (issue #125, reported by [Daggershade](https://github.com/Daggershade)):**
+
+- E and Shift+E said "No match clock" whenever neither the match clock nor the turn timer (rope) was counting down, which sounded like the mod had failed to find the clock. In a Bot Match there is no timer at all, so every press gave that answer. The message is now "No timer running" in all languages. The Timer line in the V player info zone still only appears while a timer is running.
+- The first V press in a duel could do nothing and log a NullReferenceException. When the focused element had just been destroyed, the check meant to drop the stale reference never fired (Unity's overloaded `!=` already treats a destroyed object as null), so the log line that reads its name threw before the zone opened. The stale reference is now cleared with Unity's own destroyed check.
+
+**MTG Arena 2026.63 update:**
+
+- Using a timeout extension was no longer announced. The game moved timeout handling out of GameManager into a new TimeoutNotificationHandler, and the notification now names the seat of the player who used the timeout instead of saying whether it was you. The mod now hooks the new handler and compares that seat with your own, looked up from the live game state if needed.
+- Opening a letter in the mailbox no longer added its title, date and body to the navigation, and Backspace in an open letter fell back to the generic back button instead of returning to the letter list. The game rebuilt the inbox around its message bus: the mod now listens where the letter view actually opens (so re-selecting the already open letter, which the game ignores, stays quiet too) and closes letters through the game's new CloseOpenLetter.
+- Mastery pass reward names are looked up under the reward data type's new namespace, falling back to the old short name.
+- Removed a card-name lookup fallback that relied on GameManager.LocManager, which the update deleted. The primary lookup through CardTitleProvider is unaffected.
+- The timeout and inbox breaks first showed up in the log attached to issue #125. The game-update checklist (docs/GAME_UPDATE_CHECKLIST.md) caught both, plus the removed members behind the other two entries.
 
 ## v1.6.2
 

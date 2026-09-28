@@ -476,7 +476,7 @@ namespace AccessibleArena.Core.Services
 
             try
             {
-                // Approach 1: Find GameManager in scene and get its LocManager or CardDatabase
+                // Approach 1: Find GameManager in scene and get its CardDatabase
                 foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
                 {
                     if (mb == null) continue;
@@ -559,42 +559,6 @@ namespace AccessibleArena.Core.Services
                             }
                         }
 
-                        // Try LocManager property - use GetLocalizedText with string key
-                        var locProp = type.GetProperty("LocManager");
-                        if (locProp != null)
-                        {
-                            var locMgr = locProp.GetValue(mb);
-                            if (locMgr != null)
-                            {
-                                var locType = locMgr.GetType();
-                                Log.Card("CardModelProvider", $"LocManager type: {locType.FullName}");
-
-                                // Try GetLocalizedText with just string parameter
-                                var getTextMethod = locType.GetMethod("GetLocalizedText", new[] { typeof(string) });
-                                if (getTextMethod == null)
-                                {
-                                    // Try with array parameter - pass empty array
-                                    var allMethods = locType.GetMethods(PublicInstance);
-                                    foreach (var m in allMethods)
-                                    {
-                                        if (m.Name == "GetLocalizedText" && m.GetParameters().Length >= 1)
-                                        {
-                                            getTextMethod = m;
-                                            Log.Card("CardModelProvider", $"Found GetLocalizedText: {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (getTextMethod != null)
-                                {
-                                    _idNameProvider = locMgr;
-                                    _getNameMethod = getTextMethod;
-                                    Log.Card("CardModelProvider", $"Using LocManager.GetLocalizedText for name lookup");
-                                    return;
-                                }
-                            }
-                        }
                         break;
                     }
                 }

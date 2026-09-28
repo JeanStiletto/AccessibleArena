@@ -189,7 +189,7 @@
   "Timer_Opponent_LowTime": "Pouco tempo do oponente",
   "Timer_Announce_Format": "Seu cronômetro: {0}, {1}",
   "Timer_Opponent_Announce_Format": "Cronômetro do oponente: {0}, {1}",
-  "Timer_NoMatchClock": "Sem relógio de partida",
+  "Timer_NoMatchClock": "Nenhum cronômetro ativo",
   "Timer_Rope_Format": "Cronômetro de turno: {0}, {1}",
   "Timer_Opponent_Rope_Format": "Cronômetro de turno do oponente: {0}, {1}",
   "GamesWon_One": "1 jogo vencido",

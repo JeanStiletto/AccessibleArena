@@ -142,8 +142,9 @@ namespace AccessibleArena.Core.Services
                 if (clientLevelInfoType != null)
                     h.XpToComplete = clientLevelInfoType.GetField("xpToComplete", PublicInstance);
 
-                // RewardDisplayData — FindType
-                Type rewardDisplayType = FindType("RewardDisplayData");
+                // RewardDisplayData — FindType (2026.63 moved it from the global namespace)
+                Type rewardDisplayType = FindType("Wizards.MDN.Objectives.RewardDisplayData")
+                    ?? FindType("RewardDisplayData");
                 if (rewardDisplayType != null)
                 {
                     h.RewardMainText = rewardDisplayType.GetField("MainText", PublicInstance);

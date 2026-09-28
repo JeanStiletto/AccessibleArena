@@ -189,7 +189,7 @@
   "Timer_Opponent_LowTime": "Temps faible de l'adversaire",
   "Timer_Announce_Format": "Votre chrono : {0}, {1}",
   "Timer_Opponent_Announce_Format": "Chrono adverse : {0}, {1}",
-  "Timer_NoMatchClock": "Pas d'horloge de match",
+  "Timer_NoMatchClock": "Aucun minuteur en cours",
   "Timer_Rope_Format": "Chrono de tour : {0}, {1}",
   "Timer_Opponent_Rope_Format": "Chrono de tour adverse : {0}, {1}",
   "GamesWon_One": "1 partie gagnée",

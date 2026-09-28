@@ -189,7 +189,7 @@
   "Timer_Opponent_LowTime": "対戦相手の残り時間わずか",
   "Timer_Announce_Format": "あなたのタイマー: {0}、{1}",
   "Timer_Opponent_Announce_Format": "対戦相手のタイマー: {0}、{1}",
-  "Timer_NoMatchClock": "マッチクロックなし",
+  "Timer_NoMatchClock": "作動中のタイマーはありません",
   "Timer_Rope_Format": "ターンタイマー: {0}、{1}",
   "Timer_Opponent_Rope_Format": "対戦相手のターンタイマー: {0}、{1}",
   "GamesWon_One": "1勝",

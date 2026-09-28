@@ -128,11 +128,16 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Called from TimerPatch when a timeout notification fires.
         /// Announces that a timeout was used and remaining timeout count.
+        /// triggeredBy is the seat ID of the player who used the timeout.
         /// </summary>
-        public void OnTimerTimeout(bool isLocal, uint timeoutCount)
+        public void OnTimerTimeout(uint triggeredBy, uint timeoutCount)
         {
             if (!_isActive) return;
 
+            if (!TryEnsureLocalPlayerId("Timeout"))
+                return;
+
+            bool isLocal = triggeredBy == _localPlayerId;
             string message = isLocal
                 ? Strings.TimerTimeoutUsed(timeoutCount)
                 : Strings.TimerOpponentTimeout(timeoutCount);
@@ -399,17 +404,8 @@ namespace AccessibleArena.Core.Services
                 // so the usual zone-string correction has nothing to work with here. If the seat
                 // is still unknown, ask the live game state directly; only if that fails too does
                 // staying silent beat announcing your own card as the opponent's.
-                if (_localPlayerId == 0)
-                {
-                    uint resolved = TryResolveLocalPlayerIdFromGameState();
-                    if (resolved == 0)
-                    {
-                        Log.Announce("DuelAnnouncer", "Reveal: skipped, local player ID not yet known");
-                        return null;
-                    }
-                    Log.Announce("DuelAnnouncer", $"Local player ID resolved from game state: {resolved}");
-                    _localPlayerId = resolved;
-                }
+                if (!TryEnsureLocalPlayerId("Reveal"))
+                    return null;
 
                 var cards = new List<CardInfo>();
                 foreach (var record in records)

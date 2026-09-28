@@ -136,6 +136,7 @@ namespace AccessibleArena.Core.Constants
         public const string EventBladeContentViewFQ = "Wizards.Mtga.PlayBlade.EventBladeContentView";
         public const string EventBladeContentView = "EventBladeContentView";
         public const string ContentControllerPlayerInboxFQ = "Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox";
+        public const string PlayerInboxContentViewFQ = "Wotc.Mtga.Wrapper.Mailbox.PlayerInboxContentView";
         public const string DraftContentControllerFQ = "Wotc.Mtga.Wrapper.Draft.DraftContentController";
         public const string DraftDeckViewFQ = "Wotc.Mtga.Wrapper.Draft.DraftDeckView";
         public const string DraftDeckManagerFQ = "Wotc.Mtga.Wrapper.Draft.DraftDeckManager";

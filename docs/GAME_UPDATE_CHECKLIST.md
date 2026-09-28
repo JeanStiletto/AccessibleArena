@@ -98,5 +98,12 @@ sometimes not at all for a hotfix, so never wait on them.
   signature diff cover that gap for types that are tracked.
 - Short type names collide. The checker prefers the top-level type over a nested one, but a
   bare name that matches several top-level types resolves to the first match.
+- Section 0 only reads the most recent `Latest.log`. Launch the updated game once with the
+  mod (reaching the home page is enough for patch setup) before running the check, or the
+  section reports the previous version's session.
+- Seen with 2026.63: `ContentControllerPlayerInbox.OnLetterSelected` moved to
+  `PlayerInboxContentView` and section 1 stayed silent, because the name still existed on
+  another type. Section 0 and `-FromDecompiled` both caught it, so on the first run after an
+  update, run both modes.
 - Coverage stops where reflection becomes dynamic — `GetType().GetProperty(someVariable)` is
   invisible to a static scan. Section 0's log scan is the backstop for those.

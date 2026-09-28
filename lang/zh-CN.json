@@ -189,7 +189,7 @@
   "Timer_Opponent_LowTime": "对手时间不多",
   "Timer_Announce_Format": "你的计时器：{0}，{1}",
   "Timer_Opponent_Announce_Format": "对手计时器：{0}，{1}",
-  "Timer_NoMatchClock": "无比赛计时",
+  "Timer_NoMatchClock": "没有正在运行的计时器",
   "Timer_Rope_Format": "回合计时器：{0}，{1}",
   "Timer_Opponent_Rope_Format": "对手回合计时器：{0}，{1}",
   "GamesWon_One": "赢了1局",

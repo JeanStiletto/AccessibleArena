@@ -602,26 +602,32 @@ namespace AccessibleArena.Patches
             if (closeMethod == null) Log.Warn("PanelStatePatch", "NavBarController.HideInboxIfActive not found");
             TryPatchPostfix(harmony, closeMethod, nameof(MailboxClosePostfix), "NavBarController.HideInboxIfActive()");
 
-            // Patch ContentControllerPlayerInbox.OnLetterSelected - called when a mail is opened
+            // Patch PlayerInboxContentView.OnLetterSelected - called when a mail is opened
             PatchMailLetterSelected(harmony);
         }
 
+        /// <summary>
+        /// 2026.63 rebuilt the inbox around MessageBus: a letter tile raises
+        /// Message_InboxLetterSelected, and PlayerInboxContentView's subscriber shows the letter.
+        /// Patching that subscriber (rather than the tile's OnClick) means we only fire when the
+        /// letter view really opened - PlayerInboxLetterList cancels a re-click on the open letter.
+        /// </summary>
         private static void PatchMailLetterSelected(HarmonyLib.Harmony harmony)
         {
-            var inboxType = FindType(T.ContentControllerPlayerInboxFQ);
-            if (inboxType == null)
+            var contentViewType = FindType(T.PlayerInboxContentViewFQ);
+            if (contentViewType == null)
             {
-                Log.Warn("PanelStatePatch", "Could not find ContentControllerPlayerInbox type");
+                Log.Warn("PanelStatePatch", "Could not find PlayerInboxContentView type");
                 return;
             }
 
-            Log.Patch("PanelStatePatch", $"Found ContentControllerPlayerInbox: {inboxType.FullName}");
+            Log.Patch("PanelStatePatch", $"Found PlayerInboxContentView: {contentViewType.FullName}");
 
-            var onLetterSelectedMethod = inboxType.GetMethod("OnLetterSelected", AllInstanceFlags);
+            var onLetterSelectedMethod = contentViewType.GetMethod("OnLetterSelected", AllInstanceFlags);
             if (onLetterSelectedMethod == null)
-                Log.Warn("PanelStatePatch", "ContentControllerPlayerInbox.OnLetterSelected not found");
+                Log.Warn("PanelStatePatch", "PlayerInboxContentView.OnLetterSelected not found");
             TryPatchPostfix(harmony, onLetterSelectedMethod, nameof(MailLetterSelectedPostfix),
-                "ContentControllerPlayerInbox.OnLetterSelected()");
+                "PlayerInboxContentView.OnLetterSelected()");
         }
 
         /// <summary>
@@ -705,79 +711,58 @@ namespace AccessibleArena.Patches
             => FirePanelStateChange(__instance, false, "Mailbox", "Mailbox closed");
 
         /// <summary>
-        /// Postfix for ContentControllerPlayerInbox.OnLetterSelected
-        /// Parameters: selectedLetter (PlayerInboxBladeItemDisplay), isRead (bool), selectedLetterId (Guid)
+        /// Postfix for PlayerInboxContentView.OnLetterSelected(IMessageContext&lt;Message_InboxLetterSelected&gt;).
+        /// __0 is the message context; context.Message.Letter is the ClientLetterViewModel
+        /// (readonly fields Id, Title, Body, Attachments, IsClaimed).
         /// </summary>
-        public static void MailLetterSelectedPostfix(object __instance, object selectedLetter, bool isRead, Guid selectedLetterId)
+        public static void MailLetterSelectedPostfix(object __0)
         {
             try
             {
-                Log.Patch("PanelStatePatch", $"Mail letter selected: {selectedLetterId}, isRead: {isRead}");
-
-                // Get the ClientLetterViewModel from the selectedLetter (PlayerInboxBladeItemDisplay)
-                // It has a _clientBladeItemViewModel property
-                string title = "";
-                string body = "";
-                bool hasAttachments = false;
-                bool isClaimed = false;
-
-                if (selectedLetter != null)
+                var message = GetInterfacePropertyValue(__0, "Message");
+                var letter = GetInterfacePropertyValue(message, "Letter");
+                if (letter == null)
                 {
-                    var selectedLetterType = selectedLetter.GetType();
-
-                    // Try to get the view model field (it's a field, not a property)
-                    var viewModelField = selectedLetterType.GetField("_clientBladeItemViewModel",
-                        AllInstanceFlags);
-
-                    if (viewModelField != null)
-                    {
-                        var viewModel = viewModelField.GetValue(selectedLetter);
-                        if (viewModel != null)
-                        {
-                            var vmType = viewModel.GetType();
-
-                            // Get Title field
-                            var titleField = vmType.GetField("Title", PublicInstance);
-                            if (titleField != null)
-                                title = titleField.GetValue(viewModel) as string ?? "";
-
-                            // Get Body field
-                            var bodyField = vmType.GetField("Body", PublicInstance);
-                            if (bodyField != null)
-                                body = bodyField.GetValue(viewModel) as string ?? "";
-
-                            // Get Attachments field (List)
-                            var attachmentsField = vmType.GetField("Attachments", PublicInstance);
-                            if (attachmentsField != null)
-                            {
-                                var attachments = attachmentsField.GetValue(viewModel) as System.Collections.IList;
-                                hasAttachments = attachments != null && attachments.Count > 0;
-                            }
-
-                            // Get IsClaimed field
-                            var isClaimedField = vmType.GetField("IsClaimed", PublicInstance);
-                            if (isClaimedField != null)
-                                isClaimed = (bool)isClaimedField.GetValue(viewModel);
-
-                            Log.Patch("PanelStatePatch", $"Letter data - Title: {title}, Body length: {body?.Length ?? 0}, HasAttachments: {hasAttachments}, IsClaimed: {isClaimed}");
-                        }
-                        else
-                        {
-                            Log.Warn("PanelStatePatch", "viewModel is null");
-                        }
-                    }
-                    else
-                    {
-                        Log.Warn("PanelStatePatch", $"_clientBladeItemViewModel field not found on {selectedLetterType.Name}");
-                    }
+                    Log.Warn("PanelStatePatch", "Mail letter selected, but the letter view model was not found");
+                    return;
                 }
 
-                OnMailLetterSelected?.Invoke(selectedLetterId, title, body, hasAttachments, isClaimed);
+                var vmType = letter.GetType();
+                Guid letterId = vmType.GetField("Id", PublicInstance)?.GetValue(letter) is Guid id ? id : Guid.Empty;
+                string title = vmType.GetField("Title", PublicInstance)?.GetValue(letter) as string ?? "";
+                string body = vmType.GetField("Body", PublicInstance)?.GetValue(letter) as string ?? "";
+                var attachments = vmType.GetField("Attachments", PublicInstance)?.GetValue(letter) as System.Collections.IEnumerable;
+                bool hasAttachments = attachments != null && attachments.GetEnumerator().MoveNext();
+                bool isClaimed = vmType.GetField("IsClaimed", PublicInstance)?.GetValue(letter) is bool claimed && claimed;
+
+                Log.Patch("PanelStatePatch", $"Mail letter selected: {letterId} - Title: {title}, Body length: {body.Length}, HasAttachments: {hasAttachments}, IsClaimed: {isClaimed}");
+
+                OnMailLetterSelected?.Invoke(letterId, title, body, hasAttachments, isClaimed);
             }
             catch (Exception ex)
             {
                 Log.Warn("PanelStatePatch", $"Error in MailLetterSelectedPostfix: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Reads a property that may only be declared on an interface the object implements
+        /// (e.g. IMessageContext&lt;T&gt;.Message, which a concrete context can implement explicitly).
+        /// </summary>
+        private static object GetInterfacePropertyValue(object obj, string name)
+        {
+            if (obj == null) return null;
+            var type = obj.GetType();
+            var prop = type.GetProperty(name, PublicInstance);
+            if (prop == null)
+            {
+                foreach (var iface in type.GetInterfaces())
+                {
+                    prop = iface.GetProperty(name);
+                    if (prop != null) break;
+                }
+            }
+            return prop?.GetValue(obj, null);
         }
 
         private static void LogTypeMembers(Type type)

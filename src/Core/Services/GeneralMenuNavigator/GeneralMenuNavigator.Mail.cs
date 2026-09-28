@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using static AccessibleArena.Core.Utils.ReflectionUtils;
 using AccessibleArena.Core.Utils;
+using T = AccessibleArena.Core.Constants.GameTypeNames;
 
 namespace AccessibleArena.Core.Services
 {
@@ -162,36 +163,26 @@ namespace AccessibleArena.Core.Services
         {
             Log.Nav(NavigatorId, $"Closing mail detail view");
 
-            // Find ContentControllerPlayerInbox and invoke CloseCurrentLetter()
-            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
-            if (mailboxPanel != null)
+            // Find the active ContentControllerPlayerInbox and invoke CloseOpenLetter()
+            // (2026.63: raises Message_InboxLetterClosed, which hides the letter view).
+            var inboxType = FindType(T.ContentControllerPlayerInboxFQ);
+            var inbox = inboxType != null ? UnityEngine.Object.FindAnyObjectByType(inboxType) : null;
+            var method = inbox?.GetType().GetMethod("CloseOpenLetter", PublicInstance);
+            if (method != null)
             {
-                foreach (var mb in mailboxPanel.GetComponents<MonoBehaviour>())
+                try
                 {
-                    if (mb != null && mb.GetType().Name == "ContentControllerPlayerInbox")
-                    {
-                        var method = mb.GetType().GetMethod("CloseCurrentLetter",
-                            AllInstanceFlags);
-
-                        if (method != null)
-                        {
-                            try
-                            {
-                                Log.Nav(NavigatorId, $"Invoking ContentControllerPlayerInbox.CloseCurrentLetter()");
-                                method.Invoke(mb, null);
-                                _isInMailDetailView = false;
-                                ResetMailFieldNavigation();
-                                _announcer.Announce(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
-                                TriggerRescan();
-                                return true;
-                            }
-                            catch (System.Exception ex)
-                            {
-                                Log.Nav(NavigatorId, $"CloseCurrentLetter() error: {ex.Message}");
-                            }
-                        }
-                        break;
-                    }
+                    Log.Nav(NavigatorId, $"Invoking ContentControllerPlayerInbox.CloseOpenLetter()");
+                    method.Invoke(inbox, null);
+                    _isInMailDetailView = false;
+                    ResetMailFieldNavigation();
+                    _announcer.Announce(Models.Strings.BackToMailList, Models.AnnouncementPriority.High);
+                    TriggerRescan();
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Nav(NavigatorId, $"CloseOpenLetter() error: {ex.Message}");
                 }
             }
 

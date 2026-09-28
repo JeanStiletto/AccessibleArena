@@ -189,7 +189,7 @@
   "Timer_Opponent_LowTime": "상대방 시간 부족",
   "Timer_Announce_Format": "내 타이머: {0}, {1}",
   "Timer_Opponent_Announce_Format": "상대방 타이머: {0}, {1}",
-  "Timer_NoMatchClock": "매치 시계 없음",
+  "Timer_NoMatchClock": "작동 중인 타이머 없음",
   "Timer_Rope_Format": "턴 타이머: {0}, {1}",
   "Timer_Opponent_Rope_Format": "상대방 턴 타이머: {0}, {1}",
   "GamesWon_One": "1승",
