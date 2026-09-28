@@ -153,6 +153,7 @@ managed directory (with or without the `.dll` suffix).
 | TimeoutNotificationDisplay | TimeoutNotificationDisplay | Core |
 | MtgTimer | GreClient.Rules.MtgTimer | Shared |
 | TimeoutNotification | GreClient.Rules.TimeoutNotification | Shared |
+| TimeoutNotificationHandler | Wotc.Mtga.DuelScene.TimeoutNotificationHandler | Core |
 | TimerUpdate | GreClient.Rules.TimerUpdate | Shared |
 | ClientUpdateBase | GreClient.Rules.ClientUpdateBase | Shared |
 | TimerType (enum) | Wotc.Mtgo.Gre.External.Messaging.TimerType | Gre |
@@ -305,7 +306,8 @@ See `docs/investigations/unsupported-events.md`.
 
 | Short Name | Full Namespace | DLL |
 |---|---|---|
-| HomePageBillboard | HomePageBillboard | Core |
+| HomePageBillboardDefinition | Core.Meta.MainNavigation.Home.HomePageBillboardDefinition | Core |
+| HomePageBillboard_Event | Core.Meta.MainNavigation.Home.HomePageBillboard_Event | Core |
 | ObjectiveBubble | ObjectiveBubble | Core |
 | ContentControllerObjectives | ContentControllerObjectives | Core |
 | NotificationPopup | NotificationPopup | Core |
@@ -321,7 +323,7 @@ See `docs/investigations/unsupported-events.md`.
 |---|---|---|
 | ProgressionTrackLevel | Core.MainNavigation.RewardTrack.ProgressionTrackLevel | Core |
 | ClientTrackLevelInfo | Core.MainNavigation.RewardTrack.ClientTrackLevelInfo | Core |
-| RewardDisplayData | RewardDisplayData | Core |
+| RewardDisplayData | Wizards.MDN.Objectives.RewardDisplayData | Core |
 | ProgressionTracksContentController | ProgressionTracksContentController | Core |
 | ContentController_PrizeWall | ContentController_PrizeWall | Core |
 
@@ -361,6 +363,8 @@ See `docs/investigations/unsupported-events.md`.
 | Short Name | Full Namespace | DLL |
 |---|---|---|
 | ContentControllerPlayerInbox | Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox | Core |
+| PlayerInboxContentView | Wotc.Mtga.Wrapper.Mailbox.PlayerInboxContentView | Core |
+| Message_InboxLetterSelected | Wotc.Mtga.Wrapper.Mailbox.Message_InboxLetterSelected | Core |
 
 ## System / Popups
 
@@ -470,7 +474,7 @@ Some types have members that are fields (not properties) - reflection with `GetP
 - **ObjectiveBubble**: `_popupData` (protected field, type `NotificationPopup.PopupData`) holds localization keys for popup text. Timer type sets `HeaderString1="MainNav/Quest/Quest_Wait_Text"`, `FooterString="MainNav/Popups/QuestRewardPopupDetailsForWaiting"`. Reward types set `HeaderString1="MainNav/EventRewards/Reward"`, `HeaderString2=reward.MainText` (localized reward description). Read via `_popupData` → field access on PopupData fields
 - **NotificationPopup.PopupData**: Public fields: `HeaderString1`, `HeaderString2`, `DescriptionString`, `FooterString`, `ProgressString`, `RefreshButtonString` (all MTGALocalizedString). `ApplyData(NotificationPopup)` pushes data to the visual popup
 - **MTGALocalizedString**: `Key` is a PUBLIC FIELD (not property!). `ToString()` resolves localization via `Languages.ActiveLocProvider.GetLocalizedText(Key, Parameters)`. Implicit string operators exist
-- **HomePageBillboard**: `Title`, `Description`, `TimerText` (all TMP public fields), `locTitle`, `locDescription` (Localize). `SetEvent()` only sets `locTitle` — `Description`/`locDescription` are NEVER populated. Timer text set dynamically in `Update()` with loc keys `MainNav/HomePage/Billboards/EventStartTimer`, `SignUpEndTimer`, `EventEndTimer`
+- **HomePageBillboardDefinition** (2026.63; replaced `HomePageBillboard`, subclasses `HomePageBillboard_Event`, `HomePageBillboard_Filter`, `HomePageBillboard_Rotating`; spawned by `HomePageBillboardController`): all private serialized fields `_locTitle` (Localize), `_timerRow`, `_timerText` (TMP), `_button` (CustomButton). Still no description text - only the title and the timer row. Timer text set in `Update()` from `HomePageBillboardUtils.ComputeTimerDisplay(_eventContext).TextLocKey`
 - **RegistrationPanel._checkFields()**: runs in `Update()` every frame, controls button enabled state. Required: `_validDisplayName==true`, displayname 3-23 chars, email non-empty, email1==email2, password>=8, password1==password2, password rules, `termsAndConditions_Toggle.isOn && codeOfConduct_Toggle.isOn && privacyPolicy_Toggle.isOn`. Offers and Data toggles are NOT required.
 - **RegistrationPanel._validDisplayName**: only set to `true` by `Coroutine_ValidateUsername` (server call), triggered by `_displayName_endEdit`. Reset to `false` by `_displayName_select`. If displayname validation fails (taken, invalid), button stays permanently disabled.
 - **RegistrationPanel.Show()**: Data toggle visibility depends on `CountryCodes.DataShareCountries.ContainsKey(selectedCountry)` — shown for EU/GDPR countries, hidden (auto-checked) otherwise
