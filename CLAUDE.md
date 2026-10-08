@@ -201,8 +201,10 @@ Up/Down: Stores first ("name, address, premium store, store messages on/off"), t
 Left/Right on a store: Its actions — turn its messages on/off, store website, show address on map. Enter runs the action.
 Backspace: Back to the profile overview.
 
-**Mailbox - Store Messages:**
-The inbox has two tabs at the top of the letter list ("MTG: Arena Inbox", "Store Messages"), announced as tab / selected / new. An empty tab reads its notice (no messages, or store messages switched off) before its Store Locator / Enable Store Messages button.
+**Mailbox (MailboxNavigator, store pattern):**
+Opening lands on the tabs ("MTG: Arena Inbox", "Store Messages"; announced selected / new), focused on the selected one. Enter on a tab: switch to it and open its letters ("MTG: Arena Inbox, 2 letters"). Backspace on the tabs: close the mailbox.
+In the letters: Up/Down move, Enter opens a letter, Backspace closes it; Backspace in the letter list returns to the tabs. Without the tab strip (feature toggle off) the mailbox opens on the letters and Backspace there closes it.
+An empty tab reads its notice (no messages, or store messages switched off) before its Store Locator / Enable Store Messages button. List updates in the background are silent.
 
 Deck cosmetics (avatar, sleeve, pet, emotes) are reachable through the deck-title button — pressing Enter on it opens the deck-details popup, which the mod then makes keyboard-navigable.
 Style on focused card is read out as part of the card info blocks (Arrow Down).

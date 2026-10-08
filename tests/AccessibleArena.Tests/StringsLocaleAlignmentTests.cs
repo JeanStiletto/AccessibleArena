@@ -97,6 +97,9 @@ namespace AccessibleArena.Tests
             "FavoriteStoresCount_One",        // Strings.FavoriteStoresCount (via Plural)
             "FavoriteStoresCount_Few",
             "FavoriteStoresCount_Format",
+            "MailboxTabLetters_One",          // Strings.MailboxTabLetters (via Plural)
+            "MailboxTabLetters_Few",
+            "MailboxTabLetters_Format",
         };
 
         private static string FindRepoRoot()

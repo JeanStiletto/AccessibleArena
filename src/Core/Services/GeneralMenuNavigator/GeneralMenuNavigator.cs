@@ -293,9 +293,6 @@ namespace AccessibleArena.Core.Services
                 PanelStateManager.Instance.OnPlayBladeStateChanged += OnPanelStateManagerPlayBladeChanged;
             }
 
-            // Subscribe to mail letter selection events
-            PanelStatePatch.OnMailLetterSelected += OnMailLetterSelected;
-
             // Subscribe to the event page's in-place refreshes. The page reconfigures itself
             // without any panel open/close (see PanelStatePatch.OnEventPageRefreshed), so this
             // is the only signal that its contents changed.
@@ -375,17 +372,6 @@ namespace AccessibleArena.Core.Services
             // Skip rescan when a popup is active or just opened - base popup mode owns navigation
             if (IsInPopupMode || (newPanel != null && IsPopupPanel(newPanel)))
                 return;
-
-            // Reset mail detail view state when mailbox closes
-            if (oldPanel?.Name?.Contains("Mailbox") == true && newPanel?.Name?.Contains("Mailbox") != true)
-            {
-                if (_isInMailDetailView)
-                {
-                    Log.Nav(NavigatorId, $"Mailbox closed - resetting mail detail view state");
-                    _isInMailDetailView = false;
-                    ResetMailFieldNavigation();
-                }
-            }
 
             Log.Nav(NavigatorId, $"PanelStateManager active changed: {oldPanel?.Name ?? "none"} -> {newPanel?.Name ?? "none"}");
 
@@ -521,15 +507,6 @@ namespace AccessibleArena.Core.Services
         protected virtual string GetMenuScreenName()
         {
             // Note: Settings check removed - handled by SettingsMenuNavigator
-
-            // Mail detail view: label the screen as Mail, not the underlying Home page.
-            // Otherwise reactivations (e.g. when a reward popup closes) announce
-            // "Home with Color Challenge" over a mail screen.
-            if (_isInMailDetailView && _overlayDetector != null &&
-                _overlayDetector.GetActiveOverlay() == ElementGroup.MailboxContent)
-            {
-                return LocaleManager.Instance.Get("GroupMail");
-            }
 
             // Check if Social/Friends panel is open
             if (IsSocialPanelOpen())
@@ -938,9 +915,6 @@ namespace AccessibleArena.Core.Services
             // Table draft queue: poll for the Cancel -> Ready button swap (no panel event fires).
             CheckForDraftQueueButtonChanges();
 
-            // Inbox: letter lists fill asynchronously and swap on tab change (no panel event fires).
-            CheckForMailboxListChanges();
-
             // Overlay state change detection - trigger rescan when overlays open/close
             // This ensures navigation is refreshed when e.g. rewards popup closes
             var currentOverlay = _overlayDetector.GetActiveOverlay();
@@ -1271,17 +1245,6 @@ namespace AccessibleArena.Core.Services
             // Exclude unlabeled enemy player card background in challenge screen (no opponent yet)
             if (obj.name == "Clicker")
                 return false;
-
-            // In mail content view, filter out buttons that have no actual text content
-            // (e.g., "SecondaryButton_v2" which only shows its object name)
-            if (_isInMailDetailView && _overlayDetector.GetActiveOverlay() == ElementGroup.MailboxContent)
-            {
-                if (IsMailContentButtonWithNoText(obj))
-                {
-                    Log.Nav(NavigatorId, $"Filtering mail button with no text: {obj.name}");
-                    return false;
-                }
-            }
 
             // Include Blade_ListItem elements ONLY for PlayBlade context (play mode options like Bot Match, Standard)
             // This bypass should NOT apply to:
@@ -2547,17 +2510,6 @@ namespace AccessibleArena.Core.Services
             // ReadOnly deck builder: find cards in column view when list view is empty
             FindReadOnlyDeckCards(addedObjects);
 
-            // In mail content view, add mail fields (title, date, body) as navigable elements
-            // These appear before buttons in the navigation list
-            if (_isInMailDetailView)
-            {
-                AddMailContentFieldsAsElements();
-            }
-            else if (_overlayDetector.GetActiveOverlay() == ElementGroup.MailboxList)
-            {
-                AddMailboxListNotices();
-            }
-
             // Add booster carousel as a single navigable element (if packs were collected)
             if (_isBoosterCarouselActive && _boosterPackHitboxes.Count > 0)
             {
@@ -3589,8 +3541,7 @@ namespace AccessibleArena.Core.Services
                 TriggerRescan();
             }
 
-            // Note: Mailbox mail item selection is detected via Harmony patch on OnLetterSelected
-            // which announces the mail content directly with actual letter data
+            // Note: the open inbox (tabs, letters, letter view) is MailboxNavigator's.
 
             // Challenge deck selection: activate deck, return to ChallengeMain (no auto-play)
             // Skip if HandleEnter already handled this (e.g., deck display in ContextDisplay

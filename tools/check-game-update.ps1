@@ -64,7 +64,7 @@ if (-not (Test-Path $cecilPath)) {
 $dllNames = @(
     "Core.dll", "Assembly-CSharp.dll", "SharedClientCore.dll", "Wizards.MDN.GreProtobuf.dll",
     "Wizards.Arena.Models.dll", "Wizards.Arena.Enums.dll", "Wizards.Mtga.Metadata.dll",
-    "Wizards.Mtga.Interfaces.dll", "ZFBrowser.dll",
+    "Wizards.Mtga.Interfaces.dll", "Wizards.GeneralUtilities.dll", "ZFBrowser.dll",
     "Unity.TextMeshPro.dll", "Unity.InputSystem.dll"
 )
 $dllPaths = @()

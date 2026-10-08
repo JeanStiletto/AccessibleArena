@@ -235,6 +235,7 @@ namespace AccessibleArena
                 new SideboardNavigator(_announcer),  // Bo3 sideboard (priority 72)
                 new DuelNavigator(_announcer),
                 new LoadingScreenNavigator(_announcer),  // MatchEnd/Matchmaking transitional screens (priority 65)
+                new MailboxNavigator(_announcer),        // Inbox: tabs, letters, open letter (priority 62)
                 new MasteryNavigator(_announcer),            // Mastery/Rewards screen - levels and rewards (priority 60)
                 new AchievementsNavigator(_announcer),    // Achievements screen - groups and individual achievements (priority 57)
                 new SetCollectionNavigator(_announcer),   // Set collection screen from Profile (priority 58)

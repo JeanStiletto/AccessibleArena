@@ -489,16 +489,29 @@ namespace AccessibleArena.Core.Services
         /// </summary>
         private static ClassificationResult TryClassifyAsTabHeader(GameObject obj, string objName, string text)
         {
-            var header = GetTabHeaderComponent(obj);
-            if (header == null)
+            if (!TryGetTabHeaderState(obj, out bool selected, out bool hasNew))
                 return null;
-
-            var fields = GetTabHeaderFields(header.GetType());
-            bool selected = fields.Selected?.GetValue(header) as bool? == true;
-            bool hasNew = fields.NotificationPip?.GetValue(header) is GameObject pip && pip != null && pip.activeSelf;
 
             return CreateResult(ElementRole.Tab, GetCleanLabel(text, objName),
                 Models.Strings.TabHeaderRole(selected, hasNew), true, true);
+        }
+
+        /// <summary>
+        /// Selected state and notification dot of a TabSystem header on <paramref name="obj"/>.
+        /// Returns false when the object carries no TabHeader.
+        /// </summary>
+        public static bool TryGetTabHeaderState(GameObject obj, out bool selected, out bool hasNew)
+        {
+            selected = false;
+            hasNew = false;
+            var header = obj != null ? GetTabHeaderComponent(obj) : null;
+            if (header == null)
+                return false;
+
+            var fields = GetTabHeaderFields(header.GetType());
+            selected = fields.Selected?.GetValue(header) as bool? == true;
+            hasNew = fields.NotificationPip?.GetValue(header) is GameObject pip && pip != null && pip.activeSelf;
+            return true;
         }
 
         private static MonoBehaviour GetTabHeaderComponent(GameObject obj)

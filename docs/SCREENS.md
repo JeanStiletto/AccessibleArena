@@ -670,58 +670,45 @@ ManaColorPickerNavigator > BrowserNavigator > CombatNavigator > HotHighlightNavi
 
 ## Mailbox Screen
 
-**Navigator:** `GeneralMenuNavigator`
-**Trigger:** Click Nav_Mail button in NavBar
+**Navigator:** `MailboxNavigator` (priority 62, above every screen with a nav bar, below RewardPopupNavigator)
+**Trigger:** Nav_Mail in the nav bar (`NavBarController.MailboxButton_OnClick()`, opened from GeneralMenuNavigator)
 
-The Mailbox screen shows inbox messages with rewards. Uses two-level navigation:
-- **Mail List** (left pane): List of mail items
-- **Mail Content** (right pane): Opened mail details with navigable fields and buttons
+Three levels, each its own list, and nothing is announced in the background.
 
-**Navigation - Mail List:**
-- Up/Down arrows: Navigate between mail items
-- Enter: Open selected mail (switches to content view)
-- Backspace: Close mailbox and return to Home
-
-**Inbox Tabs (2026.63.10):** above the list sit two tabs, "MTG: Arena Inbox" and "Store Messages"
-(letters from the player's favorite Wizards Play Network stores). They are part of the mail list
-group and announce "tab", "selected" and "new" (the game's notification dot). Enter switches tab.
-The game hides the whole strip unless the `WPNFavoriteStoreStatus` feature toggle is on.
-
-**Empty lists:** an empty list's notice is read as its own element, before the button it explains:
-"No Messages." on the Arena tab; on the Store Messages tab either "Messages from your Favorited
-Stores will appear here." (with a Store Locator button) or that store messages are switched off
-(with an Enable Store Messages button).
-
-**Navigation - Mail Content:**
-- Up/Down arrows: First cycles through mail fields (Title, Date, Body), then buttons
-- Enter: On field - reads full content; On button - activates it (Claim rewards, More Info)
-- Backspace: Close mail and return to mail list
-
-**Mail Field Navigation:**
-When a mail is opened, Up/Down arrows cycle through available fields:
-1. Title - Mail subject
-2. Date - When the mail was sent (if available)
-3. Body - Full mail content
-4. Buttons - Action buttons like "More Info", "Claim"
-
-Fields without content are skipped. Pressing Down past the last field transitions to button navigation.
+**Levels:**
+- **Tabs** (entry point, MTGA 2026.63.10): "MTG: Arena Inbox" and "Store Messages" (Wizards Play
+  Network), announced "name, selected, new, tab 1 of 2"; opening focuses the selected tab. Enter
+  switches to the tab (the game's own click), waits for its list ("Loading" only if that takes over
+  half a second) and enters its letters with "MTG: Arena Inbox, 2 letters" plus the first one.
+  Backspace closes the mailbox. The game hides the strip unless the `WPNFavoriteStoreStatus` feature
+  toggle is on; the mailbox then opens directly on the letters.
+- **Letters**: the current tab's letters, newest first ("Neu, title"). An empty tab reads the game's
+  notice ("No Messages.", or why there are no store messages) followed by its Store Locator /
+  Enable Store Messages button. Enter opens a letter. Backspace goes to the tabs, or closes the
+  mailbox when there is no tab strip.
+- **Letter**: Title, Date, Body as text, then the letter's buttons (Claim, More Info). Backspace
+  closes the letter (`ContentControllerPlayerInbox.CloseOpenLetter()`) and returns to the letters.
 
 **Technical Notes:**
-- Two overlay groups: `ElementGroup.MailboxList` and `ElementGroup.MailboxContent`
-- `IsMailContentVisible()` detects when a mail is opened (checks for content buttons, ignores Viewport)
-- `IsInsideMailboxList()` filters elements in BladeView_CONTAINER (mail list) and the `InboxTabs` strip
-- Letter lists (`PlayerInboxLetterList`, one per tab) fill asynchronously and fire no panel event:
-  `CheckForMailboxListChanges()` polls a signature of the visible lists every 0.5 s while the list
-  is shown and rescans on change (tab switch, letters arriving, store messages switched on)
-- `AddMailboxListNotices()` turns an empty list's placeholder text into elements
-- Tab headers (any `Wizards.GeneralUtilities.TabSystem.TabHeader` subclass) are classified by
-  `UIElementClassifier.TryClassifyAsTabHeader()` from the subclass's `_selected` / `_notificationPip`
-- `IsInsideMailboxContent()` filters elements in Mailbox_ContentView (mail details)
-- Mail items get titles via `UITextExtractor.TryGetMailboxItemTitle()`
-- Mail content fields extracted via `UITextExtractor.GetMailContentParts()`
-- Nav_Mail button requires special activation via `NavBarController.MailboxButton_OnClick()`
-- Harmony patch on `ContentControllerPlayerInbox.OnLetterSelected()` detects mail selection
-- Buttons without actual text content (only object name) are filtered out
+- Detection: `ContentController - Mailbox_Base(Clone)` active (searched at most 4 times a second).
+- A tab is a real Button holding EventSystem focus, so the game's own submit can switch it on the
+  same Enter press; the switched-away list is destroyed only at the end of that frame. The list is
+  therefore never read in the frame Enter was pressed, only by the 0.1 s load poll.
+- Tabs come from `PlayerInboxTabPopulator` (a `TabController`): `Tabs` → `TabEntry.Header`; selected
+  state and notification dot via `UIElementClassifier.TryGetTabHeaderState` (`_selected`, `_notificationPip`).
+- Letter lists are the active `PlayerInboxLetterList` components (one per tab section). They fill
+  asynchronously and fire no event: the Letters level polls a signature of the list children every
+  0.5 s and rebuilds silently, keeping focus; it only speaks if the focused element disappeared.
+- A letter opening is reported by the Harmony postfix on `PlayerInboxContentView.OnLetterSelected`
+  (`PanelStatePatch.OnMailLetterSelected`); the Letter level is built on the next frame. Whether a
+  letter is open is read from `PlayerInboxContentView._letterInstance`, so returning from the reward
+  popup (claim) lands back in the open letter.
+- Letter texts come from `UITextExtractor.GetMailContentParts()`; letter buttons are the CustomButtons
+  of the letter instance with real text (the close button has none and is covered by Backspace).
+- Letter titles in the list come from `UITextExtractor.TryGetMailboxItemTitle()`.
+- Closing: `NavBarController.HideInboxIfActive()`, fallback `Blade_DismissButton`.
+- GeneralMenuNavigator keeps the `MailboxList` / `MailboxContent` overlays only as a filter, so the
+  home screen never leaks into the moment between the inbox opening and MailboxNavigator taking over.
 
 ## Friends Panel (Social System)
 

@@ -1963,6 +1963,14 @@ namespace AccessibleArena.Core.Models
         public static string FavoriteStoresCount(int storeCount) =>
             storeCount == 0 ? L.Get("FavoriteStoresActivation_None") : L.Plural(storeCount, "FavoriteStoresCount");
 
+        // ===========================================
+        // MAILBOX (inbox: tabs → letters → letter)
+        // ===========================================
+        public static string ScreenMailbox => L.Get("ScreenMailbox");
+        public static string MailboxTabLetters(string listName, int count) =>
+            count == 0 ? L.Format("MailboxTabLetters_None", listName) : L.Plural(count, "MailboxTabLetters", listName);
+        public static string TabNew => L.Get("TabHasNew");
+
         // Tab headers built on the game's shared TabSystem (inbox and profile tab strips).
         public static string TabHeaderRole(bool selected, bool hasNew)
         {

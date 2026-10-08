@@ -36,8 +36,7 @@ namespace AccessibleArena.Core.Services
                 return activeOverlay switch
                 {
                     ElementGroup.Popup => false, // Handled by base popup mode
-                    ElementGroup.MailboxContent => CloseMailDetailView(), // Close mail, return to list
-                    ElementGroup.MailboxList => CloseMailbox(), // Close mailbox entirely
+                    // MailboxList / MailboxContent: MailboxNavigator (62) owns the open inbox
                     // RewardsPopup handled by RewardPopupNavigator
                     ElementGroup.PlayBladeTabs => HandlePlayBladeBackspace(),
                     ElementGroup.PlayBladeContent => HandlePlayBladeBackspace(),

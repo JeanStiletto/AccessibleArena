@@ -120,7 +120,6 @@ Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→34
 - **GameLogNavigator.cs** (178 lines) — Modal navigator for duel announcement history (O key, Up/Down, Backspace to close).
 - **GeneralMenuNavigator/** (subfolder; class lives across 7 partial files, namespace stays `AccessibleArena.Core.Services`)
   - **GeneralMenuNavigator.cs** (3427 lines) [LARGE] — Core partial: scene/foreground detection, discovery, move nav, grouped enter/backspace.
-  - **GeneralMenuNavigator.Mail.cs** (299 lines) — Mail letter open + field navigation, close mailbox/detail-view.
   - **GeneralMenuNavigator.Booster.cs** (262 lines) — Booster-pack carousel element + left/right/open handling.
   - **GeneralMenuNavigator.Social.cs** (553 lines) — Friends panel (open/close, tile discovery, blocked/challenge tiles, friend action sub-nav).
   - **GeneralMenuNavigator.DeckBuilder.cs** (1063 lines) — Deck builder back, toolbar actions, card-finding (pool/commander/deck/sideboard/NPE/read-only), rename mode, deck-info sub-nav.
@@ -133,6 +132,7 @@ Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→34
 - **LetterSearchHandler.cs** (67 lines) — Buffered letter-key jump-to-item with prefix matching and cycling.
 - **LoadingScreenNavigator.cs** (1422 lines) — Navigator for transitional screens (loading, match end, splash) with few buttons.
 - **LocaleManager.cs** (402 lines) — Singleton that loads and resolves localized strings from JSON files with fallback chain.
+- **MailboxNavigator.cs** (~600 lines) — Navigator for the inbox: Tabs → Letters → Letter levels (store pattern), silent list refresh, letter open via PanelStatePatch.OnMailLetterSelected.
 - **ManaColorPickerNavigator.cs** (595 lines) — Detects and navigates the ManaColorSelector popup for any-color mana sources.
 - **ManaTextFormatter.cs** (339 lines) — Pure-function helpers for parsing MTGA internal mana notation ({oX}, bare oX sequences, standard {X}) and ManaQuantity arrays into readable text. Extracted from CardModelProvider (split 8/12).
 - **MasteryNavigator/MasteryNavigator.cs** (322 lines) — Core partial: mode routing, lifecycle, Update loop with modal polling, Input routing, Screen detection orchestration.

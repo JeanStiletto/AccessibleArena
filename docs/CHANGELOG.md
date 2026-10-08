@@ -8,8 +8,9 @@ All notable changes to Accessible Arena.
 
 - The profile has a new Favorite Stores screen listing your Wizards Play Network stores, with each store's messages switch and website.
 - The store settings for event carousels and store messages can be changed from the Favorite Stores screen.
-- The inbox's MTG: Arena Inbox and Store Messages tabs are reachable and announce which one is selected and whether it has something new.
-- An empty inbox tab now says why it is empty before its Store Locator or Enable Store Messages button.
+- The mailbox opens on its MTG: Arena Inbox and Store Messages tabs; Enter on a tab opens its letters as their own list, Backspace goes back up.
+- Letters loading or changing in the background no longer move your position in the mailbox.
+- An empty mailbox tab now says why it is empty before its Store Locator or Enable Store Messages button.
 - Home page carousel slides now read their description too, which for a store event is its date and time.
 - Buttons that open a web page now say "opens a web browser".
 
@@ -19,14 +20,16 @@ All notable changes to Accessible Arena.
 
 - The 2026.63.10 update connected Arena to local game stores: a Favorite Stores tab in the player profile, a Store Messages tab in the inbox, and store-event slides in the home page carousel. None of the three was reachable or fully readable. The update checklist found no broken game names; these are new screens, which the checks cannot see, and the player-facing patch notes are what pointed at them.
 - Favorite Stores: the profile gets a "Favorite Stores" line (only while the game shows the tab, which it gates behind a server-side feature switch). Enter opens a new screen. Each favorited store is one stop: name, address, whether it is a Wizards Play Network premium store, and whether its messages are on. Left and Right on a store reach its buttons: turn this store's messages on or off (the bell; the mod waits for the server and announces the new state, or that it could not be changed), open the store's website, and show the address on a map if the game offers that link. After the stores come the three info tiles (Find A Store, Play Events, Get Rewards) as one block each, the "Allow WPN Event Carousels" and "Allow WPN Store Messages" settings with the game's own explanation, the Store Locator, and Refresh store list. With no favorite stores the screen reads the game's "No stores favorited" text and offers the Store Locator. The list is read from the game's store manager rather than from the screen, since the scrolling list only builds rows that are visible; stores added or removed while the screen is open are picked up and announced. Backspace returns to the profile overview.
-- Inbox: the tab strip above the letter list was outside the area the mod treats as the mail list, so neither tab could be reached. Both tabs are now part of the list and announce "tab", "selected" and "new" (the game's notification dot). Store letters open and read like any other letter.
-- An empty tab used to offer only its button. The notice above it is now read first: "No Messages." on the Arena tab; on the Store Messages tab either that messages from your favorite stores will appear there (with the Store Locator) or that store messages are switched off (with Enable Store Messages). The inbox loads and swaps its lists without telling anyone, so the mod now watches the visible lists and rescans when they change, after a tab switch, when letters arrive, or after store messages are switched on.
-- Home carousel: slides read their description after the title. That always applied to every slide, but the description was never read; for a store event slide it carries the event's date and time. Slides that link to a web page say "opens a web browser".
+- Mailbox: the new tab strip above the letter list could not be reached at all. The mailbox now has its own navigator, with the tabs as a layer of their own like the store's: opening it lands on the tabs, focused on the selected one, with "selected" and "new" for the game's notification dot; Enter on a tab switches to it and opens its letters once the game has filled them ("MTG: Arena Inbox, 2 letters", then the first letter; "Loading" only if that takes a moment); Backspace in the letters returns to the tabs, Backspace on the tabs closes the mailbox. Enter on a letter opens it as its own level (title, date, body, then its buttons), Backspace returns to the list, and after claiming rewards you come back to the open letter. When the game hides the tab strip, the mailbox opens on the letters and Backspace there closes it, as before.
+- The game fills and swaps its letter lists without any notice (inbox loading, tab switches, store messages being switched on). The mailbox now notices these changes and refreshes the list in place and silently, keeping your position; something is only said if the element you were on disappeared.
+- An empty tab used to offer only its button. The notice above it is now read first: "No Messages." on the Arena tab; on the Store Messages tab either that messages from your favorite stores will appear there (with the Store Locator) or that store messages are switched off (with Enable Store Messages). Store letters open and read like any other letter.
+- Home carousel: every slide now reads its description after the title; before, only the title was read. For a store event slide the description carries the event's date and time. Slides that link to a web page say "opens a web browser".
 
 **General:**
 
 - Any button using the game's open-a-web-page behaviour (Store Locator, help links) now says "opens a web browser", the same wording the Arena Direct prize popup and the Codex already used.
-- Tab headers of the game's shared tab system announce "tab" and "selected", and "new" while they show a notification dot, wherever the mod lists them as elements (so far the inbox).
+- Tab headers of the game's shared tab system announce "tab" and "selected", and "new" while they show a notification dot, wherever the generic menu navigation lists them.
+- The game-update check (tools/check-game-update.ps1) now also scans Wizards.GeneralUtilities.dll, which holds the game's shared tab system the mailbox relies on.
 
 ## v1.6.3
 
