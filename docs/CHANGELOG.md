@@ -15,6 +15,7 @@ All notable changes to Accessible Arena.
 - Buttons that open a web page now say "opens a web browser".
 - E, Shift+E, T and the V player info zone read the turn timer again in timed matches instead of saying "No timer running" (issue #126).
 - The low-time warning is announced again when your or your opponent's turn timer runs short.
+- Remaining timer time is now spoken in the mod's language, with correct singular and plural ("1 minute").
 
 <h3>Details</h3>
 
@@ -31,6 +32,7 @@ All notable changes to Accessible Arena.
 
 - In timed matches E, Shift+E, T and the V player info zone said "No timer running" for the whole game, even while the fuse was burning and timeouts were being used up. Best-of-one queues have no match clock, only the turn timer, and the mod looked for the turn timer's display exactly once, when the duel navigator activated. The game builds that part of the duel screen a few seconds later, so the lookup found nothing and was never repeated. The mod now keeps looking once a second (and immediately on E, Shift+E, T or V) until both players' turn timers are found, and never binds the same one twice.
 - The same missed lookup had silenced the low-time warning ("Low time" / "Opponent low time"), which now fires again when a turn timer enters its last 30 seconds.
+- Remaining time was always spoken in English and always in the plural, whatever the mod language: a German player heard "Zugtimer: 1 minutes 58 seconds". Minutes and seconds now come from the language files, with the singular, few (Russian, Polish) and plural forms, and the "no time" case is translated too.
 
 **General:**
 

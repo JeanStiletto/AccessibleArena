@@ -724,6 +724,11 @@ namespace AccessibleArena.Core.Models
             L.Format("Timer_Rope_Format", timerText, Timeouts(timeouts));
         public static string TimerOpponentRopeAnnounce(string timerText, int timeouts) =>
             L.Format("Timer_Opponent_Rope_Format", timerText, Timeouts(timeouts));
+        public static string TimerNoTimeLeft => L.Get("Timer_NoTimeLeft");
+        public static string TimerMinutes(int count) => L.Plural(count, "Timer_Minutes");
+        public static string TimerSeconds(int count) => L.Plural(count, "Timer_Seconds");
+        public static string TimerMinutesSeconds(int minutes, int seconds) =>
+            L.Format("Timer_MinutesSeconds_Format", TimerMinutes(minutes), TimerSeconds(seconds));
         public static string GamesWon(int count) =>
             count == 1 ? L.Get("GamesWon_One") : L.Format("GamesWon_Format", count);
         public static string WinsNotAvailable => L.Get("WinsNotAvailable");

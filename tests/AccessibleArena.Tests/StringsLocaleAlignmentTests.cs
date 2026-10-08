@@ -100,6 +100,12 @@ namespace AccessibleArena.Tests
             "MailboxTabLetters_One",          // Strings.MailboxTabLetters (via Plural)
             "MailboxTabLetters_Few",
             "MailboxTabLetters_Format",
+            "Timer_Minutes_One",              // Strings.TimerMinutes (via Plural)
+            "Timer_Minutes_Few",
+            "Timer_Minutes_Format",
+            "Timer_Seconds_One",              // Strings.TimerSeconds (via Plural)
+            "Timer_Seconds_Few",
+            "Timer_Seconds_Format",
         };
 
         private static string FindRepoRoot()

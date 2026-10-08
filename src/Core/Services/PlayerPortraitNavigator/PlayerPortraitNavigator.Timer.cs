@@ -322,7 +322,7 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Formats seconds into "X minutes Y seconds" for screen reader.
+        /// Formats seconds into a localized "X minutes Y seconds" for screen reader.
         /// </summary>
         private static string FormatSecondsToReadable(float totalSeconds)
         {
@@ -331,12 +331,12 @@ namespace AccessibleArena.Core.Services
             int seconds = total % 60;
 
             if (minutes == 0 && seconds == 0)
-                return "no time";
+                return Strings.TimerNoTimeLeft;
             if (minutes == 0)
-                return $"{seconds} seconds";
+                return Strings.TimerSeconds(seconds);
             if (seconds == 0)
-                return $"{minutes} minutes";
-            return $"{minutes} minutes {seconds} seconds";
+                return Strings.TimerMinutes(minutes);
+            return Strings.TimerMinutesSeconds(minutes, seconds);
         }
 
         /// <summary>
