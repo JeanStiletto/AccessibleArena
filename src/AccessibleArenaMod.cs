@@ -238,6 +238,7 @@ namespace AccessibleArena
                 new MasteryNavigator(_announcer),            // Mastery/Rewards screen - levels and rewards (priority 60)
                 new AchievementsNavigator(_announcer),    // Achievements screen - groups and individual achievements (priority 57)
                 new SetCollectionNavigator(_announcer),   // Set collection screen from Profile (priority 58)
+                new FavoriteStoresNavigator(_announcer),  // Favorite Stores tab from Profile (priority 58)
                 new ProfileNavigator(_announcer),         // Profile screen - info, rank, cosmetics (priority 56)
                 new StoreNavigator(_announcer),           // Store screen - tabs and items (priority 55)
                 new ChatNavigator(_announcer),            // Chat window - messages and input (priority 52)

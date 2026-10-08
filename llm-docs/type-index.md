@@ -365,6 +365,37 @@ See `docs/investigations/unsupported-events.md`.
 | ContentControllerPlayerInbox | Wotc.Mtga.Wrapper.Mailbox.ContentControllerPlayerInbox | Core |
 | PlayerInboxContentView | Wotc.Mtga.Wrapper.Mailbox.PlayerInboxContentView | Core |
 | Message_InboxLetterSelected | Wotc.Mtga.Wrapper.Mailbox.Message_InboxLetterSelected | Core |
+| PlayerInboxTabPopulator | Wotc.Mtga.Wrapper.Mailbox.PlayerInboxTabPopulator | Core |
+| PlayerInboxTabHeader | Wotc.Mtga.Wrapper.Mailbox.PlayerInboxTabHeader | Core |
+| PlayerInboxLetterFeed | Wotc.Mtga.Wrapper.Mailbox.PlayerInboxLetterFeed | Core |
+| PlayerInboxWpnLetterFeed | Wotc.Mtga.Wrapper.Mailbox.PlayerInboxWpnLetterFeed | Core |
+| PlayerInboxLetterList | Wotc.Mtga.Wrapper.Mailbox.PlayerInboxLetterList | Core |
+
+## Tab System (shared by inbox, profile, social, home)
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| TabController | Wizards.GeneralUtilities.TabSystem.TabController | Wizards.GeneralUtilities |
+| TabHeader | Wizards.GeneralUtilities.TabSystem.TabHeader | Wizards.GeneralUtilities |
+| TabEntry | Wizards.GeneralUtilities.TabSystem.TabEntry | Wizards.GeneralUtilities |
+| AdvancedButton | Wizards.GeneralUtilities.AdvancedButton.AdvancedButton | Wizards.GeneralUtilities |
+| ProfileNavTabHeader | Core.Meta.MainNavigation.Profile.ProfileNavTabHeader | Core |
+
+## Favorite Stores (Wizards Play Network, 2026.63.10)
+
+| Short Name | Full Namespace | DLL |
+|---|---|---|
+| FavoriteStorePanel | Core.Meta.MainNavigation.Profile.FavoriteStorePanel | Core |
+| FavoriteStoreManager | Core.Meta.MainNavigation.Profile.FavoriteStoreManager | Core |
+| FavoriteStoreListDataSource | Core.Meta.MainNavigation.Profile.FavoriteStoreListDataSource | Core |
+| FavoriteStoreListItem | Core.Meta.MainNavigation.Profile.FavoriteStoreListItem | Core |
+| FavoriteStoreRefresh | Core.Meta.MainNavigation.Profile.FavoriteStoreRefresh | Core |
+| FavoriteStoreToggleFields | Core.Meta.MainNavigation.Profile.FavoriteStoreToggleFields | Core |
+| PhysicalStore | Core.Meta.MainNavigation.Profile.PhysicalStore | Core |
+| StoreEventCarouselItem | Core.Meta.MainNavigation.Profile.StoreEventCarouselItem | Core |
+| WpnNotificationPreferenceProvider | Core.Code.Wpn.WpnNotificationPreferenceProvider | Core |
+| WpnStoreMessagePreference | Core.Code.Wpn.WpnStoreMessagePreference | Core |
+| HomeCarouselController | HomeCarouselController | Core |
 
 ## System / Popups
 

@@ -96,11 +96,88 @@ namespace AccessibleArena.Core.Services
                 : LocaleManager.Instance.Format("OpenVault_Format", progress);
         }
 
+        private sealed class HomeCarouselHandles
+        {
+            public System.Reflection.FieldInfo MainButton;        // CustomButton MainButton
+            public System.Reflection.FieldInfo TitleLoc;          // Localize TitleLoc
+            public System.Reflection.FieldInfo DescriptionLoc;    // Localize DescriptionLoc
+            public System.Reflection.FieldInfo ExternalLinkImage; // GameObject ExternalLinkImage
+        }
+
+        private static readonly ReflectionCache<HomeCarouselHandles> _homeCarouselCache =
+            new ReflectionCache<HomeCarouselHandles>(
+                builder: t => new HomeCarouselHandles
+                {
+                    MainButton = t.GetField("MainButton", AllInstanceFlags),
+                    TitleLoc = t.GetField("TitleLoc", AllInstanceFlags),
+                    DescriptionLoc = t.GetField("DescriptionLoc", AllInstanceFlags),
+                    ExternalLinkImage = t.GetField("ExternalLinkImage", AllInstanceFlags),
+                },
+                validator: h => h.MainButton != null && h.TitleLoc != null,
+                logTag: "UITextExtractor",
+                logSubject: "HomeCarouselController");
+
+        private static System.Type _homeCarouselType;
+        private static bool _homeCarouselTypeResolved;
+
+        /// <summary>
+        /// The home page promo carousel. Its button shows a title and a description line; the
+        /// generic extractor stops at the title, which drops what a slide is about — for the
+        /// Wizards Play Network store-event slides, the description is the event's date and time.
+        /// Slides that link out to a web page show an external-link icon, read as "opens a web browser".
+        /// </summary>
+        private static string TryGetHomeCarouselText(GameObject gameObject)
+        {
+            if (!_homeCarouselTypeResolved)
+            {
+                _homeCarouselType = FindType("HomeCarouselController");
+                _homeCarouselTypeResolved = true;
+            }
+            if (_homeCarouselType == null) return null;
+
+            var controller = gameObject.GetComponentInParent(_homeCarouselType) as MonoBehaviour;
+            if (controller == null) return null;
+            if (!_homeCarouselCache.EnsureInitialized(_homeCarouselType)) return null;
+
+            var h = _homeCarouselCache.Handles;
+            try
+            {
+                var mainButton = h.MainButton.GetValue(controller) as Component;
+                if (mainButton == null || mainButton.gameObject != gameObject) return null;
+
+                string title = ReadLocalizedTmp(h.TitleLoc.GetValue(controller) as Component);
+                string description = ReadLocalizedTmp(h.DescriptionLoc?.GetValue(controller) as Component);
+                if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(description)) return null;
+
+                string text = string.IsNullOrEmpty(description) || description == title
+                    ? title
+                    : string.IsNullOrEmpty(title) ? description : $"{title}. {description}";
+
+                if (h.ExternalLinkImage?.GetValue(controller) is GameObject link && link != null && link.activeSelf)
+                    text = $"{text}, {Strings.OpensWebBrowser}";
+
+                return text;
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warn("UITextExtractor", $"Reading home carousel text failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Text of the TMP label a Localize component drives, if that label is showing.</summary>
+        private static string ReadLocalizedTmp(Component localize)
+        {
+            if (localize == null || !localize.gameObject.activeInHierarchy) return null;
+            var tmp = localize.GetComponent<TMP_Text>();
+            return tmp != null ? CleanText(tmp.text) : null;
+        }
+
         /// <summary>
         /// Reads the text of a TooltipTrigger component on the given object (wildcards, vault,
         /// nav tokens). Strips rich text style tags and joins lines with ", " for screen reader flow.
         /// </summary>
-        private static string GetTooltipTriggerText(GameObject gameObject)
+        public static string GetTooltipTriggerText(GameObject gameObject)
         {
             var pubFlags = PublicInstance;
 

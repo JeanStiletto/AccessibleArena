@@ -584,7 +584,7 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(label)) label = node.gameObject.name;
                 blocks.Add(new ContentBlock
                 {
-                    Text = $"{Strings.CodexLink(label)}, {Strings.PhysicalPrizeOpensBrowser}",
+                    Text = $"{Strings.CodexLink(label)}, {Strings.OpensWebBrowser}",
                     Link = node.gameObject
                 });
                 return;
@@ -615,7 +615,7 @@ namespace AccessibleArena.Core.Services
             {
                 if (mb == null) continue;
                 string typeName = mb.GetType().Name;
-                if (typeName == "OpenUrlBehaviour") hasUrl = true;
+                if (typeName == T.OpenUrlBehaviour) hasUrl = true;
                 else if (typeName == "CustomButton") hasButton = true;
             }
             return hasUrl && hasButton;

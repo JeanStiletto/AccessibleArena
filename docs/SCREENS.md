@@ -682,6 +682,16 @@ The Mailbox screen shows inbox messages with rewards. Uses two-level navigation:
 - Enter: Open selected mail (switches to content view)
 - Backspace: Close mailbox and return to Home
 
+**Inbox Tabs (2026.63.10):** above the list sit two tabs, "MTG: Arena Inbox" and "Store Messages"
+(letters from the player's favorite Wizards Play Network stores). They are part of the mail list
+group and announce "tab", "selected" and "new" (the game's notification dot). Enter switches tab.
+The game hides the whole strip unless the `WPNFavoriteStoreStatus` feature toggle is on.
+
+**Empty lists:** an empty list's notice is read as its own element, before the button it explains:
+"No Messages." on the Arena tab; on the Store Messages tab either "Messages from your Favorited
+Stores will appear here." (with a Store Locator button) or that store messages are switched off
+(with an Enable Store Messages button).
+
 **Navigation - Mail Content:**
 - Up/Down arrows: First cycles through mail fields (Title, Date, Body), then buttons
 - Enter: On field - reads full content; On button - activates it (Claim rewards, More Info)
@@ -699,7 +709,13 @@ Fields without content are skipped. Pressing Down past the last field transition
 **Technical Notes:**
 - Two overlay groups: `ElementGroup.MailboxList` and `ElementGroup.MailboxContent`
 - `IsMailContentVisible()` detects when a mail is opened (checks for content buttons, ignores Viewport)
-- `IsInsideMailboxList()` filters elements in BladeView_CONTAINER (mail list)
+- `IsInsideMailboxList()` filters elements in BladeView_CONTAINER (mail list) and the `InboxTabs` strip
+- Letter lists (`PlayerInboxLetterList`, one per tab) fill asynchronously and fire no panel event:
+  `CheckForMailboxListChanges()` polls a signature of the visible lists every 0.5 s while the list
+  is shown and rescans on change (tab switch, letters arriving, store messages switched on)
+- `AddMailboxListNotices()` turns an empty list's placeholder text into elements
+- Tab headers (any `Wizards.GeneralUtilities.TabSystem.TabHeader` subclass) are classified by
+  `UIElementClassifier.TryClassifyAsTabHeader()` from the subclass's `_selected` / `_notificationPip`
 - `IsInsideMailboxContent()` filters elements in Mailbox_ContentView (mail details)
 - Mail items get titles via `UITextExtractor.TryGetMailboxItemTitle()`
 - Mail content fields extracted via `UITextExtractor.GetMailContentParts()`
@@ -1017,6 +1033,44 @@ Reached with Enter on the profile's collection info line, which invokes
   arrow press — selecting triggers a meter rebuild and a telemetry event each time.
 - `RefreshTotals` (`UpdateOwnedCards` + `UpdateMetricTotalsPerSet`) runs on discovery, since the counts are
   cached in a dictionary that is only rebuilt on demand.
+
+## Favorite Stores Screen
+
+**Controller:** `ProfileContentController` in `ProfileScreenMode.FavoriteStore` (mode 9)
+**View:** `FavoriteStorePanel` (`_favoriteStoreScreenView`, an empty marker component)
+**Data:** `FavoriteStoreManager` (read through `FavoriteStoreListDataSource._favoriteStoreManager`)
+**Navigator:** `FavoriteStoresNavigator`
+**Priority:** 58 (preempts ProfileNavigator at 56; never shown together with Set Collection)
+
+Wizards Play Network integration, added in MTGA 2026.63.10. Reached with Enter on the profile's
+"Favorite Stores" entry, which clicks the tab header (`_favoriteStoreTabHeader`, a
+`ProfileNavTabHeader`). The entry only exists while the game shows that tab
+(`WPNFavoriteStoreStatus` feature toggle). Backspace calls `GoToProfileDetails()`, which selects the
+Overview tab.
+
+**Navigation:**
+- Up/Down, Tab/Shift+Tab, Home/End: Move through the stores, then the rest of the panel
+- Store row: "name, address, [Wizards Play Network premium store], store messages on/off"
+- Left/Right on a store: Its actions — turn this store's messages on/off (the bell), store website,
+  show address on map (only if the game shows the link; it ships disabled)
+- Enter: On a store action runs it; on a setting toggles it; on a button presses it
+- Rest of the panel, in layout order: the three info tiles (Find A Store, Play Events, Get Rewards)
+  as one text block each, the "Allow WPN Event Carousels" and "Allow WPN Store Messages" toggles
+  (label plus the game's tooltip), Store Locator (opens a web browser), the call-to-action text, and
+  Refresh store list
+- With no stores favorited: the info tiles, "No stores favorited...", and Store Locator
+- Backspace: Back to the profile overview
+
+**Technical Notes:**
+- The store list is a `RecyclableScrollRect`: cells (`FavoriteStoreListItem`) exist only for rows on
+  screen and are matched to stores by `StoreData.ID`. A store without a live cell is read-only.
+- The bell is `FavoriteStoreListItem._notificationButton`; its write is async, so the navigator polls
+  `FavoriteStoreManager.GetNotificationEnabled(id)` (5 s timeout) and announces the new state.
+- The store list is polled every 0.5 s for added or removed stores (the panel refreshes itself when
+  the game regains focus, e.g. after favoriting a store in the browser).
+- The two toggles are `FavoriteStoreToggleFields` subclasses (`AllowEventCarouselVisualizations`,
+  `AllowInboxMessagesVisualizations`) on a plain Unity Toggle; they write to the server and revert
+  the toggle if the write fails.
 
 ## Codex of the Multiverse (Learn to Play)
 

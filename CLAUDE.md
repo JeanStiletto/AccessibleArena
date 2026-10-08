@@ -195,6 +195,15 @@ Filters level (entry): Up/Down walk the controls (Sort, Format, Standard/Histori
 Sets level: Left/Right move between sets, Up/Down cycle that set's meters (Total, four rarities, six colours) plus release date and set types, Home/End first/last, A-Z jump by set name, Enter opens the per-set actions, Backspace goes back to the filters.
 Actions level: Up/Down choose, Enter activates ("Open in deck builder" / "Buy packs in store"), Backspace returns.
 
+**Profile - Favorite Stores (Wizards Play Network):**
+Enter on the profile's "Favorite Stores" line (only present while the game shows that tab): Open the tab.
+Up/Down: Stores first ("name, address, premium store, store messages on/off"), then the info tiles, the two store settings (event carousels, store messages), Store Locator, Refresh store list.
+Left/Right on a store: Its actions — turn its messages on/off, store website, show address on map. Enter runs the action.
+Backspace: Back to the profile overview.
+
+**Mailbox - Store Messages:**
+The inbox has two tabs at the top of the letter list ("MTG: Arena Inbox", "Store Messages"), announced as tab / selected / new. An empty tab reads its notice (no messages, or store messages switched off) before its Store Locator / Enable Store Messages button.
+
 Deck cosmetics (avatar, sleeve, pet, emotes) are reachable through the deck-title button — pressing Enter on it opens the deck-details popup, which the mod then makes keyboard-navigable.
 Style on focused card is read out as part of the card info blocks (Arrow Down).
 

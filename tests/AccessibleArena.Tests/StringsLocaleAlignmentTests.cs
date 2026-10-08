@@ -91,6 +91,12 @@ namespace AccessibleArena.Tests
             "DeckInfoBasicLands_One",  // Strings.DeckInfoBasicLands (via Plural)
             "DeckInfoBasicLands_Few",
             "DeckInfoBasicLands_Format",
+            "FavoriteStoresActivation_One",   // Strings.FavoriteStoresActivation (via Plural)
+            "FavoriteStoresActivation_Few",
+            "FavoriteStoresActivation_Format",
+            "FavoriteStoresCount_One",        // Strings.FavoriteStoresCount (via Plural)
+            "FavoriteStoresCount_Few",
+            "FavoriteStoresCount_Format",
         };
 
         private static string FindRepoRoot()

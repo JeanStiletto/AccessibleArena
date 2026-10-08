@@ -938,6 +938,9 @@ namespace AccessibleArena.Core.Services
             // Table draft queue: poll for the Cancel -> Ready button swap (no panel event fires).
             CheckForDraftQueueButtonChanges();
 
+            // Inbox: letter lists fill asynchronously and swap on tab change (no panel event fires).
+            CheckForMailboxListChanges();
+
             // Overlay state change detection - trigger rescan when overlays open/close
             // This ensures navigation is refreshed when e.g. rewards popup closes
             var currentOverlay = _overlayDetector.GetActiveOverlay();
@@ -2549,6 +2552,10 @@ namespace AccessibleArena.Core.Services
             if (_isInMailDetailView)
             {
                 AddMailContentFieldsAsElements();
+            }
+            else if (_overlayDetector.GetActiveOverlay() == ElementGroup.MailboxList)
+            {
+                AddMailboxListNotices();
             }
 
             // Add booster carousel as a single navigable element (if packs were collected)

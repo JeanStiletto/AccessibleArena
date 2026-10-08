@@ -124,6 +124,13 @@ namespace AccessibleArena.Core.Services
                 return boosterName;
             }
 
+            // Home page promo carousel: title plus description, and whether it links out
+            string carouselText = TryGetHomeCarouselText(gameObject);
+            if (!string.IsNullOrEmpty(carouselText))
+            {
+                return carouselText;
+            }
+
             // Check if this is an objective element - extract full info including progress
             string objectiveText = TryGetObjectiveText(gameObject);
             if (!string.IsNullOrEmpty(objectiveText))

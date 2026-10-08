@@ -16,6 +16,12 @@ namespace AccessibleArena.Core.Services
         // Mail content field navigation
         private UITextExtractor.MailContentParts _mailContentParts;
 
+        // Letter list change polling (see CheckForMailboxListChanges)
+        private const float MailboxListCheckInterval = 0.5f;
+        private const string PlayerInboxLetterList = "PlayerInboxLetterList";
+        private float _mailboxListCheckTimer;
+        private string _lastMailboxListSig;
+
         /// <summary>
         /// Handler for PanelStatePatch.OnMailLetterSelected - fires when a mail is opened in the mailbox.
         /// </summary>
@@ -83,6 +89,123 @@ namespace AccessibleArena.Core.Services
                 _elements.InsertRange(0, mailFieldElements);
                 Log.Nav(NavigatorId, $"Added {mailFieldElements.Count} mail content fields as navigable elements");
             }
+        }
+
+        /// <summary>
+        /// Add the notice an empty letter list shows as a readable element. Since 2026.63.10 the
+        /// inbox has a Store Messages tab whose empty list explains why it is empty ("Messages
+        /// from your Favorited Stores will appear here.", or that store messages are switched
+        /// off) above a Store Locator / Enable Store Messages button; the Arena tab says
+        /// "No Messages.". Only the button was reachable, so the reason was never spoken.
+        /// Each notice goes right before the first element of its own list, so it is heard
+        /// ahead of the button it explains.
+        /// </summary>
+        private void AddMailboxListNotices()
+        {
+            foreach (var list in GetActiveLetterLists())
+            {
+                if (ListHasLetters(list)) continue;
+
+                var notices = new List<NavigableElement>();
+                foreach (var tmp in list.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                {
+                    if (tmp == null || IsInsideSelectable(tmp.transform, list.transform)) continue;
+                    string text = UITextExtractor.CleanText(tmp.text);
+                    if (string.IsNullOrEmpty(text)) continue;
+                    notices.Add(new NavigableElement { GameObject = tmp.gameObject, Label = text });
+                }
+                if (notices.Count == 0) continue;
+
+                int insertAt = _elements.FindIndex(e => e.GameObject != null && e.GameObject.transform.IsChildOf(list.transform));
+                if (insertAt < 0) insertAt = _elements.Count;
+                _elements.InsertRange(insertAt, notices);
+                Log.Nav(NavigatorId, $"Added {notices.Count} empty-list notice(s) for {list.name}");
+            }
+        }
+
+        /// <summary>
+        /// The inbox fills its letter lists asynchronously (inbox request, tab switch, store
+        /// messages being switched on) and fires no panel event, so poll a signature of the
+        /// visible lists while browsing them and rescan when it changes.
+        /// </summary>
+        private void CheckForMailboxListChanges()
+        {
+            _mailboxListCheckTimer -= Time.deltaTime;
+            if (_mailboxListCheckTimer > 0) return;
+            _mailboxListCheckTimer = MailboxListCheckInterval;
+
+            bool browsingList = !_isInMailDetailView && _screenDetector.IsMailboxOpen();
+            if (!browsingList)
+            {
+                _lastMailboxListSig = null;
+                return;
+            }
+            if (_rescanDelay > 0) return;
+
+            string sig = GetMailboxListSignature();
+            if (_lastMailboxListSig == null)
+            {
+                // First poll after opening: the open itself already triggered a scan.
+                _lastMailboxListSig = sig;
+                return;
+            }
+            if (sig != _lastMailboxListSig)
+            {
+                Log.Nav(NavigatorId, $"Mailbox list changed, triggering rescan");
+                _lastMailboxListSig = sig;
+                TriggerRescan();
+            }
+        }
+
+        private string GetMailboxListSignature()
+        {
+            var parts = new List<string>();
+            foreach (var list in GetActiveLetterLists())
+            {
+                int active = 0;
+                string first = null;
+                foreach (Transform child in list.transform)
+                {
+                    if (!child.gameObject.activeSelf) continue;
+                    active++;
+                    if (first == null) first = child.name;
+                }
+                parts.Add($"{list.transform.parent?.parent?.name}:{active}:{first}");
+            }
+            return string.Join("|", parts);
+        }
+
+        private static List<MonoBehaviour> GetActiveLetterLists()
+        {
+            var lists = new List<MonoBehaviour>();
+            var mailboxPanel = GameObject.Find("ContentController - Mailbox_Base(Clone)");
+            if (mailboxPanel == null) return lists;
+            foreach (var mb in mailboxPanel.GetComponentsInChildren<MonoBehaviour>(false))
+            {
+                if (mb != null && mb.GetType().Name == PlayerInboxLetterList)
+                    lists.Add(mb);
+            }
+            return lists;
+        }
+
+        private static bool ListHasLetters(MonoBehaviour list)
+        {
+            foreach (var mb in list.GetComponentsInChildren<MonoBehaviour>(false))
+            {
+                if (mb != null && mb.GetType().Name == "PlayerInboxBladeItemDisplay")
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsInsideSelectable(Transform t, Transform stopAt)
+        {
+            for (var current = t; current != null && current != stopAt; current = current.parent)
+            {
+                if (current.GetComponent<UnityEngine.UI.Selectable>() != null)
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>

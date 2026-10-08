@@ -115,6 +115,7 @@ Large files (over 2000 lines): 4 after splits of GeneralMenuNavigator (6148→34
 - **EventAccessor.cs** (1515 lines) — Reflection access to event tiles, event page, and packet selection for UI labels.
 - **ExtendedCardInfoProvider.cs** (999 lines) — Extended card info: keyword ability descriptions and linked-face data.
 - **ExtendedInfoNavigator.cs** (326 lines) — Modal navigator for keyword and linked-face info (I key, Up/Down, Backspace to close).
+- **FavoriteStoresNavigator.cs** (~560 lines) — Navigator for the profile's Favorite Stores tab (Wizards Play Network): store rows with Left/Right actions (messages bell, website, map), store settings toggles, Store Locator, Refresh.
 - **FriendInfoProvider.cs** (651 lines) — Reads friend tile data (name, status, actions) from social panel tiles via reflection.
 - **GameLogNavigator.cs** (178 lines) — Modal navigator for duel announcement history (O key, Up/Down, Backspace to close).
 - **GeneralMenuNavigator/** (subfolder; class lives across 7 partial files, namespace stays `AccessibleArena.Core.Services`)

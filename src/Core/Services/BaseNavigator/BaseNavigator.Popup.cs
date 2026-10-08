@@ -825,7 +825,7 @@ namespace AccessibleArena.Core.Services
                 if (string.IsNullOrEmpty(elem.Label)) continue;
                 if (elem.Label.IndexOf(contactLabel, StringComparison.OrdinalIgnoreCase) < 0) continue;
 
-                elem.Label = $"{elem.Label}, {Strings.PhysicalPrizeOpensBrowser}";
+                elem.Label = $"{elem.Label}, {Strings.OpensWebBrowser}";
                 _elements[i] = elem;
                 Log.Msg("{NavigatorId}", $"Popup: flagged external-link button '{elem.Label}'");
             }

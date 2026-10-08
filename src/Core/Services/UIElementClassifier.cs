@@ -118,6 +118,7 @@ namespace AccessibleArena.Core.Services
             ProgressBar,
             Label,
             Navigation,
+            Tab,       // Header of the game's TabSystem (inbox, profile tab strips)
             Scrollbar,
             Card,
             TextBlock, // Read-only text block (popup text content, null GameObject)
@@ -190,6 +191,7 @@ namespace AccessibleArena.Core.Services
                 ?? TryClassifyAsScrollbar(obj, text)
                 ?? TryClassifyAsProgressIndicator(obj, objName, text)
                 ?? TryClassifyAsNavigationArrow(obj, objName, text)
+                ?? TryClassifyAsTabHeader(obj, objName, text)
                 ?? TryClassifyAsClickable(obj, objName, text)
                 ?? TryClassifyAsLabel(obj, objName, text)
                 ?? CreateResult(ElementRole.Unknown, text, "", false, false);
@@ -479,6 +481,68 @@ namespace AccessibleArena.Core.Services
             return CreateResult(ElementRole.Navigation, GetNavigationLabel(objName), Models.Strings.RoleNavigation, false, false);
         }
 
+        /// <summary>
+        /// Headers of the game's shared TabSystem (TabHeader subclasses: the inbox's Arena/Store
+        /// Messages tabs, the profile's Overview/Customization/Favorite Stores tabs). Sighted
+        /// players see the selected tab highlighted and a dot on tabs with something new; both
+        /// states live in the subclass, so they are read per concrete type.
+        /// </summary>
+        private static ClassificationResult TryClassifyAsTabHeader(GameObject obj, string objName, string text)
+        {
+            var header = GetTabHeaderComponent(obj);
+            if (header == null)
+                return null;
+
+            var fields = GetTabHeaderFields(header.GetType());
+            bool selected = fields.Selected?.GetValue(header) as bool? == true;
+            bool hasNew = fields.NotificationPip?.GetValue(header) is GameObject pip && pip != null && pip.activeSelf;
+
+            return CreateResult(ElementRole.Tab, GetCleanLabel(text, objName),
+                Models.Strings.TabHeaderRole(selected, hasNew), true, true);
+        }
+
+        private static MonoBehaviour GetTabHeaderComponent(GameObject obj)
+        {
+            foreach (var mb in obj.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                for (var type = mb.GetType().BaseType; type != null; type = type.BaseType)
+                {
+                    if (type.FullName == TabHeaderFQ)
+                        return mb;
+                }
+            }
+            return null;
+        }
+
+        private const string TabHeaderFQ = "Wizards.GeneralUtilities.TabSystem.TabHeader";
+
+        private sealed class TabHeaderFields
+        {
+            public System.Reflection.FieldInfo Selected;          // _selected
+            public System.Reflection.FieldInfo NotificationPip;   // _notificationPip
+        }
+
+        // Keyed per concrete header type: every TabHeader subclass declares its own private state.
+        private static readonly Dictionary<System.Type, TabHeaderFields> _tabHeaderFields =
+            new Dictionary<System.Type, TabHeaderFields>();
+
+        private static TabHeaderFields GetTabHeaderFields(System.Type headerType)
+        {
+            if (!_tabHeaderFields.TryGetValue(headerType, out var fields))
+            {
+                fields = new TabHeaderFields
+                {
+                    Selected = headerType.GetField("_selected", PrivateInstance),
+                    NotificationPip = headerType.GetField("_notificationPip", PrivateInstance),
+                };
+                if (fields.Selected == null)
+                    Log.Warn("UIElementClassifier", $"{headerType.Name}._selected not found - tab selection state unavailable");
+                _tabHeaderFields[headerType] = fields;
+            }
+            return fields;
+        }
+
         private static ClassificationResult TryClassifyAsClickable(GameObject obj, string objName, string text)
         {
             bool hasCustomButton = HasCustomButton(obj);
@@ -494,7 +558,9 @@ namespace AccessibleArena.Core.Services
                 return new ClassificationResult
                 {
                     Role = ElementRole.Carousel,
-                    Label = GetCleanLabel(text, objName),
+                    // Home carousel slides read title plus description (UITextExtractor), which
+                    // easily passes the button-sized limit.
+                    Label = GetCleanLabel(text, objName, MaxTooltipLabelLength),
                     RoleLabel = Models.Strings.RoleCarouselHint,
                     IsNavigable = true,
                     ShouldAnnounce = true,
@@ -512,19 +578,26 @@ namespace AccessibleArena.Core.Services
             // TooltipTrigger; allow longer text so full tooltip copy isn't truncated.
             int maxLen = HasTooltipTrigger(obj) ? MaxTooltipLabelLength : MaxLabelLength;
 
+            string label = GetCleanLabel(text, effectiveName, maxLen);
+            // OpenUrlBehaviour buttons (Store Locator, help links) leave the game for a web page.
+            if (HasComponentNamed(obj, T.OpenUrlBehaviour))
+                label = $"{label}, {Models.Strings.OpensWebBrowser}";
+
             return CreateResult(
                 isLink ? ElementRole.Link : ElementRole.Button,
-                GetCleanLabel(text, effectiveName, maxLen),
+                label,
                 isLink ? Models.Strings.RoleLink : Models.Strings.RoleButton,
                 true, true);
         }
 
-        private static bool HasTooltipTrigger(GameObject obj)
+        private static bool HasTooltipTrigger(GameObject obj) => HasComponentNamed(obj, "TooltipTrigger");
+
+        private static bool HasComponentNamed(GameObject obj, string typeName)
         {
             if (obj == null) return false;
             foreach (var comp in obj.GetComponents<MonoBehaviour>())
             {
-                if (comp != null && comp.GetType().Name == "TooltipTrigger")
+                if (comp != null && comp.GetType().Name == typeName)
                     return true;
             }
             return false;

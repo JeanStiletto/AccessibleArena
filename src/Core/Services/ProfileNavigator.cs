@@ -84,6 +84,7 @@ namespace AccessibleArena.Core.Services
             public bool IsActivatable;        // Whether Enter should activate this item
             public string CosmeticType;       // null for info, "Avatar"/"Title"/etc. for cosmetics
             public bool OpensSetCollection;   // Enter opens the full set collection screen
+            public bool OpensFavoriteStores;  // Enter selects the Favorite Stores tab (GameObject = its header)
             public MonoBehaviour CosmeticOpener; // CosmeticSelectorOpener driving this category
         }
 
@@ -109,6 +110,7 @@ namespace AccessibleArena.Core.Services
             public FieldInfo CustomizationPanelNew;  // _customizationPanel (new nav bar layout)
             public FieldInfo CustomizationPanelOld;  // _oldCustomizationHost (legacy layout)
             public MethodInfo GoToProfileDetails;    // replaces the removed GoBackToPreviousMode
+            public FieldInfo FavoriteStoreTabHeader; // _favoriteStoreTabHeader (2026.63.10 WPN tab)
 
             // ProfileUsernameDisplay / ProfileAvatarDisplay — the username and avatar blurb moved
             // off the controller into these two components in the 2026-08-10 profile rework.
@@ -203,6 +205,7 @@ namespace AccessibleArena.Core.Services
                     CustomizationPanelNew = t.GetField("_customizationPanel", PrivateInstance),
                     CustomizationPanelOld = t.GetField("_oldCustomizationHost", PrivateInstance),
                     GoToProfileDetails = t.GetMethod("GoToProfileDetails", PublicInstance, null, Type.EmptyTypes, null),
+                    FavoriteStoreTabHeader = t.GetField("_favoriteStoreTabHeader", PrivateInstance),
                 };
 
                 var usernameDisplayType = FindType("Core.Meta.MainNavigation.Profile.ProfileUsernameDisplay");
@@ -545,6 +548,51 @@ namespace AccessibleArena.Core.Services
                 foreach (string type in CosmeticTypes)
                     AddCosmeticOpener(host, GetOpenerField(_profileCache.Handles, type), type);
             }
+
+            // 13. Favorite Stores tab (Wizards Play Network, 2026.63.10).
+            AddFavoriteStoresBlock();
+        }
+
+        /// <summary>
+        /// The Favorite Stores tab sits in the profile's bottom tab strip. The game hides its
+        /// header unless the WPNFavoriteStoreStatus feature toggle is on, so the header's own
+        /// visibility decides whether the entry exists. Its label is the tab's localized text.
+        /// </summary>
+        private void AddFavoriteStoresBlock()
+        {
+            try
+            {
+                var header = _profileCache.Handles?.FavoriteStoreTabHeader?.GetValue(_controller) as MonoBehaviour;
+                if (header == null || !header.gameObject.activeSelf) return;
+
+                string label = UITextExtractor.GetText(header.gameObject);
+                if (string.IsNullOrEmpty(label))
+                    label = Strings.ScreenFavoriteStores;
+
+                _infoBlocks.Add(new InfoBlock
+                {
+                    Label = label,
+                    GameObject = header.gameObject,
+                    IsActivatable = true,
+                    OpensFavoriteStores = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("{NavigatorId}", $"Failed to add Favorite Stores entry: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Clicks the Favorite Stores tab, as a sighted player would. FavoriteStoresNavigator
+        /// (priority 58) takes over once the tab's panel is showing.
+        /// </summary>
+        private void OpenFavoriteStores(InfoBlock block)
+        {
+            var result = UIActivator.Activate(block.GameObject);
+            Log.Msg("{NavigatorId}", $"Favorite Stores tab activated: {result.Success}");
+            if (!result.Success)
+                _announcer.Announce(Strings.CosmeticOpenFailed(block.Label), AnnouncementPriority.High);
         }
 
         /// <summary>
@@ -1038,6 +1086,11 @@ namespace AccessibleArena.Core.Services
                     if (block.OpensSetCollection)
                     {
                         OpenSetCollectionScreen();
+                        return true;
+                    }
+                    if (block.OpensFavoriteStores)
+                    {
+                        OpenFavoriteStores(block);
                         return true;
                     }
                     if (block.IsActivatable && block.GameObject != null)

@@ -1749,7 +1749,8 @@ namespace AccessibleArena.Core.Models
         public static string EventEntryUnavailable => L.Get("EventEntryUnavailable");
         // Arena Direct physical-prize confirmation popup.
         public static string PhysicalPrizeNoDismiss => L.Get("PhysicalPrizeNoDismiss");
-        public static string PhysicalPrizeOpensBrowser => L.Get("PhysicalPrizeOpensBrowser");
+        // Appended to any control that leaves the game for a web page.
+        public static string OpensWebBrowser => L.Get("OpensWebBrowser");
         public static string ColorChallengeProgress(string trackName, int unlocked, int total, bool completed, int aiCount = 0, int pvpCount = 0)
         {
             bool hasTrack = !string.IsNullOrEmpty(trackName);
@@ -1929,6 +1930,45 @@ namespace AccessibleArena.Core.Models
             L.Format("ProfileEmoteAlwaysEquipped", name);
         public static string ProfileEmoteToggleFailed(string name) =>
             L.Format("ProfileEmoteToggleFailed", name);
+
+        // ===========================================
+        // FAVORITE STORES SCREEN (Profile → Favorite Stores tab)
+        // ===========================================
+        public static string ScreenFavoriteStores => L.Get("ScreenFavoriteStores");
+        public static string FavoriteStoresActivation(int storeCount)
+        {
+            string core = storeCount == 0
+                ? L.Get("FavoriteStoresActivation_None")
+                : L.Plural(storeCount, "FavoriteStoresActivation");
+            return WithHint(core, "FavoriteStoresActivationHint");
+        }
+        public static string FavoriteStoreEntry(string name, string address, bool premium, bool messagesOn)
+        {
+            string entry = string.IsNullOrEmpty(address) ? name : $"{name}, {address}";
+            if (premium) entry += $", {L.Get("FavoriteStorePremium")}";
+            string messages = messagesOn ? L.Get("FavoriteStoreMessagesOn") : L.Get("FavoriteStoreMessagesOff");
+            return $"{entry}, {messages}";
+        }
+        public static string FavoriteStoreTurnMessages(bool turnOn) =>
+            turnOn ? L.Get("FavoriteStoreTurnMessagesOn") : L.Get("FavoriteStoreTurnMessagesOff");
+        public static string FavoriteStoreMessagesChanged(string storeName, bool nowOn) =>
+            nowOn
+                ? L.Format("FavoriteStoreMessagesNowOn_Format", storeName)
+                : L.Format("FavoriteStoreMessagesNowOff_Format", storeName);
+        public static string FavoriteStoreMessagesUnchanged => L.Get("FavoriteStoreMessagesUnchanged");
+        public static string FavoriteStoreWebsite => $"{L.Get("FavoriteStoreWebsite")}, {OpensWebBrowser}";
+        public static string FavoriteStoreMap => $"{L.Get("FavoriteStoreMap")}, {OpensWebBrowser}";
+        public static string FavoriteStoresRefresh => L.Get("FavoriteStoresRefresh");
+        public static string FavoriteStoresRefreshing => L.Get("FavoriteStoresRefreshing");
+        public static string FavoriteStoresCount(int storeCount) =>
+            storeCount == 0 ? L.Get("FavoriteStoresActivation_None") : L.Plural(storeCount, "FavoriteStoresCount");
+
+        // Tab headers built on the game's shared TabSystem (inbox and profile tab strips).
+        public static string TabHeaderRole(bool selected, bool hasNew)
+        {
+            string role = selected ? $"{RoleTab}, {Selected}" : RoleTab;
+            return hasNew ? $"{role}, {L.Get("TabHasNew")}" : role;
+        }
 
         // ===========================================
         // SET COLLECTION SCREEN

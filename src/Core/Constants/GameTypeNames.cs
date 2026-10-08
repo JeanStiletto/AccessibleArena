@@ -28,6 +28,7 @@ namespace AccessibleArena.Core.Constants
         public const string CustomToggle = "CustomToggle";
         public const string SystemMessageButtonView = "SystemMessageButtonView";
         public const string CustomTMPDropdown = "cTMP_Dropdown";
+        public const string OpenUrlBehaviour = "OpenUrlBehaviour";
 
         // --- Booster Chamber Types ---
         public const string BoosterOpenToScrollListController = "BoosterOpenToScrollListController";

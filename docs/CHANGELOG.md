@@ -2,6 +2,32 @@
 
 All notable changes to Accessible Arena.
 
+## v1.6.4
+
+<h3>Overview</h3>
+
+- The profile has a new Favorite Stores screen listing your Wizards Play Network stores, with each store's messages switch and website.
+- The store settings for event carousels and store messages can be changed from the Favorite Stores screen.
+- The inbox's MTG: Arena Inbox and Store Messages tabs are reachable and announce which one is selected and whether it has something new.
+- An empty inbox tab now says why it is empty before its Store Locator or Enable Store Messages button.
+- Home page carousel slides now read their description too, which for a store event is its date and time.
+- Buttons that open a web page now say "opens a web browser".
+
+<h3>Details</h3>
+
+**Wizards Play Network (MTG Arena 2026.63.10):**
+
+- The 2026.63.10 update connected Arena to local game stores: a Favorite Stores tab in the player profile, a Store Messages tab in the inbox, and store-event slides in the home page carousel. None of the three was reachable or fully readable. The update checklist found no broken game names; these are new screens, which the checks cannot see, and the player-facing patch notes are what pointed at them.
+- Favorite Stores: the profile gets a "Favorite Stores" line (only while the game shows the tab, which it gates behind a server-side feature switch). Enter opens a new screen. Each favorited store is one stop: name, address, whether it is a Wizards Play Network premium store, and whether its messages are on. Left and Right on a store reach its buttons: turn this store's messages on or off (the bell; the mod waits for the server and announces the new state, or that it could not be changed), open the store's website, and show the address on a map if the game offers that link. After the stores come the three info tiles (Find A Store, Play Events, Get Rewards) as one block each, the "Allow WPN Event Carousels" and "Allow WPN Store Messages" settings with the game's own explanation, the Store Locator, and Refresh store list. With no favorite stores the screen reads the game's "No stores favorited" text and offers the Store Locator. The list is read from the game's store manager rather than from the screen, since the scrolling list only builds rows that are visible; stores added or removed while the screen is open are picked up and announced. Backspace returns to the profile overview.
+- Inbox: the tab strip above the letter list was outside the area the mod treats as the mail list, so neither tab could be reached. Both tabs are now part of the list and announce "tab", "selected" and "new" (the game's notification dot). Store letters open and read like any other letter.
+- An empty tab used to offer only its button. The notice above it is now read first: "No Messages." on the Arena tab; on the Store Messages tab either that messages from your favorite stores will appear there (with the Store Locator) or that store messages are switched off (with Enable Store Messages). The inbox loads and swaps its lists without telling anyone, so the mod now watches the visible lists and rescans when they change, after a tab switch, when letters arrive, or after store messages are switched on.
+- Home carousel: slides read their description after the title. That always applied to every slide, but the description was never read; for a store event slide it carries the event's date and time. Slides that link to a web page say "opens a web browser".
+
+**General:**
+
+- Any button using the game's open-a-web-page behaviour (Store Locator, help links) now says "opens a web browser", the same wording the Arena Direct prize popup and the Codex already used.
+- Tab headers of the game's shared tab system announce "tab" and "selected", and "new" while they show a notification dot, wherever the mod lists them as elements (so far the inbox).
+
 ## v1.6.3
 
 <h3>Overview</h3>

@@ -215,8 +215,9 @@ namespace AccessibleArena.Core.Services.ElementGrouping
             while (current != null)
             {
                 string name = current.name;
-                // Mail list is in BladeView_CONTAINER
-                if (name.Contains("BladeView_CONTAINER") || name.Contains("Blade_ListItem"))
+                // Mail list is in BladeView_CONTAINER; the tab strip above it (Arena inbox /
+                // Store Messages, 2026.63.10) picks which letters the list shows.
+                if (name.Contains("BladeView_CONTAINER") || name.Contains("Blade_ListItem") || name == "InboxTabs")
                     return true;
                 // Stop if we hit the content view (wrong pane)
                 if (name.Contains("Mailbox_ContentView") || name.Contains("ViewSection"))
