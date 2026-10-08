@@ -47,7 +47,6 @@ namespace AccessibleArena.Core.Services
         {
             _isActive = true;
             DiscoverTimerElements();
-            SubscribeLowTimeWarnings();
             Log.Nav("PlayerPortrait", $"Activated");
         }
 
@@ -155,6 +154,8 @@ namespace AccessibleArena.Core.Services
         {
             if (!_isActive) return false;
 
+            // The duel HUD appears after activation; keep looking until the rope timers exist.
+            EnsureLowTimeWarningsSubscribed(force: false);
 
             // Player info key activates the player info zone
             if (Keybinds.Down(KeybindAction.PlayerInfo))

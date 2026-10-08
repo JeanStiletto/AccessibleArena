@@ -28,6 +28,13 @@ namespace AccessibleArena.Core.Services
         private UnityAction<bool> _localRopeCallback;
         private UnityAction<bool> _opponentRopeCallback;
 
+        // The duel HUD (and its LowTimeWarnings) is built a few seconds after the
+        // navigator activates, so the lookup is retried until both sides are bound.
+        private const float LowTimeWarningRescanInterval = 1f;
+        private float _nextLowTimeWarningScan;
+        private static Type _lowTimeWarningType;
+        private static bool _lowTimeWarningTypeResolved;
+
         private sealed class LtwHandles
         {
             public FieldInfo ActiveTimer;   // LowTimeWarning._activeTimer (MtgTimer)
@@ -126,6 +133,8 @@ namespace AccessibleArena.Core.Services
                 _loggedTimerOpponent = true;
                 Log.Nav("PlayerPortrait", $"Found Timer_Opponent for timeouts");
             }
+
+            EnsureLowTimeWarningsSubscribed(force: true);
         }
 
         private int GetTimeoutCount(string playerType)
@@ -331,17 +340,45 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
+        /// Binds any LowTimeWarning side that isn't bound yet. Without force the scan is
+        /// throttled, so it is cheap to call every frame until both sides are found.
+        /// </summary>
+        private void EnsureLowTimeWarningsSubscribed(bool force)
+        {
+            if (_localLowTimeWarning != null && _opponentLowTimeWarning != null) return;
+            if (!force && Time.unscaledTime < _nextLowTimeWarningScan) return;
+
+            _nextLowTimeWarningScan = Time.unscaledTime + LowTimeWarningRescanInterval;
+            SubscribeLowTimeWarnings();
+        }
+
+        private static UnityEngine.Object[] FindLowTimeWarnings()
+        {
+            if (!_lowTimeWarningTypeResolved)
+            {
+                _lowTimeWarningTypeResolved = true;
+                var type = FindType(T.LowTimeWarning);
+                if (type != null && typeof(MonoBehaviour).IsAssignableFrom(type))
+                    _lowTimeWarningType = type;
+            }
+
+            return _lowTimeWarningType != null
+                ? UnityEngine.Object.FindObjectsOfType(_lowTimeWarningType)
+                : GameObject.FindObjectsOfType<MonoBehaviour>();
+        }
+
+        /// <summary>
         /// Discovers LowTimeWarning MonoBehaviours and subscribes to their OnVisibilityChanged events.
         /// Local vs opponent is determined by parent hierarchy containing "LocalPlayer" or "Opponent".
+        /// Sides that are already bound are left alone, so repeated calls never double-subscribe.
         /// </summary>
         private void SubscribeLowTimeWarnings()
         {
-            UnsubscribeLowTimeWarnings();
-
             try
             {
-                foreach (var mb in GameObject.FindObjectsOfType<MonoBehaviour>())
+                foreach (var obj in FindLowTimeWarnings())
                 {
+                    var mb = obj as MonoBehaviour;
                     if (mb == null || !mb.gameObject.activeInHierarchy) continue;
                     if (mb.GetType().Name != T.LowTimeWarning) continue;
 
@@ -354,6 +391,8 @@ namespace AccessibleArena.Core.Services
                         if (current.name.Contains("Opponent")) { isLocal = false; break; }
                         current = current.parent;
                     }
+
+                    if (isLocal ? _localLowTimeWarning != null : _opponentLowTimeWarning != null) continue;
 
                     // Get the OnVisibilityChanged field (public LowTimeVisibilityChangedEvent)
                     var onVisField = mb.GetType().GetField("OnVisibilityChanged", PublicInstance);

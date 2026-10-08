@@ -13,6 +13,8 @@ All notable changes to Accessible Arena.
 - An empty mailbox tab now says why it is empty before its Store Locator or Enable Store Messages button.
 - Home page carousel slides now read their description too, which for a store event is its date and time.
 - Buttons that open a web page now say "opens a web browser".
+- E, Shift+E, T and the V player info zone read the turn timer again in timed matches instead of saying "No timer running" (issue #126).
+- The low-time warning is announced again when your or your opponent's turn timer runs short.
 
 <h3>Details</h3>
 
@@ -24,6 +26,11 @@ All notable changes to Accessible Arena.
 - The game fills and swaps its letter lists without any notice (inbox loading, tab switches, store messages being switched on). The mailbox now notices these changes and refreshes the list in place and silently, keeping your position; something is only said if the element you were on disappeared.
 - An empty tab used to offer only its button. The notice above it is now read first: "No Messages." on the Arena tab; on the Store Messages tab either that messages from your favorite stores will appear there (with the Store Locator) or that store messages are switched off (with Enable Store Messages). Store letters open and read like any other letter.
 - Home carousel: every slide now reads its description after the title; before, only the title was read. For a store event slide the description carries the event's date and time. Slides that link to a web page say "opens a web browser".
+
+**Duel timer (issue #126):**
+
+- In timed matches E, Shift+E, T and the V player info zone said "No timer running" for the whole game, even while the fuse was burning and timeouts were being used up. Best-of-one queues have no match clock, only the turn timer, and the mod looked for the turn timer's display exactly once, when the duel navigator activated. The game builds that part of the duel screen a few seconds later, so the lookup found nothing and was never repeated. The mod now keeps looking once a second (and immediately on E, Shift+E, T or V) until both players' turn timers are found, and never binds the same one twice.
+- The same missed lookup had silenced the low-time warning ("Low time" / "Opponent low time"), which now fires again when a turn timer enters its last 30 seconds.
 
 **General:**
 
