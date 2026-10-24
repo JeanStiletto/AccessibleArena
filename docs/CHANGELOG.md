@@ -6,16 +6,18 @@ All notable changes to Accessible Arena.
 
 <h3>Overview</h3>
 
-- The profile has a new Favorite Stores screen listing your Wizards Play Network stores, with each store's messages switch and website.
-- The store settings for event carousels and store messages can be changed from the Favorite Stores screen.
+- The profile has a new Favorite Stores screen listing your Wizards Play Network stores with their messages switch and website, plus the event carousel and store message settings.
 - The mailbox opens on its MTG: Arena Inbox and Store Messages tabs; Enter on a tab opens its letters as their own list, Backspace goes back up.
 - Letters loading or changing in the background no longer move your position in the mailbox.
 - An empty mailbox tab now says why it is empty before its Store Locator or Enable Store Messages button.
 - Home page carousel slides now read their description too, which for a store event is its date and time.
-- Buttons that open a web page now say "opens a web browser".
 - E, Shift+E, T and the V player info zone read the turn timer again in timed matches instead of saying "No timer running" (issue #126).
 - The low-time warning is announced again when your or your opponent's turn timer runs short.
 - Remaining timer time is now spoken in the mod's language, with correct singular and plural ("1 minute").
+- Buttons that open a web page now say "opens a web browser".
+- Tabs in menus now say "tab", "selected", and "new" while they show a notification dot.
+- Choosing targets now starts with just the game's instruction, without a "0" count in front, and the instruction is no longer repeated.
+- Locked avatars in the profile no longer all say they are available in the store after the MTG Arena 2026.64 update.
 
 <h3>Details</h3>
 
@@ -39,6 +41,16 @@ All notable changes to Accessible Arena.
 - Any button using the game's open-a-web-page behaviour (Store Locator, help links) now says "opens a web browser", the same wording the Arena Direct prize popup and the Codex already used.
 - Tab headers of the game's shared tab system announce "tab" and "selected", and "new" while they show a notification dot, wherever the generic menu navigation lists them.
 - The game-update check (tools/check-game-update.ps1) now also scans Wizards.GeneralUtilities.dll, which holds the game's shared tab system the mailbox relies on.
+
+**Duel targeting:**
+
+- When a spell or ability started asking for targets, the mod read the game's confirm button before the instruction, with its count of chosen targets: "0 bestätigen, Bestimme ein beliebiges Ziel." in German. Every selection starts at 0, so the number said nothing. A zero count is now left out and only the game's instruction is read. Counts above zero are unchanged: picking targets in a multi-target spell, or cards to discard, still announces progress such as "1 of 2 selected", and the confirm button is still read with its count when it changes.
+- The same instruction was spoken a second time on the first zone key or Tab press during the selection, because the selection check announced it again on its own. It is now spoken once per selection.
+
+**MTG Arena 2026.64 update:**
+
+- Every locked avatar in the profile's avatar selection was announced as "Locked, in store", including avatars that cannot be bought. The update replaced the store-section value the hint reads with a new one in which "None" moved from the first position to the last, so the mod's check for "not sold" no longer matched. The check now compares the value's name instead of its number.
+- The update also removed the game's dedicated workflow for additional costs chosen while casting (kicker, bonus costs and similar). The mod never depended on it: these choices still open as a card selection, and casting Burst Lightning with its bonus cost was checked in game, from the choice through the target to 4 damage dealt. The game-update checklist (docs/GAME_UPDATE_CHECKLIST.md) found nothing else affecting the mod.
 
 ## v1.6.3
 

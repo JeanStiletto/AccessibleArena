@@ -2002,8 +2002,9 @@ namespace AccessibleArena.Core.Services
                     try
                     {
                         var storeSection = _profileCache.Handles.StoreSection.GetValue(mb);
-                        // EStoreSection.None = 0; non-zero means purchasable
-                        if (storeSection != null && (int)storeSection != 0)
+                        // Anything but None means purchasable. Compare by name: 2026.64 replaced
+                        // EStoreSection (None = 0) with StoreSection (None = last), so the numeric value moved.
+                        if (storeSection != null && storeSection.ToString() != "None")
                             status = $"{Strings.ProfileItemLocked}, {Strings.ProfileItemStore}";
                     }
                     catch { }

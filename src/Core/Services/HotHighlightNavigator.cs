@@ -58,6 +58,10 @@ namespace AccessibleArena.Core.Services
         // Track prompt button text to announce when meaningful choices appear
         private string _lastPromptButtonText;
 
+        // Prompt instruction last spoken by the button monitor or the selection-mode entry,
+        // so the other one does not repeat it. Cleared when the prompt buttons go away.
+        private string _lastSpokenInstruction;
+
         // Time of the last prompt announcement, so PriorityAnnouncer can stay silent when a
         // prompt just told the user they can act. Large negative = "never announced yet".
         private float _lastPromptAnnounceTime = -100f;
@@ -180,6 +184,7 @@ namespace AccessibleArena.Core.Services
         {
             _isActive = false;
             _wasInSelectionMode = false;
+            _lastSpokenInstruction = null;
             _snapshotValid = false;
             _items.Clear();
             _currentIndex = -1;
@@ -1626,14 +1631,33 @@ namespace AccessibleArena.Core.Services
                     // ("2 Angreifer") changes on every toggle, so repeating "Bestimme Angreifer"
                     // would be noise.
                     string instruction = isInCombatPhase ? null : GetPromptInstructionText();
+                    bool hasInstruction = !string.IsNullOrEmpty(instruction)
+                        && !string.Equals(instruction, currentText, StringComparison.OrdinalIgnoreCase);
+
+                    // A zero count ("0 bestätigen" when targeting starts) carries no information:
+                    // every selection starts at 0. Speak only the instruction, and nothing at all
+                    // if it was just spoken (e.g. deselecting back to 0). Non-zero counts keep the button.
+                    var countMatch = ButtonNumberPattern.Match(currentText);
+                    bool zeroCount = hasInstruction && countMatch.Success && int.Parse(countMatch.Value) == 0;
 
                     string announcement = currentText;
-                    if (!string.IsNullOrEmpty(instruction)
-                        && !string.Equals(instruction, currentText, StringComparison.OrdinalIgnoreCase))
+                    if (zeroCount)
+                        announcement = instruction == _lastSpokenInstruction ? null : instruction;
+                    else if (hasInstruction)
                         announcement = $"{currentText}, {instruction}";
 
-                    _announcer.Announce(announcement, AnnouncementPriority.High);
-                    _lastPromptAnnounceTime = UnityEngine.Time.time;
+                    if (hasInstruction)
+                        _lastSpokenInstruction = instruction;
+
+                    if (announcement != null)
+                    {
+                        _announcer.Announce(announcement, AnnouncementPriority.High);
+                        _lastPromptAnnounceTime = UnityEngine.Time.time;
+                    }
+                }
+                else if (currentText == null)
+                {
+                    _lastSpokenInstruction = null;
                 }
                 _lastPromptButtonText = currentText;
             }
@@ -1865,7 +1889,12 @@ namespace AccessibleArena.Core.Services
                 if (!string.IsNullOrEmpty(promptText))
                 {
                     Log.Msg("HotHighlightNavigator", $"Selection mode entered, prompt: {promptText}");
-                    _announcer.Announce(promptText, AnnouncementPriority.High);
+                    // The button monitor usually announced this instruction a moment ago.
+                    if (promptText != _lastSpokenInstruction)
+                    {
+                        _announcer.Announce(promptText, AnnouncementPriority.High);
+                        _lastSpokenInstruction = promptText;
+                    }
                 }
                 else
                 {

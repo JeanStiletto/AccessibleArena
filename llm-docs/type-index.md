@@ -46,6 +46,7 @@ managed directory (with or without the `.dll` suffix).
 | StoreSetFilterDropdownItem | StoreSetFilterDropdownItem | Core |
 | StoreSetUtils | Core.Meta.MainNavigation.Store.Utils.StoreSetUtils | Core |
 | CardDataForTile | Wizards.MDN.Store.CardDataForTile | Core |
+| StoreSection | Wizards.Unification.Models.StoreSection | Models |
 
 ## Card Data & Display Types
 
@@ -98,7 +99,7 @@ managed directory (with or without the `.dll` suffix).
 | SelectCardsWorkflow\<T\> | SelectCardsWorkflow | Core |
 | PayCostWorkflow | Wotc.Mtga.DuelScene.Interactions.PayCostWorkflow | Core |
 | SelectionWorkflow | Wotc.Mtga.DuelScene.Interactions.SelectN.SelectionWorkflow | Core |
-| AdditionalCostWorkflow | Wotc.Mtga.DuelScene.Interactions.CastingTimeOption.AdditionalCostWorkflow | Core |
+| CastingTimeOptionTranslator | Wotc.Mtga.DuelScene.Interactions.CastingTimeOption.CastingTimeOptionTranslator | Core |
 
 ## UI Components
 
