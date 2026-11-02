@@ -24,7 +24,8 @@ The installer:
 
 - finds MTGA in your Steam libraries (native, Flatpak or Snap Steam), in a Lutris prefix, or in `~/.wine`; pass `--game-dir "/path/to/MTGA"` if it does not
 - installs MelonLoader, unless it is already there
-- installs the latest `AccessibleArena.dll` (or a local build with `--dll path/to/AccessibleArena.dll`) and `prism.dll`
+- builds `AccessibleArena.dll` from the source folder it sits in, against your own game files, and installs it with `prism.dll`. If no .NET SDK (6.0 or newer) is installed, it first downloads a private one into `~/.local/share/accessible-arena/dotnet`, without root. The build log goes to `~/.local/share/accessible-arena/build.log`
+- `--dll path/to/AccessibleArena.dll` installs a DLL you built yourself instead; `--release` installs the latest release DLL (only useful once releases include Linux support)
 - installs the speech bridge as a systemd user service (skip with `--no-service`)
 - prints the launch option MelonLoader needs
 
@@ -34,16 +35,19 @@ Then set the launch option, because MelonLoader loads through `version.dll` and 
 - Lutris: Configure, Runner options, DLL overrides, add `version` with value `n,b`
 - Plain Wine: `WINEDLLOVERRIDES="version=n,b" wine MTGA.exe`
 
-To remove the mod: `./install.sh --uninstall`. MelonLoader stays in place.
+To update, download the new source and run `./install.sh` again. The in-game update (F5) does not replace a build made by the installer, because a release DLL might lack the Linux speech code; it tells you to run the installer instead.
+
+To remove the mod: `./install.sh --uninstall`. MelonLoader stays in place; the private .NET SDK is removed.
 
 ## How speech works under Wine
 
 Windows code inside Wine cannot open speech-dispatcher's Unix socket, but its TCP sockets are ordinary Linux sockets, and Wine can start native Linux programs. At startup the mod tries, in order:
 
 1. SSIP (speech-dispatcher's protocol) over TCP on `127.0.0.1:6560`. Something answers there when the bridge service is running, or when speech-dispatcher itself is configured for `inet_socket`.
-2. If nothing answers, the mod writes the bridge (`UserData/AccessibleArena-speechd-bridge.py`) and starts it with the system Python, then connects to it. The bridge exits 30 seconds after the game closes.
-3. If that fails too, one `spd-say` call per announcement.
-4. If none of these works, Prism, as on Windows.
+2. An [nvda2speechd](https://github.com/RastislavKish/nvda2speechd) server on `ws://127.0.0.1:3457` (or `NVDA2SPEECHD_HOST`). If you already run it for other Windows games, the mod uses it as it is; nvda2speechd's client DLL is not needed, the mod speaks its protocol itself.
+3. If nothing answers, the mod writes the bridge (`UserData/AccessibleArena-speechd-bridge.py`) and starts it with the system Python, then connects to it. The bridge exits 30 seconds after the game closes.
+4. If that fails too, one `spd-say` call per announcement.
+5. If none of these works, Prism, as on Windows.
 
 The MelonLoader log (`MelonLoader/Latest.log` in the game folder) says which one was picked, in a line starting with `[Speech] speech-dispatcher ready`.
 
@@ -89,7 +93,7 @@ Orca reads things while you play: the game window has no accessibility tree unde
 
 ## Building on Linux
 
-The mod builds with the .NET SDK on Linux. The project looks for MTGA in the default Steam library paths; for another location create `src/local.props`:
+`install.sh` does all of this for you. To build by hand: the mod builds with the .NET SDK on Linux. The project looks for MTGA in the default Steam library paths; for another location create `src/local.props`:
 
 ```xml
 <Project>

@@ -47,7 +47,7 @@ If you want to learn more about Magic in general, the game's website as well as 
 The mod runs on Linux too. It speaks through speech-dispatcher, the speech server Orca uses, so you hear it with your usual Linux voices.
 
 1. Install speech-dispatcher and Python 3 with your package manager (most desktops with Orca already have both)
-2. Download the repository or just the `linux` folder, open a terminal in it and run `./install.sh`. It finds MTGA, installs MelonLoader, the mod and a small speech bridge service
+2. Download this repository (Code, Download ZIP, or `git clone`), open a terminal in its `linux` folder and run `./install.sh`. It finds MTGA, installs MelonLoader, builds and installs the mod against your game files (downloading a private .NET SDK if needed, no root) and sets up a small speech bridge service
 3. Add the launch option the installer prints (Steam: `WINEDLLOVERRIDES="version=n,b" %command%`)
 4. Launch MTG Arena. You should hear "Accessible Arena v... launched"
 

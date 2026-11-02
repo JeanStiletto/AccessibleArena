@@ -21,6 +21,8 @@ namespace AccessibleArena.Core.Speech
     /// <item>SSIP over TCP to <c>127.0.0.1:6560</c> (or <c>SPEECHD_ADDRESS=inet_socket:host:port</c>,
     /// or <c>AA_SPEECHD_PORT</c>): either speech-dispatcher itself in inet mode or the bridge
     /// already running as a user service.</item>
+    /// <item>An nvda2speechd server on <c>ws://127.0.0.1:3457</c> (or <c>NVDA2SPEECHD_HOST</c>),
+    /// for users who already run it for other Windows games.</item>
     /// <item>If nothing answers, the mod starts the bundled bridge (<c>speechd-bridge.py</c>,
     /// TCP → speech-dispatcher's Unix socket) with the system Python and connects to it.</item>
     /// <item>Last resort: one <c>spd-say</c> process per announcement.</item>
@@ -42,7 +44,7 @@ namespace AccessibleArena.Core.Speech
         private const int BridgeIdleExitSeconds = 30;
         private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(3);
 
-        private enum Mode { None, Ssip, SpdSay }
+        private enum Mode { None, Ssip, Nvda2Speechd, SpdSay }
 
         private enum CommandKind { Speak, Cancel }
 
@@ -60,6 +62,10 @@ namespace AccessibleArena.Core.Speech
         private Mode _mode = Mode.None;
         private string _host = "127.0.0.1";
         private int _port = SsipProtocol.DefaultPort;
+        private string _wsHost = "127.0.0.1";
+        private int _wsPort = Nvda2SpeechdProtocol.DefaultPort;
+        private string _wsPath = "/";
+        private readonly Random _random = new Random();
         private string _spdSayPath;
         private bool _bridgeLaunched;
         private DateTime _lastConnectAttempt = DateTime.MinValue;
@@ -88,6 +94,11 @@ namespace AccessibleArena.Core.Speech
             {
                 _mode = Mode.Ssip;
                 Transport = $"SSIP over TCP {_host}:{_port}";
+            }
+            else if (TryConnectNvda2Speechd())
+            {
+                _mode = Mode.Nvda2Speechd;
+                Transport = $"nvda2speechd server at ws://{_wsHost}:{_wsPort}{_wsPath}";
             }
             else if (IsLocalHost(_host) && TryLaunchBridge() && WaitForBridge())
             {
@@ -177,8 +188,8 @@ namespace AccessibleArena.Core.Speech
 
                 try
                 {
-                    if (_mode == Mode.Ssip)
-                        ExecuteSsip(command);
+                    if (_mode == Mode.Ssip || _mode == Mode.Nvda2Speechd)
+                        ExecuteOnSocket(command);
                     else if (_mode == Mode.SpdSay)
                         ExecuteSpdSay(command);
                 }
@@ -189,7 +200,7 @@ namespace AccessibleArena.Core.Speech
             }
         }
 
-        private void ExecuteSsip(Command command)
+        private void ExecuteOnSocket(Command command)
         {
             // One retry on a fresh connection: the server may have restarted since the last
             // announcement (Orca restarts speech-dispatcher when its settings change).
@@ -200,7 +211,11 @@ namespace AccessibleArena.Core.Speech
 
                 try
                 {
-                    if (command.Kind == CommandKind.Cancel)
+                    if (_mode == Mode.Nvda2Speechd)
+                        SendWebSocketBinary(command.Kind == CommandKind.Cancel
+                            ? Nvda2SpeechdProtocol.EncodeCancel()
+                            : Nvda2SpeechdProtocol.EncodeSpeak(command.Text));
+                    else if (command.Kind == CommandKind.Cancel)
                         SendCommand("CANCEL SELF");
                     else
                         SendSpeak(command.Text);
@@ -247,12 +262,24 @@ namespace AccessibleArena.Core.Speech
             int overridePort;
             if (int.TryParse(WineInterop.SafeEnv("AA_SPEECHD_PORT"), out overridePort) && overridePort > 0 && overridePort < 65536)
                 _port = overridePort;
+
+            string wsHost, wsPath;
+            int wsPort;
+            if (Nvda2SpeechdProtocol.TryParseHost(WineInterop.SafeEnv("NVDA2SPEECHD_HOST"), out wsHost, out wsPort, out wsPath))
+            {
+                _wsHost = wsHost;
+                _wsPort = wsPort;
+                _wsPath = wsPath;
+            }
         }
 
         private bool Reconnect()
         {
             if (DateTime.UtcNow - _lastConnectAttempt < ReconnectInterval)
                 return false;
+
+            if (_mode == Mode.Nvda2Speechd)
+                return TryConnectNvda2Speechd();
 
             if (TryConnect())
                 return true;
@@ -264,7 +291,19 @@ namespace AccessibleArena.Core.Speech
             return false;
         }
 
+        /// <summary>Connects to speech-dispatcher (or the bridge) and runs the SSIP handshake.</summary>
         private bool TryConnect()
+        {
+            return TryOpen(_host, _port, Handshake);
+        }
+
+        /// <summary>Connects to an nvda2speechd server and opens its WebSocket.</summary>
+        private bool TryConnectNvda2Speechd()
+        {
+            return TryOpen(_wsHost, _wsPort, WebSocketHandshake);
+        }
+
+        private bool TryOpen(string host, int port, Action handshake)
         {
             _lastConnectAttempt = DateTime.UtcNow;
             CloseConnection(sendQuit: false);
@@ -273,7 +312,7 @@ namespace AccessibleArena.Core.Speech
             try
             {
                 client = new TcpClient();
-                IAsyncResult pending = client.BeginConnect(_host, _port, null, null);
+                IAsyncResult pending = client.BeginConnect(host, port, null, null);
                 if (!pending.AsyncWaitHandle.WaitOne(ConnectTimeoutMs) || !client.Connected)
                 {
                     client.Close();
@@ -288,7 +327,7 @@ namespace AccessibleArena.Core.Speech
                 _stream.WriteTimeout = ReplyTimeoutMs;
                 _lineBuffer.Clear();
 
-                Handshake();
+                handshake();
                 return true;
             }
             catch (Exception)
@@ -315,6 +354,35 @@ namespace AccessibleArena.Core.Speech
             ApplyOptionalSetting("AA_SPEECHD_RATE", "SET SELF RATE {0}");
             ApplyOptionalSetting("AA_SPEECHD_PITCH", "SET SELF PITCH {0}");
             ApplyOptionalSetting("AA_SPEECHD_VOLUME", "SET SELF VOLUME {0}");
+        }
+
+        private void WebSocketHandshake()
+        {
+            var keyBytes = new byte[16];
+            _random.NextBytes(keyBytes);
+            WriteRaw(Nvda2SpeechdProtocol.BuildHandshake(_wsHost, _wsPort, _wsPath, Convert.ToBase64String(keyBytes)));
+
+            string status = ReadLine();
+            if (status == null || status.IndexOf(" 101", StringComparison.Ordinal) < 0)
+                throw new IOException($"nvda2speechd refused the WebSocket upgrade: {status}");
+
+            // Skip the remaining response headers, up to the blank line.
+            while (ReadLine().Length > 0)
+            {
+            }
+        }
+
+        private void SendWebSocketBinary(byte[] payload)
+        {
+            SendWebSocketFrame(0x2, payload);
+        }
+
+        private void SendWebSocketFrame(byte opcode, byte[] payload)
+        {
+            var mask = new byte[4];
+            _random.NextBytes(mask);
+            byte[] frame = Nvda2SpeechdProtocol.BuildClientFrame(opcode, payload, mask);
+            _stream.Write(frame, 0, frame.Length);
         }
 
         private void ApplyOptionalSetting(string envName, string commandFormat)
@@ -396,7 +464,12 @@ namespace AccessibleArena.Core.Speech
             try
             {
                 if (sendQuit && _stream != null)
-                    WriteRaw("QUIT" + SsipProtocol.Eol);
+                {
+                    if (_mode == Mode.Nvda2Speechd)
+                        SendWebSocketFrame(0x8, new byte[0]); // Close
+                    else
+                        WriteRaw("QUIT" + SsipProtocol.Eol);
+                }
             }
             catch (Exception)
             {
