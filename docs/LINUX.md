@@ -4,6 +4,8 @@ MTG Arena has no Linux version, but it runs well under Steam's Proton, Lutris or
 
 Everything else (keyboard navigation, announcements, settings, updates) is the same code as on Windows.
 
+Tested with the Wizards build of MTG Arena 0.1.14589 under Wine 9.0 and MelonLoader 0.7.3: `install.sh` built the mod against the game files, the mod started the bridge itself, and speech-dispatcher spoke the launch message, the loading and download progress and the first screen.
+
 ## Requirements
 
 - MTG Arena installed through Steam (Proton), Lutris or Wine

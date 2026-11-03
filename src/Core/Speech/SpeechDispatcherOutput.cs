@@ -343,7 +343,7 @@ namespace AccessibleArena.Core.Speech
 
         private void Handshake()
         {
-            RequireSuccess(SendCommand(SsipProtocol.ClientNameCommand(WineInterop.SafeEnv("USER"))), "CLIENT_NAME");
+            RequireSuccess(SendCommand(SsipProtocol.ClientNameCommand(WineInterop.SafeEnv("USER") ?? WineInterop.SafeEnv("USERNAME"))), "CLIENT_NAME");
             SendCommand("SET SELF PRIORITY message");
 
             // Optional voice settings. Orca's own rate and voice belong to Orca's connection, so
