@@ -70,6 +70,12 @@ namespace AccessibleArena.Core.Speech
         private bool _bridgeLaunched;
         private DateTime _lastConnectAttempt = DateTime.MinValue;
 
+        // Rate from the mod settings (-100..100, 0 = speech-dispatcher's default). Written by
+        // the main thread, applied by the worker before its next command.
+        private volatile int _rate;
+        private volatile bool _rateDirty;
+        private bool _rateUnsupportedLogged;
+
         private TcpClient _client;
         private NetworkStream _stream;
         private readonly List<byte> _lineBuffer = new List<byte>(256);
@@ -145,6 +151,16 @@ namespace AccessibleArena.Core.Speech
             }
         }
 
+        /// <summary>
+        /// Sets the speech rate, -100 (slowest) to 100 (fastest); 0 keeps speech-dispatcher's
+        /// default (or <c>AA_SPEECHD_RATE</c>). Takes effect before the next announcement.
+        /// </summary>
+        internal void SetRate(int rate)
+        {
+            _rate = SsipProtocol.ClampRate(rate);
+            _rateDirty = true;
+        }
+
         /// <summary>Drops queued announcements and stops current speech.</summary>
         internal void Silence()
         {
@@ -188,6 +204,9 @@ namespace AccessibleArena.Core.Speech
 
                 try
                 {
+                    if (_rateDirty)
+                        ApplyRate();
+
                     if (_mode == Mode.Ssip || _mode == Mode.Nvda2Speechd)
                         ExecuteOnSocket(command);
                     else if (_mode == Mode.SpdSay)
@@ -198,6 +217,40 @@ namespace AccessibleArena.Core.Speech
                     Log.Warn(LogTag, $"speech-dispatcher command failed ({ex.GetType().Name}: {ex.Message})");
                 }
             }
+        }
+
+        /// <summary>Pushes <see cref="_rate"/> to the live SSIP connection. Worker thread only.</summary>
+        private void ApplyRate()
+        {
+            _rateDirty = false;
+            if (_mode == Mode.Nvda2Speechd)
+            {
+                // nvda2speechd's protocol only has speak and cancel.
+                if (!_rateUnsupportedLogged)
+                    Log.Msg(LogTag, "nvda2speechd cannot change the speech rate; set it in nvda2speechd or spd-conf");
+                _rateUnsupportedLogged = true;
+                return;
+            }
+            if (_mode != Mode.Ssip || _stream == null)
+                return; // spd-say passes it per call; a new connection applies it in Handshake
+
+            try
+            {
+                SendRate();
+            }
+            catch (Exception ex) when (ex is IOException || ex is SocketException || ex is ObjectDisposedException)
+            {
+                // The next command reconnects, and the handshake applies the rate.
+                CloseConnection(sendQuit: false);
+                _lastConnectAttempt = DateTime.MinValue;
+            }
+        }
+
+        private void SendRate()
+        {
+            int code = SendCommand("SET SELF RATE " + _rate);
+            if (!SsipProtocol.IsSuccess(code))
+                Log.Warn(LogTag, $"speech-dispatcher rejected rate {_rate} (code {code})");
         }
 
         private void ExecuteOnSocket(Command command)
@@ -234,7 +287,7 @@ namespace AccessibleArena.Core.Speech
         {
             string args = command.Kind == CommandKind.Cancel
                 ? "-C"
-                : "-P message -- " + SsipProtocol.QuoteArgument(command.Text.Replace('\r', ' ').Replace('\n', ' '));
+                : "-P message " + (_rate != 0 ? "-r " + _rate + " " : "") + "-- " + SsipProtocol.QuoteArgument(command.Text.Replace('\r', ' ').Replace('\n', ' '));
 
             using (Process process = StartHidden(_spdSayPath, args))
             {
@@ -354,6 +407,11 @@ namespace AccessibleArena.Core.Speech
             ApplyOptionalSetting("AA_SPEECHD_RATE", "SET SELF RATE {0}");
             ApplyOptionalSetting("AA_SPEECHD_PITCH", "SET SELF PITCH {0}");
             ApplyOptionalSetting("AA_SPEECHD_VOLUME", "SET SELF VOLUME {0}");
+
+            // The F2 setting wins over AA_SPEECHD_RATE once it is moved off 0.
+            _rateDirty = false;
+            if (_rate != 0)
+                SendRate();
         }
 
         private void WebSocketHandshake()

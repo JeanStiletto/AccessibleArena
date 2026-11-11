@@ -122,5 +122,15 @@ namespace AccessibleArena.Tests
         {
             Assert.That(SsipProtocol.QuoteArgument(input), Is.EqualTo(expected));
         }
+
+        [TestCase(-250, -100)]
+        [TestCase(-100, -100)]
+        [TestCase(0, 0)]
+        [TestCase(40, 40)]
+        [TestCase(101, 100)]
+        public void ClampRate_KeepsSsipRange(int input, int expected)
+        {
+            Assert.That(SsipProtocol.ClampRate(input), Is.EqualTo(expected));
+        }
     }
 }

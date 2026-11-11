@@ -72,6 +72,7 @@ namespace AccessibleArena
 
         // Linux (Wine/Proton) channel. When active it carries both normal and urgent speech.
         private static SpeechDispatcherOutput _linux;
+        private static int _linuxRate;
         private static bool _linuxActive;
 
         // Optional entry points: older prism.dll builds may not export them, and a backend
@@ -87,6 +88,15 @@ namespace AccessibleArena
 
         /// <summary>True when the SAPI urgent channel is usable; false makes urgent fall back to normal.</summary>
         public static bool IsUrgentAvailable => _sapiReady;
+
+        /// <summary>
+        /// True while speech goes through speech-dispatcher (Wine/Proton). No screen reader
+        /// sees the game's keys there, so the mod itself stops speech on Ctrl.
+        /// </summary>
+        public static bool IsLinuxSpeechActive => _linuxActive;
+
+        /// <summary>True when the speech-dispatcher channel can be used, i.e. the game runs under Wine.</summary>
+        public static bool CanUseLinuxSpeech => WineInterop.IsWine;
 
         /// <summary>
         /// Brings up Prism and acquires both channels. Safe to call more than once; the second
@@ -149,7 +159,10 @@ namespace AccessibleArena
             try
             {
                 if (_linux == null)
+                {
                     _linux = new SpeechDispatcherOutput();
+                    _linux.SetRate(_linuxRate);
+                }
 
                 if (!_linux.Start())
                     return false;
@@ -919,6 +932,20 @@ namespace AccessibleArena
                 _available = previousAvailable;
                 Log.Warn(LogTag, $"backend switch to '{backendName}' failed; staying on {previousName}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Sets the speech-dispatcher rate, -100 to 100 (0 = speech-dispatcher's default). Call
+        /// before <see cref="Initialize(string, int)"/> to apply it from the first word. Prism's
+        /// screen readers keep their own rate, so this only affects the Linux channel.
+        /// </summary>
+        public static void SetSpeechRate(int rate)
+        {
+            lock (Gate)
+            {
+                _linuxRate = SsipProtocol.ClampRate(rate);
+                _linux?.SetRate(_linuxRate);
             }
         }
 

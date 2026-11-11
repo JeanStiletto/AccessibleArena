@@ -57,6 +57,7 @@ namespace AccessibleArena
             // Settings pick the speech backend and the urgent-channel volume, so they have to
             // be on disk-loaded before Prism comes up.
             _settings = ModSettings.Load();
+            ScreenReaderOutput.SetSpeechRate(_settings.SpeechRate);
 
             if (!ScreenReaderOutput.Initialize(_settings.SpeechBackend, _settings.UrgentSpeechVolume))
             {
@@ -523,6 +524,12 @@ namespace AccessibleArena
             // in edge cases, which would leave `_waitingForRelease` stuck until the
             // turn timer expires.
             PhaseSkipGuard.Poll();
+
+            // Under Wine no screen reader sees the game's keys, so Ctrl stops speech here, as it
+            // does in NVDA. Not consumed: Ctrl still works as a modifier for the mod's chords.
+            if (ScreenReaderOutput.IsLinuxSpeechActive &&
+                (KeyInput.GetKeyDown(KeyCode.LeftControl) || KeyInput.GetKeyDown(KeyCode.RightControl)))
+                ScreenReaderOutput.Silence();
 
             // Global: Ctrl+Right copies the current item's text (whatever was last
             // announced) to the clipboard. Handled here, before any navigator, so the

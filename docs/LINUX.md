@@ -24,14 +24,15 @@ cd linux
 
 The installer:
 
-- finds MTGA in your Steam libraries (native, Flatpak or Snap Steam), in a Lutris prefix, or in `~/.wine`; pass `--game-dir "/path/to/MTGA"` if it does not
+- finds MTGA in your Steam libraries (native, Flatpak or Snap Steam; the default Steam location is `~/.local/share/Steam/steamapps/common/MTGA`), in a Lutris prefix, or in `~/.wine`; pass `--game-dir "/path/to/MTGA"` if it does not
 - installs MelonLoader, unless it is already there
 - builds `AccessibleArena.dll` from the source folder it sits in, against your own game files, and installs it with `prism.dll`. If no .NET SDK (6.0 or newer) is installed, it first downloads a private one into `~/.local/share/accessible-arena/dotnet`, without root. The build log goes to `~/.local/share/accessible-arena/build.log`
 - `--dll path/to/AccessibleArena.dll` installs a DLL you built yourself instead; `--release` installs the latest release DLL (only useful once releases include Linux support)
 - installs the speech bridge as a systemd user service (skip with `--no-service`)
-- prints the launch option MelonLoader needs
+- creates a shortcut "MTG Arena (Accessible Arena)" on the desktop and in the applications menu (skip with `--no-shortcut`). It runs `~/.local/share/accessible-arena/launch-mtga.sh`, which starts the speech bridge when nothing answers on its port and then starts the game through Steam, or through Wine with the right prefix and DLL override. `--uninstall` removes it
+- sets the launch option MelonLoader needs, because MelonLoader loads through `version.dll` and Wine prefers its own copy. For Steam it adds `WINEDLLOVERRIDES="version=n,b"` to MTG Arena's launch options in Steam's `userdata/<account>/config/localconfig.vdf`, keeping any options you already had, and leaves a backup next to it (`localconfig.vdf.accessible-arena-backup`). Steam must be fully closed for this, because it rewrites that file when it exits; if it is running, the installer says so and you can close Steam and run it again. For Lutris and plain Wine the desktop shortcut starts the game with the override
 
-Then set the launch option, because MelonLoader loads through `version.dll` and Wine prefers its own copy:
+If the installer could not set it, set the launch option by hand:
 
 - Steam: right-click MTG Arena, Properties, General, Launch options: `WINEDLLOVERRIDES="version=n,b" %command%`
 - Lutris: Configure, Runner options, DLL overrides, add `version` with value `n,b`
@@ -63,9 +64,13 @@ The bridge listens on 127.0.0.1 only. Any program of any user on the same comput
 
 Both normal and urgent announcements go through speech-dispatcher; an urgent one cancels what the mod is saying. The urgent volume setting only applies to Prism's SAPI channel.
 
+Ctrl stops speech, as it does in NVDA. Under Windows the screen reader does this itself; under Wine no screen reader sees the game's keys, so the mod does it. Ctrl still works as a modifier for the mod's shortcuts.
+
+"Speech rate" in the mod settings (F2, right after "Speech output", only under Wine) sets how fast the mod speaks: Left and Right arrows change it in steps of 10 from -100 to +100, Enter steps faster and wraps around to the slowest. "Default" (0) keeps speech-dispatcher's own rate. The change applies from the next word and is saved. With an nvda2speechd server the rate cannot be changed from the mod; set it in nvda2speechd or with `spd-conf`.
+
 The mod's speech-dispatcher connection is separate from Orca's, so Orca's rate and voice do not apply to it; speech-dispatcher's defaults do (set them with `spd-conf`). To set them for the mod only, add environment variables to the launch options, before `%command%`:
 
-- `AA_SPEECHD_RATE`: -100 to 100
+- `AA_SPEECHD_RATE`: -100 to 100. Used only while the "Speech rate" setting is at Default
 - `AA_SPEECHD_PITCH`: -100 to 100
 - `AA_SPEECHD_VOLUME`: -100 to 100
 - `AA_SPEECHD_LANGUAGE`: language code, for example `pl` or `de`

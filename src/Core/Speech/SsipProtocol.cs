@@ -84,6 +84,9 @@ namespace AccessibleArena.Core.Speech
 
         internal static bool IsSuccess(int code) => code >= 200 && code < 300;
 
+        /// <summary>SSIP rates run from -100 (slowest) to 100 (fastest); 0 is the server default.</summary>
+        internal static int ClampRate(int rate) => rate < -100 ? -100 : rate > 100 ? 100 : rate;
+
         /// <summary>
         /// Client name in SSIP's <c>user:application:component</c> form. Speech-dispatcher
         /// shows it in its own logs and in tools like <c>spd-conf</c>.
