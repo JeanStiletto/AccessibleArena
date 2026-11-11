@@ -54,6 +54,12 @@ namespace AccessibleArena.Core.Services
         public int UrgentSpeechVolume { get; set; } = 100;
 
         /// <summary>
+        /// Speech-dispatcher rate under Wine/Proton, -100 to 100; 0 keeps speech-dispatcher's
+        /// default. Windows screen readers keep their own rate.
+        /// </summary>
+        public int SpeechRate { get; set; } = 0;
+
+        /// <summary>
         /// Load settings from disk. Returns defaults if file doesn't exist or is corrupt.
         /// </summary>
         public static ModSettings Load()
@@ -70,7 +76,7 @@ namespace AccessibleArena.Core.Services
 
                 string json = File.ReadAllText(SettingsPath);
                 settings.ParseJson(json);
-                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PriorityAnnouncements={settings.PriorityAnnouncements}, PriorityAlarm={settings.PriorityAlarm}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, BattlefieldStacking={settings.BattlefieldStacking}, CheckForUpdates={settings.CheckForUpdates}, SpeechBackend={settings.SpeechBackend}, CriticalViaSystemVoice={settings.CriticalViaSystemVoice}, UrgentSpeechVolume={settings.UrgentSpeechVolume}");
+                Log.Msg("ModSettings", $"Loaded settings: Language={settings.Language}, Tutorial={settings.TutorialMessages}, Verbose={settings.VerboseAnnouncements}, BriefCast={settings.BriefCastAnnouncements}, BriefOpponent={settings.BriefOpponentAnnouncements}, PhaseSkipWarning={settings.PhaseSkipWarning}, PriorityAnnouncements={settings.PriorityAnnouncements}, PriorityAlarm={settings.PriorityAlarm}, PositionCounts={settings.PositionCounts}, ManaColorlessLabel={settings.ManaColorlessLabel}, ManaGroupColors={settings.ManaGroupColors}, BattlefieldStacking={settings.BattlefieldStacking}, CheckForUpdates={settings.CheckForUpdates}, SpeechBackend={settings.SpeechBackend}, CriticalViaSystemVoice={settings.CriticalViaSystemVoice}, UrgentSpeechVolume={settings.UrgentSpeechVolume}, SpeechRate={settings.SpeechRate}");
             }
             catch (Exception ex)
             {
@@ -175,7 +181,8 @@ namespace AccessibleArena.Core.Services
                    $"  \"CheckForUpdates\": {(CheckForUpdates ? "true" : "false")},\n" +
                    $"  \"SpeechBackend\": \"{EscapeJson(SpeechBackend)}\",\n" +
                    $"  \"CriticalViaSystemVoice\": {(CriticalViaSystemVoice ? "true" : "false")},\n" +
-                   $"  \"UrgentSpeechVolume\": {UrgentSpeechVolume}\n" +
+                   $"  \"UrgentSpeechVolume\": {UrgentSpeechVolume},\n" +
+                   $"  \"SpeechRate\": {SpeechRate}\n" +
                    "}";
         }
 
@@ -198,6 +205,7 @@ namespace AccessibleArena.Core.Services
             SpeechBackend = ReadJsonString(json, "SpeechBackend") ?? SpeechBackend;
             CriticalViaSystemVoice = ReadJsonBool(json, "CriticalViaSystemVoice") ?? CriticalViaSystemVoice;
             UrgentSpeechVolume = ReadJsonInt(json, "UrgentSpeechVolume") ?? UrgentSpeechVolume;
+            SpeechRate = ReadJsonInt(json, "SpeechRate") ?? SpeechRate;
         }
 
         private static string ReadJsonString(string json, string key)

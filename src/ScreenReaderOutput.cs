@@ -26,6 +26,11 @@ namespace AccessibleArena
     /// Failure policy throughout: never throw at a call site. A missing or broken prism.dll
     /// leaves <see cref="IsAvailable"/> false and every method a no-op, exactly as the Tolk
     /// implementation behaved when Tolk.dll was absent.
+    ///
+    /// Linux: under Wine or Proton, none of Prism's Windows backends reaches the user's Linux
+    /// screen reader. There the mod speaks through speech-dispatcher (what Orca uses) via
+    /// <see cref="SpeechDispatcherOutput"/>, and Prism is only brought up if that fails or the
+    /// user explicitly picks a Prism backend. On Windows nothing changes.
     /// </summary>
     public static class ScreenReaderOutput
     {
@@ -65,6 +70,11 @@ namespace AccessibleArena
         private static readonly TimeSpan ReacquireInterval = TimeSpan.FromSeconds(5);
         private static DateTime _lastReacquire = DateTime.MinValue;
 
+        // Linux (Wine/Proton) channel. When active it carries both normal and urgent speech.
+        private static SpeechDispatcherOutput _linux;
+        private static int _linuxRate;
+        private static bool _linuxActive;
+
         // Optional entry points: older prism.dll builds may not export them, and a backend
         // without the matching SUPPORTS_* feature bit fails at call time. Each is probed once
         // and latched off, so a missing export costs one exception rather than one per call.
@@ -78,6 +88,15 @@ namespace AccessibleArena
 
         /// <summary>True when the SAPI urgent channel is usable; false makes urgent fall back to normal.</summary>
         public static bool IsUrgentAvailable => _sapiReady;
+
+        /// <summary>
+        /// True while speech goes through speech-dispatcher (Wine/Proton). No screen reader
+        /// sees the game's keys there, so the mod itself stops speech on Ctrl.
+        /// </summary>
+        public static bool IsLinuxSpeechActive => _linuxActive;
+
+        /// <summary>True when the speech-dispatcher channel can be used, i.e. the game runs under Wine.</summary>
+        public static bool CanUseLinuxSpeech => WineInterop.IsWine;
 
         /// <summary>
         /// Brings up Prism and acquires both channels. Safe to call more than once; the second
@@ -104,54 +123,115 @@ namespace AccessibleArena
                 _urgentVolumePercent = Clamp(urgentVolumePercent, 0, 100);
                 _preferredBackend = string.IsNullOrEmpty(preferredBackend) ? AutoBackend : preferredBackend;
 
-                try
+                if (WineInterop.IsWine)
                 {
-                    PreloadLibrary();
-
-                    // Reuse the context across a Shutdown/Initialize cycle — prism_shutdown is
-                    // deliberately never called (see Shutdown), so a second init would otherwise
-                    // strand the first context.
-                    if (_ctx == IntPtr.Zero)
-                        _ctx = PrismInterop.prism_init(IntPtr.Zero);
-
-                    if (_ctx == IntPtr.Zero)
-                    {
-                        Log.Warn(LogTag, "prism_init returned NULL; running silent");
-                        return false;
-                    }
-
-                    AcquireNormal(preferredBackend);
-                    AcquireSapi();
-
-                    if (_available)
-                    {
-                        Log.Msg(LogTag, $"ready — normal backend = {_normalName} ({BrailleMode()}), urgent backend = " +
-                                        (_sapiReady ? $"SAPI at {_urgentVolumePercent}%"
-                                                    : "(SAPI unavailable, urgent falls back to normal)"));
-                    }
-                    else
-                    {
-                        Log.Warn(LogTag, "no speech backend available; running silent");
-                    }
-                }
-                catch (DllNotFoundException)
-                {
-                    Log.Warn(LogTag, $"{PrismInterop.Dll} not found; running silent");
-                    _available = false;
-                }
-                catch (EntryPointNotFoundException ex)
-                {
-                    Log.Warn(LogTag, $"{PrismInterop.Dll} is missing an expected export ({ex.Message}); running silent");
-                    _available = false;
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn(LogTag, $"Prism init failed ({ex.GetType().Name}: {ex.Message}); running silent");
-                    _available = false;
+                    Log.Msg(LogTag, $"running under Wine {WineInterop.Version ?? "(unknown version)"}; " +
+                                    "trying speech-dispatcher first");
+                    if (WantsLinuxSpeech(_preferredBackend) && StartLinuxSpeech())
+                        return true;
                 }
 
-                return _available;
+                if (InitializePrism(preferredBackend))
+                    return true;
+
+                // A named Prism backend was preferred but nothing came up: Linux speech is
+                // still better than silence.
+                return WineInterop.IsWine && !WantsLinuxSpeech(_preferredBackend) && StartLinuxSpeech();
             }
+        }
+
+        /// <summary>
+        /// True when the preference allows speech-dispatcher: automatic selection or the
+        /// Speech Dispatcher entry itself. A named Prism backend skips it.
+        /// </summary>
+        private static bool WantsLinuxSpeech(string preferredBackend)
+        {
+            return string.IsNullOrEmpty(preferredBackend) ||
+                   string.Equals(preferredBackend, AutoBackend, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(preferredBackend, SpeechDispatcherOutput.BackendName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Brings up the speech-dispatcher channel. Caller holds <see cref="Gate"/>.
+        /// </summary>
+        private static bool StartLinuxSpeech()
+        {
+            try
+            {
+                if (_linux == null)
+                {
+                    _linux = new SpeechDispatcherOutput();
+                    _linux.SetRate(_linuxRate);
+                }
+
+                if (!_linux.Start())
+                    return false;
+
+                _linuxActive = true;
+                _available = true;
+                _normalName = SpeechDispatcherOutput.BackendName;
+                Log.Msg(LogTag, $"ready — normal and urgent backend = {_normalName} ({_linux.Transport})");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogTag, $"speech-dispatcher init failed ({ex.GetType().Name}: {ex.Message})");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Brings up Prism and acquires both channels. Caller holds <see cref="Gate"/>.
+        /// </summary>
+        private static bool InitializePrism(string preferredBackend)
+        {
+            try
+            {
+                PreloadLibrary();
+
+                // Reuse the context across a Shutdown/Initialize cycle — prism_shutdown is
+                // deliberately never called (see Shutdown), so a second init would otherwise
+                // strand the first context.
+                if (_ctx == IntPtr.Zero)
+                    _ctx = PrismInterop.prism_init(IntPtr.Zero);
+
+                if (_ctx == IntPtr.Zero)
+                {
+                    Log.Warn(LogTag, "prism_init returned NULL; running silent");
+                    return false;
+                }
+
+                AcquireNormal(preferredBackend);
+                AcquireSapi();
+
+                if (_available)
+                {
+                    Log.Msg(LogTag, $"ready — normal backend = {_normalName} ({BrailleMode()}), urgent backend = " +
+                                    (_sapiReady ? $"SAPI at {_urgentVolumePercent}%"
+                                                : "(SAPI unavailable, urgent falls back to normal)"));
+                }
+                else
+                {
+                    Log.Warn(LogTag, "no speech backend available; running silent");
+                }
+            }
+            catch (DllNotFoundException)
+            {
+                Log.Warn(LogTag, $"{PrismInterop.Dll} not found; running silent");
+                _available = false;
+            }
+            catch (EntryPointNotFoundException ex)
+            {
+                Log.Warn(LogTag, $"{PrismInterop.Dll} is missing an expected export ({ex.Message}); running silent");
+                _available = false;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogTag, $"Prism init failed ({ex.GetType().Name}: {ex.Message}); running silent");
+                _available = false;
+            }
+
+            return _available;
         }
 
         /// <summary>
@@ -493,6 +573,9 @@ namespace AccessibleArena
         {
             lock (Gate)
             {
+                if (_linux != null)
+                    _linux.Stop();
+                _linuxActive = false;
                 _available = false;
                 _sapiReady = false;
                 _normal = IntPtr.Zero;
@@ -510,6 +593,12 @@ namespace AccessibleArena
         {
             if (!_available || string.IsNullOrEmpty(text))
                 return;
+
+            if (_linuxActive)
+            {
+                _linux.Speak(text, interrupt);
+                return;
+            }
 
             byte[] utf8 = PrismInterop.ToUtf8(text);
             if (utf8 == null)
@@ -616,6 +705,12 @@ namespace AccessibleArena
             if (!_available || string.IsNullOrEmpty(text))
                 return;
 
+            if (_linuxActive)
+            {
+                _linux.Speak(text, true);
+                return;
+            }
+
             if (!_sapiReady)
             {
                 Speak(text, true);
@@ -663,6 +758,12 @@ namespace AccessibleArena
 
                 try
                 {
+                    if (_linuxActive)
+                    {
+                        _linux.Silence();
+                        return;
+                    }
+
                     if (_normal != IntPtr.Zero)
                         PrismInterop.prism_backend_stop(_normal);
                     if (_sapi != IntPtr.Zero)
@@ -683,7 +784,7 @@ namespace AccessibleArena
 
             lock (Gate)
             {
-                if (!_available)
+                if (!_available || _linuxActive)
                     return false;
 
                 try
@@ -717,12 +818,15 @@ namespace AccessibleArena
         {
             lock (Gate)
             {
+                var names = new List<string>();
+                if (WineInterop.IsWine)
+                    names.Add(SpeechDispatcherOutput.BackendName);
+
                 if (_ctx == IntPtr.Zero)
-                    return new string[0];
+                    return names.ToArray();
 
                 try
                 {
-                    var names = new List<string>();
                     long count = PrismInterop.prism_registry_count(_ctx).ToInt64();
                     for (long i = 0; i < count; i++)
                     {
@@ -739,7 +843,7 @@ namespace AccessibleArena
                 catch (Exception ex)
                 {
                     Log.Warn(LogTag, $"could not enumerate backends: {ex.Message}");
-                    return new string[0];
+                    return names.ToArray();
                 }
             }
         }
@@ -755,6 +859,50 @@ namespace AccessibleArena
         {
             lock (Gate)
             {
+                if (WineInterop.IsWine)
+                {
+                    bool wantsLinux = WantsLinuxSpeech(backendName);
+                    if (wantsLinux && (_linuxActive || StartLinuxSpeech()))
+                    {
+                        _preferredBackend = string.IsNullOrEmpty(backendName) ? AutoBackend : backendName;
+                        Log.Msg(LogTag, $"normal backend switched to {_normalName}");
+                        return true;
+                    }
+
+                    if (!wantsLinux && _linuxActive)
+                    {
+                        // This session speaks through speech-dispatcher and a Prism backend was
+                        // picked by name. Keep speech-dispatcher speaking unless the switch works.
+                        _linuxActive = false;
+                        _available = false;
+                        try
+                        {
+                            if (_ctx == IntPtr.Zero)
+                                InitializePrism(backendName);
+                            else
+                                AcquireNormal(backendName);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogTag, $"backend switch to '{backendName}' threw {ex.GetType().Name}: {ex.Message}");
+                        }
+
+                        if (_available && string.Equals(backendName, _normalName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _linux.Stop();
+                            _preferredBackend = backendName;
+                            Log.Msg(LogTag, $"normal backend switched to {_normalName} ({BrailleMode()})");
+                            return true;
+                        }
+
+                        _linuxActive = true;
+                        _available = true;
+                        _normalName = SpeechDispatcherOutput.BackendName;
+                        Log.Warn(LogTag, $"backend switch to '{backendName}' failed; staying on {_normalName}");
+                        return false;
+                    }
+                }
+
                 if (_ctx == IntPtr.Zero)
                     return false;
 
@@ -784,6 +932,20 @@ namespace AccessibleArena
                 _available = previousAvailable;
                 Log.Warn(LogTag, $"backend switch to '{backendName}' failed; staying on {previousName}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Sets the speech-dispatcher rate, -100 to 100 (0 = speech-dispatcher's default). Call
+        /// before <see cref="Initialize(string, int)"/> to apply it from the first word. Prism's
+        /// screen readers keep their own rate, so this only affects the Linux channel.
+        /// </summary>
+        public static void SetSpeechRate(int rate)
+        {
+            lock (Gate)
+            {
+                _linuxRate = SsipProtocol.ClampRate(rate);
+                _linux?.SetRate(_linuxRate);
             }
         }
 

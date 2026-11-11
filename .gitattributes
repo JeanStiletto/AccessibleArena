@@ -1,0 +1,4 @@
+# Linux scripts must keep LF line endings, or bash and the shebang line fail.
+*.sh text eol=lf
+*.py text eol=lf
+*.service text eol=lf
