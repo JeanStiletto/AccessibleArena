@@ -5,56 +5,57 @@ PC-Talker, BoyPC Reader, Sense Reader, ZoomText and SAPI through one C ABI, and 
 in v1.4.6.
 
 - Upstream: <https://github.com/ethindp/prism>, MPL-2.0 (see `LICENSE`)
-- Version here: **0.17.3**, plus the local patches described below
+- Version here: **0.18.3**, plus the local patches described below
 - `x64/prism.dll` — the shipped build. This is the file the installer embeds and the one that
   ends up in the MTGA root folder.
-- `include/prism.h` — the C ABI these bindings were written against. `src/Core/Speech/PrismInterop.cs`
-  must stay in step with it.
-- `prism-local-patches.patch` — the local changes carried on top of upstream 0.17.3.
+- `include/prism.h`, `include/prism_version.h` — the C ABI these bindings were written against.
+  `src/Core/Speech/PrismInterop.cs` must stay in step with it.
+- `prism-local-patches.patch` — the local changes carried on top of upstream 0.18.3, as a
+  `git format-patch` of the patch commit (see Rebuilding).
+- `build-prism.bat` — builds Arena's DLL from the shared Prism checkout.
 
 Nothing links against Prism at build time. The mod resolves it at runtime, so a missing
 `prism.dll` costs speech, not stability.
 
 ## The shipped DLL is patched — do not swap in a stock build
 
-Three local changes ride on top of upstream 0.17.3. Upstream has taken none of them, and checking
-again at 0.17.3 confirmed it: `__except` appears nowhere in that tree, and the `.def` files,
-`source/delayimp.cpp` and the `/delayload` wiring are all still in place. They came from the KOTOR
-accessibility mod, where they were found by shipping to real users:
+Two local changes ride on top of upstream 0.18.3. They came from the KOTOR accessibility mod,
+where they were found by shipping to real users:
 
 1. **SEH-guarded `initialize()`.** Several backends reach a vendor DLL during initialisation
    (ZDSR → `ZDSRAPI_x64.dll`, PC-Talker → `PCTKUSR.dll`, BoyPC → `byctrl-x64.dll`). When a user has
-   that reader installed at a version whose exports do not match, the loader raises a structured
-   exception from inside `initialize()`. Unguarded, that takes the game down at startup before a
-   word is spoken — reported by a real beta tester with ZDSR. Guarded, the faulting backend is
-   skipped and selection walks on.
+   that reader installed at a version whose exports do not match, the loader can raise a
+   structured exception from inside `initialize()`. Unguarded, that takes the game down at startup
+   before a word is spoken — reported by a real beta tester with ZDSR. Guarded, the faulting
+   backend reports itself unavailable and selection walks on.
 
-   Applied in two places. `source/frozen_registry.cpp` covers `acquire_best` / `create_best` — this
-   was `backend_registry.cpp` before 0.17.x moved it. `source/prism.cpp` covers
-   `prism_backend_initialize` at the C boundary, which matters because the mod does its own
-   priority walk (see `ScreenReaderOutput.AcquireFirstLive`) and so never passes through the
-   registry's guarded path.
+   Since 0.18.x every initialisation goes through `TextToSpeechBackend::initialize_tracked()` or
+   `ensure_initialized()` in `source/backend.h`, so the guard sits there once
+   (`seh_guarded_initialize`) and covers both the C boundary (`prism_backend_initialize`, which the
+   mod's own priority walk in `ScreenReaderOutput.AcquireFirstLive` uses) and the registry's
+   `*_best()` walks. Upstream still has no `__except` anywhere.
 
    **This one cannot be replicated on our side.** C# has no `__try`/`__except`, and Unity's Mono
    will not survive the fault. The protection only exists if the shipped `prism.dll` carries this
    patch.
 
-2. **ZDSR / PC-Talker / BoyPC client DLLs resolved at runtime** rather than through a `.def` import
-   library plus `/delayload`. Verify with `dumpbin /dependents x64/prism.dll`: none of
-   `ZDSRAPI_x64.dll`, `byctrl-x64.dll` or `PCTKUSR.dll` may appear.
-
-   Two adaptations were needed at 0.17.3, both because runtime resolution turns a missing export
-   into a null pointer rather than a link error:
-   - ZDSR gained a `Braille` export upstream. It is resolved *optionally*, and `braille()` reports
-     `NotImplemented` when it is absent, so an older `ZDSRAPI` keeps speaking rather than failing
-     to bind at all. `SUPPORTS_BRAILLE` is advertised only when the export is really there.
-   - `BoyCtrlSetAnyKeyStopSpeaking` was renamed `BoyCtrlSetAnyKeyBreak` upstream. No backend method
-     calls it, so it is resolved optionally under both names and is not allowed to decide whether
-     the library loaded — requiring the wrong spelling would silently disable BoyPC entirely.
-
-3. **`CMAKE_C_STANDARD` pinned to 17** — build-environment only, no ABI change. Upstream sets C23
+2. **`CMAKE_C_STANDARD` pinned to 17** — build-environment only, no ABI change. Upstream sets C23
    in `cmake/PrismOptions.cmake`, which this MSVC/CMake pair rejects outright ("Target prism
    requires the language dialect C23"). Prism's C code only declares `c_std_17` anyway.
+
+The former third patch, resolving the ZDSR / PC-Talker / BoyPC client DLLs at runtime instead of
+through `/delayload`, is upstream since 0.18.3 (ethindp/prism#146), together with the Wine bridges
+below. `dumpbin /dependents` must still list none of those DLLs.
+
+## Linux: Wine bridges
+
+Since 0.18.3 the Windows `prism.dll` contains Orca, Speech Dispatcher and Spiel backends that work
+under Wine or Proton by calling a bridge. On Windows they report `IS_SUPPORTED_AT_RUNTIME` false and
+cost nothing. Under Wine they need the bridge payload from the upstream `prism-linux-x64.zip`
+release asset (`dynamic/release/wine/`), deployed as the upstream `doc/src/wine-bridges.md`
+describes: the placeholder `.dll` files next to `prism.dll`, the `.dll.so` files in a Unix folder
+named in `WINEDLLPATH`. `linux/install.sh` does that. Bridge payload and `prism.dll` must come from
+the same Prism release. See docs/LINUX.md.
 
 ## The mod passes a NULL config on purpose
 
@@ -66,19 +67,29 @@ unless the mod actually needs a config field — see the comment on the declarat
 
 ## Rebuilding
 
-The patched source tree lives in the KOTOR project at `../kotor/third_party/prism`. Run
-`_build_arena_x64.bat` there: it calls `vcvars64`, puts the VS-bundled CMake and Ninja on PATH, and
-configures 64-bit Release with the static CRT (no VC++ redistributable needed by users) and every
-`PRISM_ENABLE_*` off. Then copy the resulting `build_arena_x64/prism.dll` over both
-`x64/prism.dll` and `installer/AccessibleArenaInstaller/Resources/prism.dll`, and refresh
-`include/prism.h` from the same tree.
+The patched source lives in its own checkout, `Dev\prism` next to this repository: a clone of
+github.com/ethindp/prism with the local patches as one commit on branch `arena-patched`, on top of
+the release tag. KOTOR builds from the same checkout with its own script and settings; each mod
+keeps its own copy of the built DLL, so updating one never changes the other.
 
-After any upstream update, re-apply `prism-local-patches.patch` first, then check all four before
-shipping — a stock upstream or vcpkg build will look fine on a developer machine and crash on a
-user's:
+Run `third_party\prism\build-prism.bat` (optionally with the checkout path as argument). It calls
+`vcvars64`, puts the VS-bundled CMake and Ninja on PATH, and configures 64-bit Release with the
+static CRT (no VC++ redistributable needed by users) and every optional `PRISM_ENABLE_*` off. Then
+copy `<prism>\build_arena_x64\prism.dll` over both `x64/prism.dll` and
+`installer/AccessibleArenaInstaller/Resources/prism.dll`, and refresh `include/prism.h` and
+`include/prism_version.h` (from `build_arena_x64/generated/include`).
 
-- `seh_safe_initialize` present in `source/frozen_registry.cpp`
-- `seh_safe_backend_initialize` present in `source/prism.cpp`
+To move to a new upstream release: `git fetch --tags`, then `git rebase --onto <new tag> <old tag>
+arena-patched`, rebuild, and export the patch again with `git format-patch -1 --stdout >
+prism-local-patches.patch`.
+
+After any upstream update, check all four before shipping — a stock upstream or vcpkg build will
+look fine on a developer machine and crash on a user's:
+
+- `seh_guarded_initialize` present in `source/backend.h`, and both `initialize_tracked()` and
+  `ensure_initialized()` calling `guarded_initialize()` rather than `initialize()` (upstream may
+  move these again; the guard must wrap every path into a backend's `initialize()`)
+- `CMAKE_C_STANDARD 17` in `cmake/PrismOptions.cmake`
 - `dumpbin /dependents` on the built DLL lists no `ZDSRAPI_x64.dll`, `byctrl-x64.dll` or
   `PCTKUSR.dll`, and no `vcruntime140.dll` / `msvcp140.dll`
 - `dumpbin /exports` still covers every entry point `PrismInterop.cs` declares
