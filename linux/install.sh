@@ -7,12 +7,15 @@
 #   3. builds the mod from this source folder against your own game files (it downloads a
 #      private .NET SDK into ~/.local/share/accessible-arena if dotnet is not installed)
 #      and installs AccessibleArena.dll and prism.dll
-#   4. installs the speech bridge as a systemd user service, so the mod can reach
-#      speech-dispatcher (Orca's speech server) from inside Wine/Proton
-#   5. puts an "MTG Arena (Accessible Arena)" shortcut on the desktop and in the
+#   4. installs Prism's Wine bridges (Orca, Speech Dispatcher, Spiel), so the mod can speak
+#      through the player's Linux screen reader or speech service; the player picks one in F2
+#   5. installs the mod's own speech bridge as a systemd user service: a fallback route to
+#      speech-dispatcher that also works when Prism's bridges cannot load
+#   6. puts an "MTG Arena (Accessible Arena)" shortcut on the desktop and in the
 #      applications menu; it starts the speech bridge if needed, then the game
-#   6. sets the launch option MelonLoader needs under Wine (WINEDLLOVERRIDES="version=n,b")
-#      in Steam's settings; Steam must be closed for that, otherwise it prints the steps
+#   7. sets the launch options the mod needs under Wine in Steam's settings:
+#      WINEDLLOVERRIDES="version=n,b" for MelonLoader and WINEDLLPATH for Prism's bridges.
+#      Steam must be closed for that, otherwise it prints the steps
 #
 # Usage: ./install.sh [--game-dir DIR] [--dll FILE] [--release] [--no-service]
 #                     [--no-shortcut] [--uninstall]
@@ -44,6 +47,13 @@ INSTALL_SHORTCUT=1
 UNINSTALL=0
 STEAM_APP_ID=2141910
 LAUNCHER="$BRIDGE_DIR/launch-mtga.sh"
+# Prism's Wine bridges: the placeholder .dll files go next to prism.dll in the game folder, the
+# host-side .dll.so files into this Unix folder, which Wine finds through WINEDLLPATH. Inside the
+# game folder so that sandboxed runners (Flatpak Steam) can read it too.
+PRISM_BRIDGES=(prism_orca_bridge prism_speech_dispatcher_bridge prism_spiel_bridge)
+PRISM_WINE_SUBDIR="prism-wine"
+PRISM_RELEASE="v0.18.3"
+PRISM_LINUX_ZIP="https://github.com/ethindp/prism/releases/download/$PRISM_RELEASE/prism-linux-x64.zip"
 SHORTCUT_NAME="accessible-arena-mtga.desktop"
 MENU_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 
@@ -51,7 +61,7 @@ say() { printf '%s\n' "$*"; }
 die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 
 usage() {
-    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
 }
 
@@ -144,6 +154,8 @@ say "MTG Arena folder: $GAME_DIR"
 if [ "$UNINSTALL" -eq 1 ]; then
     rm -f "$GAME_DIR/Mods/AccessibleArena.dll" "$GAME_DIR/prism.dll" \
           "$GAME_DIR/UserData/AccessibleArena-speechd-bridge.py"
+    for bridge in "${PRISM_BRIDGES[@]}"; do rm -f "$GAME_DIR/$bridge.dll"; done
+    rm -rf "${GAME_DIR:?}/$PRISM_WINE_SUBDIR"
     say "Removed the mod from the game folder. MelonLoader was left in place."
     if command -v systemctl >/dev/null 2>&1 && [ -f "$SERVICE_DIR/$SERVICE_NAME" ]; then
         systemctl --user disable --now "$SERVICE_NAME" >/dev/null 2>&1 || true
@@ -210,6 +222,7 @@ find_source() {
 build_mod() {
     local source dotnet out log
     source="$(find_source)"
+    SOURCE_DIR="$source"
     [ -f "$source/src/Core/Speech/SpeechDispatcherOutput.cs" ] \
         || die "the source in $source has no Linux speech support; use the repository that contains linux/install.sh"
 
@@ -249,15 +262,41 @@ else
     build_mod
 fi
 
-# prism.dll is the Windows speech library. Under Wine it is only a fallback, but the mod
-# expects it in the game folder.
-if [ -f "$SCRIPT_DIR/../third_party/prism/x64/prism.dll" ]; then
-    cp "$SCRIPT_DIR/../third_party/prism/x64/prism.dll" "$GAME_DIR/prism.dll"
+# prism.dll is the speech library. Under Wine it reaches Orca, Speech Dispatcher and Spiel
+# through the bridges below; without it, only the mod's own speech-dispatcher route speaks.
+PRISM_DIR="$SCRIPT_DIR/../third_party/prism"
+[ -f "$PRISM_DIR/x64/prism.dll" ] || PRISM_DIR="${SOURCE_DIR:-}/third_party/prism"
+if [ -f "$PRISM_DIR/x64/prism.dll" ]; then
+    cp "$PRISM_DIR/x64/prism.dll" "$GAME_DIR/prism.dll"
 elif download "$RELEASE_URL/prism.dll" "$TMP/prism.dll" 2>/dev/null; then
     cp "$TMP/prism.dll" "$GAME_DIR/prism.dll"
 else
-    say "Note: prism.dll could not be downloaded; it is only needed as a fallback on Linux."
+    say "Note: prism.dll could not be downloaded; the mod will speak through its own speech-dispatcher route only."
 fi
+
+# Prism's Wine bridges. Shipped in third_party/prism/wine (taken from the Prism release that
+# prism.dll was built from); otherwise fetched from that Prism release.
+install_prism_bridges() {
+    local src="$PRISM_DIR/wine" bridge
+    if [ ! -f "$src/prism_orca_bridge.dll.so" ]; then
+        say "Downloading Prism's Linux bridges (Prism $PRISM_RELEASE, about 90 MB, one time only)..."
+        download "$PRISM_LINUX_ZIP" "$TMP/prism-linux.zip" || return 1
+        python3 -m zipfile -e "$TMP/prism-linux.zip" "$TMP/prism-linux" || return 1
+        src="$TMP/prism-linux/dynamic/release/wine"
+    fi
+    mkdir -p "$GAME_DIR/$PRISM_WINE_SUBDIR"
+    for bridge in "${PRISM_BRIDGES[@]}"; do
+        [ -f "$src/$bridge.dll.so" ] && [ -f "$src/placeholders/$bridge.dll" ] || continue
+        cp "$src/$bridge.dll.so" "$GAME_DIR/$PRISM_WINE_SUBDIR/"
+        cp "$src/placeholders/$bridge.dll" "$GAME_DIR/"
+    done
+}
+if [ -f "$GAME_DIR/prism.dll" ] && install_prism_bridges; then
+    say "Installed Prism's Wine bridges for Orca, Speech Dispatcher and Spiel."
+else
+    say "Note: Prism's Wine bridges were not installed; the mod will use its own speech-dispatcher route."
+fi
+PRISM_WINE_DIR="$GAME_DIR/$PRISM_WINE_SUBDIR"
 
 # --- Speech bridge -------------------------------------------------------------
 
@@ -304,11 +343,11 @@ write_launcher() {
             icon="steam"
             ;;
         */drive_c/*)
-            launch="cd $(printf '%q' "$GAME_DIR") && WINEPREFIX=$(printf '%q' "${GAME_DIR%%/drive_c/*}") WINEDLLOVERRIDES=\"version=n,b\" exec wine MTGA.exe"
+            launch="cd $(printf '%q' "$GAME_DIR") && WINEPREFIX=$(printf '%q' "${GAME_DIR%%/drive_c/*}") WINEDLLOVERRIDES=\"version=n,b\" WINEDLLPATH=$(printf '%q' "$PRISM_WINE_DIR")\"\${WINEDLLPATH:+:\$WINEDLLPATH}\" exec wine MTGA.exe"
             icon="applications-games"
             ;;
         *)
-            launch="cd $(printf '%q' "$GAME_DIR") && WINEDLLOVERRIDES=\"version=n,b\" exec wine MTGA.exe"
+            launch="cd $(printf '%q' "$GAME_DIR") && WINEDLLOVERRIDES=\"version=n,b\" WINEDLLPATH=$(printf '%q' "$PRISM_WINE_DIR")\"\${WINEDLLPATH:+:\$WINEDLLPATH}\" exec wine MTGA.exe"
             icon="applications-games"
             ;;
     esac
@@ -363,11 +402,13 @@ fi
 # Steam keeps each game's launch options in userdata/<account>/config/localconfig.vdf.
 # Prints "set", "already" or "missing" (MTG Arena has no entry in that file).
 set_steam_launch_option() { # localconfig.vdf
-    python3 - "$1" "$STEAM_APP_ID" <<'PY'
+    python3 - "$1" "$STEAM_APP_ID" "$PRISM_WINE_DIR" <<'PY'
 import re, shutil, sys
 
-path, app_id = sys.argv[1], sys.argv[2]
+path, app_id, bridge_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 OVERRIDE = 'version=n,b'
+# Prism's bridge folder at the front of WINEDLLPATH, keeping whatever Proton or the user set.
+DLLPATH = 'WINEDLLPATH="' + bridge_dir + ':$WINEDLLPATH"'
 text = open(path, encoding='utf-8').read()
 
 # Tokens of Valve's text KeyValues format: quoted strings and braces.
@@ -409,28 +450,44 @@ def indent_before(pos):
 def vdf(value):
     return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
+FRESH = 'WINEDLLOVERRIDES="' + OVERRIDE + '" ' + DLLPATH + ' %command%'
+
+def with_variables(old):
+    """Adds the override and the bridge path to an existing launch option, keeping the rest."""
+    new = old
+    if '%command%' not in new:  # bare game arguments
+        new = ('%command% ' + new).rstrip()
+    if OVERRIDE not in new:
+        if 'WINEDLLOVERRIDES="' in new:
+            new = new.replace('WINEDLLOVERRIDES="', 'WINEDLLOVERRIDES="' + OVERRIDE + ';', 1)
+        elif 'WINEDLLOVERRIDES=' in new:
+            new = new.replace('WINEDLLOVERRIDES=', 'WINEDLLOVERRIDES=' + OVERRIDE + ';', 1)
+        else:
+            new = 'WINEDLLOVERRIDES="' + OVERRIDE + '" ' + new
+    if bridge_dir not in new:
+        if 'WINEDLLPATH="' in new:
+            new = new.replace('WINEDLLPATH="', 'WINEDLLPATH="' + bridge_dir + ':', 1)
+        elif 'WINEDLLPATH=' in new:
+            new = new.replace('WINEDLLPATH=', 'WINEDLLPATH=' + bridge_dir + ':', 1)
+        else:
+            new = new.replace('%command%', DLLPATH + ' %command%', 1)
+    return new
+
 if option:
     old = option[2].replace('\\"', '"').replace('\\\\', '\\')
-    if OVERRIDE in old:
+    new = with_variables(old)
+    if new == old:
         print('already'); sys.exit(0)
-    if 'WINEDLLOVERRIDES="' in old:
-        new = old.replace('WINEDLLOVERRIDES="', 'WINEDLLOVERRIDES="' + OVERRIDE + ';', 1)
-    elif 'WINEDLLOVERRIDES=' in old:
-        new = old.replace('WINEDLLOVERRIDES=', 'WINEDLLOVERRIDES=' + OVERRIDE + ';', 1)
-    elif '%command%' in old:
-        new = 'WINEDLLOVERRIDES="' + OVERRIDE + '" ' + old
-    else:  # bare game arguments
-        new = ('WINEDLLOVERRIDES="' + OVERRIDE + '" %command% ' + old).rstrip()
     result = text[:option[0]] + vdf(new) + text[option[1]:]
 elif app_close is not None:
     pad = indent_before(app_close) + '\t'
-    entry = pad + '"LaunchOptions"\t\t' + vdf('WINEDLLOVERRIDES="' + OVERRIDE + '" %command%') + '\n'
+    entry = pad + '"LaunchOptions"\t\t' + vdf(FRESH) + '\n'
     line_start = text.rfind('\n', 0, app_close) + 1
     result = text[:line_start] + entry + text[line_start:]
 elif apps_close is not None:
     pad = indent_before(apps_close) + '\t'
     block = (pad + '"' + app_id + '"\n' + pad + '{\n' + pad + '\t"LaunchOptions"\t\t'
-             + vdf('WINEDLLOVERRIDES="' + OVERRIDE + '" %command%') + '\n' + pad + '}\n')
+             + vdf(FRESH) + '\n' + pad + '}\n')
     line_start = text.rfind('\n', 0, apps_close) + 1
     result = text[:line_start] + block + text[line_start:]
 else:
@@ -466,7 +523,7 @@ case "$GAME_DIR" in
         else
             for config in "${configs[@]}"; do
                 case "$(set_steam_launch_option "$config" 2>/dev/null || echo failed)" in
-                    set) LAUNCH_OPTION_DONE=1; say "Steam launch option for MTG Arena set (WINEDLLOVERRIDES=\"version=n,b\"). Backup: $config.accessible-arena-backup" ;;
+                    set) LAUNCH_OPTION_DONE=1; say "Steam launch options for MTG Arena set (WINEDLLOVERRIDES and WINEDLLPATH). Backup: $config.accessible-arena-backup" ;;
                     already) LAUNCH_OPTION_DONE=1; say "Steam launch option was already set." ;;
                     missing) say "MTG Arena not found in $config (start it once from Steam, then run install.sh again)." ;;
                     *) say "Could not change $config" ;;
@@ -487,10 +544,14 @@ if [ "$LAUNCH_OPTION_DONE" -eq 1 ]; then
     esac
     say "You should hear: Accessible Arena launched."
 else
-    say "Installation finished. One step is left, because MelonLoader loads through version.dll:"
-    say "Steam: right-click MTG Arena, Properties, General, Launch options, and enter:"
-    say "  WINEDLLOVERRIDES=\"version=n,b\" %command%"
+    say "Installation finished. One step is left: MelonLoader loads through version.dll, and Prism's bridges"
+    say "are found through WINEDLLPATH."
+    say "Steam: open MTG Arena's Properties, General, Launch options, and enter:"
+    say "  WINEDLLOVERRIDES=\"version=n,b\" WINEDLLPATH=\"$PRISM_WINE_DIR:\$WINEDLLPATH\" %command%"
     say "Lutris: Configure, Runner options, DLL overrides, add: version = n,b"
-    say "Plain Wine: start the game with WINEDLLOVERRIDES=\"version=n,b\" wine MTGA.exe"
+    say "  and under System options, Environment variables, add WINEDLLPATH = $PRISM_WINE_DIR"
+    say "Plain Wine: start the game with"
+    say "  WINEDLLOVERRIDES=\"version=n,b\" WINEDLLPATH=\"$PRISM_WINE_DIR\" wine MTGA.exe"
     say "Then start the game. You should hear: Accessible Arena launched."
+    say "Without WINEDLLPATH the mod still speaks, through its own speech-dispatcher route."
 fi

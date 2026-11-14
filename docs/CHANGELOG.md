@@ -7,12 +7,25 @@ All notable changes to Accessible Arena.
 <h3>Overview</h3>
 
 - The challenge invite popup reads already-invited players and the "Recent opponents" list again after the November 2026 game update.
+- The mod runs on Linux under Steam/Proton, Lutris and Wine, with an installer, and speaks through Orca, Speech Dispatcher or Spiel, chosen in the mod settings.
+- The speech library Prism is updated to version 0.18.3.
 
 <h3>Details</h3>
 
 **Challenge invite (November 2026 game update):**
 
 - The game rebuilt the challenge invite popup on a new shared base class for invite windows. The entry for an already-invited player was renamed (InviteWindowEntityInvited) and the recent-opponents dropdown moved to the base class under a new name, so invited players and the dropdown's label went silent. Both are read again. The dropdown is now found on any invite popup built on that base.
+
+**Linux:**
+
+- New: Linux support, contributed by borys22blinddev (PR #128). MTG Arena runs under Steam/Proton, Lutris or plain Wine, and `linux/install.sh` sets everything up: it finds the game, installs MelonLoader, builds the mod against the player's own game files (with a private .NET SDK if none is installed, no root), installs the speech pieces, creates a desktop shortcut, and writes the Steam launch options while Steam is closed. See docs/LINUX.md.
+- Players choose what speaks in F2, "Speech output", as on Windows: Orca with their own voice and rate, Speech Dispatcher, Spiel, or "Speech Dispatcher (direct)", the mod's own route to speech-dispatcher, which needs no extra files and also talks to an nvda2speechd server. Automatic selection tries Orca, Speech Dispatcher and Spiel first, then the direct route, then anything else Prism offers, so the mod speaks whenever anything can.
+- Under Wine, Ctrl stops speech, as NVDA does on Windows, and a "Speech rate" setting appears in F2 for Speech Dispatcher and Spiel; Orca keeps its own rate.
+- Linux builds made by the installer are updated by running the installer again; F5 says so instead of downloading a Windows release DLL.
+
+**Speech library:**
+
+- Prism, the library behind all speech and braille output, is updated from 0.17.3 to 0.18.3. On Windows nothing should sound different: the same screen readers are found in the same order. The new version adds the Linux bridges above and makes SAPI work under Wine/Proton. The mod's crash protection for broken ZDSR, PC-Talker and BoyPC installations is carried over, and part of it is now built into Prism itself.
 
 ## v1.6.4
 

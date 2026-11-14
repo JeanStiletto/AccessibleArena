@@ -2,3 +2,5 @@
 *.sh text eol=lf
 *.py text eol=lf
 *.service text eol=lf
+# Prebuilt Linux/Wine binaries from the Prism release: never convert line endings.
+third_party/prism/wine/** binary

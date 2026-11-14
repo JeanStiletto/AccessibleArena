@@ -123,32 +123,74 @@ namespace AccessibleArena
                 _urgentVolumePercent = Clamp(urgentVolumePercent, 0, 100);
                 _preferredBackend = string.IsNullOrEmpty(preferredBackend) ? AutoBackend : preferredBackend;
 
-                if (WineInterop.IsWine)
-                {
-                    Log.Msg(LogTag, $"running under Wine {WineInterop.Version ?? "(unknown version)"}; " +
-                                    "trying speech-dispatcher first");
-                    if (WantsLinuxSpeech(_preferredBackend) && StartLinuxSpeech())
-                        return true;
-                }
+                if (!WineInterop.IsWine)
+                    return InitializePrism(preferredBackend);
 
-                if (InitializePrism(preferredBackend))
-                    return true;
-
-                // A named Prism backend was preferred but nothing came up: Linux speech is
-                // still better than silence.
-                return WineInterop.IsWine && !WantsLinuxSpeech(_preferredBackend) && StartLinuxSpeech();
+                Log.Msg(LogTag, $"running under Wine {WineInterop.Version ?? "(unknown version)"}");
+                return SelectUnderWine(_preferredBackend);
             }
         }
 
-        /// <summary>
-        /// True when the preference allows speech-dispatcher: automatic selection or the
-        /// Speech Dispatcher entry itself. A named Prism backend skips it.
-        /// </summary>
-        private static bool WantsLinuxSpeech(string preferredBackend)
+        // Prism's backends that reach the Linux host through a Wine bridge, in the order automatic
+        // selection tries them: Orca speaks with the player's own screen reader settings, so it
+        // comes first. Registry names as Prism reports them.
+        private static readonly string[] LinuxBridgeBackends = { "Orca", "Speech Dispatcher", "Spiel" };
+
+        private static bool IsAuto(string backendName)
         {
-            return string.IsNullOrEmpty(preferredBackend) ||
-                   string.Equals(preferredBackend, AutoBackend, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(preferredBackend, SpeechDispatcherOutput.BackendName, StringComparison.OrdinalIgnoreCase);
+            return string.IsNullOrEmpty(backendName) ||
+                   string.Equals(backendName, AutoBackend, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsDirectLinux(string backendName)
+        {
+            return string.Equals(backendName, SpeechDispatcherOutput.BackendName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Backend selection under Wine/Proton. Caller holds <see cref="Gate"/>. Automatic order:
+        /// Prism's Linux bridges, then the mod's own speech-dispatcher route (needs no bridge
+        /// files), then any other Prism backend. A named backend is tried first; when it fails,
+        /// the automatic order runs, because any speech beats silence. True when something speaks.
+        /// </summary>
+        private static bool SelectUnderWine(string backendName)
+        {
+            if (IsDirectLinux(backendName) && StartLinuxSpeech())
+                return true;
+
+            if (!IsAuto(backendName) && !IsDirectLinux(backendName) &&
+                InitializePrism(backendName, PrismPick.NamedOnly))
+                return UsePrism();
+
+            if (InitializePrism(AutoBackend, PrismPick.LinuxBridgesOnly))
+                return UsePrism();
+
+            if (StartLinuxSpeech())
+                return true;
+
+            return InitializePrism(AutoBackend) && UsePrism();
+        }
+
+        /// <summary>A Prism backend was adopted: the mod's own route stops if it was speaking.</summary>
+        private static bool UsePrism()
+        {
+            if (_linuxActive)
+            {
+                _linux.Stop();
+                _linuxActive = false;
+            }
+            return true;
+        }
+
+        /// <summary>Which backends <see cref="InitializePrism"/> may adopt.</summary>
+        private enum PrismPick
+        {
+            /// <summary>Named preference, then automatic (Linux bridges first under Wine).</summary>
+            Normal,
+            /// <summary>Only the named backend.</summary>
+            NamedOnly,
+            /// <summary>Only Orca, Speech Dispatcher or Spiel through a Wine bridge.</summary>
+            LinuxBridgesOnly,
         }
 
         /// <summary>
@@ -183,7 +225,7 @@ namespace AccessibleArena
         /// <summary>
         /// Brings up Prism and acquires both channels. Caller holds <see cref="Gate"/>.
         /// </summary>
-        private static bool InitializePrism(string preferredBackend)
+        private static bool InitializePrism(string preferredBackend, PrismPick pick = PrismPick.Normal)
         {
             try
             {
@@ -201,8 +243,19 @@ namespace AccessibleArena
                     return false;
                 }
 
-                AcquireNormal(preferredBackend);
-                AcquireSapi();
+                if (pick == PrismPick.LinuxBridgesOnly)
+                    AcquireLinuxBridge();
+                else if (pick == PrismPick.NamedOnly)
+                    AcquireNamedOnly(preferredBackend);
+                else
+                    AcquireNormal(preferredBackend);
+
+                // Under Wine the urgent channel stays on the normal backend: Wine's SAPI is often
+                // silent or a different voice, and two speech stacks would talk over each other.
+                if (WineInterop.IsWine)
+                    _sapiReady = false;
+                else
+                    AcquireSapi();
 
                 if (_available)
                 {
@@ -210,7 +263,12 @@ namespace AccessibleArena
                                     (_sapiReady ? $"SAPI at {_urgentVolumePercent}%"
                                                 : "(SAPI unavailable, urgent falls back to normal)"));
                 }
-                else
+                else if (pick == PrismPick.LinuxBridgesOnly)
+                {
+                    Log.Msg(LogTag, "no Prism Wine bridge is live (Orca, Speech Dispatcher, Spiel): bridge " +
+                                    "files not on WINEDLLPATH, or no such service running");
+                }
+                else if (pick == PrismPick.Normal)
                 {
                     Log.Warn(LogTag, "no speech backend available; running silent");
                 }
@@ -284,6 +342,12 @@ namespace AccessibleArena
                 Log.Warn(LogTag, $"preferred backend '{preferredBackend}' unavailable; falling back to automatic");
             }
 
+            // Under Wine, Prism's own priority order puts Windows SAPI ahead of the Speech
+            // Dispatcher bridge. The Linux bridges go first, also when a lost backend is
+            // re-acquired mid-session.
+            if (WineInterop.IsWine && AcquireLinuxBridge())
+                return;
+
             IntPtr best = PrismInterop.prism_registry_acquire_best(_ctx);
             if (best != IntPtr.Zero && Adopt(best))
                 return;
@@ -295,6 +359,56 @@ namespace AccessibleArena
             }
 
             AcquireFirstLive();
+        }
+
+        /// <summary>
+        /// Adopts the first live Prism Wine bridge backend, in <see cref="LinuxBridgeBackends"/>
+        /// order. They report IS_SUPPORTED_AT_RUNTIME false on Windows and when the bridge files
+        /// or the Linux service are missing, so this costs nothing there.
+        /// </summary>
+        private static bool AcquireLinuxBridge()
+        {
+            _normal = IntPtr.Zero;
+            _available = false;
+
+            foreach (string name in LinuxBridgeBackends)
+            {
+                // Liveness before initialize(), as in AcquireFirstLive: a bridge whose Linux side
+                // is absent is never initialised.
+                ulong id = FindBackendId(name);
+                if (id == 0)
+                    continue;
+                IntPtr backend = PrismInterop.prism_registry_acquire(_ctx, id);
+                if (backend == IntPtr.Zero)
+                    continue;
+
+                if ((PrismInterop.prism_backend_get_features(backend) & PrismInterop.FeatureIsSupportedAtRuntime) == 0)
+                {
+                    Release(backend);
+                    continue;
+                }
+
+                int rc = PrismInterop.prism_backend_initialize(backend);
+                if ((rc == PrismInterop.PRISM_OK || rc == PrismInterop.PRISM_ERROR_ALREADY_INITIALIZED) && Adopt(backend))
+                    return true;
+
+                Log.Msg(LogTag, $"Wine bridge '{name}' is live but did not come up ({PrismInterop.ErrorText(rc)})");
+                Release(backend);
+            }
+            return false;
+        }
+
+        /// <summary>Adopts exactly the named backend, without the automatic fallback.</summary>
+        private static void AcquireNamedOnly(string name)
+        {
+            _normal = IntPtr.Zero;
+            _available = false;
+
+            IntPtr backend = AcquireByName(name);
+            if (backend != IntPtr.Zero && Adopt(backend))
+                return;
+            Release(backend);
+            Log.Warn(LogTag, $"preferred backend '{name}' unavailable");
         }
 
         /// <summary>
@@ -377,6 +491,8 @@ namespace AccessibleArena
             _normalSupportsOutput = (features & PrismInterop.FeatureSupportsOutput) != 0;
             _normalSupportsBraille = (features & PrismInterop.FeatureSupportsBraille) != 0;
             _available = true;
+            _prismRateApplied = false;
+            ApplyLinuxRateToPrism();
             return true;
         }
 
@@ -481,7 +597,8 @@ namespace AccessibleArena
             int rc = PrismInterop.prism_backend_initialize(backend);
             if (rc != PrismInterop.PRISM_OK && rc != PrismInterop.PRISM_ERROR_ALREADY_INITIALIZED)
             {
-                Log.Warn(LogTag, $"prism_backend_initialize('{name}') failed: {PrismInterop.ErrorText(rc)}");
+                Log.Msg(LogTag, $"prism_backend_initialize('{name}') failed: {PrismInterop.ErrorText(rc)}");
+                Release(backend);
                 return IntPtr.Zero;
             }
 
@@ -860,48 +977,7 @@ namespace AccessibleArena
             lock (Gate)
             {
                 if (WineInterop.IsWine)
-                {
-                    bool wantsLinux = WantsLinuxSpeech(backendName);
-                    if (wantsLinux && (_linuxActive || StartLinuxSpeech()))
-                    {
-                        _preferredBackend = string.IsNullOrEmpty(backendName) ? AutoBackend : backendName;
-                        Log.Msg(LogTag, $"normal backend switched to {_normalName}");
-                        return true;
-                    }
-
-                    if (!wantsLinux && _linuxActive)
-                    {
-                        // This session speaks through speech-dispatcher and a Prism backend was
-                        // picked by name. Keep speech-dispatcher speaking unless the switch works.
-                        _linuxActive = false;
-                        _available = false;
-                        try
-                        {
-                            if (_ctx == IntPtr.Zero)
-                                InitializePrism(backendName);
-                            else
-                                AcquireNormal(backendName);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Warn(LogTag, $"backend switch to '{backendName}' threw {ex.GetType().Name}: {ex.Message}");
-                        }
-
-                        if (_available && string.Equals(backendName, _normalName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            _linux.Stop();
-                            _preferredBackend = backendName;
-                            Log.Msg(LogTag, $"normal backend switched to {_normalName} ({BrailleMode()})");
-                            return true;
-                        }
-
-                        _linuxActive = true;
-                        _available = true;
-                        _normalName = SpeechDispatcherOutput.BackendName;
-                        Log.Warn(LogTag, $"backend switch to '{backendName}' failed; staying on {_normalName}");
-                        return false;
-                    }
-                }
+                    return SelectBackendUnderWine(backendName);
 
                 if (_ctx == IntPtr.Zero)
                     return false;
@@ -936,6 +1012,51 @@ namespace AccessibleArena
         }
 
         /// <summary>
+        /// F2 backend switch under Wine. The channel that is speaking keeps speaking unless the
+        /// new choice comes up. Caller holds <see cref="Gate"/>. True when the request was
+        /// honoured exactly (automatic counts as honoured whatever it picks).
+        /// </summary>
+        private static bool SelectBackendUnderWine(string backendName)
+        {
+            bool wasLinux = _linuxActive;
+            IntPtr previous = _normal;
+            string previousName = _normalName;
+            bool previousAvailable = _available;
+
+            bool ok;
+            try
+            {
+                if (IsDirectLinux(backendName))
+                    ok = StartLinuxSpeech();
+                else if (IsAuto(backendName))
+                    ok = SelectUnderWine(AutoBackend);
+                else
+                    ok = InitializePrism(backendName, PrismPick.NamedOnly) && UsePrism();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogTag, $"backend switch to '{backendName}' threw {ex.GetType().Name}: {ex.Message}");
+                ok = false;
+            }
+
+            if (ok)
+            {
+                _preferredBackend = IsAuto(backendName) ? AutoBackend : backendName;
+                Log.Msg(LogTag, $"normal backend switched to {_normalName}");
+                return true;
+            }
+
+            // Restore whatever was speaking. The mod's own route is still running if it was:
+            // only a successful Prism pick stops it (UsePrism).
+            _linuxActive = wasLinux;
+            _normal = previous;
+            _normalName = previousName;
+            _available = previousAvailable;
+            Log.Warn(LogTag, $"backend switch to '{backendName}' failed; staying on {previousName}");
+            return false;
+        }
+
+        /// <summary>
         /// Sets the speech-dispatcher rate, -100 to 100 (0 = speech-dispatcher's default). Call
         /// before <see cref="Initialize(string, int)"/> to apply it from the first word. Prism's
         /// screen readers keep their own rate, so this only affects the Linux channel.
@@ -946,6 +1067,40 @@ namespace AccessibleArena
             {
                 _linuxRate = SsipProtocol.ClampRate(rate);
                 _linux?.SetRate(_linuxRate);
+                ApplyLinuxRateToPrism();
+            }
+        }
+
+        private static bool _prismRateApplied;
+
+        /// <summary>
+        /// Under Wine, the speech rate setting also drives Prism's Speech Dispatcher and Spiel
+        /// bridges (Prism's 0..1 maps onto -100..100). Orca keeps the player's Orca rate: its
+        /// bridge has no rate control. 0 means "service default" and is only sent once a rate
+        /// was set this session, to undo it. Caller holds <see cref="Gate"/>.
+        /// </summary>
+        private static void ApplyLinuxRateToPrism()
+        {
+            if (!WineInterop.IsWine || _normal == IntPtr.Zero || !_canSetRate)
+                return;
+            if (_linuxRate == 0 && !_prismRateApplied)
+                return;
+
+            try
+            {
+                if ((PrismInterop.prism_backend_get_features(_normal) & PrismInterop.FeatureSupportsSetRate) == 0)
+                    return;
+
+                float rate = (_linuxRate + 100) / 200f;
+                int rc = PrismInterop.prism_backend_set_rate(_normal, rate);
+                if (rc == PrismInterop.PRISM_OK)
+                    _prismRateApplied = true;
+                else
+                    Log.Msg(LogTag, $"prism_backend_set_rate({_normalName}, {rate:0.00}) — {PrismInterop.ErrorText(rc)}");
+            }
+            catch (EntryPointNotFoundException)
+            {
+                _canSetRate = false;
             }
         }
 

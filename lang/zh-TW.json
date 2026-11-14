@@ -1385,6 +1385,7 @@
   "InputErrorPrefix": "輸入錯誤",
   "UpdateAvailable_Format": "有可用更新：v{0}。在選單中按F5更新。",
   "UpdateDownloading": "正在下載更新...",
+  "UpdateLinuxRunInstaller_Format": "版本 {0} 可用。在 Linux 上，請重新執行 install.sh 進行更新。",
   "UpdateDownloaded": "更新已下載。正在重新啟動遊戲...",
   "UpdateFailed": "更新下載失敗。請稍後再試。",
   "UpdateNotAvailable_Format": "沒有可用更新。目前版本為{0}。",

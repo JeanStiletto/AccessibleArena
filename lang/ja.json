@@ -1385,6 +1385,7 @@
   "InputErrorPrefix": "入力エラー",
   "UpdateAvailable_Format": "アップデートが利用可能: v{0}。メニューでF5を押してアップデートします。",
   "UpdateDownloading": "アップデートをダウンロード中...",
+  "UpdateLinuxRunInstaller_Format": "バージョン {0} が利用可能です。Linux では install.sh を再実行して更新してください。",
   "UpdateDownloaded": "アップデートがダウンロードされました。ゲームを再起動中...",
   "UpdateFailed": "アップデートのダウンロードに失敗しました。後でもう一度お試しください。",
   "UpdateNotAvailable_Format": "アップデートはありません。現在のバージョンは{0}です。",

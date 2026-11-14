@@ -172,7 +172,7 @@ namespace AccessibleArena.Core.Services
             // Built on this machine by linux/install.sh. A release DLL may not carry the Linux
             // speech code yet, so updating means running the installer again, which rebuilds.
             Log.Msg("UpdateChecker", "Linux local build: update by running linux/install.sh again");
-            announcer.AnnounceInterrupt($"Version {_latestVersion} is available. On Linux, run install.sh again to update.");
+            announcer.AnnounceInterrupt(Strings.UpdateLinuxRunInstaller(_latestVersion));
             return true;
 #else
             // Start download

@@ -1385,6 +1385,7 @@
   "InputErrorPrefix": "Erro de entrada",
   "UpdateAvailable_Format": "Atualização disponível: v{0}. Pressione F5 em um menu para atualizar.",
   "UpdateDownloading": "Baixando atualização...",
+  "UpdateLinuxRunInstaller_Format": "A versão {0} está disponível. No Linux, execute install.sh novamente para atualizar.",
   "UpdateDownloaded": "Atualização baixada. Reiniciando jogo...",
   "UpdateFailed": "Falha ao baixar a atualização. Tente novamente mais tarde.",
   "UpdateNotAvailable_Format": "Nenhuma atualização disponível. Você está na versão {0}.",

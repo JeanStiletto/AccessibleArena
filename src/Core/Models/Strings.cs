@@ -1024,6 +1024,7 @@ namespace AccessibleArena.Core.Models
         // ===========================================
         public static string UpdateAvailable(string version) => L.Format("UpdateAvailable_Format", version);
         public static string UpdateDownloading => L.Get("UpdateDownloading");
+        public static string UpdateLinuxRunInstaller(string version) => L.Format("UpdateLinuxRunInstaller_Format", version);
         public static string UpdateDownloaded => L.Get("UpdateDownloaded");
         public static string UpdateFailed => L.Get("UpdateFailed");
         public static string UpdateNotAvailable(string version) => L.Format("UpdateNotAvailable_Format", version);

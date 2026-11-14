@@ -44,11 +44,11 @@ If you want to learn more about Magic in general, the game's website as well as 
 
 <h3>Linux (Steam/Proton, Lutris, Wine)</h3>
 
-The mod runs on Linux too. It speaks through speech-dispatcher, the speech server Orca uses, so you hear it with your usual Linux voices.
+The mod runs on Linux too. You choose what speaks, as on Windows: Orca with your own voice and rate, speech-dispatcher, or Spiel. Automatic selection prefers Orca when it runs.
 
 1. Install speech-dispatcher and Python 3 with your package manager (most desktops with Orca already have both)
-2. Download this repository (Code, Download ZIP, or `git clone`), open a terminal in its `linux` folder and run `./install.sh`. It finds MTGA, installs MelonLoader, builds and installs the mod against your game files (downloading a private .NET SDK if needed, no root) and sets up a small speech bridge service
-3. Add the launch option the installer prints (Steam: `WINEDLLOVERRIDES="version=n,b" %command%`)
+2. Download this repository (Code, Download ZIP, or `git clone`), open a terminal in its `linux` folder and run `./install.sh`. It finds MTGA, installs MelonLoader, builds and installs the mod against your game files (downloading a private .NET SDK if needed, no root), installs Prism's Linux bridges and sets up a small fallback speech bridge service
+3. If Steam was running during the install, close it and run the installer again, or add the launch options it prints by hand
 4. Launch MTG Arena. You should hear "Accessible Arena v... launched"
 
 Details, settings and troubleshooting: [Linux guide](docs/LINUX.md).
@@ -202,7 +202,7 @@ Include the following information:
 The game should cover nearly every screen in the game but there might be some edge cases not fully functioning. PayPal blocks blind users with an illegal non-audio captcha so you have to use sighted help or other payment methods if you wanna spend real money on the game.
 Some specific events might not be fully working. Drafting now works, both quickdraft (where you pick cards against bots) and drafts against real players, including the ready-up lobby and the pick timer. Cube mode is untouched. I don't even really know what this is about and it costs a lot of in-game resources. So I will do this if I have time or on request.
 The cosmetics system of the game with Emotes, Pets, card styles and titles is only partly supported yet.
-Speech goes through the Prism library, which reaches NVDA, JAWS, Narrator, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText and the Windows system voice through one interface — so the mod now also speaks when no screen reader is running at all. You can pick the output yourself under "Speech output" in the mod settings (F2). Testing here is on Windows with NVDA and JAWS; the other backends come from Prism and are untested by me, so please tell me if one of them misbehaves. On Linux, under Steam/Proton, Lutris or Wine, the mod speaks through speech-dispatcher instead (see the [Linux guide](docs/LINUX.md)); Mac is still out of reach. If you can help test on another platform or with a screen reader I don't have, don't hesitate to contact me.
+Speech goes through the Prism library, which reaches NVDA, JAWS, Narrator, ZDSR, PC-Talker, BoyPC Reader, Sense Reader, ZoomText and the Windows system voice through one interface — so the mod now also speaks when no screen reader is running at all. You can pick the output yourself under "Speech output" in the mod settings (F2). Testing here is on Windows with NVDA and JAWS; the other backends come from Prism and are untested by me, so please tell me if one of them misbehaves. On Linux, under Steam/Proton, Lutris or Wine, Prism reaches Orca, speech-dispatcher and Spiel instead (see the [Linux guide](docs/LINUX.md)); Mac is still out of reach. If you can help test on another platform or with a screen reader I don't have, don't hesitate to contact me.
 
 For the current list of known issues, see [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 

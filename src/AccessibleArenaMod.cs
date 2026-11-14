@@ -527,7 +527,7 @@ namespace AccessibleArena
 
             // Under Wine no screen reader sees the game's keys, so Ctrl stops speech here, as it
             // does in NVDA. Not consumed: Ctrl still works as a modifier for the mod's chords.
-            if (ScreenReaderOutput.IsLinuxSpeechActive &&
+            if (ScreenReaderOutput.CanUseLinuxSpeech &&
                 (KeyInput.GetKeyDown(KeyCode.LeftControl) || KeyInput.GetKeyDown(KeyCode.RightControl)))
                 ScreenReaderOutput.Silence();
 

@@ -1385,6 +1385,7 @@
   "InputErrorPrefix": "Erreur de saisie",
   "UpdateAvailable_Format": "Mise à jour disponible : v{0}. Appuyez sur F5 dans un menu pour mettre à jour.",
   "UpdateDownloading": "Téléchargement de la mise à jour...",
+  "UpdateLinuxRunInstaller_Format": "La version {0} est disponible. Sous Linux, relancez install.sh pour mettre à jour.",
   "UpdateDownloaded": "Mise à jour téléchargée. Redémarrage du jeu...",
   "UpdateFailed": "Échec du téléchargement de la mise à jour. Réessayez plus tard.",
   "UpdateNotAvailable_Format": "Pas de mise à jour disponible. Vous êtes en version {0}.",

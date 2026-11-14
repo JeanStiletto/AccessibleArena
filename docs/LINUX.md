@@ -1,6 +1,12 @@
 # Accessible Arena on Linux
 
-MTG Arena has no Linux version, but it runs well under Steam's Proton, Lutris or plain Wine, and MelonLoader runs with it. The one thing that does not carry over is speech: the mod's Windows speech library (Prism) talks to NVDA, JAWS and SAPI, and none of them exist on a Linux desktop. Under Wine the mod therefore speaks through speech-dispatcher, the speech server Orca and most Linux desktops use.
+MTG Arena has no Linux version, but it runs well under Steam's Proton, Lutris or plain Wine, and MelonLoader runs with it. The one thing that does not carry over by itself is speech: NVDA and JAWS do not exist on a Linux desktop, and Orca cannot read the game window. The mod's speech library, Prism, reaches the Linux side through its Wine bridges, so you can choose what speaks, the same way Windows players choose their screen reader:
+
+- **Orca**: speaks through your screen reader, with your Orca voice and rate. The automatic choice when Orca runs
+- **Speech Dispatcher**: the speech service Orca and most desktops use, with its own voice settings
+- **Spiel**: the newer speech service, where installed
+- **Speech Dispatcher (direct)**: the mod's own route to speech-dispatcher. Needs none of Prism's bridge files and also speaks to an nvda2speechd server; the fallback when the bridges cannot load
+- **SAPI** and the other Windows backends, if your Wine or Proton provides them
 
 Everything else (keyboard navigation, announcements, settings, updates) is the same code as on Windows.
 
@@ -10,8 +16,8 @@ Tested with the Wizards build of MTG Arena 0.1.14589 under Wine 9.0 and MelonLoa
 
 - MTG Arena installed through Steam (Proton), Lutris or Wine
 - speech-dispatcher (package `speech-dispatcher` on Debian, Ubuntu, Fedora and Arch)
-- Python 3 (used by the small speech bridge described below)
-- Orca is optional. The mod speaks through speech-dispatcher whether Orca runs or not
+- Python 3 (used by the installer and the small speech bridge described below)
+- Orca is optional. Without it the mod speaks through speech-dispatcher
 
 ## Installation
 
@@ -28,15 +34,18 @@ The installer:
 - installs MelonLoader, unless it is already there
 - builds `AccessibleArena.dll` from the source folder it sits in, against your own game files, and installs it with `prism.dll`. If no .NET SDK (6.0 or newer) is installed, it first downloads a private one into `~/.local/share/accessible-arena/dotnet`, without root. The build log goes to `~/.local/share/accessible-arena/build.log`
 - `--dll path/to/AccessibleArena.dll` installs a DLL you built yourself instead; `--release` installs the latest release DLL (only useful once releases include Linux support)
-- installs the speech bridge as a systemd user service (skip with `--no-service`)
+- installs Prism's Wine bridges: the placeholder files `prism_orca_bridge.dll`, `prism_speech_dispatcher_bridge.dll` and `prism_spiel_bridge.dll` next to `prism.dll` in the game folder, and their Linux halves (`*.dll.so`) in the game folder's `prism-wine` subfolder. They come from the same Prism release as `prism.dll` (kept in `third_party/prism/wine`)
+- installs the mod's own speech bridge as a systemd user service (skip with `--no-service`)
 - creates a shortcut "MTG Arena (Accessible Arena)" on the desktop and in the applications menu (skip with `--no-shortcut`). It runs `~/.local/share/accessible-arena/launch-mtga.sh`, which starts the speech bridge when nothing answers on its port and then starts the game through Steam, or through Wine with the right prefix and DLL override. `--uninstall` removes it
-- sets the launch option MelonLoader needs, because MelonLoader loads through `version.dll` and Wine prefers its own copy. For Steam it adds `WINEDLLOVERRIDES="version=n,b"` to MTG Arena's launch options in Steam's `userdata/<account>/config/localconfig.vdf`, keeping any options you already had, and leaves a backup next to it (`localconfig.vdf.accessible-arena-backup`). Steam must be fully closed for this, because it rewrites that file when it exits; if it is running, the installer says so and you can close Steam and run it again. For Lutris and plain Wine the desktop shortcut starts the game with the override
+- sets the launch options the mod needs: MelonLoader loads through `version.dll`, which Wine replaces with its own copy unless told otherwise, and Wine finds Prism's bridges only through `WINEDLLPATH`. For Steam it adds `WINEDLLOVERRIDES="version=n,b"` and `WINEDLLPATH="<game folder>/prism-wine:$WINEDLLPATH"` to MTG Arena's launch options in Steam's `userdata/<account>/config/localconfig.vdf`, keeping any options you already had, and leaves a backup next to it (`localconfig.vdf.accessible-arena-backup`). Steam must be fully closed for this, because it rewrites that file when it exits; if it is running, the installer says so and you can close Steam and run it again. For Lutris and plain Wine the desktop shortcut starts the game with both
 
 If the installer could not set it, set the launch option by hand:
 
-- Steam: right-click MTG Arena, Properties, General, Launch options: `WINEDLLOVERRIDES="version=n,b" %command%`
-- Lutris: Configure, Runner options, DLL overrides, add `version` with value `n,b`
-- Plain Wine: `WINEDLLOVERRIDES="version=n,b" wine MTGA.exe`
+- Steam: MTG Arena's Properties, General, Launch options: `WINEDLLOVERRIDES="version=n,b" WINEDLLPATH="/path/to/MTGA/prism-wine:$WINEDLLPATH" %command%`
+- Lutris: Configure, Runner options, DLL overrides, add `version` with value `n,b`; System options, Environment variables, add `WINEDLLPATH` with value `/path/to/MTGA/prism-wine`
+- Plain Wine: `WINEDLLOVERRIDES="version=n,b" WINEDLLPATH=/path/to/MTGA/prism-wine wine MTGA.exe`
+
+Without `WINEDLLPATH` the mod still speaks, through its own route (Speech Dispatcher (direct)); only Orca, Prism's Speech Dispatcher and Spiel are missing.
 
 To update, download the new source and run `./install.sh` again. The in-game update (F5) does not replace a build made by the installer, because a release DLL might lack the Linux speech code; it tells you to run the installer instead.
 
@@ -44,15 +53,23 @@ To remove the mod: `./install.sh --uninstall`. MelonLoader stays in place; the p
 
 ## How speech works under Wine
 
-Windows code inside Wine cannot open speech-dispatcher's Unix socket, but its TCP sockets are ordinary Linux sockets, and Wine can start native Linux programs. At startup the mod tries, in order:
+Automatic selection (the default "Speech output" setting) tries, in order:
+
+1. Prism's Wine bridges: Orca, then Speech Dispatcher, then Spiel, the first whose Linux service is reachable. Each bridge is a Linux library loaded into Wine (found through `WINEDLLPATH`) that talks to the service directly
+2. The mod's own route, Speech Dispatcher (direct), described below
+3. Any other Prism backend, such as SAPI under Proton
+
+A backend picked by name in F2 is tried first; if it is not available, the same order runs, so the mod never stays silent when anything can speak.
+
+### The mod's own route: Speech Dispatcher (direct)
+
+Windows code inside Wine cannot open speech-dispatcher's Unix socket, but its TCP sockets are ordinary Linux sockets, and Wine can start native Linux programs. This route tries, in order:
 
 1. SSIP (speech-dispatcher's protocol) over TCP on `127.0.0.1:6560`. Something answers there when the bridge service is running, or when speech-dispatcher itself is configured for `inet_socket`.
 2. An [nvda2speechd](https://github.com/RastislavKish/nvda2speechd) server on `ws://127.0.0.1:3457` (or `NVDA2SPEECHD_HOST`). If you already run it for other Windows games, the mod uses it as it is; nvda2speechd's client DLL is not needed, the mod speaks its protocol itself.
 3. If nothing answers, the mod writes the bridge (`UserData/AccessibleArena-speechd-bridge.py`) and starts it with the system Python, then connects to it. The bridge exits 30 seconds after the game closes.
 4. If that fails too, one `spd-say` call per announcement.
-5. If none of these works, Prism, as on Windows.
-
-The MelonLoader log (`MelonLoader/Latest.log` in the game folder) says which one was picked, in a line starting with `[Speech] speech-dispatcher ready`.
+The MelonLoader log (`MelonLoader/Latest.log` in the game folder) says what speaks, in a `[Speech]` line containing `ready`: for example `normal backend = Orca`, or `Speech Dispatcher (direct) (SSIP over TCP 127.0.0.1:6560)`.
 
 Steam runs Proton games inside a container (pressure-vessel) that may not see the host's speech-dispatcher socket or programs. The bridge service runs outside the container and only shares a TCP port with the game, which works either way. That is why the installer sets it up as a service.
 
@@ -60,15 +77,15 @@ The bridge listens on 127.0.0.1 only. Any program of any user on the same comput
 
 ## Settings
 
-"Speech output" in the mod settings (F2) lists Speech Dispatcher first under Wine, and Prism's backends after it once Prism has been loaded. Automatic selection uses Speech Dispatcher whenever it can be reached.
+"Speech output" in the mod settings (F2) lists Speech Dispatcher (direct) first under Wine, then Prism's backends: Orca, Speech Dispatcher, Spiel and the Windows ones. The Windows ones (NVDA, JAWS and so on) cannot speak under Wine and fall back to the automatic order.
 
-Both normal and urgent announcements go through speech-dispatcher; an urgent one cancels what the mod is saying. The urgent volume setting only applies to Prism's SAPI channel.
+Under Wine, urgent announcements go through the same backend as the rest; an urgent one cancels what the mod is saying. The urgent volume setting only applies to the SAPI channel on Windows.
 
-Ctrl stops speech, as it does in NVDA. Under Windows the screen reader does this itself; under Wine no screen reader sees the game's keys, so the mod does it. Ctrl still works as a modifier for the mod's shortcuts.
+Ctrl stops speech, as it does in NVDA. Under Windows the screen reader does this itself; under Wine the mod does it, whichever backend speaks. Ctrl still works as a modifier for the mod's shortcuts.
 
-"Speech rate" in the mod settings (F2, right after "Speech output", only under Wine) sets how fast the mod speaks: Left and Right arrows change it in steps of 10 from -100 to +100, Enter steps faster and wraps around to the slowest. "Default" (0) keeps speech-dispatcher's own rate. The change applies from the next word and is saved. With an nvda2speechd server the rate cannot be changed from the mod; set it in nvda2speechd or with `spd-conf`.
+"Speech rate" in the mod settings (F2, right after "Speech output", only under Wine) sets how fast the mod speaks: Left and Right arrows change it in steps of 10 from -100 to +100, Enter steps faster and wraps around to the slowest. "Default" (0) keeps the service's own rate. It applies to Speech Dispatcher (direct) and to Prism's Speech Dispatcher and Spiel; Orca keeps the rate set in Orca. With an nvda2speechd server the rate cannot be changed from the mod; set it in nvda2speechd or with `spd-conf`.
 
-The mod's speech-dispatcher connection is separate from Orca's, so Orca's rate and voice do not apply to it; speech-dispatcher's defaults do (set them with `spd-conf`). To set them for the mod only, add environment variables to the launch options, before `%command%`:
+The direct route's speech-dispatcher connection is separate from Orca's, so Orca's rate and voice do not apply to it; speech-dispatcher's defaults do (set them with `spd-conf`). To set them for the mod only, add environment variables to the launch options, before `%command%`:
 
 - `AA_SPEECHD_RATE`: -100 to 100. Used only while the "Speech rate" setting is at Default
 - `AA_SPEECHD_PITCH`: -100 to 100
@@ -85,18 +102,20 @@ Other variables:
 - `SPEECHD_ADDRESS=inet_socket:host:port`: connect to a speech-dispatcher at that address
 - `AA_FORCE_LINUX_SPEECH=1` or `0`: override Wine detection
 
+These variables only affect Speech Dispatcher (direct).
+
 ## Troubleshooting
 
 No speech at all:
 
+- Look in `MelonLoader/Latest.log` for `[Speech]` lines. `no Prism Wine bridge is live` means Orca, Prism's Speech Dispatcher and Spiel were not reachable: check that the launch options contain `WINEDLLPATH` and that the game folder has a `prism-wine` folder
 - Check the bridge service: `systemctl --user status accessible-arena-speech`
 - Check speech-dispatcher outside the game: `spd-say "test"`
-- Look in `MelonLoader/Latest.log` for lines starting with `[Speech]`
 - If the log has no MelonLoader lines at all, the `version=n,b` launch option is missing
 
 Speech is in the wrong language: set `AA_SPEECHD_LANGUAGE` as above, or change the default language with `spd-conf`.
 
-Orca reads things while you play: the game window has no accessibility tree under Wine, so Orca stays mostly quiet. If it speaks over the mod, mute it while playing (Orca's "toggle speech" command).
+Orca reads things while you play: the game window has no accessibility tree under Wine, so Orca stays mostly quiet. If it speaks over the mod, choose Orca as the speech output in F2, so the mod's speech and Orca's share one voice.
 
 ## Building on Linux
 

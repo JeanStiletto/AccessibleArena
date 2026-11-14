@@ -1385,6 +1385,7 @@
   "InputErrorPrefix": "Ошибка ввода",
   "UpdateAvailable_Format": "Доступно обновление: v{0}. Нажмите F5 в меню для обновления.",
   "UpdateDownloading": "Загрузка обновления...",
+  "UpdateLinuxRunInstaller_Format": "Доступна версия {0}. В Linux для обновления снова запустите install.sh.",
   "UpdateDownloaded": "Обновление загружено. Перезапуск игры...",
   "UpdateFailed": "Ошибка загрузки обновления. Попробуйте позже.",
   "UpdateNotAvailable_Format": "Обновлений нет. Текущая версия {0}.",
