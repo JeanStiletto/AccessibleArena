@@ -9,6 +9,7 @@ All notable changes to Accessible Arena.
 - The challenge invite popup reads already-invited players and the "Recent opponents" list again after the November 2026 game update.
 - The mod runs on Linux under Steam/Proton, Lutris and Wine, with an installer, and speaks through Orca, Speech Dispatcher or Spiel, chosen in the mod settings.
 - The speech library Prism is updated to version 0.18.3.
+- "UIA" is no longer offered as speech output, because it stayed silent in the game.
 
 <h3>Details</h3>
 
@@ -26,6 +27,7 @@ All notable changes to Accessible Arena.
 **Speech library:**
 
 - Prism, the library behind all speech and braille output, is updated from 0.17.3 to 0.18.3. On Windows nothing should sound different: the same screen readers are found in the same order. The new version adds the Linux bridges above and makes SAPI work under Wine/Proton. The mod's crash protection for broken ZDSR, PC-Talker and BoyPC installations is carried over, and part of it is now built into Prism itself.
+- "UIA" is gone from the "Speech output" list in F2. It hands each announcement to the screen reader as a UI Automation notification, and NVDA and JAWS ignore those from the game window, which has no accessibility tree, so choosing it made the mod silent. A saved UIA choice now falls back to automatic selection. OneCore still gives Narrator's voices. Prism 0.18.3's Linux-only entries are also hidden on Windows.
 
 ## v1.6.4
 

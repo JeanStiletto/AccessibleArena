@@ -142,6 +142,25 @@ namespace AccessibleArena
                    string.Equals(backendName, AutoBackend, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// False for registry backends that cannot speak in this game, so the F2 picker leaves
+        /// them out and a stored preference for one falls back to automatic:
+        /// - UIA raises UI Automation notifications from a hidden window for the screen reader to
+        ///   voice. NVDA and JAWS drop those for a Unity window (no UIA tree), so it initialises
+        ///   fine and then stays silent. OneCore gives Narrator's voices instead.
+        /// - Prism 0.18.3 registers its Wine bridges (Orca, Speech Dispatcher, Spiel) on Windows
+        ///   too; they only ever speak under Wine.
+        /// </summary>
+        private static bool IsUsableHere(string backendName)
+        {
+            if (string.Equals(backendName, "UIA", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (!WineInterop.IsWine &&
+                Array.Exists(LinuxBridgeBackends, b => string.Equals(b, backendName, StringComparison.OrdinalIgnoreCase)))
+                return false;
+            return true;
+        }
+
         private static bool IsDirectLinux(string backendName)
         {
             return string.Equals(backendName, SpeechDispatcherOutput.BackendName, StringComparison.OrdinalIgnoreCase);
@@ -331,8 +350,13 @@ namespace AccessibleArena
             _normal = IntPtr.Zero;
             _available = false;
 
-            if (!string.IsNullOrEmpty(preferredBackend) &&
-                !string.Equals(preferredBackend, AutoBackend, StringComparison.OrdinalIgnoreCase))
+            if (!IsAuto(preferredBackend) && !IsUsableHere(preferredBackend))
+            {
+                Log.Msg(LogTag, $"backend '{preferredBackend}' cannot speak here; using automatic selection");
+                preferredBackend = AutoBackend;
+            }
+
+            if (!IsAuto(preferredBackend))
             {
                 IntPtr chosen = AcquireByName(preferredBackend);
                 if (chosen != IntPtr.Zero && Adopt(chosen))
@@ -404,7 +428,7 @@ namespace AccessibleArena
             _normal = IntPtr.Zero;
             _available = false;
 
-            IntPtr backend = AcquireByName(name);
+            IntPtr backend = IsUsableHere(name) ? AcquireByName(name) : IntPtr.Zero;
             if (backend != IntPtr.Zero && Adopt(backend))
                 return;
             Release(backend);
@@ -436,7 +460,8 @@ namespace AccessibleArena
                 if (backend == IntPtr.Zero)
                     continue;
 
-                if ((PrismInterop.prism_backend_get_features(backend) & required) != required)
+                if ((PrismInterop.prism_backend_get_features(backend) & required) != required ||
+                    !IsUsableHere(NameOf(backend)))
                 {
                     Release(backend);
                     continue;
@@ -955,10 +980,7 @@ namespace AccessibleArena
                         if (string.IsNullOrEmpty(name))
                             continue;
 
-                        // Prism 0.18.3 registers its Wine bridges on Windows too; they can only
-                        // ever speak under Wine, so the Windows picker leaves them out.
-                        if (!WineInterop.IsWine &&
-                            Array.Exists(LinuxBridgeBackends, b => string.Equals(b, name, StringComparison.OrdinalIgnoreCase)))
+                        if (!IsUsableHere(name))
                             continue;
 
                         names.Add(name);
