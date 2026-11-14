@@ -1,8 +1,8 @@
 From f33b4514cb06501cfd809a455a6b9d87a01f906b Mon Sep 17 00:00:00 2001
 From: JeanStiletto <JeanStiletto@users.noreply.github.com>
 Date: Sat, 14 Nov 2026 18:32:27 +0100
-Subject: [PATCH] Local patches for Accessible Arena / KOTOR mods: SEH-guarded
- initialize(), C17 pin
+Subject: [PATCH 1/2] Local patches for Accessible Arena / KOTOR mods:
+ SEH-guarded initialize(), C17 pin
 
 - backend.h: every initialize() (C API prism_backend_initialize and the
   registry's *_best() walks) runs inside __try/__except on Windows; a fault
@@ -94,6 +94,110 @@ index 30573be..2dd7f99 100644
      if (!result && result.error() != BackendError::AlreadyInitialized)
        return false;
      initialized_for_cache.test_and_set(std::memory_order_release);
+-- 
+2.54.0.windows.1
+
+
+From c2a0d09765e8237b03c1770dafca96a7491889f1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E6=9D=A8=E6=B0=B8=E5=85=A8?= <qt06.com@gmail.com>
+Date: Mon, 9 Nov 2026 08:28:26 +0800
+Subject: [PATCH 2/2] zdsr: Make the Braille export optional (#181)
+
+Some ZDSR API versions export the four speech functions (`InitTTS`,
+`Speak`, `GetSpeakState`, `StopSpeak`) but do not provide `Braille`.
+Requiring the Braille export prevented those versions from loading even
+though speech was available.
+
+Bind `Braille` independently from the required speech functions. The
+backend advertises `SUPPORTS_BRAILLE` only after initialization confirms
+the export; without it, direct Braille calls return
+`PRISM_ERROR_NOT_IMPLEMENTED`, while `output` continues with speech
+only. `get_features` no longer loads the DLL and only reports Braille
+support after initialization.
+
+Verified with an app-local test DLL exporting the four speech functions
+but no `Braille`: initialization succeeds, Braille is not advertised,
+direct Braille returns not-implemented, and speech-only output succeeds.
+With the installed API that exports Braille, `get_features` omits the
+feature before initialization and reports it after successful
+initialization. x64 and x86 builds pass, and clang-tidy reports no
+diagnostics for `zdsr.cpp`.
+
+Related PRs: #180 fixes optional DLL search precedence; #182 documents
+the ZDSR-specific Braille behavior together with the independent-channel
+readiness and process-probe behavior from #177 and #178.
+
+Signed-off-by: qt06 <qt06.com@gmail.com>
+(cherry picked from commit efd7e367efb69aeb05d052f3b6fefcee41e0160f)
+---
+ source/backends/zdsr.cpp | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/source/backends/zdsr.cpp b/source/backends/zdsr.cpp
+index 24fece5..d8bad3e 100644
+--- a/source/backends/zdsr.cpp
++++ b/source/backends/zdsr.cpp
+@@ -49,12 +49,12 @@ std::optional<Zdsr> load_zdsr() {
+   const bool complete = library.bind(api.InitTTS, "InitTTS") &&
+                         library.bind(api.Speak, "Speak") &&
+                         library.bind(api.GetSpeakState, "GetSpeakState") &&
+-                        library.bind(api.StopSpeak, "StopSpeak") &&
+-                        library.bind(api.Braille, "Braille");
++                        library.bind(api.StopSpeak, "StopSpeak");
+   if (!complete) {
+     log.debug(_T("{} is missing a function prism needs"), zdsr_dll);
+     return std::nullopt;
+   }
++  (void)library.bind(api.Braille, "Braille");
+   return api;
+ }
+ 
+@@ -67,6 +67,7 @@ const Zdsr *zdsr() {
+ class ZdsrBackend final : public TextToSpeechBackend {
+ private:
+   std::atomic_flag initialized;
++  std::atomic_flag braille_supported;
+   const Zdsr *api = nullptr;
+ 
+   [[nodiscard]] BackendResult<bool> query_speaking() const {
+@@ -115,7 +116,9 @@ public:
+       CloseHandle(snapshot);
+     }
+     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING |
+-                SUPPORTS_STOP | SUPPORTS_BRAILLE;
++                SUPPORTS_STOP;
++    if (braille_supported.test(std::memory_order_acquire))
++      features |= SUPPORTS_BRAILLE;
+     return features;
+   }
+ 
+@@ -129,6 +132,8 @@ public:
+       return std::unexpected(BackendError::BackendNotAvailable);
+     if (const auto state = query_speaking(); !state)
+       return std::unexpected(state.error());
++    if (api->Braille != nullptr)
++      braille_supported.test_and_set(std::memory_order_acq_rel);
+     initialized.test_and_set(std::memory_order_release);
+     return {};
+   }
+@@ -153,6 +158,8 @@ public:
+   BackendResult<> braille(std::string_view text) override {
+     if (!initialized.test(std::memory_order_acquire))
+       return std::unexpected(BackendError::NotInitialized);
++    if (!braille_supported.test(std::memory_order_acquire))
++      return std::unexpected(BackendError::NotImplemented);
+     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
+     std::wstring wstr;
+     wstr.resize(len);
+@@ -169,6 +176,8 @@ public:
+   BackendResult<> output(std::string_view text, bool interrupt) override {
+     if (const auto res = speak(text, interrupt); !res)
+       return res;
++    if (!braille_supported.test(std::memory_order_acquire))
++      return {};
+     if (const auto res = braille(text); !res)
+       return res;
+     return {};
 -- 
 2.54.0.windows.1
 

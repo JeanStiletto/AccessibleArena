@@ -47,6 +47,11 @@ The former third patch, resolving the ZDSR / PC-Talker / BoyPC client DLLs at ru
 through `/delayload`, is upstream since 0.18.3 (ethindp/prism#146), together with the Wine bridges
 below. `dumpbin /dependents` must still list none of those DLLs.
 
+One upstream fix from after 0.18.3 is cherry-picked on top: ethindp/prism#181 (commit efd7e36),
+which makes ZDSR's `Braille` export optional. 0.18.3 required it, so a ZDSR version without braille
+would not load at all and the user would drop to the Windows voice. Our 0.17.3 patch handled this
+the same way. Drop the cherry-pick once a Prism release contains #181.
+
 ## Linux: Wine bridges
 
 Since 0.18.3 the Windows `prism.dll` contains Orca, Speech Dispatcher and Spiel backends that work
