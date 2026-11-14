@@ -952,8 +952,16 @@ namespace AccessibleArena
                             continue;
 
                         string name = PrismInterop.FromUtf8(PrismInterop.prism_registry_name(_ctx, id));
-                        if (!string.IsNullOrEmpty(name))
-                            names.Add(name);
+                        if (string.IsNullOrEmpty(name))
+                            continue;
+
+                        // Prism 0.18.3 registers its Wine bridges on Windows too; they can only
+                        // ever speak under Wine, so the Windows picker leaves them out.
+                        if (!WineInterop.IsWine &&
+                            Array.Exists(LinuxBridgeBackends, b => string.Equals(b, name, StringComparison.OrdinalIgnoreCase)))
+                            continue;
+
+                        names.Add(name);
                     }
                     return names.ToArray();
                 }
