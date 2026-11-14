@@ -1003,6 +1003,10 @@ namespace AccessibleArena.Core.Models
             L.Format("SettingSpeechBackendUnavailable_Format", preferred, active);
         public static string SettingCriticalViaSystemVoice => L.Get("SettingCriticalViaSystemVoice");
         public static string SettingCriticalViaSystemVoiceDesc => L.Get("SettingCriticalViaSystemVoiceDesc");
+        public static string SettingSpeechRate => L.Get("SettingSpeechRate");
+        public static string SettingSpeechRateDesc => L.Get("SettingSpeechRateDesc");
+        public static string SettingSpeechRateValue(int rate) =>
+            rate == 0 ? L.Get("SettingSpeechRateDefault") : (rate > 0 ? "+" + rate : rate.ToString());
         public static string SettingUrgentSpeechVolume => L.Get("SettingUrgentSpeechVolume");
         public static string SettingUrgentSpeechVolumeDesc => L.Get("SettingUrgentSpeechVolumeDesc");
         public static string SettingVolumePercent(int percent) => L.Format("SettingVolumePercent_Format", percent);

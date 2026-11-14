@@ -7,6 +7,12 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
+  <!-- linux/install.sh builds the mod on the player's machine with -p:AaLinuxLocalBuild=true.
+       Such a build must not replace itself with a release DLL from the in-game updater. -->
+  <PropertyGroup Condition="'$(AaLinuxLocalBuild)' == 'true'">
+    <DefineConstants>$(DefineConstants);LINUX_LOCAL_BUILD</DefineConstants>
+  </PropertyGroup>
+
   <!-- Generate VersionInfo.g.cs so MelonInfo can use a const from Directory.Build.props -->
   <Target Name="GenerateVersionInfo" BeforeTargets="CoreCompile">
     <ItemGroup>
@@ -22,19 +28,24 @@
   <!-- Game install path - override MtgaPath in src/local.props (gitignored) if MTGA is installed elsewhere -->
   <Import Project="local.props" Condition="Exists('local.props')" />
   <PropertyGroup>
+    <!-- Linux: MTGA runs through Steam + Proton. Native Steam keeps its library in
+         ~/.local/share/Steam (older setups: ~/.steam/steam); Flatpak Steam in ~/.var/app. -->
+    <MtgaPath Condition="'$(MtgaPath)' == '' AND $([MSBuild]::IsOSPlatform('Linux')) AND Exists('$(HOME)/.local/share/Steam/steamapps/common/MTGA')">$(HOME)/.local/share/Steam/steamapps/common/MTGA</MtgaPath>
+    <MtgaPath Condition="'$(MtgaPath)' == '' AND $([MSBuild]::IsOSPlatform('Linux')) AND Exists('$(HOME)/.steam/steam/steamapps/common/MTGA')">$(HOME)/.steam/steam/steamapps/common/MTGA</MtgaPath>
+    <MtgaPath Condition="'$(MtgaPath)' == '' AND $([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/MTGA</MtgaPath>
     <MtgaPath Condition="'$(MtgaPath)' == ''">C:\Program Files\Wizards of the Coast\MTGA</MtgaPath>
-    <MtgaManagedPath>$(MtgaPath)\MTGA_Data\Managed</MtgaManagedPath>
-    <MelonLoaderPath>$(MtgaPath)\MelonLoader\net35</MelonLoaderPath>
+    <MtgaManagedPath>$(MtgaPath)/MTGA_Data/Managed</MtgaManagedPath>
+    <MelonLoaderPath>$(MtgaPath)/MelonLoader/net35</MelonLoaderPath>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- MelonLoader / Harmony -->
     <Reference Include="0Harmony">
-      <HintPath>$(MelonLoaderPath)\0Harmony.dll</HintPath>
+      <HintPath>$(MelonLoaderPath)/0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="MelonLoader">
-      <HintPath>$(MelonLoaderPath)\MelonLoader.dll</HintPath>
+      <HintPath>$(MelonLoaderPath)/MelonLoader.dll</HintPath>
       <Private>false</Private>
     </Reference>
 
@@ -43,81 +54,83 @@
 
     <!-- Unity -->
     <Reference Include="UnityEngine">
-      <HintPath>$(MtgaManagedPath)\UnityEngine.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/UnityEngine.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(MtgaManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.UI">
-      <HintPath>$(MtgaManagedPath)\UnityEngine.UI.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/UnityEngine.UI.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(MtgaManagedPath)\UnityEngine.IMGUIModule.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.UIModule">
-      <HintPath>$(MtgaManagedPath)\UnityEngine.UIModule.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/UnityEngine.UIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Unity.TextMeshPro">
-      <HintPath>$(MtgaManagedPath)\Unity.TextMeshPro.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Unity.TextMeshPro.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Unity.InputSystem">
-      <HintPath>$(MtgaManagedPath)\Unity.InputSystem.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Unity.InputSystem.dll</HintPath>
       <Private>false</Private>
     </Reference>
 
     <!-- MTGA game assemblies -->
     <Reference Include="Assembly-CSharp">
-      <HintPath>$(MtgaManagedPath)\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Core">
-      <HintPath>$(MtgaManagedPath)\Core.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Wizards.Arena.Models">
-      <HintPath>$(MtgaManagedPath)\Wizards.Arena.Models.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Wizards.Arena.Models.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Wizards.Arena.Enums">
-      <HintPath>$(MtgaManagedPath)\Wizards.Arena.Enums.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Wizards.Arena.Enums.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Wizards.Mtga.Metadata">
-      <HintPath>$(MtgaManagedPath)\Wizards.Mtga.Metadata.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Wizards.Mtga.Metadata.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Wizards.Mtga.Interfaces">
-      <HintPath>$(MtgaManagedPath)\Wizards.Mtga.Interfaces.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/Wizards.Mtga.Interfaces.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="ZFBrowser">
-      <HintPath>$(MtgaManagedPath)\ZFBrowser.dll</HintPath>
+      <HintPath>$(MtgaManagedPath)/ZFBrowser.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\lang\*.json" LogicalName="lang.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../lang/*.json" LogicalName="lang.%(Filename)%(Extension)" />
+    <!-- Linux speech bridge, written out and started by SpeechDispatcherOutput under Wine/Proton -->
+    <EmbeddedResource Include="../linux/speechd-bridge.py" LogicalName="linux.speechd-bridge.py" />
   </ItemGroup>
 
   <!-- Auto-deploy: copy built DLL to game Mods folder after each build -->
-  <Target Name="CopyToMods" AfterTargets="Build" Condition="'$(DeployToMtga)' != 'false' AND Exists('$(MtgaPath)\Mods')">
+  <Target Name="CopyToMods" AfterTargets="Build" Condition="'$(DeployToMtga)' != 'false' AND Exists('$(MtgaPath)/Mods')">
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll"
-          DestinationFolder="$(MtgaPath)\Mods\"
+          DestinationFolder="$(MtgaPath)/Mods/"
           SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="Deployed $(AssemblyName).dll to $(MtgaPath)\Mods\" />
+    <Message Importance="high" Text="Deployed $(AssemblyName).dll to $(MtgaPath)/Mods/" />
 
     <!-- Speech runtime. The installer ships this too; copying it here means a dev build alone
          produces a working install. A running game holds the file open, so a failure here is a
          warning rather than a build break. -->
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\third_party\prism\x64\prism.dll"
-          DestinationFolder="$(MtgaPath)\"
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../third_party/prism/x64/prism.dll"
+          DestinationFolder="$(MtgaPath)/"
           SkipUnchangedFiles="true"
           ContinueOnError="WarnAndContinue" />
   </Target>

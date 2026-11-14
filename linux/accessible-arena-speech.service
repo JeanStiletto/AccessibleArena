@@ -1,0 +1,12 @@
+[Unit]
+Description=Accessible Arena speech bridge (MTG Arena under Wine/Proton -> speech-dispatcher)
+Documentation=https://github.com/JeanStiletto/AccessibleArena/blob/main/docs/LINUX.md
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3 %h/.local/share/accessible-arena/speechd-bridge.py --host 127.0.0.1 --port 6560
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

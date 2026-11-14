@@ -60,9 +60,32 @@ namespace AccessibleArena.Core.Services
             public bool IsAction { get; set; }
             /// <summary>Optional short description of what this setting controls.</summary>
             public string Description { get; set; }
+            /// <summary>Optional Left/Right handler for stepped values: -1 = Left, +1 = Right.</summary>
+            public Action<int> Adjust { get; set; }
         }
 
         private List<SettingItem> BuildSettingItems()
+        {
+            var items = BuildCommonSettingItems();
+
+            // Speech rate only reaches speech-dispatcher; Windows screen readers keep their own.
+            if (ScreenReaderOutput.CanUseLinuxSpeech)
+            {
+                int index = items.FindIndex(i => i.Name == Strings.SettingSpeechBackend);
+                items.Insert(index + 1, new SettingItem
+                {
+                    Name = Strings.SettingSpeechRate,
+                    GetValue = () => Strings.SettingSpeechRateValue(_settings.SpeechRate),
+                    Toggle = () => StepSpeechRate(1, wrap: true),
+                    Adjust = step => StepSpeechRate(step, wrap: false),
+                    Description = Strings.SettingSpeechRateDesc
+                });
+            }
+
+            return items;
+        }
+
+        private List<SettingItem> BuildCommonSettingItems()
         {
             return new List<SettingItem>
             {
@@ -246,6 +269,25 @@ namespace AccessibleArena.Core.Services
                     $"Speech backend preference set to '{next}' (applied: {applied}, active: {ScreenReaderOutput.GetActiveScreenReader()})");
         }
 
+        private const int SpeechRateStep = 10;
+        private const int SpeechRateLimit = 100;
+
+        /// <summary>
+        /// Moves the speech-dispatcher rate one step. Left/Right stop at the ends; Enter steps
+        /// faster and wraps from the fastest to the slowest.
+        /// </summary>
+        private void StepSpeechRate(int direction, bool wrap)
+        {
+            int next = _settings.SpeechRate + direction * SpeechRateStep;
+            if (next > SpeechRateLimit)
+                next = wrap ? -SpeechRateLimit : SpeechRateLimit;
+            else if (next < -SpeechRateLimit)
+                next = -SpeechRateLimit;
+
+            _settings.SpeechRate = next;
+            ScreenReaderOutput.SetSpeechRate(next);
+        }
+
         /// <summary>Steps the system-voice volume down in tenths, wrapping from 10% back to 100%.</summary>
         private void CycleUrgentVolume()
         {
@@ -369,6 +411,14 @@ namespace AccessibleArena.Core.Services
                 return true;
             }
 
+            // Left/Right: step a stepped value (speech rate), read back the new value only
+            bool left = KeyInput.GetKeyDown(KeyCode.LeftArrow);
+            if (left || KeyInput.GetKeyDown(KeyCode.RightArrow))
+            {
+                AdjustCurrentSetting(left ? -1 : 1);
+                return true;
+            }
+
             // Up arrow: previous item
             if (KeyInput.GetKeyDown(KeyCode.UpArrow))
             {
@@ -423,6 +473,19 @@ namespace AccessibleArena.Core.Services
                 _announcer.AnnounceInterrupt(announcement);
                 Log.Msg("ModSettingsNavigator", $"{item.Name} set to {newValue}");
             }
+        }
+
+        private void AdjustCurrentSetting(int direction)
+        {
+            if (_currentIndex < 0 || _currentIndex >= _items.Count) return;
+
+            var item = _items[_currentIndex];
+            if (item.Adjust == null) return;
+
+            item.Adjust(direction);
+            string newValue = item.GetValue();
+            _announcer.AnnounceInterrupt(newValue);
+            Log.Msg("ModSettingsNavigator", $"{item.Name} set to {newValue}");
         }
 
         #region Dropdown Mode (Language Picker)
