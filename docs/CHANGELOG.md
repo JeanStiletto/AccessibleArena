@@ -2,6 +2,18 @@
 
 All notable changes to Accessible Arena.
 
+## v1.6.5
+
+<h3>Overview</h3>
+
+- The challenge invite popup reads already-invited players and the "Recent opponents" list again after the November 2026 game update.
+
+<h3>Details</h3>
+
+**Challenge invite (November 2026 game update):**
+
+- The game rebuilt the challenge invite popup on a new shared base class for invite windows. The entry for an already-invited player was renamed (InviteWindowEntityInvited) and the recent-opponents dropdown moved to the base class under a new name, so invited players and the dropdown's label went silent. Both are read again. The dropdown is now found on any invite popup built on that base.
+
 ## v1.6.4
 
 <h3>Overview</h3>

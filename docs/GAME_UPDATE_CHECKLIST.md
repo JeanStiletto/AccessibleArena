@@ -79,6 +79,26 @@ Both write to `llm-docs/api-baseline/` and `llm-docs/decompiled/`, which are git
 they are derived game metadata and stay local. A fresh clone has no baseline until the first
 `-UpdateBaseline` run.
 
+### 4b. New screens: what the checks cannot see
+
+The name checks only cover what the mod already binds to. A new feature shows up as new types
+(section 5 lists added members only for tracked types). To find and read new screens:
+
+```
+ilspycmd "<MTGA>\MTGA_Data\Managed\Core.dll" -l cisde      # every type, to grep for new namespaces
+py tools/dump-prefab.py --find <ScriptName>                  # which prefab bundles carry a script
+py tools/dump-prefab.py "<MTGA>\MTGA_Data\Downloads\AssetBundle\Bucket_Prefab.<Name>Prefab_0_*.mtga"
+```
+
+The dumper prints each prefab's object tree with component types and texts, no game launch needed.
+Run it with plain `py` (not `py -I`): UnityPy is a per-user package.
+
+Also check whether a new screen is live at all: grep the decompiled code for
+`GetToggleValueById("...")` and Player.log for feature messages. Seen with the November 2026 client:
+the whole SocialV2 system (new blade, Discord, Gatherings) shipped behind the `SocialBladeV2Status`
+and `SocialGatheringStatus` server switches, and its Gathering page prefabs were not downloadable
+yet.
+
 ### 5. Optional context: player-facing patch notes
 
 ```

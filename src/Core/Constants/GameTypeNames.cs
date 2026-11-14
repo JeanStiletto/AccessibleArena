@@ -103,9 +103,12 @@ namespace AccessibleArena.Core.Constants
         public const string BlockTile = "BlockTile";
         public const string IncomingChallengeRequestTile = "IncomingChallengeRequestTile";
         public const string CurrentChallengeTile = "CurrentChallengeTile";
-        public const string ChallengeInviteWindowPopup = "ChallengeInviteWindowPopup";
+        // Since the Nov 2026 update, invite popups share InviteWindowPopupBase (ChallengeInviteWindowPopup and
+        // others derive from it); the read-only "invited" entry was renamed from
+        // ChallengeInviteWindowEntityInvited to InviteWindowEntityInvited.
+        public const string InviteWindowPopupBase = "InviteWindowPopupBase";
         public const string ChallengeInviteWindowEntityPlayer = "ChallengeInviteWindowEntityPlayer";
-        public const string ChallengeInviteWindowEntityInvited = "ChallengeInviteWindowEntityInvited";
+        public const string InviteWindowEntityInvited = "InviteWindowEntityInvited";
         public const string FriendsWidget = "FriendsWidget";
         public const string ChatWindow = "ChatWindow";
         public const string ChatManager = "ChatManager";

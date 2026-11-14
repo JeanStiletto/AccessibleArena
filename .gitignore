@@ -59,6 +59,7 @@ tools/*
 # ...and the game-update regression workflow
 !tools/check-game-update.ps1
 !tools/patch-notes.ps1
+!tools/dump-prefab.py
 
 # Logs
 logs/

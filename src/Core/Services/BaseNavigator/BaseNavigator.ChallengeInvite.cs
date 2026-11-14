@@ -16,7 +16,7 @@ namespace AccessibleArena.Core.Services
     {
         /// <summary>
         /// Discovers challenge-invite friend tiles (ChallengeInviteWindowEntityPlayer)
-        /// and already-invited entries (ChallengeInviteWindowEntityInvited). Friend tiles
+        /// and already-invited entries (InviteWindowEntityInvited). Friend tiles
         /// become navigable Toggle elements whose activation flips the game's _inviteToggle
         /// (triggering OnInviteToggleChanged → Player.Invited = true). Already-invited
         /// entries become read-only text blocks.
@@ -28,7 +28,7 @@ namespace AccessibleArena.Core.Services
             foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
             {
                 if (mb == null || !mb.gameObject.activeInHierarchy) continue;
-                if (mb.GetType().Name != T.ChallengeInviteWindowEntityInvited) continue;
+                if (mb.GetType().Name != T.InviteWindowEntityInvited) continue;
 
                 string playerName = GetChallengeInvitePlayerName(mb);
                 if (string.IsNullOrEmpty(playerName)) continue;
@@ -102,7 +102,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// Reads Player.PlayerName via reflection from a ChallengeInviteWindowEntityPlayer
-        /// or ChallengeInviteWindowEntityInvited component.
+        /// or InviteWindowEntityInvited component.
         /// </summary>
         private static string GetChallengeInvitePlayerName(MonoBehaviour tile)
         {
@@ -129,7 +129,7 @@ namespace AccessibleArena.Core.Services
 
         /// <summary>
         /// True if a transform is inside a ChallengeInviteWindowEntityPlayer or
-        /// ChallengeInviteWindowEntityInvited tile - used so text block discovery
+        /// InviteWindowEntityInvited tile - used so text block discovery
         /// doesn't duplicate the player name TMP_Text child.
         /// </summary>
         private static bool IsInsideChallengeInviteTile(Transform child, Transform stopAt)
@@ -142,7 +142,7 @@ namespace AccessibleArena.Core.Services
                     if (mb == null) continue;
                     string typeName = mb.GetType().Name;
                     if (typeName == T.ChallengeInviteWindowEntityPlayer ||
-                        typeName == T.ChallengeInviteWindowEntityInvited)
+                        typeName == T.InviteWindowEntityInvited)
                         return true;
                 }
                 current = current.parent;
@@ -170,22 +170,29 @@ namespace AccessibleArena.Core.Services
         }
 
         /// <summary>
-        /// Returns the _recentChallengesDropDown GameObject from a ChallengeInviteWindowPopup,
-        /// or null if this popup is not a ChallengeInviteWindowPopup.
+        /// Returns the recent-invitees dropdown (_recentInviteesDropDown, declared on
+        /// InviteWindowPopupBase) from any invite popup deriving from that base -
+        /// ChallengeInviteWindowPopup and its siblings. Null if this popup is not one.
         /// </summary>
         private static GameObject GetChallengeInviteRecentDropdown(GameObject popup)
         {
             if (popup == null) return null;
             foreach (var mb in popup.GetComponentsInChildren<MonoBehaviour>(true))
             {
-                if (mb == null) continue;
-                if (mb.GetType().Name != T.ChallengeInviteWindowPopup) continue;
+                if (mb == null || !IsInviteWindowPopup(mb.GetType())) continue;
 
-                var field = mb.GetType().GetField("_recentChallengesDropDown", AllInstanceFlags);
+                var field = ReflectionWalk.FindField(mb.GetType(), "_recentInviteesDropDown", AllInstanceFlags);
                 var dropdown = field?.GetValue(mb) as MonoBehaviour;
                 return dropdown?.gameObject;
             }
             return null;
+        }
+
+        private static bool IsInviteWindowPopup(Type type)
+        {
+            for (var t = type; t != null && t != typeof(MonoBehaviour); t = t.BaseType)
+                if (t.Name == T.InviteWindowPopupBase) return true;
+            return false;
         }
 
         /// <summary>

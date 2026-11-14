@@ -253,6 +253,12 @@ See `docs/investigations/unsupported-events.md`.
 | UnifiedChallengeDisplay | UnifiedChallengeDisplay | Core |
 | ChallengePlayerDisplay | Wizards.Mtga.PrivateGame.ChallengePlayerDisplay | Core |
 | UnifiedChallengeBladeWidget | UnifiedChallengeBladeWidget | Core |
+| ChallengeInviteWindowPopup | Wizards.Mtga.UnifiedChallenges.ChallengeInviteWindowPopup | Core |
+| InviteWindowPopupBase | Core.Meta.MainNavigation.PopoutMenu.Invites.InviteWindowPopupBase | Core |
+| ChallengeInviteWindowEntityPlayer | Core.Meta.MainNavigation.PopoutMenu.Challenges.ChallengeInviteWindowEntityPlayer | Core |
+| InviteWindowEntityInvited | Core.Meta.MainNavigation.PopoutMenu.Challenges.InviteWindowEntityInvited | Core |
+| InviteWindowPlayer | Core.Meta.MainNavigation.PopoutMenu.Challenges.InviteWindowPlayer | Core |
+| InviteWindowPlayerData | Core.Meta.MainNavigation.PopoutMenu.Challenges.InviteWindowPlayerData | Core |
 
 ## Duel Scene
 
