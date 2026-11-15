@@ -1547,10 +1547,7 @@ namespace AccessibleArena.Core.Services
 
         private static bool IsDismissOverlay(GameObject obj)
         {
-            string name = obj.name.ToLower();
-            return name.Contains("background") || name.Contains("overlay") ||
-                   name.Contains("backdrop") || name.Contains("dismiss") ||
-                   name.Contains("shield");
+            return PopupButtonFilter.IsDismissOverlay(obj.name);
         }
 
         /// <summary>
