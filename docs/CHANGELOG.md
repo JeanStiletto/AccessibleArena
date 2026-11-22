@@ -2,6 +2,18 @@
 
 All notable changes to Accessible Arena.
 
+## v1.6.6
+
+<h3>Overview</h3>
+
+- The mastery pass can be bought again: the purchase popup offers its real purchase button instead of only buttons that close it.
+
+<h3>Details</h3>
+
+**Store - Mastery pass purchase:**
+
+- Fixed by lilmike (PR #129). The purchase popup (BattlePassPurchaseConfirmation) has two invisible edge buttons, TopFade and BottomFade, that only close it. They have no text of their own, so the mod borrowed a label from the neighbouring content pane, and the first text there is the gem price on the purchase button. TopFade sits higher on screen, so it was listed first as "3400" and the real purchase button with the same label was dropped as a duplicate. Every reachable button closed the popup. Popup discovery now skips these edge fades before removing duplicates, using the same TopFade/BottomFade name list the menu navigation already filters. The popup's code is unchanged; its layout changed with a game update around late October 2026, which made the price the first text the fades pick up.
+
 ## v1.6.5
 
 <h3>Overview</h3>

@@ -38,9 +38,30 @@ namespace AccessibleArena.Core.Services
         // Simple name patterns that always filter (case-insensitive Contains check)
         private static readonly string[] FilteredContainsPatterns = new[]
         {
-            "blocker", "navpip", "pip_", "button_base", "viewport",
+            "blocker", "navpip", "pip_", "button_base", "viewport"
+        };
+
+        // Edge fades that close a menu or popup when clicked (case-insensitive Contains check).
+        // Shared with popup discovery via IsFadeOverlayName.
+        private static readonly string[] FadeOverlayPatterns = new[]
+        {
             "topfade", "bottomfade", "top_fade", "bottom_fade"
         };
+
+        /// <summary>
+        /// True for top/bottom edge fades (TopFade, BottomFade, ...). These are click-outside
+        /// dismiss buttons, never content.
+        /// </summary>
+        public static bool IsFadeOverlayName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            foreach (var pattern in FadeOverlayPatterns)
+            {
+                if (ContainsIgnoreCase(name, pattern))
+                    return true;
+            }
+            return false;
+        }
 
         // Exact names that always filter (case-insensitive Equals check)
         private static readonly HashSet<string> FilteredExactNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
@@ -1116,6 +1137,9 @@ namespace AccessibleArena.Core.Services
                 if (ContainsIgnoreCase(name, pattern))
                     return true;
             }
+
+            if (IsFadeOverlayName(name))
+                return true;
 
             // Conditional filters that require additional checks:
 

@@ -1547,7 +1547,15 @@ namespace AccessibleArena.Core.Services
 
         private static bool IsDismissOverlay(GameObject obj)
         {
-            return PopupButtonFilter.IsDismissOverlay(obj.name);
+            string name = obj.name.ToLowerInvariant();
+            return name.Contains("background") || name.Contains("overlay") ||
+                   name.Contains("backdrop") || name.Contains("dismiss") ||
+                   name.Contains("shield") ||
+                   // Edge fades (BattlePassPurchaseConfirmation's TopFade/BottomFade) only close the
+                   // popup. They carry no text, so the sibling-label fallback hands them the first text
+                   // in the content pane — the mastery pass price — and the real purchase button was then
+                   // dropped as a duplicate label. Filter them before deduplication (PR #129).
+                   UIElementClassifier.IsFadeOverlayName(obj.name);
         }
 
         /// <summary>
