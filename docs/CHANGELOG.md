@@ -10,6 +10,7 @@ All notable changes to Accessible Arena.
 - Enter on a card Tab found on top of your library now plays it, as D then Enter already did.
 - Tab now announces the opponent's graveyard and exile cards in their own zone instead of only by name.
 - Older ZDSR versions speak through ZDSR again instead of falling back to the Windows voice.
+- Confirming a card selection (discard, sacrifice, choose cards) during your main phase takes one Space press again instead of first warning about available mana.
 
 <h3>Details</h3>
 
@@ -21,6 +22,10 @@ All notable changes to Accessible Arena.
 
 - Reported by Daggershade (issue #130). With a card like Traveling Chocobo on the battlefield, which lets you play the top card of your library, Tab found that card but Enter only said "Selected" and never played it. Going to the library with D and pressing Enter worked. The Tab navigator works out a card's zone from the names of its parent objects and knew Hand, Stack, Battlefield, Graveyard and Exile, but not Library, so the card counted as "Unknown" and got a single click, which the game ignores for a library card. Tab now recognises your library and command zone and plays those cards through the same play routine as the hand and the D and W keys, which double-clicks library cards and reports "could not play" if nothing happens. While the game is asking you to choose cards, Enter on them still selects or deselects them. Playable library cards now come right after the hand cards in the Tab order. A castable commander is not affected: the game moves it into the hand area, so Tab and W already played it as a hand card.
 - Tab now looks up the opponent's graveyard, exile, library and command cards in the opponent's zones. Before, it looked in your own zones, missed, and just said the card name, for example when you could target a card in the opponent's graveyard.
+
+**Duel - Phase skip warning and card selections:**
+
+- With the phase skip warning on, choosing cards in your hand or on the battlefield during your own main phase (discard, sacrifice and similar prompts) said "Mana available. Press Space again to pass." on the first Space, and only the second Space submitted the selection. The warning only checked for your main phase and an untapped land, not what Space was about to do. It now stays quiet while the game shows a counted selection button, because Space then submits the selection and does not pass. The warning before passing with untapped lands, the warning before declaring no blocks, and the double-press guards in multi-zone browsers and on declining "may" triggers are unchanged.
 
 **Speech - ZDSR:**
 

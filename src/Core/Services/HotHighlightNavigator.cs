@@ -1692,7 +1692,7 @@ namespace AccessibleArena.Core.Services
         /// Selection mode is detected by a Submit button showing a count AND
         /// no valid targets on battlefield/stack (to distinguish from targeting mode).
         /// </summary>
-        private bool IsSelectionModeActive()
+        internal bool IsSelectionModeActive()
         {
             var buttonInfo = GetSubmitButtonInfo();
             if (buttonInfo == null)

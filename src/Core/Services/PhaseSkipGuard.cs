@@ -52,6 +52,15 @@ namespace AccessibleArena.Core.Services
         public static void SetModalNavigatorCheck(Func<bool> check) => _isModalNavigatorActive = check;
 
         /// <summary>
+        /// Sets a callback that returns true when an in-place selection prompt (discard,
+        /// sacrifice, choose cards in hand or on the battlefield) is up, i.e. the primary
+        /// prompt button is a counted submit rather than a pass. Space then submits the
+        /// selection, so the mana warning must not fire.
+        /// </summary>
+        public static void SetSelectionPromptCheck(Func<bool> check) => _isSelectionPromptActive = check;
+        private static Func<bool> _isSelectionPromptActive;
+
+        /// <summary>
         /// Per-frame release poll. Must be called every frame (from OnUpdate) so
         /// `_waitingForRelease` clears even when none of the hook-driven paths
         /// (PublishKeyUp, SendSubmit, GetKeyDown) happen to fire on the release frame.
@@ -183,6 +192,12 @@ namespace AccessibleArena.Core.Services
             // Main phase + user turn + untapped lands
             if ((phase == "Main1" || phase == "Main2") && duelAnnouncer.IsUserTurn)
             {
+                // A selection prompt's Space submits the selection, it doesn't pass
+                // priority — nothing to warn about. Only the mana warning is exempted;
+                // the declare-blockers context below keeps its own rules.
+                if (_isSelectionPromptActive?.Invoke() == true)
+                    return null;
+
                 if (HasUntappedPlayerLands())
                 {
                     return new GuardContext
