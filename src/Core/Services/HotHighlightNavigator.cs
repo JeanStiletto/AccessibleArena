@@ -672,7 +672,7 @@ namespace AccessibleArena.Core.Services
 
             // Sort: Hand cards first, then your permanents, then opponent's, then players
             _items = _items
-                .OrderBy(i => i.Zone == "Hand" ? 0 : 1)
+                .OrderBy(i => IsPlayFromZone(i) ? 0 : 1)
                 .ThenBy(i => i.IsPlayer ? 1 : 0)
                 .ThenBy(i => i.IsOpponent ? 1 : 0)
                 .ThenBy(i => i.GameObject?.transform.position.x ?? 0)
@@ -750,7 +750,7 @@ namespace AccessibleArena.Core.Services
         private static (int zone, int player, int opponent) GetSortKey(HighlightedItem item)
         {
             return (
-                item.Zone == "Hand" ? 0 : 1,
+                IsPlayFromZone(item) ? 0 : 1,
                 item.IsPlayer ? 1 : 0,
                 item.IsOpponent ? 1 : 0
             );
@@ -1138,7 +1138,7 @@ namespace AccessibleArena.Core.Services
             }
 
             // Non-battlefield zones (Hand, Stack, Graveyard, Exile) or battlefield fallback
-            var zoneType = StringToZoneType(item.Zone);
+            var zoneType = ToZoneType(item);
             if (_zoneNavigator.NavigateToSpecificCard(zoneType, item.GameObject, zoneChanged))
             {
                 _lastItemZone = item.Zone;
@@ -1186,7 +1186,9 @@ namespace AccessibleArena.Core.Services
             int preClickCount = selectionMode ? (GetSubmitButtonInfo()?.count ?? -1) : -1;
             Log.Msg("HotHighlightNavigator", $"Activating: {item.Name} in {item.Zone} (selection mode: {selectionMode})");
 
-            if (item.Zone == "Hand")
+            // Library/command cards in selection mode (e.g. choosing a revealed card) fall
+            // through to the generic click-to-toggle branch below; only hand cards toggle here.
+            if (item.Zone == "Hand" || (!selectionMode && IsPlayFromZone(item)))
             {
                 if (selectionMode)
                 {
@@ -1331,6 +1333,11 @@ namespace AccessibleArena.Core.Services
                     return "Graveyard";
                 if (name.Contains("Exile"))
                     return "Exile";
+                // Top-of-library plays (Traveling Chocobo, Future Sight, ...) and commanders
+                if (name.Contains("Library"))
+                    return "Library";
+                if (name.Contains("Command"))
+                    return "Command";
 
                 current = current.parent;
             }
@@ -1409,17 +1416,32 @@ namespace AccessibleArena.Core.Services
         /// <summary>
         /// Converts zone string to ZoneType enum.
         /// </summary>
-        private ZoneType StringToZoneType(string zone)
+        private static ZoneType ToZoneType(HighlightedItem item)
         {
-            return zone switch
+            bool opp = item.IsOpponent;
+            return item.Zone switch
             {
                 "Hand" => ZoneType.Hand,
                 "Battlefield" => ZoneType.Battlefield,
                 "Stack" => ZoneType.Stack,
-                "Graveyard" => ZoneType.Graveyard,
-                "Exile" => ZoneType.Exile,
+                "Graveyard" => opp ? ZoneType.OpponentGraveyard : ZoneType.Graveyard,
+                "Exile" => opp ? ZoneType.OpponentExile : ZoneType.Exile,
+                "Library" => opp ? ZoneType.OpponentLibrary : ZoneType.Library,
+                "Command" => opp ? ZoneType.OpponentCommand : ZoneType.Command,
                 _ => ZoneType.Battlefield
             };
+        }
+
+        /// <summary>
+        /// Cards Enter should play (cast / land drop) rather than click: hand cards, plus your
+        /// own library-top and command-zone cards. Mirrors ZoneNavigator.ActivateCurrentCard,
+        /// which plays Hand/Command/Library through UIActivator.PlayCard - a single click on a
+        /// library card only selects it and the game never plays it (issue #130).
+        /// </summary>
+        private static bool IsPlayFromZone(HighlightedItem item)
+        {
+            return item.Zone == "Hand"
+                || (!item.IsOpponent && (item.Zone == "Library" || item.Zone == "Command"));
         }
 
         /// <summary>

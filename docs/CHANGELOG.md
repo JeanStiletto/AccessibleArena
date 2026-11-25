@@ -7,12 +7,24 @@ All notable changes to Accessible Arena.
 <h3>Overview</h3>
 
 - The mastery pass can be bought again: the purchase popup offers its real purchase button instead of only buttons that close it.
+- Enter on a card Tab found on top of your library now plays it, as D then Enter already did.
+- Tab now announces the opponent's graveyard and exile cards in their own zone instead of only by name.
+- Older ZDSR versions speak through ZDSR again instead of falling back to the Windows voice.
 
 <h3>Details</h3>
 
 **Store - Mastery pass purchase:**
 
 - Fixed by lilmike (PR #129). The purchase popup (BattlePassPurchaseConfirmation) has two invisible edge buttons, TopFade and BottomFade, that only close it. They have no text of their own, so the mod borrowed a label from the neighbouring content pane, and the first text there is the gem price on the purchase button. TopFade sits higher on screen, so it was listed first as "3400" and the real purchase button with the same label was dropped as a duplicate. Every reachable button closed the popup. Popup discovery now skips these edge fades before removing duplicates, using the same TopFade/BottomFade name list the menu navigation already filters. The popup's code is unchanged; its layout changed with a game update around late October 2026, which made the price the first text the fades pick up.
+
+**Duel - Tab and playing from the library:**
+
+- Reported by Daggershade (issue #130). With a card like Traveling Chocobo on the battlefield, which lets you play the top card of your library, Tab found that card but Enter only said "Selected" and never played it. Going to the library with D and pressing Enter worked. The Tab navigator works out a card's zone from the names of its parent objects and knew Hand, Stack, Battlefield, Graveyard and Exile, but not Library, so the card counted as "Unknown" and got a single click, which the game ignores for a library card. Tab now recognises your library and command zone and plays those cards through the same play routine as the hand and the D and W keys, which double-clicks library cards and reports "could not play" if nothing happens. While the game is asking you to choose cards, Enter on them still selects or deselects them. Playable library cards now come right after the hand cards in the Tab order. A castable commander is not affected: the game moves it into the hand area, so Tab and W already played it as a hand card.
+- Tab now looks up the opponent's graveyard, exile, library and command cards in the opponent's zones. Before, it looked in your own zones, missed, and just said the card name, for example when you could target a card in the opponent's graveyard.
+
+**Speech - ZDSR:**
+
+- Prism 0.18.3, which came with v1.6.5, required ZDSR's braille function, so ZDSR versions without it failed to load and speech fell back to the Windows voice. The mod's earlier patch had made that function optional. The upstream Prism fix (ethindp/prism#181) is now included in the shipped `prism.dll`, so older ZDSR versions speak again and only lose braille. The v1.6.5 release downloads were already replaced with this fixed build; v1.6.6 includes it in a tagged release.
 
 ## v1.6.5
 
