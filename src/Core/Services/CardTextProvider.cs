@@ -168,7 +168,7 @@ namespace AccessibleArena.Core.Services
                 object result = args != null ? _getAbilityTextMethod.Invoke(_abilityTextProvider, args) : null;
 
                 string text = result?.ToString();
-                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$") && !text.StartsWith("#") && !text.StartsWith("Ability #") && !text.Contains("Unknown"))
+                if (!IsPlaceholderLocText(text) && !text.StartsWith("Ability #") && !text.Contains("Unknown"))
                 {
                     if (!_loggedAbilityText.TryGetValue(abilityId, out var prevText))
                     {
@@ -489,14 +489,24 @@ namespace AccessibleArena.Core.Services
                 }
 
                 var text = result as string;
-                if (!string.IsNullOrEmpty(text) && !text.StartsWith("$"))
-                    return text;
-                return null;
+                return IsPlaceholderLocText(text) ? null : text;
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// True for empty strings and the loc table's non-text sentinels: "$"-prefixed
+        /// unresolved keys and "#"-prefixed markers such as "#NoTranslationNeeded", which
+        /// tokens/emblems (e.g. The Ring emblem) carry in fields they have no text for.
+        /// </summary>
+        internal static bool IsPlaceholderLocText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return true;
+            string t = text.TrimStart();
+            return t[0] == '$' || t[0] == '#';
         }
 
         /// <summary>

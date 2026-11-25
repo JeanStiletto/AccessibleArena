@@ -11,6 +11,7 @@ All notable changes to Accessible Arena.
 - Tab now announces the opponent's graveyard and exile cards in their own zone instead of only by name.
 - Older ZDSR versions speak through ZDSR again instead of falling back to the Windows voice.
 - Confirming a card selection (discard, sacrifice, choose cards) during your main phase takes one Space press again instead of first warning about available mana.
+- Emblems such as The Ring no longer read out a "no translation needed" line.
 
 <h3>Details</h3>
 
@@ -26,6 +27,10 @@ All notable changes to Accessible Arena.
 **Duel - Phase skip warning and card selections:**
 
 - With the phase skip warning on, choosing cards in your hand or on the battlefield during your own main phase (discard, sacrifice and similar prompts) said "Mana available. Press Space again to pass." on the first Space, and only the second Space submitted the selection. The warning only checked for your main phase and an untapped land, not what Space was about to do. It now stays quiet while the game shows a counted selection button, because Space then submits the selection and does not pass. The warning before passing with untapped lands, the warning before declaring no blocks, and the double-press guards in multi-zone browsers and on declining "may" triggers are unchanged.
+
+**Duel - Card info placeholders:**
+
+- An opponent's The Ring emblem in the command zone read a line saying "no translation needed". The game's text table fills fields that have no text, such as an emblem's subtype or flavor text, with the placeholder "#NoTranslationNeeded". The mod already discarded such placeholders for ability text, but the shared lookup used for card names, type lines, subtypes, flavor text and chosen values only discarded "$"-prefixed keys. Both lookups now use one check that discards empty text and anything starting with "$" or "#", so the line is skipped or falls back to the English type line.
 
 **Speech - ZDSR:**
 
